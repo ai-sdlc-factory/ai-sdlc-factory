@@ -1,11 +1,17 @@
 # Factory Controller
 
+[Project overview](../../README.md) | [Infrastructure](../../infra/README.md)
+
 FastAPI receives signed Forgejo webhooks and starts a Temporal workflow for each
-delivery. A separate worker records a receipt with the event type, repository,
-action, and Git ref. The full JSON payload is stored in Temporal workflow history.
-Agent execution and repository changes will be added later.
+delivery. The `controller-api` and `controller-worker` Compose services share this
+package but run as separate processes. The worker records a receipt with the event
+type, repository, action, and Git ref. The full payload is stored in Temporal
+workflow history. Agent execution and repository changes will be added later.
 
 ## Run
+
+Complete the [infrastructure setup](../../infra/README.md#start) first. Paths below
+are relative to the repository root.
 
 Set `FORGEJO_WEBHOOK_SECRET` in `infra/.env` to at least 32 characters
 (`openssl rand -hex 32`). Keep this secret out of Git and use the same value in
@@ -48,6 +54,8 @@ in Forgejo's webhook host list; recreate Forgejo with the command above to apply
 A valid delivery returns `202` with a `workflow_id`. Find that ID in
 http://localhost:8080 under namespace `default`. The worker completes the receipt
 workflow; acceptance does not mean that any engineering work has been performed.
+
+## Delivery behavior
 
 The API verifies `X-Forgejo-Signature` as HMAC-SHA256 over the exact request bytes.
 It requires `X-Forgejo-Event`, a UUID `X-Forgejo-Delivery`, and a JSON object.
