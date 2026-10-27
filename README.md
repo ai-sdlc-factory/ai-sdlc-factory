@@ -14,11 +14,12 @@ cp -n .env.example .env  # Keep an existing .env
 chmod 600 .env
 ```
 
-Set the four passwords in `.env` and choose a pgAdmin login email.
+Set the four passwords and `FORGEJO_WEBHOOK_SECRET` (at least 32 characters)
+in `.env`, and choose a pgAdmin login email.
 Generate passwords with `openssl rand -hex 24`. The `.env` file is ignored by Git.
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 docker compose ps -a
 ```
 
@@ -35,6 +36,7 @@ The first start initializes the databases. `temporal-schema` and
 | Mailpit inbox | http://localhost:8025 (SMTP: port `1025`) |
 | Temporal | `localhost:7233` (gRPC) |
 | Temporal UI | http://localhost:8080 |
+| Controller API | http://localhost:8000/docs |
 
 Host ports can be changed in `infra/.env`. All published ports bind to localhost.
 This is a local development stack; Temporal and Mailpit have no authentication.
@@ -55,6 +57,10 @@ externally. No login is needed. Messages persist across restarts; the newest
 Configuration > SMTP Mailer Configuration**.
 
 **Temporal:** use namespace `default`. Closed workflows have seven-day retention.
+
+**Controller:** receives signed Forgejo webhooks and records them through a
+Temporal worker. See [controller setup](services/factory-controller/README.md)
+for the webhook URL, secret configuration, and tests.
 
 ## Connecting applications
 
