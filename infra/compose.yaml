@@ -159,9 +159,9 @@ services:
       - "127.0.0.1:${TEMPORAL_UI_PORT:-8080}:8080"
 
   controller-api:
-    image: dev-foundry/controller:local
+    image: dev-foundry/controller-api:local
     build:
-      context: ../services/factory-controller
+      context: ../services/factory-controller-api
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -182,9 +182,9 @@ services:
       start_period: 15s
 
   controller-worker:
-    image: dev-foundry/controller:local
+    image: dev-foundry/controller-worker:local
     build:
-      context: ../services/factory-controller
+      context: ../services/factory-controller-worker
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -194,8 +194,25 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
-    command: ["python", "-m", "factory_controller.worker"]
     stop_grace_period: 30s
+
+  controller-integration-tests:
+    image: dev-foundry/controller-integration-tests:local
+    build:
+      context: ../tests/integration
+    profiles: ["test"]
+    restart: "no"
+    depends_on:
+      controller-api:
+        condition: service_healthy
+      controller-worker:
+        condition: service_started
+    environment:
+      CONTROLLER_TEST_URL: http://controller-api:8000
+      TEMPORAL_TEST_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      TEMPORAL_TEST_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
+
 
 volumes:
   postgres-data:

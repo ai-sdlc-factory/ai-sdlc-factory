@@ -1,6 +1,6 @@
 # Infrastructure
 
-[Project overview](../README.md) | [Factory controller](../services/factory-controller/README.md)
+[Project overview](../README.md) | [Controller API](../services/factory-controller-api/README.md) | [Worker](../services/factory-controller-worker/README.md)
 
 Local Compose stack for WSL. Service definitions and image versions live in
 [compose.yaml](compose.yaml); shared settings are listed in [.env.example](.env.example).
@@ -27,6 +27,10 @@ docker compose up -d --build
 docker compose ps -a
 ```
 
+The API and worker build separate images from their own service directories.
+Full pipeline tests are available through the optional
+[test profile](../tests/integration/README.md).
+
 The first start initializes the databases. `temporal-schema` and
 `temporal-namespace` should exit with code `0`; the other services keep running.
 
@@ -41,6 +45,7 @@ The first start initializes the databases. `temporal-schema` and
 | Temporal | `localhost:7233` (gRPC) |
 | Temporal UI | http://localhost:8080 |
 | Controller API | http://localhost:8000/docs |
+| Controller worker | Temporal task queue; no HTTP port |
 
 Host ports can be changed in `.env`. All published ports bind to localhost.
 This is a local development stack; Temporal and Mailpit have no authentication.
@@ -49,7 +54,7 @@ This is a local development stack; Temporal and Mailpit have no authentication.
 
 **Forgejo:** finish the installation at http://localhost:3000 and create an
 administrator account. Database settings are supplied by Compose. Public
-registration is disabled. Follow the [controller guide](../services/factory-controller/README.md#connect-forgejo)
+registration is disabled. Follow the [API guide](../services/factory-controller-api/README.md#connect-forgejo)
 to configure event delivery.
 
 **pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD`

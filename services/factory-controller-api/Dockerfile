@@ -15,4 +15,4 @@ CMD ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider"]
 FROM base AS runtime
 USER controller
 EXPOSE 8000
-CMD ["uvicorn", "factory_controller.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "factory_controller_api.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

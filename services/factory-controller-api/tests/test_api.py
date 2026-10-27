@@ -11,8 +11,8 @@ from temporalio.common import WorkflowIDConflictPolicy, WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.service import RPCError, RPCStatusCode
 
-from factory_controller.api import create_app
-from factory_controller.config import ApiSettings
+from factory_controller_api.api import create_app
+from factory_controller_api.config import ApiSettings
 
 SECRET = "controller-test-secret-never-used-outside-tests"
 BODY = b'{ "repository": {"full_name": "owner/repo"}, "ref": "refs/heads/main" }'
@@ -49,8 +49,9 @@ def test_signed_event_is_durable_before_acceptance(api, temporal):
     assert response.json()["status"] == "accepted"
     assert response.json()["workflow_id"] == f"forgejo-{headers['X-Forgejo-Delivery']}"
     args, kwargs = temporal.start_workflow.call_args
-    assert args[1].payload["repository"]["full_name"] == "owner/repo"
-    assert args[1].event == "push"
+    assert args[0] == "ForgejoEventWorkflow"
+    assert args[1]["payload"]["repository"]["full_name"] == "owner/repo"
+    assert args[1]["event"] == "push"
     assert kwargs["task_queue"] == "factory-events"
     assert kwargs["id_reuse_policy"] == WorkflowIDReusePolicy.REJECT_DUPLICATE
     assert kwargs["id_conflict_policy"] == WorkflowIDConflictPolicy.FAIL
@@ -155,3 +156,9 @@ def test_secret_must_be_configured_without_exposing_it():
 def test_openapi_is_available(api):
     schema = api.get("/openapi.json").json()
     assert "/webhooks/forgejo" in schema["paths"]
+
+
+def test_api_does_not_install_the_worker():
+    import importlib.util
+
+    assert importlib.util.find_spec("factory_controller_worker") is None

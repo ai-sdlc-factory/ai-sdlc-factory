@@ -17,8 +17,7 @@ from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.service import RPCError
 
 from .config import ApiSettings
-from .models import ForgejoEvent, WebhookReceipt
-from .workflows import ForgejoEventWorkflow
+from .models import WebhookReceipt
 
 logger = logging.getLogger(__name__)
 
@@ -128,11 +127,11 @@ def create_app(
             raise HTTPException(400, "Expected a JSON object")
 
         workflow_id = f"forgejo-{delivery_id}"
-        envelope = ForgejoEvent(delivery_id=delivery_id, event=event, payload=payload)
+        envelope = {"delivery_id": delivery_id, "event": event, "payload": payload}
         duplicate = False
         try:
             await client.start_workflow(
-                ForgejoEventWorkflow.run,
+                "ForgejoEventWorkflow",
                 envelope,
                 id=workflow_id,
                 task_queue=settings.temporal_task_queue,

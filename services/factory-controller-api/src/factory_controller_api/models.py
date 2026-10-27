@@ -1,14 +1,6 @@
-from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel
-
-
-@dataclass
-class ForgejoEvent:
-    delivery_id: str
-    event: str
-    payload: dict[str, Any]
 
 
 class WebhookReceipt(BaseModel):
