@@ -82,6 +82,12 @@ only its explicitly mapped variables from `.env`. `TEMPORAL_ADDRESS`, `SMTP_HOST
 and `SMTP_PORT` configure internal connections; host port overrides do not change
 container ports. Give future applications their own database accounts.
 
+## Optional OpenCode demo
+
+The [OpenCode guide](../services/opencode-worker/README.md) covers ChatGPT browser
+login and a manual Temporal task. Enable the worker with `--profile opencode`.
+Login and demo helpers run only when explicitly targeted. The `opencode-data` volume stores the login.
+
 ## Everyday commands
 
 Run from `infra/`:
@@ -95,7 +101,7 @@ docker compose down      # Remove containers/network; keep data
 ```
 
 Data persists in named volumes. `docker compose down --volumes` deletes all
-stack data, including repositories, databases, and captured emails.
+stack data, including repositories, databases, captured emails, and the OpenCode login.
 
 Database initialization and pgAdmin login setup run only on empty volumes.
 Changing passwords in `.env` does not update existing database accounts or

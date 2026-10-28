@@ -1,5 +1,21 @@
 name: dev-foundry
 
+
+x-opencode: &opencode
+  image: dev-foundry/opencode-worker:local
+  build:
+    context: ../services/opencode-worker
+    target: runtime
+  profiles: ["opencode"]
+  read_only: true
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+  mem_limit: 2g
+  cpus: 2
+  tmpfs:
+    - /tmp:size=512m,mode=1777
+
 services:
   postgres:
     image: postgres:17.11-bookworm
@@ -214,8 +230,51 @@ services:
       FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
 
 
+
+  opencode-worker:
+    <<: *opencode
+    restart: unless-stopped
+    depends_on:
+      temporal-namespace:
+        condition: service_completed_successfully
+    environment:
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      OPENCODE_TASK_QUEUE: ${OPENCODE_TASK_QUEUE:-opencode-tasks}
+      OPENCODE_MODEL: ${OPENCODE_MODEL:-openai/gpt-6.1-sol}
+    volumes:
+      - opencode-data:/data/opencode
+    stop_grace_period: 30s
+
+  opencode-login:
+    <<: *opencode
+    profiles: ["opencode-tools"]
+    restart: "no"
+    volumes:
+      - opencode-data:/data/opencode
+    ports:
+      - "127.0.0.1:1455:1455"
+    command: ["opencode", "auth", "login", "--provider", "openai", "--method", "ChatGPT Pro/Plus (browser)"]
+
+  opencode-demo:
+    <<: *opencode
+    profiles: ["opencode-tools"]
+    restart: "no"
+    depends_on:
+      controller-worker:
+        condition: service_started
+      opencode-worker:
+        condition: service_started
+    environment:
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
+      OPENCODE_TASK_QUEUE: ${OPENCODE_TASK_QUEUE:-opencode-tasks}
+    command: ["python", "-m", "opencode_worker.submit"]
+
 volumes:
   postgres-data:
   forgejo-data:
   pgadmin-data:
   mailpit-data:
+  opencode-data:

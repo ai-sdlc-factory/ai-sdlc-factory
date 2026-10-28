@@ -5,6 +5,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from .config import WorkerSettings
+from .demo_workflow import OpenCodeDemoWorkflow
 from .workflows import ForgejoEventWorkflow
 
 
@@ -16,7 +17,7 @@ async def main() -> None:
     worker = Worker(
         client,
         task_queue=settings.temporal_task_queue,
-        workflows=[ForgejoEventWorkflow],
+        workflows=[ForgejoEventWorkflow, OpenCodeDemoWorkflow],
     )
     logging.getLogger(__name__).info(
         "Listening on Temporal task queue %s", settings.temporal_task_queue

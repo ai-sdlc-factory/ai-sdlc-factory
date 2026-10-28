@@ -24,6 +24,12 @@ Shared settings in `infra/.env` are `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
 (default `default`), and `TEMPORAL_TASK_QUEUE` (default `factory-events`).
 The API and worker must use the same namespace and task queue.
 
+## OpenCode demo
+
+The worker also runs `OpenCodeDemoWorkflow`, which delegates execution to a
+separate activity worker. See the [OpenCode guide](../opencode-worker/README.md)
+for browser login and task submission. Forgejo receipt workflows remain unchanged.
+
 ## Workflow contract
 
 The API starts workflow type `ForgejoEventWorkflow` with this JSON envelope:
