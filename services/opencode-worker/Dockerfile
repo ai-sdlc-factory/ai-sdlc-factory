@@ -2,17 +2,17 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
 WORKDIR /src/opencode-worker
 COPY Directory.Build.props /src/
-COPY opencode-worker/src/OpenCodeWorker/OpenCodeWorker.csproj src/OpenCodeWorker/
-COPY opencode-worker/tests/OpenCodeWorker.Tests/OpenCodeWorker.Tests.csproj tests/OpenCodeWorker.Tests/
-RUN dotnet restore tests/OpenCodeWorker.Tests/OpenCodeWorker.Tests.csproj
+COPY opencode-worker/src/DevFoundry.OpenCodeWorker/DevFoundry.OpenCodeWorker.csproj src/DevFoundry.OpenCodeWorker/
+COPY opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj tests/DevFoundry.OpenCodeWorker.Tests/
+RUN dotnet restore tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj
 COPY opencode-worker/src ./src
 COPY opencode-worker/tests ./tests
-RUN dotnet publish src/OpenCodeWorker -c Release --no-restore -o /out
+RUN dotnet publish src/DevFoundry.OpenCodeWorker -c Release --no-restore -o /out
 
 # The tests use shell-script stand-ins for the OpenCode binary, not the real model.
 FROM build AS test
-RUN dotnet build tests/OpenCodeWorker.Tests -c Release --no-restore
-CMD ["dotnet", "test", "tests/OpenCodeWorker.Tests", "-c", "Release", "--no-build"]
+RUN dotnet build tests/DevFoundry.OpenCodeWorker.Tests -c Release --no-restore
+CMD ["dotnet", "test", "tests/DevFoundry.OpenCodeWorker.Tests", "-c", "Release", "--no-build"]
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 ENV DOTNET_EnableDiagnostics=0 \
@@ -39,4 +39,4 @@ RUN useradd --system --uid 10001 --create-home worker \
     && chmod 700 /data/opencode
 COPY --from=build /out ./
 USER worker
-CMD ["dotnet", "OpenCodeWorker.dll"]
+CMD ["dotnet", "DevFoundry.OpenCodeWorker.dll"]

@@ -1,6 +1,6 @@
 # Controller Integration Tests
 
-[Project overview](../../README.md) | [API](../../services/factory-controller-api/README.md) | [Worker](../../services/factory-controller-worker/README.md)
+[Project overview](../../README.md) | [API](../../services/api/README.md) | [Worker](../../services/controller/README.md)
 
 Tests the deployed API and worker through HTTP and Temporal. This test image
 does not import either service's application code.
@@ -11,7 +11,7 @@ From the repository root:
 
 ```bash
 cd infra
-docker compose up -d --build controller-api controller-worker
+docker compose up -d --build api controller
 docker compose --profile test run --build --rm --no-deps controller-integration-tests
 ```
 

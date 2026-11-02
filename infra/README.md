@@ -1,6 +1,6 @@
 # Infrastructure
 
-[Project overview](../README.md) | [Controller API](../services/factory-controller-api/README.md) | [Worker](../services/factory-controller-worker/README.md)
+[Project overview](../README.md) | [Controller API](../services/api/README.md) | [Worker](../services/controller/README.md)
 
 Local Compose stack for WSL. Service definitions and image versions live in
 [compose.yaml](compose.yaml); shared settings are listed in [.env.example](.env.example).
@@ -60,7 +60,7 @@ This is a local development stack; Temporal and Mailpit have no authentication.
 
 **Forgejo:** finish the installation at http://localhost:3000 and create an
 administrator account. Database settings are supplied by Compose. Public
-registration is disabled. Follow the [API guide](../services/factory-controller-api/README.md#connect-forgejo)
+registration is disabled. Follow the [API guide](../services/api/README.md#connect-forgejo)
 to configure event delivery.
 
 **pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD`

@@ -1,6 +1,6 @@
 # OpenCode Demo Worker
 
-[Project overview](../../README.md) | [Infrastructure](../../infra/README.md) | [Controller worker](../factory-controller-worker/README.md)
+[Project overview](../../README.md) | [Infrastructure](../../infra/README.md) | [Controller worker](../controller/README.md)
 
 Runs a manual task through Temporal and OpenCode using ChatGPT Plus/Pro browser
 authentication. No OpenAI API key is needed for this login route.
@@ -41,7 +41,7 @@ docker compose --profile opencode run --rm --no-deps opencode-login opencode mod
 After signing in, run from `infra/`:
 
 ```bash
-docker compose --profile opencode up -d --build controller-worker opencode-worker
+docker compose --profile opencode up -d --build controller opencode-worker
 docker compose --profile opencode run --rm --no-deps opencode-demo
 ```
 
