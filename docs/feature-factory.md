@@ -1,8 +1,8 @@
 # Feature factory design
 
-Status: steps 1 to 3 of the build order are done (router, Forgejo client and bot account,
-host workspaces, the sandbox launcher with a .NET image, and the analyst stage with its verdict
-handling and ticket conversation). Everything else below is still design.
+Status: steps 1 to 4 of the build order are done (router, Forgejo client and bot account,
+host workspaces, the sandbox launcher with a .NET image, the analyst stage with its verdict
+handling and ticket conversation, and the coverage check with triage). Everything else below is still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -98,7 +98,7 @@ configuration before relying on this.
 1. Router in the controller: label handling, comment signals, a bot account, Forgejo client.
 2. Workspace creation on the host and the sandbox launcher with one allowlisted image.
 3. Analyst stage with verdict schema, ticket comment, and a wait for a human reply (done).
-4. Coverage check and triage rules.
+4. Coverage check and triage rules (done).
 5. Developer plus deterministic gates, then reviewers and QA with the capped loop.
 6. Publish and PR creation.
 7. Architect stage, bug workflow, then incident handling.
@@ -112,3 +112,11 @@ configuration before relying on this.
   refreshed token is written back to the volume. Earlier note: a read-only mount may stop token refresh.
   Check how OpenCode refreshes and decide where the token lives.
 - Which models per role, and how much usage each stage may consume.
+
+## Findings from running it
+
+- The analyst tends to set `public_api_change` for any new function, even in a small single-file
+  program, which makes triage ask for a design review. If that proves noisy, tighten the role prompt
+  (a public API is one other projects or users depend on) before changing the triage rules.
+- The coverage agent is strict on purpose: a test that calls a function directly does not count as
+  "a test that runs the program". Expect more `partial` than `covered`.

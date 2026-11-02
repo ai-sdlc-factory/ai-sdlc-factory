@@ -52,6 +52,40 @@ public static class TicketComments
         return text.ToString().TrimEnd();
     }
 
+    public static string Coverage(CoverageReport report)
+    {
+        var text = new StringBuilder();
+        text.AppendLine(report.Verdict switch
+        {
+            CoverageVerdicts.FullyCovered => "**Coverage check: already implemented**",
+            CoverageVerdicts.PartlyCovered => "**Coverage check: partly implemented**",
+            _ => "**Coverage check: not implemented yet**",
+        });
+        text.AppendLine();
+        text.AppendLine(Inert(report.Summary));
+        text.AppendLine();
+        foreach (var criterion in report.Criteria)
+        {
+            text.Append($"- **{criterion.Status}**: {Inert(criterion.Criterion)}");
+            if (criterion.Evidence.Count > 0)
+            {
+                // Evidence paths were validated to a safe character set, so they are safe in code spans.
+                text.Append(" (" + string.Join(", ", criterion.Evidence.Select(path => $"`{path}`")) + ")");
+            }
+            if (criterion.Note.Length > 0)
+            {
+                text.Append($" - {Inert(criterion.Note)}");
+            }
+            text.AppendLine();
+        }
+        return text.ToString().TrimEnd();
+    }
+
+    public static string TriageDecision(TriageDecision decision) =>
+        decision.NeedsArchitect
+            ? "**Triage: design review needed before building**\n\nReasons: " + string.Join("; ", decision.Reasons) + "."
+            : "**Triage: small change, no design review needed**\n\nNo rule asked for one: few files, one project, no API, data model or dependency change.";
+
     /// <summary>Stops text from notifying people (@name) or starting its own lines/blocks.</summary>
     public static string Inert(string value) =>
         value.Replace("@", "@​").Replace("\r", " ").Replace("\n", " ").Replace("`", "'").Trim();

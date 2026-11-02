@@ -46,8 +46,11 @@ public sealed class EventRouterTests
         var decision = EventRouter.Decide(Event("issues", Ticket(action)));
 
         Assert.Equal(RoutingAction.StartFeature, decision.Action);
-        Assert.Equal(new FeatureRequest("acme", "shop", 7, "Add wishlist", "As a user...", "alice"), decision.Feature);
-        Assert.Equal("feature-acme-shop-7", decision.Feature!.WorkflowId);
+        var feature = decision.Feature!;
+        Assert.Equal(("acme", "shop", 7, "Add wishlist", "As a user...", "alice"),
+            (feature.Owner, feature.Repo, feature.IssueNumber, feature.Title, feature.Body, feature.Author));
+        Assert.Equal(["feature"], feature.Labels);
+        Assert.Equal("feature-acme-shop-7", feature.WorkflowId);
     }
 
     [Fact]

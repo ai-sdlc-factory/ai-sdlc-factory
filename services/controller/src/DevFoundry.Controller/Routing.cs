@@ -4,7 +4,8 @@ namespace DevFoundry.Controller;
 
 /// <summary>A ticket that asks the factory to build a feature.</summary>
 public sealed record FeatureRequest(
-    string Owner, string Repo, int IssueNumber, string Title, string Body, string Author)
+    string Owner, string Repo, int IssueNumber, string Title, string Body, string Author,
+    IReadOnlyList<string>? Labels = null)
 {
     public string WorkflowId => FeatureIds.For(Owner, Repo, IssueNumber);
 }
@@ -88,7 +89,8 @@ public static class EventRouter
                         owner, repo, issueNumber,
                         AsString(Get(issue, "title")) ?? "",
                         AsString(Get(issue, "body")) ?? "",
-                        AsString(Get(Get(issue, "user"), "login")) ?? ""));
+                        AsString(Get(Get(issue, "user"), "login")) ?? "",
+                        LabelNames(issue)));
 
             case "issues" when action == "closed":
                 return hasFeatureLabel
@@ -118,6 +120,11 @@ public static class EventRouter
     }
 
     private static RoutingDecision Ignore(string reason) => new(RoutingAction.Ignore, reason);
+
+    private static List<string> LabelNames(JsonElement issue) =>
+        Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels
+            ? labels.EnumerateArray().Select(item => AsString(Get(item, "name"))).OfType<string>().ToList()
+            : [];
 
     private static bool HasLabel(JsonElement issue, string label) =>
         Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels

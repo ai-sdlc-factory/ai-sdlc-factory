@@ -67,6 +67,37 @@ verdicts, size limits, the complexity fields). `OpenCodeEvents` extracts the ans
 event stream. Ticket text and human replies reach the model only between markers, clipped and
 labelled as data (`AnalystPrompt`), and model text is made inert before it is posted (`TicketComments`).
 
+### Coverage check
+
+When the analyst passes, the `coverage` agent ([`agents/agents/coverage.md`](../../agents/agents/coverage.md))
+judges each acceptance criterion against the existing code in a read-only sandbox, so nothing is
+built twice. It answers `covered`, `partial` or `missing` per criterion with up to three evidence
+files. Three things keep that honest:
+
+- `CoverageParser` requires exactly one entry per criterion and rejects evidence paths that are
+  absolute, contain `..`, or use unusual characters.
+- The overall verdict must agree with the statuses; it is derived from them
+  (`CoverageVerdicts.Derive`), not taken on trust.
+- The workflow checks the cited files exist in the workspace (`EvidenceCheck`; paths are passed to
+  the shell as arguments, never as script text). A `covered` claim without an existing file
+  becomes `partial`, a `partial` one `missing`. If the check cannot run, nothing counts as verified,
+  so a failed check can never claim something is already built.
+
+If every criterion is covered the workflow stops with `already_implemented`; otherwise it goes on
+with the remaining criteria.
+
+### Triage
+
+`Triage.Decide` decides, with fixed rules and no model, whether a design review (the architect) comes
+before building. It asks for one if any of these hold, and the comment on the ticket lists the reasons:
+
+- the ticket has the `needs-architecture` label,
+- the analyst estimates more than 5 files,
+- more than one project, a public API change, a data model change, or a new dependency.
+
+Otherwise the change is "small" and goes straight on. The architect and later stages are not
+built yet, so the workflow ends after triage with status `triaged` and `NeedsArchitect` in its result.
+
 ### Workspace and sandbox check
 
 When a feature starts, the controller clones the repository into

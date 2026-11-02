@@ -21,7 +21,7 @@ public sealed record ValidatedRun(
 public static partial class SandboxPolicy
 {
     public const int MaxArguments = 64;
-    public const int MaxArgumentLength = 8 * 1024;
+    public const int MaxArgumentLength = 32 * 1024;
     private static readonly string[] AllowedEnvPrefixes = ["OPENCODE_", "FACTORY_"];
 
     [GeneratedRegex(@"\A[a-z0-9][a-z0-9._-]{0,127}\z")]
