@@ -1,12 +1,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
-WORKDIR /src
-COPY Directory.Build.props ./
-COPY src/OpenCodeWorker/OpenCodeWorker.csproj src/OpenCodeWorker/
-COPY tests/OpenCodeWorker.Tests/OpenCodeWorker.Tests.csproj tests/OpenCodeWorker.Tests/
+WORKDIR /src/opencode-worker
+COPY Directory.Build.props /src/
+COPY opencode-worker/src/OpenCodeWorker/OpenCodeWorker.csproj src/OpenCodeWorker/
+COPY opencode-worker/tests/OpenCodeWorker.Tests/OpenCodeWorker.Tests.csproj tests/OpenCodeWorker.Tests/
 RUN dotnet restore tests/OpenCodeWorker.Tests/OpenCodeWorker.Tests.csproj
-COPY src ./src
-COPY tests ./tests
+COPY opencode-worker/src ./src
+COPY opencode-worker/tests ./tests
 RUN dotnet publish src/OpenCodeWorker -c Release --no-restore -o /out
 
 # The tests use shell-script stand-ins for the OpenCode binary, not the real model.
@@ -31,7 +31,7 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
     && tar -xzf /tmp/opencode.tar.gz -C /tmp/opencode-bin \
     && install /tmp/opencode-bin/opencode /usr/local/bin/opencode \
     && rm -rf /tmp/opencode-bin /tmp/opencode.tar.gz
-COPY opencode.json /etc/opencode/opencode.json
+COPY opencode-worker/opencode.json /etc/opencode/opencode.json
 # Same UID as the earlier image, so the existing opencode-data volume stays readable.
 RUN useradd --system --uid 10001 --create-home worker \
     && mkdir -p /data/opencode /tmp/cache /tmp/config /tmp/state \

@@ -8,7 +8,8 @@ name: dev-foundry
 x-opencode: &opencode
   image: dev-foundry/opencode-worker:local
   build:
-    context: ../services/opencode-worker
+    context: ../services
+    dockerfile: opencode-worker/Dockerfile
     target: runtime
   profiles: ["opencode"]
   networks: [agents]
@@ -192,7 +193,8 @@ services:
   controller-api:
     image: dev-foundry/controller-api:local
     build:
-      context: ../services/factory-controller-api
+      context: ../services
+      dockerfile: factory-controller-api/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -216,7 +218,8 @@ services:
   controller-worker:
     image: dev-foundry/controller-worker:local
     build:
-      context: ../services/factory-controller-worker
+      context: ../services
+      dockerfile: factory-controller-worker/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:

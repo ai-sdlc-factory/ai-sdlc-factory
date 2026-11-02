@@ -60,7 +60,7 @@ for that file.
 From the repository root:
 
 ```bash
-docker build --target test -t dev-foundry/controller-worker-test services/factory-controller-worker
+docker build --target test -f services/factory-controller-worker/Dockerfile -t dev-foundry/controller-worker-test services
 docker run --rm dev-foundry/controller-worker-test
 ```
 

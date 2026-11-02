@@ -72,7 +72,7 @@ Inspect logs with `docker compose logs -f controller-api` from `infra/`.
 From the repository root:
 
 ```bash
-docker build --target test -t dev-foundry/controller-api-test services/factory-controller-api
+docker build --target test -f services/factory-controller-api/Dockerfile -t dev-foundry/controller-api-test services
 docker run --rm dev-foundry/controller-api-test
 ```
 

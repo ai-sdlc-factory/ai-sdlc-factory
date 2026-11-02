@@ -1,12 +1,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
-WORKDIR /src
-COPY Directory.Build.props ./
-COPY src/FactoryController.Worker/FactoryController.Worker.csproj src/FactoryController.Worker/
-COPY tests/FactoryController.Worker.Tests/FactoryController.Worker.Tests.csproj tests/FactoryController.Worker.Tests/
+WORKDIR /src/factory-controller-worker
+COPY Directory.Build.props /src/
+COPY factory-controller-worker/src/FactoryController.Worker/FactoryController.Worker.csproj src/FactoryController.Worker/
+COPY factory-controller-worker/tests/FactoryController.Worker.Tests/FactoryController.Worker.Tests.csproj tests/FactoryController.Worker.Tests/
 RUN dotnet restore tests/FactoryController.Worker.Tests/FactoryController.Worker.Tests.csproj
-COPY src ./src
-COPY tests ./tests
+COPY factory-controller-worker/src ./src
+COPY factory-controller-worker/tests ./tests
 RUN dotnet publish src/FactoryController.Worker -c Release --no-restore -o /out
 
 FROM build AS test
