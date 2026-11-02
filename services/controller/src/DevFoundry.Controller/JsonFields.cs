@@ -20,22 +20,39 @@ public static class JsonFields
         return true;
     }
 
-    /// <summary>An array of non-empty strings, each trimmed and within the limits.</summary>
+    /// <summary>
+    /// An array of non-empty strings, each trimmed and within the limits. On failure <paramref name="error"/>
+    /// names the field and the exact limit that was broken, because the model only learns from that message.
+    /// </summary>
     public static bool TextList(
-        JsonElement element, string name, out IReadOnlyList<string> items, int maxItems = 20, int maxLength = 500)
+        JsonElement element, string name, out IReadOnlyList<string> items, out string error,
+        int maxItems = 20, int maxLength = 500)
     {
         var list = new List<string>();
         items = list;
-        if (!element.TryGetProperty(name, out var array) || array.ValueKind != JsonValueKind.Array
-            || array.GetArrayLength() > maxItems)
+        error = "";
+        if (!element.TryGetProperty(name, out var array) || array.ValueKind != JsonValueKind.Array)
         {
+            error = $"\"{name}\" must be an array of strings";
             return false;
         }
+        if (array.GetArrayLength() > maxItems)
+        {
+            error = $"\"{name}\" has {array.GetArrayLength()} items, the limit is {maxItems}";
+            return false;
+        }
+        var number = 0;
         foreach (var item in array.EnumerateArray())
         {
-            if (item.ValueKind != JsonValueKind.String || item.GetString()?.Trim() is not { Length: > 0 } text
-                || text.Length > maxLength)
+            number++;
+            if (item.ValueKind != JsonValueKind.String || item.GetString()?.Trim() is not { Length: > 0 } text)
             {
+                error = $"\"{name}\" item {number} must be a non-empty string";
+                return false;
+            }
+            if (text.Length > maxLength)
+            {
+                error = $"\"{name}\" item {number} is {text.Length} characters, the limit is {maxLength}";
                 return false;
             }
             list.Add(text);
@@ -56,10 +73,14 @@ public static partial class SafePath
     [GeneratedRegex(@":\d+(-\d+)?\z")]
     private static partial Regex LineSuffix();
 
-    /// <summary>Strips an optional <c>:line</c> suffix; false for absolute paths, <c>..</c>, or odd characters.</summary>
-    public static bool TryNormalize(string raw, out string path)
+    /// <summary>
+    /// Strips an optional <c>:line</c> suffix; false for absolute paths, <c>..</c>, or odd characters.
+    /// With <paramref name="allowDirectory"/>, one trailing slash is accepted and kept to mark a directory.
+    /// </summary>
+    public static bool TryNormalize(string raw, out string path, bool allowDirectory = false)
     {
         path = LineSuffix().Replace(raw.Trim(), "");
-        return Allowed().IsMatch(path) && !path.StartsWith('/') && !path.Split('/').Any(part => part is ".." or "." or "");
+        var body = allowDirectory && path.EndsWith('/') ? path[..^1] : path;
+        return Allowed().IsMatch(path) && !body.StartsWith('/') && !body.Split('/').Any(part => part is ".." or "." or "");
     }
 }

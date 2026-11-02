@@ -90,14 +90,9 @@ public static class VerdictParser
             error = $"\"summary\" must be a non-empty string of at most {MaxSummaryLength} characters";
             return false;
         }
-        if (!TextList(root, "acceptance_criteria", out var criteria))
+        if (!TextList(root, "acceptance_criteria", out var criteria, out error)
+            || !TextList(root, "questions", out var questions, out error))
         {
-            error = $"\"acceptance_criteria\" must be an array of at most {MaxItems} strings";
-            return false;
-        }
-        if (!TextList(root, "questions", out var questions))
-        {
-            error = $"\"questions\" must be an array of at most {MaxItems} strings";
             return false;
         }
         if (!root.TryGetProperty("complexity", out var raw) || raw.ValueKind != JsonValueKind.Object

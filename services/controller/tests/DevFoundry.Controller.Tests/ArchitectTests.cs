@@ -75,21 +75,58 @@ public sealed class ArchitectParserTests
     [InlineData("$(id)")]
     [InlineData("")]
     public void Unsafe_component_paths_are_rejected(string path) =>
-        Assert.Contains("components", Problem(Json(components: [new { path, change = "x" }])));
+        Assert.Contains("not a plain relative path", Problem(Json(components: [new { path, change = "x" }])));
 
     [Fact]
-    public void Components_need_a_change_description_and_a_limited_count()
+    public void Components_need_a_change_description()
     {
-        Assert.Contains("components", Problem(Json(components: [new { path = "a.py", change = "" }])));
-        Assert.Contains("components", Problem(Json(components: [new { path = "a.py", change = new string('x', 301) }])));
-        Assert.Contains("components", Problem(Json(components: [.. Enumerable.Repeat(new { path = "a.py", change = "x" }, 21)])));
+        Assert.Contains("component 1 needs", Problem(Json(components: [new { path = "a.py", change = "" }])));
+        Assert.Contains("component 1 needs", Problem(Json(components: [new { path = "a.py" }])));
+    }
+
+    [Fact]
+    public void A_directory_entry_may_end_with_a_slash_and_keeps_it()
+    {
+        var design = Parse(Json(components: [new { path = "tests/", change = "add tests" }, new { path = "auth/oidc.py", change = "new" }]));
+        Assert.Equal(["tests/", "auth/oidc.py"], design.Components.Select(c => c.Path));
+    }
+
+    [Theory]
+    [InlineData("//")]
+    [InlineData("/")]
+    [InlineData("a//b/")]
+    [InlineData("../")]
+    public void Odd_directory_forms_are_still_rejected(string path) =>
+        Assert.Contains("not a plain relative path", Problem(Json(components: [new { path, change = "x" }])));
+
+    [Fact]
+    public void Limits_have_room_for_a_large_design()
+    {
+        var components = Enumerable.Range(1, ArchitectParser.MaxComponents).Select(i => new { path = $"src/f{i}.py", change = new string('c', ArchitectParser.MaxChange) }).ToArray();
+        var design = Parse(Json(components: components, risks: [.. Enumerable.Repeat("r", ArchitectParser.MaxRisks)], guidance: [.. Enumerable.Repeat("g", ArchitectParser.MaxGuidance)]));
+        Assert.Equal(ArchitectParser.MaxComponents, design.Components.Count);
+    }
+
+    [Fact]
+    public void Errors_name_the_exact_field_item_and_limit_so_the_model_can_fix_it()
+    {
+        Assert.Equal(
+            $"\"components\" has 31 entries, the limit is 30; group related files into one directory entry",
+            Problem(Json(components: [.. Enumerable.Repeat(new { path = "a.py", change = "x" }, 31)])));
+        Assert.Equal(
+            "component 2: \"change\" is 501 characters, the limit is 500",
+            Problem(Json(components: [new { path = "a.py", change = "x" }, new { path = "b.py", change = new string('x', 501) }])));
+        Assert.Contains("component 1: \"a b\" is not a plain relative path", Problem(Json(components: [new { path = "a b", change = "x" }])));
+        Assert.Equal("\"guidance\" has 16 items, the limit is 15", Problem(Json(guidance: [.. Enumerable.Repeat("g", 16)])));
+        Assert.Equal("\"risks\" item 2 is 501 characters, the limit is 500", Problem(Json(risks: ["ok", new string('r', 501)])));
+        Assert.Equal("\"risks\" item 1 must be a non-empty string", Problem(Json(risks: [" "])));
     }
 
     [Fact]
     public void List_sizes_are_limited()
     {
-        Assert.Contains("questions", Problem(Json("needs_decision", questions: ["1", "2", "3", "4"])));
-        Assert.Contains("risks", Problem(Json(risks: [.. Enumerable.Repeat("r", 11)])));
+        Assert.Contains("\"questions\" has 4 items", Problem(Json("needs_decision", questions: ["1", "2", "3", "4"])));
+        Assert.Contains("\"risks\" has 11 items", Problem(Json(risks: [.. Enumerable.Repeat("r", 11)])));
     }
 
     [Theory]

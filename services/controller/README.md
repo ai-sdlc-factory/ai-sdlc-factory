@@ -115,6 +115,25 @@ in each), risks, and guidance for the build; the comment on the ticket shows all
 The analyst and the architect share one conversation loop (`ConverseAsync`): run the agent, post the
 answer, then continue, stop, or ask and wait. Code maps the verdict to the next step.
 
+### Limits and error messages
+
+Every agent answer is validated against explicit limits (for example the architect: at most 30
+components, 500 characters per `change`, 10 risks, 15 guidance items, 3 questions). Two rules keep
+that workable for a model:
+
+- The limits are stated in the role file (`agents/agents/<role>.md`), because a model cannot respect a
+  limit it was never told.
+- A rejection names the exact field, item and limit (`"components" has 31 entries, the limit is 30`),
+  because that message is all the retry prompt can use.
+
+When an answer is still unusable after the retry, the reason is posted on the ticket and logged by the
+controller. The raw answer stays in the workflow's history in Temporal.
+
+### Starting again
+
+A finished ticket is started again by **closing and reopening it**: a `reopened` event starts a new
+run, while other events for a ticket that already had a run are ignored.
+
 ### Workspace and sandbox check
 
 When a feature starts, the controller clones the repository into

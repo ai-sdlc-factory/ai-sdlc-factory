@@ -54,6 +54,14 @@ public sealed class EventRouterTests
     }
 
     [Fact]
+    public void Only_reopening_a_ticket_restarts_a_finished_feature()
+    {
+        Assert.True(EventRouter.Decide(Event("issues", Ticket("reopened"))).Restart);
+        Assert.False(EventRouter.Decide(Event("issues", Ticket("opened"))).Restart);
+        Assert.False(EventRouter.Decide(Event("issues", Ticket("label_updated"))).Restart);
+    }
+
+    [Fact]
     public void Label_match_ignores_case()
     {
         var decision = EventRouter.Decide(Event("issues", Ticket("opened", ["Feature"])));

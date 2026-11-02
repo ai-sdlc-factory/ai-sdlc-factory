@@ -120,3 +120,13 @@ configuration before relying on this.
   (a public API is one other projects or users depend on) before changing the triage rules.
 - The coverage agent is strict on purpose: a test that calls a function directly does not count as
   "a test that runs the program". Expect more `partial` than `covered`.
+- Agent answers must be validated against limits the agent was told about. A first architect run
+  failed twice because the validator allowed 300 characters per change, 20 components and no trailing
+  slash on directories, none of which the role file mentioned. Limits are now stated in each role
+  file and rejections name the exact field and limit.
+- Tickets are started again by closing and reopening them; re-labelling does nothing for a ticket that
+  already had a run.
+- The architect's `needs_decision` and `reject` paths have only run in unit tests. A person who
+  answers the analyst's questions usually settles the fork first, and a contradictory request is
+  rejected by the analyst before the architect sees it. A workflow-level test with scripted agent
+  answers is the reliable way to cover them.

@@ -34,7 +34,8 @@ public sealed record RoutingDecision(
     RoutingAction Action,
     string Reason,
     FeatureRequest? Feature = null,
-    HumanReply? Reply = null);
+    HumanReply? Reply = null,
+    bool Restart = false);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
@@ -85,6 +86,8 @@ public static class EventRouter
                 return new RoutingDecision(
                     RoutingAction.StartFeature,
                     "feature ticket",
+                    // Reopening a ticket is the way to run the factory on it again.
+                    Restart: action == "reopened",
                     Feature: new FeatureRequest(
                         owner, repo, issueNumber,
                         AsString(Get(issue, "title")) ?? "",

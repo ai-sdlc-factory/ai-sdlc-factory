@@ -23,7 +23,12 @@ public sealed record ArchitectDesign(
 
 public static class ArchitectParser
 {
-    private const int MaxText = 2000;
+    public const int MaxText = 2000;
+    public const int MaxComponents = 30;
+    public const int MaxChange = 500;
+    public const int MaxRisks = 10;
+    public const int MaxGuidance = 15;
+    public const int MaxQuestions = 3;
 
     public static bool TryParse(string? text, [NotNullWhen(true)] out ArchitectDesign? design, out string error)
     {
@@ -82,15 +87,11 @@ public static class ArchitectParser
             error = $"\"approach\" must be at most {MaxText} characters";
             return false;
         }
-        if (!Components(root, out var components))
+        if (!Components(root, out var components, out error)
+            || !TextList(root, "risks", out var risks, out error, MaxRisks)
+            || !TextList(root, "guidance", out var guidance, out error, MaxGuidance)
+            || !TextList(root, "questions", out var questions, out error, MaxQuestions))
         {
-            error = "\"components\" must be an array of at most 20 entries, each with a relative file or directory \"path\" and a \"change\" of at most 300 characters";
-            return false;
-        }
-        if (!TextList(root, "risks", out var risks, maxItems: 10) || !TextList(root, "guidance", out var guidance, maxItems: 10)
-            || !TextList(root, "questions", out var questions, maxItems: 3))
-        {
-            error = "\"risks\" and \"guidance\" must be arrays of at most 10 strings and \"questions\" an array of at most 3 strings, each up to 500 characters";
             return false;
         }
 
@@ -109,21 +110,40 @@ public static class ArchitectParser
         return true;
     }
 
-    private static bool Components(JsonElement root, out IReadOnlyList<ComponentChange> components)
+    private static bool Components(JsonElement root, out IReadOnlyList<ComponentChange> components, out string error)
     {
         var list = new List<ComponentChange>();
         components = list;
-        if (!root.TryGetProperty("components", out var array) || array.ValueKind != JsonValueKind.Array || array.GetArrayLength() > 20)
+        error = "";
+        if (!root.TryGetProperty("components", out var array) || array.ValueKind != JsonValueKind.Array)
         {
+            error = "\"components\" must be an array";
             return false;
         }
+        if (array.GetArrayLength() > MaxComponents)
+        {
+            error = $"\"components\" has {array.GetArrayLength()} entries, the limit is {MaxComponents}; group related files into one directory entry";
+            return false;
+        }
+        var number = 0;
         foreach (var item in array.EnumerateArray())
         {
+            number++;
             var path = item.ValueKind == JsonValueKind.Object ? Text(item, "path") : null;
             var change = item.ValueKind == JsonValueKind.Object ? Text(item, "change")?.Trim() : null;
-            if (path is null || !SafePath.TryNormalize(path, out var normal)
-                || string.IsNullOrEmpty(change) || change.Length > 300)
+            if (path is null || string.IsNullOrEmpty(change))
             {
+                error = $"component {number} needs a \"path\" and a non-empty \"change\", both strings";
+                return false;
+            }
+            if (!SafePath.TryNormalize(path, out var normal, allowDirectory: true))
+            {
+                error = $"component {number}: \"{(path.Length > 60 ? path[..60] : path)}\" is not a plain relative path (no leading /, no .., only letters, digits and . _ - @ + /)";
+                return false;
+            }
+            if (change.Length > MaxChange)
+            {
+                error = $"component {number}: \"change\" is {change.Length} characters, the limit is {MaxChange}";
                 return false;
             }
             list.Add(new ComponentChange(normal, change));

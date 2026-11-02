@@ -211,7 +211,7 @@ public sealed class FeatureWorkflow
                     }
                     if (!answered)
                     {
-                        await CommentAsync(request, "No answer for 7 days; stopping. Re-label the ticket to start again.");
+                        await CommentAsync(request, "No answer for 7 days; stopping. Close and reopen the ticket to start again.");
                         return Stop<T>("timed_out");
                     }
                     break;
@@ -252,7 +252,7 @@ public sealed class FeatureWorkflow
         await CommentAsync(request, TicketComments.Coverage(report));
         if (report.Verdict == CoverageVerdicts.FullyCovered)
         {
-            await CommentAsync(request, "Every criterion is already met, so there is nothing to build. If that is wrong, say what is missing on this ticket and re-label it.");
+            await CommentAsync(request, "Every criterion is already met, so there is nothing to build. If that is wrong, say what is missing on this ticket, then close and reopen it.");
             return Stop<CoverageReport>("already_implemented");
         }
         return new StageResult<CoverageReport>(null, report);
@@ -296,7 +296,7 @@ public sealed class FeatureWorkflow
         ArchitectParser.TryParse(text, out var design, out var error) ? (design, null) : (null, error);
 
     private const string NotSignedInMessage =
-        "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then re-label this ticket.";
+        "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";
 
     private static StageResult<T> Stop<T>(string status) where T : class => new(new FeatureResult(status), null);
 

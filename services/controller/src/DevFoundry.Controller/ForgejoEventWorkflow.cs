@@ -48,7 +48,7 @@ public sealed class ForgejoEventWorkflow
                         {
                             Id = decision.Feature!.WorkflowId,
                             ParentClosePolicy = ParentClosePolicy.Abandon,
-                            IdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
+                            IdReusePolicy = decision.Restart ? WorkflowIdReusePolicy.AllowDuplicate : WorkflowIdReusePolicy.RejectDuplicate,
                         });
                 }
                 catch (WorkflowAlreadyStartedException)
