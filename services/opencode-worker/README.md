@@ -90,7 +90,7 @@ docker run --rm --network dev-foundry_agents \
   -e TEMPORAL_TEST_ADDRESS=temporal:7233 dev-foundry/opencode-worker-test
 ```
 
-Automated tests use an explicit subprocess stub and consume no model usage.
+Automated xUnit tests use an explicit shell-script stub and consume no model usage.
 The real authenticated model run is exercised by the demo command.
 
 ## References

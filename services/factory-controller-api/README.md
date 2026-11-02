@@ -2,8 +2,8 @@
 
 [Project overview](../../README.md) | [Infrastructure](../../infra/README.md) | [Worker](../factory-controller-worker/README.md)
 
-FastAPI verifies signed Forgejo webhooks and starts Temporal workflows. This
-service has its own package and Docker image. It sends a JSON envelope to the
+An ASP.NET Core (.NET 10) minimal API verifies signed Forgejo webhooks and starts
+Temporal workflows. This service has its own project and Docker image. It sends a JSON envelope to the
 `ForgejoEventWorkflow` workflow type and does not import or run worker code.
 
 ## Run
@@ -24,7 +24,7 @@ them, even if the worker is temporarily stopped.
 
 | Endpoint | Purpose |
 | --- | --- |
-| http://localhost:8000/docs | API documentation |
+| http://localhost:8000/openapi/v1.json | OpenAPI document |
 | http://localhost:8000/health/live | API process is responding |
 | http://localhost:8000/health/ready | Temporal namespace is reachable |
 | `POST /webhooks/forgejo` | Signed Forgejo event intake |
@@ -61,7 +61,9 @@ Payloads larger than 1 MiB are rejected.
 Repeated delivery IDs return `200` with status `duplicate`, including after a
 workflow completes. Deduplication lasts while Temporal retains execution history
 (currently seven days after completion). If Temporal cannot confirm acceptance,
-the API returns `503`; redeliver the event from Forgejo after recovery.
+the API returns `503`; redeliver the event from Forgejo after recovery. The API
+connects to Temporal on first use, so it starts even while Temporal is down;
+`/health/ready` reports `503` until Temporal answers.
 
 Inspect logs with `docker compose logs -f controller-api` from `infra/`.
 
@@ -74,5 +76,5 @@ docker build --target test -t dev-foundry/controller-api-test services/factory-c
 docker run --rm dev-foundry/controller-api-test
 ```
 
-These tests run without Temporal or the worker. Use the
+These xUnit tests run without Temporal or the worker. Use the
 [integration tests](../../tests/integration/README.md) to verify the full pipeline.

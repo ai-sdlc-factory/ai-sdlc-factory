@@ -1,6 +1,7 @@
 # Dev Foundry
 
-An AI development factory built around Forgejo, a FastAPI controller, and Temporal.
+An AI development factory built around Forgejo, an ASP.NET Core controller, and Temporal.
+All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) in your IDE.
 
 Forgejo sends signed webhooks to the controller API. Temporal stores each event
 and dispatches it to an independently deployed controller worker. The current

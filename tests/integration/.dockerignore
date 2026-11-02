@@ -1,4 +1,6 @@
-__pycache__
-.pytest_cache
+.git
 .env
 .env.*
+**/bin
+**/obj
+TestResults

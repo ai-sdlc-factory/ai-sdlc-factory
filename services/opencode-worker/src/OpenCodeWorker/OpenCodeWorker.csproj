@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <ItemGroup>
+    <PackageReference Include="Temporalio.Extensions.Hosting" Version="1.21.1" />
+  </ItemGroup>
+
+</Project>

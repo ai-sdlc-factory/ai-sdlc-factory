@@ -207,7 +207,7 @@ services:
     ports:
       - "127.0.0.1:${CONTROLLER_API_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      test: ["CMD", "dotnet", "FactoryController.Api.dll", "--healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -292,7 +292,7 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
       OPENCODE_TASK_QUEUE: ${OPENCODE_TASK_QUEUE:-opencode-tasks}
-    command: ["python", "-m", "opencode_worker.submit"]
+    command: ["dotnet", "OpenCodeWorker.dll", "submit"]
 
 networks:
   data:

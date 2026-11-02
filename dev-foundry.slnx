@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="services/factory-controller-api/src/FactoryController.Api/FactoryController.Api.csproj" />
+    <Project Path="services/factory-controller-api/tests/FactoryController.Api.Tests/FactoryController.Api.Tests.csproj" />
+    <Project Path="services/factory-controller-worker/src/FactoryController.Worker/FactoryController.Worker.csproj" />
+    <Project Path="services/factory-controller-worker/tests/FactoryController.Worker.Tests/FactoryController.Worker.Tests.csproj" />
+    <Project Path="services/opencode-worker/src/OpenCodeWorker/OpenCodeWorker.csproj" />
+    <Project Path="services/opencode-worker/tests/OpenCodeWorker.Tests/OpenCodeWorker.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/integration/FactoryController.IntegrationTests/FactoryController.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

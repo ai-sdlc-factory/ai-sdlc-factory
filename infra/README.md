@@ -44,7 +44,7 @@ The first start initializes the databases. `temporal-schema` and
 | Mailpit inbox | http://localhost:8025 (SMTP: port `1025`) |
 | Temporal | `localhost:7233` (gRPC) |
 | Temporal UI | http://localhost:8080 |
-| Controller API | http://localhost:8000/docs |
+| Controller API | http://localhost:8000/openapi/v1.json (OpenAPI document) |
 | Controller worker | Temporal task queue; no HTTP port |
 
 Compose isolates services on four networks: `data` (PostgreSQL and its clients),
