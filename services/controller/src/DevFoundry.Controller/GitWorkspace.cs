@@ -26,6 +26,17 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
     [GeneratedRegex(@"\A[A-Za-z0-9][A-Za-z0-9._/-]{0,100}\z")]
     private static partial Regex BranchName();
 
+    private const int MaxChangedFiles = 300;
+    private const long MaxFileBytes = 2 * 1024 * 1024;
+    private const long MaxTotalBytes = 10 * 1024 * 1024;
+    private const int MaxProjectConfigBytes = 16 * 1024;
+
+    // The agent works in <root>/<name>. <root>/.base/<name> is a pristine clone no sandbox ever mounts:
+    // git (hooks, config, credentials) only ever runs there, never inside the agent's writable copy.
+    private string WorkPath(string root, string name) => $"{root}/{name}";
+
+    private string BasePath(string root, string name) => $"{root}/.base/{name}";
+
     public async Task<WorkspaceInfo> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken)
     {
         var root = RequireRoot();
@@ -37,22 +48,28 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
             throw new ApplicationFailureException("Workspace request has an invalid name.", nonRetryable: true);
         }
 
-        var path = $"{root}/{request.Name}";
+        var work = WorkPath(root, request.Name);
+        var basePath = BasePath(root, request.Name);
         // A retry after a half-finished attempt starts from a clean directory.
-        DeleteDirectory(path);
-        Directory.CreateDirectory(path);
+        DeleteDirectory(work);
+        DeleteDirectory(basePath);
+        Directory.CreateDirectory(basePath);
 
         var url = remoteUrl?.Invoke(request.Owner, request.Repo)
             ?? $"{settings.ForgejoUrl.TrimEnd('/')}/{request.Owner}/{request.Repo}.git";
-        await GitAsync(["clone", "--quiet", url, "."], path, useToken: true, cancellationToken);
-        await GitAsync(["checkout", "--quiet", "-b", request.Branch], path, useToken: false, cancellationToken);
-        await GitAsync(["config", "user.name", "Dev Foundry"], path, useToken: false, cancellationToken);
-        await GitAsync(["config", "user.email", "factory-bot@dev-foundry.test"], path, useToken: false, cancellationToken);
+        await GitAsync(["clone", "--quiet", url, "."], basePath, useToken: true, cancellationToken);
+        await GitAsync(["checkout", "--quiet", "-b", request.Branch], basePath, useToken: false, cancellationToken);
+        await GitAsync(["config", "user.name", "Dev Foundry"], basePath, useToken: false, cancellationToken);
+        await GitAsync(["config", "user.email", "factory-bot@dev-foundry.test"], basePath, useToken: false, cancellationToken);
 
-        var head = (await GitAsync(["rev-parse", "HEAD"], path, useToken: false, cancellationToken)).Trim();
-        var defaultBranch = (await GitAsync(["rev-parse", "--abbrev-ref", "origin/HEAD"], path, useToken: false, cancellationToken))
+        var head = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        var defaultBranch = (await GitAsync(["rev-parse", "--abbrev-ref", "origin/HEAD"], basePath, useToken: false, cancellationToken))
             .Trim().Replace("origin/", "", StringComparison.Ordinal);
-        return new WorkspaceInfo(request.Name, path, request.Branch, defaultBranch, head);
+
+        // The agent gets a copy (including .git, so it can use git itself); the pristine clone stays untouched.
+        Directory.CreateDirectory(work);
+        await RunAsync("cp", ["-a", $"{basePath}/.", work], root, cancellationToken);
+        return new WorkspaceInfo(request.Name, work, request.Branch, defaultBranch, head);
     }
 
     public Task CleanupAsync(string name)
@@ -62,8 +79,184 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         {
             throw new ApplicationFailureException("Workspace name is invalid.", nonRetryable: true);
         }
-        DeleteDirectory($"{root}/{name}");
+        DeleteDirectory(WorkPath(root, name));
+        DeleteDirectory(BasePath(root, name));
         return Task.CompletedTask;
+    }
+
+    /// <summary>The project's .factory/project.json from the pristine clone, or null if the repository has none.</summary>
+    public string? ReadProjectConfig(string name)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        var file = new FileInfo($"{BasePath(root, name)}/.factory/project.json");
+        if (!file.Exists || file.LinkTarget is not null || file.Length > MaxProjectConfigBytes)
+        {
+            return null;
+        }
+        return File.ReadAllText(file.FullName);
+    }
+
+    /// <summary>
+    /// What changed in the agent's workspace compared with the pristine clone, and why it may not be
+    /// published. Git reads the agent's tree as plain files (the git directory is the trusted one), so
+    /// nothing inside the workspace can run code here, and .gitignore decides what counts as noise.
+    /// </summary>
+    public async Task<ChangeReport> DetectChangesAsync(string name, CancellationToken cancellationToken)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        var work = WorkPath(root, name);
+        var basePath = BasePath(root, name);
+        if (!Directory.Exists(work) || !Directory.Exists(basePath))
+        {
+            throw new ApplicationFailureException($"Workspace '{name}' does not exist.", nonRetryable: true);
+        }
+
+        var status = await GitAsync(
+            [$"--git-dir={basePath}/.git", $"--work-tree={work}", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null",
+             "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"],
+            basePath, useToken: false, cancellationToken);
+
+        var files = new List<FileChange>();
+        var violations = new List<string>();
+        long total = 0;
+        var knownSecrets = string.IsNullOrWhiteSpace(settings.ForgejoToken) ? [] : new[] { settings.ForgejoToken };
+
+        foreach (var entry in status.Split('\0', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (entry.Length < 4)
+            {
+                continue;
+            }
+            var code = entry[..2];
+            var path = entry[3..];
+            var kind = code.Contains('D') ? FileChange.Deleted : code.Contains('?') || code.Contains('A') ? FileChange.Added : FileChange.Modified;
+
+            if (!IsPlainRelative(path))
+            {
+                violations.Add($"unusable path in the changes: {Printable(path)}");
+                continue;
+            }
+            if (ProtectedPaths.IsProtected(path))
+            {
+                violations.Add($"{path} is a protected file that only a person may change");
+                continue;
+            }
+            files.Add(new FileChange(path, kind));
+            if (kind == FileChange.Deleted)
+            {
+                continue;
+            }
+
+            if (HasSymlinkOnPath(work, path))
+            {
+                violations.Add($"{path} is or goes through a symbolic link, which is not allowed");
+                continue;
+            }
+            var info = new FileInfo($"{work}/{path}");
+            if (!info.Exists)
+            {
+                violations.Add($"{path} is not a regular file");
+                continue;
+            }
+            total += info.Length;
+            if (info.Length > MaxFileBytes)
+            {
+                violations.Add($"{path} is {info.Length / 1024} KiB, more than the {MaxFileBytes / 1024} KiB limit per file");
+                continue;
+            }
+            violations.AddRange(SecretScan.Scan(path, File.ReadAllBytes(info.FullName), knownSecrets));
+        }
+
+        if (files.Count > MaxChangedFiles)
+        {
+            violations.Add($"{files.Count} files changed, more than the limit of {MaxChangedFiles}; build output and caches belong in .gitignore");
+        }
+        if (total > MaxTotalBytes)
+        {
+            violations.Add($"the changes add up to {total / 1024 / 1024} MiB, more than the {MaxTotalBytes / 1024 / 1024} MiB limit");
+        }
+        return new ChangeReport(files, violations);
+    }
+
+    /// <summary>
+    /// Applies the verified changes onto the pristine clone, commits there, and pushes the branch.
+    /// The checks run again here, so a publish never depends on an earlier report. Returns null when
+    /// there is nothing to commit.
+    /// </summary>
+    public async Task<PublishResult?> PublishAsync(PublishRequest request, CancellationToken cancellationToken)
+    {
+        var root = RequireRoot();
+        RequireName(request.Name);
+        var work = WorkPath(root, request.Name);
+        var basePath = BasePath(root, request.Name);
+
+        var report = await DetectChangesAsync(request.Name, cancellationToken);
+        if (report.Violations.Count > 0)
+        {
+            throw new ApplicationFailureException(
+                "Refusing to publish: " + string.Join("; ", report.Violations.Take(5)), nonRetryable: true);
+        }
+        if (report.Files.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var change in report.Files)
+        {
+            var target = $"{basePath}/{change.Path}";
+            if (HasSymlinkOnPath(basePath, change.Path))
+            {
+                throw new ApplicationFailureException($"Refusing to publish: {change.Path} goes through a symbolic link.", nonRetryable: true);
+            }
+            if (change.Kind == FileChange.Deleted)
+            {
+                File.Delete(target);
+                continue;
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy($"{work}/{change.Path}", target, overwrite: true);
+            var executable = File.GetUnixFileMode($"{work}/{change.Path}").HasFlag(UnixFileMode.UserExecute);
+            File.SetUnixFileMode(target, executable ? (UnixFileMode)0b111_101_101 : (UnixFileMode)0b110_100_100);
+        }
+
+        await GitAsync(["add", "--all"], basePath, useToken: false, cancellationToken);
+        await GitAsync(["-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", request.Message], basePath, useToken: false, cancellationToken);
+        var branch = (await GitAsync(["rev-parse", "--abbrev-ref", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        await GitAsync(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", $"HEAD:refs/heads/{branch}"], basePath, useToken: true, cancellationToken);
+        var sha = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        return new PublishResult(sha, branch, report.Files.Count);
+    }
+
+    private static void RequireName(string name)
+    {
+        if (!WorkspaceName().IsMatch(name) || name.Contains(".."))
+        {
+            throw new ApplicationFailureException("Workspace name is invalid.", nonRetryable: true);
+        }
+    }
+
+    private static bool IsPlainRelative(string path) =>
+        path.Length is > 0 and <= 500 && !path.StartsWith('/') && !path.Contains('\0')
+        && !path.Split('/').Any(part => part is "" or "." or "..");
+
+    private static string Printable(string value) =>
+        new(value.Where(c => !char.IsControl(c)).Take(80).ToArray());
+
+    /// <summary>True if the file, or any directory above it inside <paramref name="root"/>, is a symbolic link.</summary>
+    private static bool HasSymlinkOnPath(string root, string relative)
+    {
+        var current = root;
+        foreach (var part in relative.Split('/'))
+        {
+            current = $"{current}/{part}";
+            if (new FileInfo(current).LinkTarget is not null)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private string RequireRoot()
@@ -87,6 +280,22 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         else if (directory.Exists)
         {
             directory.Delete(recursive: true);
+        }
+    }
+
+    private static async Task RunAsync(string program, IReadOnlyList<string> arguments, string workingDirectory, CancellationToken cancellationToken)
+    {
+        var start = new ProcessStartInfo(program) { WorkingDirectory = workingDirectory, RedirectStandardError = true, RedirectStandardOutput = true };
+        foreach (var argument in arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+        using var process = Process.Start(start) ?? throw new ApplicationFailureException($"Could not start {program}.", nonRetryable: true);
+        var error = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode != 0)
+        {
+            throw new ApplicationFailureException($"{program} failed: {(await error).Trim()}");
         }
     }
 

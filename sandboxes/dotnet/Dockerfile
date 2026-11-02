@@ -1,6 +1,6 @@
 # Sandbox image for .NET projects: the toolchain plus git and the OpenCode agent.
 # It runs as an arbitrary unprivileged user on a read-only root filesystem, started by the
-# sandbox launcher; nothing here is a service. Build: docker compose --profile images build
+# sandbox launcher; nothing here is a service. Build context is sandboxes/ (shared entrypoint). Build: docker compose --profile images build
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_EnableDiagnostics=0 \
     DOTNET_CLI_HOME=/tmp/dotnet-home NUGET_PACKAGES=/tmp/nuget \
@@ -19,6 +19,6 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
 # The workspace is owned by the host user; the launcher runs the container as that user.
 # git would otherwise refuse a directory it considers owned by someone else.
 RUN git config --system --add safe.directory /workspace
-COPY --chmod=755 factory-entry.sh /usr/local/bin/factory-entry
+COPY --chmod=755 common/factory-entry.sh /usr/local/bin/factory-entry
 WORKDIR /workspace
 ENTRYPOINT ["factory-entry"]

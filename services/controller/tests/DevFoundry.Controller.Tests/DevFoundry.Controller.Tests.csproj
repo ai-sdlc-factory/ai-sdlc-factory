@@ -11,6 +11,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Matches the controller assembly, which only runs on Linux. -->
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="DevFoundry.Contracts" />
     <ProjectReference Include="..\..\src\DevFoundry.Controller\DevFoundry.Controller.csproj" />

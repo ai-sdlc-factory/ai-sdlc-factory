@@ -4,15 +4,16 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed record FeatureResult(string Status, bool? NeedsArchitect = null);
+public sealed record FeatureResult(string Status, bool? NeedsArchitect = null, string? PullRequestUrl = null);
 
 /// <summary>
 /// One run per feature ticket, following docs/feature-factory.md. Built so far: intake (a private
-/// workspace), the analyst, the coverage check, triage and, when triage asks for it, the architect. The workflow code owns every decision; agents only return a verdict
+/// workspace and the project's configuration), the analyst, the coverage check, triage, the architect when
+/// triage asks for it, and the build (developer, automated checks, pull request). The workflow code owns every decision; agents only return a verdict
 /// value, which is validated before it is used.
 /// </summary>
 [Workflow("FeatureWorkflow")]
-public sealed class FeatureWorkflow
+public sealed partial class FeatureWorkflow
 {
     private static readonly TimeSpan WaitForHuman = TimeSpan.FromDays(7);
     private const int MaxClarificationRounds = 4;
@@ -61,7 +62,16 @@ public sealed class FeatureWorkflow
                 return new FeatureResult("setup_failed");
             }
 
-            return await StagesAsync(request, workspace);
+            var configText = await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.ReadProjectConfigAsync(request.WorkflowId),
+                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+            if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
+            {
+                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then close and reopen this ticket.");
+                return new FeatureResult("needs_config");
+            }
+
+            return await StagesAsync(request, workspace, project);
         }
         finally
         {
@@ -80,16 +90,16 @@ public sealed class FeatureWorkflow
     /// The stages after intake, in order: analyst, coverage check, triage. Each either stops the
     /// workflow with a status or hands its result to the next one.
     /// </summary>
-    private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace)
+    private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project)
     {
-        var analysis = await AnalyseAsync(request, workspace);
+        var analysis = await AnalyseAsync(request, workspace, project.Image);
         if (analysis.Stop is { } stop)
         {
             return stop;
         }
         var verdict = analysis.Verdict!;
 
-        var coverage = await CheckCoverageAsync(request, workspace, verdict);
+        var coverage = await CheckCoverageAsync(request, workspace, project.Image, verdict);
         if (coverage.Stop is { } stopped)
         {
             return stopped;
@@ -98,17 +108,18 @@ public sealed class FeatureWorkflow
         var triage = Triage.Decide(verdict.Complexity, request.Labels ?? []);
         await CommentAsync(request, TicketComments.TriageDecision(triage));
 
+        ArchitectDesign? approved = null;
         if (triage.NeedsArchitect)
         {
-            var design = await DesignAsync(request, workspace, coverage.Verdict!, triage);
+            var design = await DesignAsync(request, workspace, project.Image, coverage.Verdict!, triage);
             if (design.Stop is { } designStop)
             {
                 return designStop;
             }
+            approved = design.Verdict;
         }
 
-        await CommentAsync(request, "The next stages (build, review, QA) are not built yet, so I stop here.");
-        return new FeatureResult(triage.NeedsArchitect ? "designed" : "triaged", triage.NeedsArchitect);
+        return await BuildAsync(request, workspace, project, coverage.Verdict!.Remaining.ToList(), approved, triage);
     }
 
     private sealed record StageResult<T>(FeatureResult? Stop, T? Verdict) where T : class;
@@ -117,9 +128,9 @@ public sealed class FeatureWorkflow
     /// Analyst stage. pass → continue; reject → stop; needs_clarification → ask on the ticket, wait for
     /// a human, and run again with their answers (a bounded number of rounds).
     /// </summary>
-    private Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace) =>
+    private Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace, string image) =>
         ConverseAsync(
-            request, workspace, "analyst", MaxClarificationRounds,
+            request, workspace, image, "analyst", MaxClarificationRounds,
             (round, answers, problem) => AnalystPrompt.Build(request, answers, problem, round, MaxClarificationRounds),
             ParseAnalyst,
             TicketComments.Analysis,
@@ -136,9 +147,9 @@ public sealed class FeatureWorkflow
     /// reject → stop, needs_decision → ask on the ticket and run again with the answers.
     /// </summary>
     private Task<StageResult<ArchitectDesign>> DesignAsync(
-        FeatureRequest request, WorkspaceInfo workspace, CoverageReport coverage, TriageDecision triage) =>
+        FeatureRequest request, WorkspaceInfo workspace, string image, CoverageReport coverage, TriageDecision triage) =>
         ConverseAsync(
-            request, workspace, "architect", MaxDesignRounds,
+            request, workspace, image, "architect", MaxDesignRounds,
             (round, answers, problem) => ArchitectPrompt.Build(
                 request, coverage.Remaining.ToList(), triage.Reasons, answers, problem, round, MaxDesignRounds),
             ParseDesign,
@@ -159,7 +170,7 @@ public sealed class FeatureWorkflow
     /// value; <paramref name="next"/> (code) maps it to what happens. Rounds are bounded.
     /// </summary>
     private async Task<StageResult<T>> ConverseAsync<T>(
-        FeatureRequest request, WorkspaceInfo workspace, string role, int maxRounds,
+        FeatureRequest request, WorkspaceInfo workspace, string image, string role, int maxRounds,
         Func<int, IReadOnlyList<string>, string?, string> prompt,
         Func<string, (T? Value, string? Error)> parse,
         Func<T, string> comment,
@@ -178,7 +189,7 @@ public sealed class FeatureWorkflow
                 return Stop<T>("closed");
             }
 
-            var outcome = await RunAgentAsync<T>(role, workspace, problem => prompt(round, answers, problem), parse);
+            var outcome = await RunAgentAsync<T>(role, image, workspace, problem => prompt(round, answers, problem), parse);
             if (ticketClosed)
             {
                 return Stop<T>("closed");
@@ -227,10 +238,10 @@ public sealed class FeatureWorkflow
     /// claims is checked against the workspace first, and a failed check can only weaken a claim.
     /// </summary>
     private async Task<StageResult<CoverageReport>> CheckCoverageAsync(
-        FeatureRequest request, WorkspaceInfo workspace, AnalystVerdict analysis)
+        FeatureRequest request, WorkspaceInfo workspace, string image, AnalystVerdict analysis)
     {
         var outcome = await RunAgentAsync<CoverageReport>(
-            "coverage", workspace,
+            "coverage", image, workspace,
             problem => CoveragePrompt.Build(request, analysis.AcceptanceCriteria, problem),
             text => ParseCoverage(text, analysis.AcceptanceCriteria));
         if (ticketClosed)
@@ -248,7 +259,7 @@ public sealed class FeatureWorkflow
             return Stop<CoverageReport>("coverage_failed");
         }
 
-        var report = EvidenceCheck.Apply(claimed, await FindExistingEvidenceAsync(workspace, claimed));
+        var report = EvidenceCheck.Apply(claimed, await FindExistingEvidenceAsync(workspace, image, claimed));
         await CommentAsync(request, TicketComments.Coverage(report));
         if (report.Verdict == CoverageVerdicts.FullyCovered)
         {
@@ -259,7 +270,7 @@ public sealed class FeatureWorkflow
     }
 
     /// <summary>Which of the cited files exist. If the check cannot run, nothing counts as verified.</summary>
-    private static async Task<HashSet<string>> FindExistingEvidenceAsync(WorkspaceInfo workspace, CoverageReport claimed)
+    private static async Task<HashSet<string>> FindExistingEvidenceAsync(WorkspaceInfo workspace, string image, CoverageReport claimed)
     {
         var paths = EvidenceCheck.PathsToCheck(claimed);
         if (paths.Count == 0)
@@ -270,7 +281,7 @@ public sealed class FeatureWorkflow
         {
             var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                 SandboxNames.ActivityName,
-                [new SandboxRunRequest("dotnet", workspace.Name, false, EvidenceCheck.Command(paths), 60)],
+                [new SandboxRunRequest(image, workspace.Name, false, EvidenceCheck.Command(paths), 60)],
                 new ActivityOptions
                 {
                     TaskQueue = SandboxNames.DefaultTaskQueue,
@@ -295,6 +306,12 @@ public sealed class FeatureWorkflow
     private static (ArchitectDesign? Value, string? Error) ParseDesign(string text) =>
         ArchitectParser.TryParse(text, out var design, out var error) ? (design, null) : (null, error);
 
+    private const string NoConfigMessage =
+        "This repository has no `.factory/project.json`, so I do not know which sandbox image or checks to use. " +
+        "Add one on the default branch, for example:\n\n```json\n" +
+        "{\n  \"image\": \"python\",\n  \"gates\": [\n    { \"name\": \"test\", \"command\": [\"python\", \"-m\", \"pytest\", \"-q\"] }\n  ]\n}\n```\n\n" +
+        "Then close and reopen this ticket.";
+
     private const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";
 
@@ -307,7 +324,8 @@ public sealed class FeatureWorkflow
     /// answer gets one more try that says what was wrong; after that the caller asks a person.
     /// </summary>
     private static async Task<AgentOutcome<T>> RunAgentAsync<T>(
-        string role, WorkspaceInfo workspace, Func<string?, string> prompt, Func<string, (T? Value, string? Error)> parse)
+        string role, string image, WorkspaceInfo workspace, Func<string?, string> prompt, Func<string, (T? Value, string? Error)> parse,
+        bool writable = false, int timeoutSeconds = 900)
         where T : class
     {
         string? problem = null;
@@ -319,16 +337,16 @@ public sealed class FeatureWorkflow
                 result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                     SandboxNames.ActivityName,
                     [new SandboxRunRequest(
-                        Image: "dotnet",
+                        Image: image,
                         Workspace: workspace.Name,
-                        WorkspaceWritable: false,
+                        WorkspaceWritable: writable,
                         Command: ["opencode", "run", "--agent", role, "--format", "json", prompt(problem)],
-                        TimeoutSeconds: 900,
+                        TimeoutSeconds: timeoutSeconds,
                         NeedsModelAuth: true)],
                     new ActivityOptions
                     {
                         TaskQueue = SandboxNames.DefaultTaskQueue,
-                        StartToCloseTimeout = TimeSpan.FromMinutes(20),
+                        StartToCloseTimeout = TimeSpan.FromSeconds(timeoutSeconds + 300),
                         HeartbeatTimeout = TimeSpan.FromSeconds(30),
                         // A model run can consume plan usage; the retry below is a deliberate, bounded second try.
                         RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },

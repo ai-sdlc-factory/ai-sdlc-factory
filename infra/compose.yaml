@@ -279,7 +279,7 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
-      SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local
+      SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local;python=dev-foundry/sandbox-python:local
       SANDBOX_NETWORK: dev-foundry_sandbox
       SANDBOX_UID: ${FACTORY_UID:-1000}
       SANDBOX_GID: ${FACTORY_GID:-1000}
@@ -303,7 +303,17 @@ services:
   sandbox-image-dotnet:
     image: dev-foundry/sandbox-dotnet:local
     build:
-      context: ../sandboxes/dotnet
+      context: ../sandboxes
+      dockerfile: dotnet/Dockerfile
+    profiles: ["images"]
+    entrypoint: ["true"]
+    restart: "no"
+
+  sandbox-image-python:
+    image: dev-foundry/sandbox-python:local
+    build:
+      context: ../sandboxes
+      dockerfile: python/Dockerfile
     profiles: ["images"]
     entrypoint: ["true"]
     restart: "no"

@@ -1,8 +1,8 @@
 # Feature factory design
 
-Status: steps 1 to 4 of the build order are done, plus the architect from step 7 (router, Forgejo client and bot account,
-host workspaces, the sandbox launcher with a .NET image, the analyst stage with its verdict
-handling and ticket conversation, the coverage check with triage, and the architect). Everything else below is still design.
+Status: steps 1 to 4 of the build order are done, plus the architect (step 7) and the developer with its
+automated checks and the pull request (steps 5 and 6, without reviewers and QA yet): a labelled ticket
+now becomes a pull request. Reviewers, QA, the bug workflow and incidents below are still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -99,8 +99,8 @@ configuration before relying on this.
 2. Workspace creation on the host and the sandbox launcher with one allowlisted image.
 3. Analyst stage with verdict schema, ticket comment, and a wait for a human reply (done).
 4. Coverage check and triage rules (done).
-5. Developer plus deterministic gates, then reviewers and QA with the capped loop.
-6. Publish and PR creation.
+5. Developer plus deterministic gates (done), then reviewers and QA with the capped loop.
+6. Publish and PR creation (done, currently straight after the gates).
 7. Architect stage (done), bug workflow, then incident handling.
 
 ## Open points
@@ -130,3 +130,19 @@ configuration before relying on this.
   answers the analyst's questions usually settles the fork first, and a contradictory request is
   rejected by the analyst before the architect sees it. A workflow-level test with scripted agent
   answers is the reliable way to cover them.
+
+## Known risks of the build stage
+
+- **The developer can run commands and reach the network.** Its sandbox has outbound internet (package
+  restore and the model provider need it) and the OpenCode login is readable inside it, so an agent
+  that is tricked by text in the ticket or repository could try to send the login or the code out. The
+  sandbox boundary, the lack of any Forgejo or Temporal credential in it, and the fixed checks limit
+  what a bad change can do, but not what a tricked agent can send. The next hardening step is an egress
+  allowlist (model provider and package mirrors only).
+- **Gate commands come from the repository.** They run inside the sandbox, like the agent, so they get no
+  more reach than the agent has, but a repository owner decides what runs.
+- **The secret scan is a safety net**, not a guarantee: it finds common token shapes and the factory's own
+  token.
+- **Findings from running it:** the first run produced a good pull request in one round; the pull request
+  body initially quoted the maximum round count instead of the passing round (fixed). A request to change
+  `.factory/` was refused by the developer itself and reported as blocked.

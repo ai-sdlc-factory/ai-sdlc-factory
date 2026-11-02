@@ -109,10 +109,10 @@ Sandboxes that call the model share the OpenCode login stored in the `opencode-d
 The one-shot `opencode-data-init` service gives that volume to `FACTORY_UID`; it starts by itself
 before the login and demo services and needs no action from you.
 
-Build the sandbox image once, then start the launcher:
+Build the sandbox images once (`dotnet` and `python`), then start the launcher:
 
 ```bash
-docker compose --profile images build sandbox-image-dotnet
+docker compose --profile images build sandbox-image-dotnet sandbox-image-python
 docker compose up -d --build sandbox-launcher controller
 ```
 
@@ -136,12 +136,18 @@ Put the printed token in `.env` as `FORGEJO_BOT_TOKEN`, then recreate the contro
 (`docker compose up -d --force-recreate controller`). The controller reaches Forgejo over the
 dedicated `forge` network, so recreate Forgejo once after pulling this change as well.
 
+The token created above can only comment. The build stage also pushes branches and opens pull requests,
+so create it with `--scopes "write:issue,write:repository"`; the bot account must be a collaborator with
+write access on the repository (or own it).
+
 For each repository the factory should serve:
 
 1. Add `factory-bot` as a collaborator (write access) so it can comment.
 2. Add a webhook to `http://api:8000/webhooks/forgejo` (JSON, secret from `FORGEJO_WEBHOOK_SECRET`)
    for the Issues and Issue Comment events.
-3. Create the labels `feature` (and `bug` for later). A ticket labeled `feature` starts a feature
+3. Add `.factory/project.json` (sandbox image and checks; see the
+   [controller guide](../services/controller/README.md#project-configuration)) on the default branch.
+4. Create the labels `feature` (and `bug` for later). A ticket labeled `feature` starts a feature
    workflow.
 
 ## Optional OpenCode demo

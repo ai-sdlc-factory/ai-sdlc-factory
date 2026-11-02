@@ -115,6 +115,49 @@ in each), risks, and guidance for the build; the comment on the ticket shows all
 The analyst and the architect share one conversation loop (`ConverseAsync`): run the agent, post the
 answer, then continue, stop, or ask and wait. Code maps the verdict to the next step.
 
+### Build and pull request
+
+After the design (or straight after triage for a small change) the build runs, up to 3 rounds:
+
+1. The `developer` agent ([`agents/agents/developer.md`](../../agents/agents/developer.md)) works in the
+   **writable** workspace with a shell. It does not commit or push.
+2. Fixed checks look at what changed (`GitWorkspace.DetectChangesAsync`): protected paths
+   (`.factory/`, `.github/`, `.forgejo/`, CI files), symbolic links, file size and count, and a secret
+   scan. `.gitignore` decides what counts as noise. Violations go back to the developer as feedback.
+3. The project's own checks (gates) run one by one in the sandbox **without** model access.
+   Failures go back to the developer with the end of their output.
+4. When everything passes, the factory publishes. `PublishAsync` repeats the checks, applies only the
+   verified files onto the pristine clone, commits, pushes `factory/issue-<n>`, and `ForgejoClient`
+   opens the pull request (`Closes #<n>`). A person reviews and merges; the factory never merges.
+
+Three rounds that fail leave the ticket with a comment and nothing published. A developer that answers
+`blocked` (for example because the ticket needs a protected file changed) stops the run with its reasons.
+
+**Why there are two copies of the checkout.** The agent can write anything into its workspace, including
+`.git/hooks` and `.git/config` entries that run commands the next time git runs there. Git therefore
+never runs in the agent's copy. Intake clones into `<root>/.base/<name>` (no sandbox mounts it) and
+copies that to `<root>/<name>` for the agents. Changes are read from the agent's tree as plain files
+through git's trusted directory, and published by copying regular files onto the pristine clone.
+`WorkspaceChangesTests` plants a hostile hook and config and proves nothing runs.
+
+### Project configuration
+
+A repository describes itself in `.factory/project.json` on its default branch, read from the pristine clone:
+
+```json
+{
+  "image": "python",
+  "gates": [
+    { "name": "test", "command": ["python", "-m", "pytest", "-q"], "timeout_seconds": 300 }
+  ]
+}
+```
+
+`image` must be an alias the sandbox launcher allows (`dotnet`, `python`). A gate is an argument list
+(no shell; use `["sh", "-c", "..."]` if you need one), 1 to 8 gates, timeout 10 to 1800 seconds (default
+600). The file is untrusted input: it can only choose among the images the factory offers, and the
+commands run in the sandbox the agent already works in. Without it the run stops with an example.
+
 ### Limits and error messages
 
 Every agent answer is validated against explicit limits (for example the architect: at most 30
@@ -171,6 +214,11 @@ added separately.
 
 The worker writes `/tmp/worker-ready` while it runs; the Compose healthcheck tests
 for that file.
+
+## Starting from a pull request
+
+The pull request body lists the criteria, the design and the checks that passed, and carries
+`Closes #<n>`; merging it closes the ticket.
 
 ## Tests
 

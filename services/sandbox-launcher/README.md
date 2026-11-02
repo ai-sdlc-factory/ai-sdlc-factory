@@ -69,9 +69,10 @@ cd infra
 docker compose --profile images build sandbox-image-dotnet
 ```
 
-[`sandboxes/dotnet/`](../../sandboxes/dotnet/Dockerfile) holds the .NET image: SDK, git and the
-pinned OpenCode binary. Add another language by adding `sandboxes/<name>/Dockerfile` and one entry
-to `SANDBOX_IMAGES`.
+[`sandboxes/dotnet/`](../../sandboxes/dotnet/Dockerfile) holds the .NET image (SDK, git, ripgrep and the
+pinned OpenCode binary) and [`sandboxes/python/`](../../sandboxes/python/Dockerfile) the Python 3.12 one
+(plus pytest and ruff). Both use the shared entrypoint in `sandboxes/common/`. Add another language by
+adding `sandboxes/<name>/Dockerfile` and one entry to `SANDBOX_IMAGES`.
 
 ## Behavior
 
