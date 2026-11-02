@@ -126,10 +126,11 @@ configuration before relying on this.
   file and rejections name the exact field and limit.
 - Tickets are started again by closing and reopening them; re-labelling does nothing for a ticket that
   already had a run.
-- The architect's `needs_decision` and `reject` paths have only run in unit tests. A person who
-  answers the analyst's questions usually settles the fork first, and a contradictory request is
-  rejected by the analyst before the architect sees it. A workflow-level test with scripted agent
-  answers is the reliable way to cover them.
+- The architect's `needs_decision` and `reject` paths, the build loops and the publish failures cannot be
+  made to happen on demand with a real model (a person who answers the analyst settles the fork first,
+  and a contradictory request is rejected by the analyst). They are covered by workflow scenario tests
+  with scripted agents on a Temporal dev server; breaking the round cap or the reopen-restarts rule on
+  purpose makes exactly the matching scenario fail.
 
 ## Known risks of the build stage
 

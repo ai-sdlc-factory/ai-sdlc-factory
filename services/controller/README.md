@@ -229,5 +229,19 @@ docker build --target test -f services/controller/Dockerfile -t dev-foundry/cont
 docker run --rm dev-foundry/controller-test
 ```
 
-These xUnit tests verify the JSON contract with the API. See the
-[integration tests](../../tests/integration/README.md) for the full HTTP-to-workflow path.
+The xUnit tests cover three layers:
+
+- **Units:** the JSON contract with the API, the router, every parser and validator, the prompts,
+  the secret scan, and the workspace code against real git (including a hostile `.git` in the agent's copy).
+- **Workflow scenarios** (`Scenarios/`): the real `FeatureWorkflow` and `ForgejoEventWorkflow` run on a
+  Temporal dev server, with scripted agents, project checks, workspace and Forgejo. They exercise every
+  branch a live run cannot be made to take: clarification rounds, closing a ticket while it waits,
+  unusable and crashing agents, coverage claims without evidence, the architect asking or declining,
+  rejected changes, failing checks and the three-round cap, a blocked developer, publish failures, and
+  routing (reopening restarts a run, comments reach a waiting run, the factory ignores its own comments).
+  No model or network is involved. The dev server is the `temporal` binary the stack already ships
+  (copied into the test image), so the tests are skipped outside Docker. The 7-day waits cannot be
+  tested this way.
+- **Live runs** against the real stack, described in the guides above, for what only a real model shows.
+
+See the [integration tests](../../tests/integration/README.md) for the full HTTP-to-workflow path.

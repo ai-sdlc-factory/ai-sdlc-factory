@@ -11,6 +11,8 @@ COPY services/controller ./services/controller
 RUN dotnet publish services/controller/src/DevFoundry.Controller -c Release --no-restore -o /out
 
 FROM build AS test
+# A Temporal dev server for the workflow scenario tests (a static binary, the version the stack already uses).
+COPY --from=temporalio/admin-tools:1.32.1 /usr/local/bin/temporal /usr/local/bin/temporal
 RUN dotnet build services/controller/tests/DevFoundry.Controller.Tests -c Release --no-restore
 CMD ["dotnet", "test", "services/controller/tests/DevFoundry.Controller.Tests", "-c", "Release", "--no-build"]
 
