@@ -28,6 +28,13 @@ pipelines:
               - docker run --rm $SERVICE-test
         - step:
             <<: *service-tests
+            name: Test sandbox-launcher
+            script:
+              - export SERVICE=sandbox-launcher
+              - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
+              - docker run --rm $SERVICE-test
+        - step:
+            <<: *service-tests
             name: Test opencode-worker
             script:
               - export SERVICE=opencode-worker

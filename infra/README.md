@@ -90,6 +90,30 @@ only its explicitly mapped variables from `.env`. `TEMPORAL_ADDRESS`, `SMTP_HOST
 and `SMTP_PORT` configure internal connections; host port overrides do not change
 container ports. Give future applications their own database accounts.
 
+## Workspaces and sandboxes
+
+Feature tickets get a private git checkout on the host and run agents in disposable containers.
+Set these in `.env` (see `.env.example`):
+
+- `FACTORY_WORKSPACE_ROOT`: an absolute host path for the checkouts. **Create it yourself first**
+  (`mkdir -p`); Docker would otherwise create it as root. The same path is used inside containers.
+- `FACTORY_UID` / `FACTORY_GID`: your user (`id -u`, `id -g`). The controller and sandboxes run as
+  this user, so you can read, change and delete the checkouts.
+- `DOCKER_GID`: the group of the Docker socket (`stat -c %g /var/run/docker.sock`), so the sandbox
+  launcher does not need root.
+- `FACTORY_GLOBAL_CONFIG` (optional): an absolute host directory with shared agent settings, such
+  as an `opencode.json`, mounted read-only into every sandbox at `/etc/factory`.
+
+Build the sandbox image once, then start the launcher:
+
+```bash
+docker compose --profile images build sandbox-image-dotnet
+docker compose up -d --build sandbox-launcher controller
+```
+
+Checkouts are removed when a ticket's workflow ends. Details are in the
+[sandbox launcher guide](../services/sandbox-launcher/README.md).
+
 ## Factory bot account
 
 The controller comments on tickets as a dedicated Forgejo user, so the factory never uses a personal

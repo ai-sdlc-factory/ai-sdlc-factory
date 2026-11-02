@@ -1,7 +1,8 @@
 # Feature factory design
 
-Status: step 1 of the build order is done (router, Forgejo client and bot account, a skeleton
-`FeatureWorkflow`). Everything else below is still design.
+Status: steps 1 and 2 of the build order are done (router, Forgejo client and bot account, a
+skeleton `FeatureWorkflow`, host workspaces, and the sandbox launcher with a .NET image). Everything
+else below is still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -106,6 +107,7 @@ configuration before relying on this.
 
 - The workspace lives on the host; the launcher runs in a container, so the workspace root must be
   mounted into it at the same path that Docker uses on the host.
-- Sharing the ChatGPT login with disposable containers: a read-only mount may stop token refresh.
+- Sharing the ChatGPT login with disposable containers (not solved yet; the .NET image has OpenCode
+  but no login): a read-only mount may stop token refresh.
   Check how OpenCode refreshes and decide where the token lives.
 - Which models per role, and how much usage each stage may consume.

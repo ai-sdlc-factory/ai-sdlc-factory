@@ -47,6 +47,15 @@ The controller talks to Forgejo only through `ForgejoClient`, using the bot toke
 `FORGEJO_BOT_TOKEN` (see [the bot account](../../infra/README.md#factory-bot-account)). Without a
 token, feature workflows fail at their first comment and every other event still works.
 
+### Workspace and sandbox check
+
+When a feature starts, the controller clones the repository into
+`FACTORY_WORKSPACE_ROOT/<workflow id>` on a branch `factory/issue-<number>` (`GitWorkspace`; the
+token goes to git through the environment, never into arguments or the repository config). It
+then asks the [sandbox launcher](../sandbox-launcher/README.md) to run `git log -1` against the
+checkout in a `dotnet` sandbox, reports the result on the ticket, and removes the checkout when
+the workflow ends, including when the ticket is closed.
+
 ## Workflow contract
 
 The workflow input and the OpenCode task are defined once in

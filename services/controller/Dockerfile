@@ -15,8 +15,12 @@ RUN dotnet build services/controller/tests/DevFoundry.Controller.Tests -c Releas
 CMD ["dotnet", "test", "services/controller/tests/DevFoundry.Controller.Tests", "-c", "Release", "--no-build"]
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
-ENV DOTNET_EnableDiagnostics=0
+ENV DOTNET_EnableDiagnostics=0 HOME=/tmp
 WORKDIR /app
+# git prepares the per-run checkouts that sandboxes mount.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --uid 10001 worker
 COPY --from=build /out ./
 USER worker

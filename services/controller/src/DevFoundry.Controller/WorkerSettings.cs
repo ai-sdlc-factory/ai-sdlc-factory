@@ -8,6 +8,8 @@ public sealed class WorkerSettings
     public string ForgejoUrl { get; init; } = "http://forgejo:3000";
     /// <summary>Access token of the factory's Forgejo bot account; empty disables ticket actions.</summary>
     public string ForgejoToken { get; init; } = "";
+    /// <summary>Absolute host path where per-run checkouts live; the same path inside every container.</summary>
+    public string WorkspaceRoot { get; init; } = "";
 
     public static WorkerSettings FromConfiguration(IConfiguration configuration) => new()
     {
@@ -16,6 +18,7 @@ public sealed class WorkerSettings
         TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
         ForgejoUrl = NonEmpty(configuration, "FORGEJO_URL", "http://forgejo:3000"),
         ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
+        WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
     };
 
     private static string NonEmpty(IConfiguration configuration, string key, string fallback)

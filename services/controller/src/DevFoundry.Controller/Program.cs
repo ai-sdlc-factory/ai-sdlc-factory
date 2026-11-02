@@ -8,10 +8,12 @@ builder.Services
     .AddHostedTemporalWorker(
         settings.TemporalAddress, settings.TemporalNamespace, settings.TemporalTaskQueue)
     .AddScopedActivities<ForgejoActivities>()
+    .AddScopedActivities<WorkspaceActivities>()
     .AddWorkflow<ForgejoEventWorkflow>()
     .AddWorkflow<FeatureWorkflow>()
     .AddWorkflow<OpenCodeDemoWorkflow>();
 builder.Services.AddSingleton(settings);
+builder.Services.AddSingleton(new GitWorkspace(settings));
 builder.Services.AddSingleton(new ForgejoClient(
     new HttpClient { BaseAddress = new Uri(settings.ForgejoUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(20) },
     settings));

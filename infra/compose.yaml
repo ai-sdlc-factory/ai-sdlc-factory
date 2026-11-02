@@ -6,6 +6,8 @@ name: dev-foundry
 #   hooks   Forgejo webhook delivery to the controller API
 #   forge   Forgejo API access for the controller (ticket comments, later branches and PRs)
 #   agents  Temporal and the untrusted OpenCode worker only
+#   sandbox (dev-foundry_sandbox) is created by the sandbox launcher for the disposable agent
+#           containers it starts; no Compose service ever joins it
 x-opencode: &opencode
   image: dev-foundry/opencode-worker:local
   build:
@@ -243,6 +245,11 @@ services:
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
       FORGEJO_URL: http://forgejo:3000
       FORGEJO_BOT_TOKEN: ${FORGEJO_BOT_TOKEN:-}
+      FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
+    # Runs as the host user so the checkouts it creates can be read, changed and deleted by that user.
+    user: "${FACTORY_UID:-1000}:${FACTORY_GID:-1000}"
+    volumes:
+      - ${FACTORY_WORKSPACE_ROOT}:${FACTORY_WORKSPACE_ROOT}
     networks: [control, forge]
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/worker-ready"]
@@ -251,6 +258,53 @@ services:
       retries: 10
       start_period: 15s
     stop_grace_period: 30s
+
+  # The only service with Docker access. It starts disposable agent containers with fixed isolation
+  # settings (see services/sandbox-launcher/README.md) and has no Forgejo credentials.
+  sandbox-launcher:
+    <<: *hardened
+    image: dev-foundry/sandbox-launcher:local
+    build:
+      context: ..
+      dockerfile: services/sandbox-launcher/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      temporal-namespace:
+        condition: service_completed_successfully
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID in .env (stat -c %g /var/run/docker.sock)}"
+    environment:
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
+      SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local
+      SANDBOX_NETWORK: dev-foundry_sandbox
+      SANDBOX_UID: ${FACTORY_UID:-1000}
+      SANDBOX_GID: ${FACTORY_GID:-1000}
+      FACTORY_GLOBAL_CONFIG: ${FACTORY_GLOBAL_CONFIG:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Read-only: the launcher only checks that a workspace exists before mounting it into a sandbox.
+      - ${FACTORY_WORKSPACE_ROOT}:${FACTORY_WORKSPACE_ROOT}:ro
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/worker-ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    stop_grace_period: 30s
+
+  # Not a service: builds the image the launcher starts for .NET projects.
+  # docker compose --profile images build sandbox-image-dotnet
+  sandbox-image-dotnet:
+    image: dev-foundry/sandbox-dotnet:local
+    build:
+      context: ../sandboxes/dotnet
+    profiles: ["images"]
+    entrypoint: ["true"]
+    restart: "no"
 
   integration-tests:
     image: dev-foundry/integration-tests:local

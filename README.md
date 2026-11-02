@@ -29,6 +29,8 @@ Start with the [infrastructure setup](infra/README.md#start), then
 - [`services/controller/`](services/controller/README.md): Temporal worker, workflows, and its tests.
 - [`tests/integration/`](tests/integration/README.md): tests spanning the independently deployed services.
 - [`services/opencode-worker/`](services/opencode-worker/README.md): OpenCode execution worker and demo submitter.
+- [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access; starts disposable agent containers.
+- [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in.
 - [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services (Forgejo event, OpenCode task).
 - [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, and the integration tests.
 
