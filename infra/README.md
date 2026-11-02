@@ -27,7 +27,8 @@ docker compose up -d --build
 docker compose ps -a
 ```
 
-The API and controller build separate images from their own service directories.
+The API, controller and OpenCode worker build separate images. The build context is the
+repository root, so every image can use the shared build settings and contracts library.
 Full pipeline tests are available through the optional
 [test profile](../tests/integration/README.md).
 

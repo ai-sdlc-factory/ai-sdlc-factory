@@ -13,7 +13,7 @@ public interface ITemporalGateway
 {
     /// <summary>Starts the workflow; returns false when the delivery was already recorded.</summary>
     Task<bool> StartForgejoWorkflowAsync(
-        string workflowId, ForgejoEnvelope envelope, CancellationToken cancellationToken);
+        string workflowId, ForgejoEvent envelope, CancellationToken cancellationToken);
 
     Task CheckReadyAsync(CancellationToken cancellationToken);
 }
@@ -21,7 +21,7 @@ public interface ITemporalGateway
 public sealed class TemporalGateway(ITemporalClient client, ApiSettings settings) : ITemporalGateway
 {
     public async Task<bool> StartForgejoWorkflowAsync(
-        string workflowId, ForgejoEnvelope envelope, CancellationToken cancellationToken)
+        string workflowId, ForgejoEvent envelope, CancellationToken cancellationToken)
     {
         try
         {

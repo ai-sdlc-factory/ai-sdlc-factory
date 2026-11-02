@@ -79,7 +79,7 @@ Inspect logs with `docker compose --profile opencode logs -f opencode-worker`.
 From the repository root:
 
 ```bash
-docker build --target test -f services/opencode-worker/Dockerfile -t dev-foundry/opencode-worker-test services
+docker build --target test -f services/opencode-worker/Dockerfile -t dev-foundry/opencode-worker-test .
 docker run --rm dev-foundry/opencode-worker-test
 ```
 

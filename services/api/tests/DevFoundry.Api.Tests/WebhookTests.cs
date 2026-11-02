@@ -14,13 +14,13 @@ namespace DevFoundry.Api.Tests;
 
 public sealed class FakeGateway : ITemporalGateway
 {
-    public List<(string WorkflowId, ForgejoEnvelope Envelope)> Started { get; } = [];
+    public List<(string WorkflowId, ForgejoEvent Envelope)> Started { get; } = [];
     public Exception? StartFailure { get; set; }
     public bool StartReturns { get; set; } = true;
     public Exception? ReadyFailure { get; set; }
 
     public Task<bool> StartForgejoWorkflowAsync(
-        string workflowId, ForgejoEnvelope envelope, CancellationToken cancellationToken)
+        string workflowId, ForgejoEvent envelope, CancellationToken cancellationToken)
     {
         if (StartFailure is not null)
         {

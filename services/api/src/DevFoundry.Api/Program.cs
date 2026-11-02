@@ -130,7 +130,7 @@ app.MapPost("/webhooks/forgejo", async (
         {
             started = await gateway.StartForgejoWorkflowAsync(
                 workflowId,
-                new ForgejoEnvelope(deliveryId, eventName, document.RootElement),
+                new ForgejoEvent(deliveryId, eventName, document.RootElement),
                 cancellationToken);
         }
         catch (TemporalUnavailableException)

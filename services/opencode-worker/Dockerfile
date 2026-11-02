@@ -1,18 +1,19 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
-WORKDIR /src/opencode-worker
-COPY Directory.Build.props /src/
-COPY opencode-worker/src/DevFoundry.OpenCodeWorker/DevFoundry.OpenCodeWorker.csproj src/DevFoundry.OpenCodeWorker/
-COPY opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj tests/DevFoundry.OpenCodeWorker.Tests/
-RUN dotnet restore tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj
-COPY opencode-worker/src ./src
-COPY opencode-worker/tests ./tests
-RUN dotnet publish src/DevFoundry.OpenCodeWorker -c Release --no-restore -o /out
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props ./
+COPY libs/DevFoundry.Contracts/DevFoundry.Contracts.csproj libs/DevFoundry.Contracts/
+COPY services/opencode-worker/src/DevFoundry.OpenCodeWorker/DevFoundry.OpenCodeWorker.csproj services/opencode-worker/src/DevFoundry.OpenCodeWorker/
+COPY services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests/
+RUN dotnet restore services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj
+COPY libs ./libs
+COPY services/opencode-worker ./services/opencode-worker
+RUN dotnet publish services/opencode-worker/src/DevFoundry.OpenCodeWorker -c Release --no-restore -o /out
 
 # The tests use shell-script stand-ins for the OpenCode binary, not the real model.
 FROM build AS test
-RUN dotnet build tests/DevFoundry.OpenCodeWorker.Tests -c Release --no-restore
-CMD ["dotnet", "test", "tests/DevFoundry.OpenCodeWorker.Tests", "-c", "Release", "--no-build"]
+RUN dotnet build services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests -c Release --no-restore
+CMD ["dotnet", "test", "services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests", "-c", "Release", "--no-build"]
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 ENV DOTNET_EnableDiagnostics=0 \
@@ -31,7 +32,7 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
     && tar -xzf /tmp/opencode.tar.gz -C /tmp/opencode-bin \
     && install /tmp/opencode-bin/opencode /usr/local/bin/opencode \
     && rm -rf /tmp/opencode-bin /tmp/opencode.tar.gz
-COPY opencode-worker/opencode.json /etc/opencode/opencode.json
+COPY services/opencode-worker/opencode.json /etc/opencode/opencode.json
 # Same UID as the earlier image, so the existing opencode-data volume stays readable.
 RUN useradd --system --uid 10001 --create-home worker \
     && mkdir -p /data/opencode /tmp/cache /tmp/config /tmp/state \

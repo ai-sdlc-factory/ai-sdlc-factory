@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/libs/">
+    <Project Path="libs/DevFoundry.Contracts/DevFoundry.Contracts.csproj" />
+  </Folder>
   <Folder Name="/services/">
     <Project Path="services/api/src/DevFoundry.Api/DevFoundry.Api.csproj" />
     <Project Path="services/api/tests/DevFoundry.Api.Tests/DevFoundry.Api.Tests.csproj" />

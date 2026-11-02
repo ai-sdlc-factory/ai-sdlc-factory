@@ -8,8 +8,8 @@ name: dev-foundry
 x-opencode: &opencode
   image: dev-foundry/opencode-worker:local
   build:
-    context: ../services
-    dockerfile: opencode-worker/Dockerfile
+    context: ..
+    dockerfile: services/opencode-worker/Dockerfile
     target: runtime
   profiles: ["opencode"]
   networks: [agents]
@@ -21,6 +21,15 @@ x-opencode: &opencode
   cpus: 2
   tmpfs:
     - /tmp:size=512m,mode=1777
+
+x-hardened: &hardened
+  read_only: true
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+  mem_limit: 512m
+  tmpfs:
+    - /tmp:size=64m,mode=1777
 
 services:
   postgres:
@@ -191,10 +200,11 @@ services:
       - "127.0.0.1:${TEMPORAL_UI_PORT:-8080}:8080"
 
   api:
+    <<: *hardened
     image: dev-foundry/api:local
     build:
-      context: ../services
-      dockerfile: api/Dockerfile
+      context: ..
+      dockerfile: services/api/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -216,10 +226,11 @@ services:
       start_period: 15s
 
   controller:
+    <<: *hardened
     image: dev-foundry/controller:local
     build:
-      context: ../services
-      dockerfile: controller/Dockerfile
+      context: ..
+      dockerfile: services/controller/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -241,7 +252,8 @@ services:
   integration-tests:
     image: dev-foundry/integration-tests:local
     build:
-      context: ../tests/integration
+      context: ..
+      dockerfile: tests/integration/Dockerfile
     profiles: ["test"]
     restart: "no"
     networks: [control]

@@ -28,3 +28,8 @@ Start with the [infrastructure setup](infra/README.md#start), then
 - [`services/controller/`](services/controller/README.md): Temporal worker, workflows, and its tests.
 - [`tests/integration/`](tests/integration/README.md): tests spanning the independently deployed services.
 - [`services/opencode-worker/`](services/opencode-worker/README.md): OpenCode execution worker and demo submitter.
+- [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services (Forgejo event, OpenCode task).
+- [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, and the integration tests.
+
+Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
+[`Directory.Packages.props`](Directory.Packages.props); change a package version there, not in a project file.

@@ -32,6 +32,10 @@ for browser login and task submission. Forgejo receipt workflows remain unchange
 
 ## Workflow contract
 
+The workflow input and the OpenCode task are defined once in
+[`libs/DevFoundry.Contracts`](../../libs/DevFoundry.Contracts/Contracts.cs), shared with the API
+and the OpenCode worker. The contract tests below pin their JSON names.
+
 The API starts workflow type `ForgejoEventWorkflow` with this JSON envelope:
 
 ```json
@@ -60,7 +64,7 @@ for that file.
 From the repository root:
 
 ```bash
-docker build --target test -f services/controller/Dockerfile -t dev-foundry/controller-test services
+docker build --target test -f services/controller/Dockerfile -t dev-foundry/controller-test .
 docker run --rm dev-foundry/controller-test
 ```
 

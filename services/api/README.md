@@ -72,7 +72,7 @@ Inspect logs with `docker compose logs -f api` from `infra/`.
 From the repository root:
 
 ```bash
-docker build --target test -f services/api/Dockerfile -t dev-foundry/api-test services
+docker build --target test -f services/api/Dockerfile -t dev-foundry/api-test .
 docker run --rm dev-foundry/api-test
 ```
 
