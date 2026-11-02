@@ -90,6 +90,31 @@ only its explicitly mapped variables from `.env`. `TEMPORAL_ADDRESS`, `SMTP_HOST
 and `SMTP_PORT` configure internal connections; host port overrides do not change
 container ports. Give future applications their own database accounts.
 
+## Factory bot account
+
+The controller comments on tickets as a dedicated Forgejo user, so the factory never uses a personal
+account. Create it once (the password is random and not needed afterwards):
+
+```bash
+docker compose exec -u 1000 forgejo forgejo admin user create \
+  --username factory-bot --email factory-bot@dev-foundry.test \
+  --random-password --must-change-password=false
+docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
+  --username factory-bot --token-name controller --scopes "write:issue,read:repository" --raw
+```
+
+Put the printed token in `.env` as `FORGEJO_BOT_TOKEN`, then recreate the controller
+(`docker compose up -d --force-recreate controller`). The controller reaches Forgejo over the
+dedicated `forge` network, so recreate Forgejo once after pulling this change as well.
+
+For each repository the factory should serve:
+
+1. Add `factory-bot` as a collaborator (write access) so it can comment.
+2. Add a webhook to `http://api:8000/webhooks/forgejo` (JSON, secret from `FORGEJO_WEBHOOK_SECRET`)
+   for the Issues and Issue Comment events.
+3. Create the labels `feature` (and `bug` for later). A ticket labeled `feature` starts a feature
+   workflow.
+
 ## Optional OpenCode demo
 
 The [OpenCode guide](../services/opencode-worker/README.md) covers ChatGPT browser

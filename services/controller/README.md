@@ -30,6 +30,23 @@ The worker also runs `OpenCodeDemoWorkflow`, which delegates execution to a
 separate activity worker. See the [OpenCode guide](../opencode-worker/README.md)
 for browser login and task submission. Forgejo receipt workflows remain unchanged.
 
+## Feature tickets
+
+`ForgejoEventWorkflow` also routes Forgejo ticket events (decisions live in `EventRouter`):
+
+- An open ticket labeled `feature` (on `issues` opened, reopened or label updated) starts
+  `FeatureWorkflow` with the ID `feature-<owner>-<repo>-<number>`. Repeated events for the same
+  ticket are ignored.
+- A human comment on a feature ticket is signalled to its waiting workflow (`human_reply`);
+  closing the ticket sends `ticket_closed`. Comments written by the factory carry a hidden marker and
+  are ignored. Pull request events are ignored.
+- `FeatureWorkflow` is a skeleton for now: it comments on the ticket, waits up to 7 days for a reply
+  and finishes. The stages in [the design](../../docs/feature-factory.md) will be added to it.
+
+The controller talks to Forgejo only through `ForgejoClient`, using the bot token from
+`FORGEJO_BOT_TOKEN` (see [the bot account](../../infra/README.md#factory-bot-account)). Without a
+token, feature workflows fail at their first comment and every other event still works.
+
 ## Workflow contract
 
 The workflow input and the OpenCode task are defined once in

@@ -1,6 +1,9 @@
 # Feature factory design
 
-Status: design, nothing below is implemented yet. It describes how a Forgejo ticket turns into a
+Status: step 1 of the build order is done (router, Forgejo client and bot account, a skeleton
+`FeatureWorkflow`). Everything else below is still design.
+
+This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
 the stage-and-artifact idea of Anthropic's AI-native SDLC playbook: every stage produces a
 reviewable artifact, deterministic code controls the flow, and humans own the gates.
