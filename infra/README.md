@@ -47,6 +47,12 @@ The first start initializes the databases. `temporal-schema` and
 | Controller API | http://localhost:8000/docs |
 | Controller worker | Temporal task queue; no HTTP port |
 
+Compose isolates services on four networks: `data` (PostgreSQL and its clients),
+`control` (Temporal and the controller services), `hooks` (Forgejo to the controller
+API) and `agents` (Temporal and the OpenCode worker only). The OpenCode worker
+cannot reach PostgreSQL, Forgejo or the controller API. Outbound internet access is
+not restricted.
+
 Host ports can be changed in `.env`. All published ports bind to localhost.
 This is a local development stack; Temporal and Mailpit have no authentication.
 
@@ -66,8 +72,9 @@ externally. No login is needed. Messages persist across restarts; the newest
 5,000 are retained. Send a test email from Forgejo's **Site Administration >
 Configuration > SMTP Mailer Configuration**.
 
-**Temporal:** the setup service creates namespace `default`. Closed workflows
-have seven-day retention.
+**Temporal:** the setup service creates `TEMPORAL_NAMESPACE` (default `default`)
+with `TEMPORAL_RETENTION` (default `7d`) for closed workflows. Retention is applied
+only when the namespace is created.
 
 ## Connecting applications
 

@@ -86,7 +86,7 @@ docker run --rm dev-foundry/opencode-worker-test
 Include Temporal routing coverage after rebuilding the controller worker:
 
 ```bash
-docker run --rm --network dev-foundry_default \
+docker run --rm --network dev-foundry_agents \
   -e TEMPORAL_TEST_ADDRESS=temporal:7233 dev-foundry/opencode-worker-test
 ```
 

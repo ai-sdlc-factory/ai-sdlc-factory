@@ -1,12 +1,17 @@
 name: dev-foundry
 
-
+# Networks limit what each service can reach:
+#   data    PostgreSQL and its direct clients
+#   control Temporal clients and the trusted controller services
+#   hooks   Forgejo webhook delivery to the controller API
+#   agents  Temporal and the untrusted OpenCode worker only
 x-opencode: &opencode
   image: dev-foundry/opencode-worker:local
   build:
     context: ../services/opencode-worker
     target: runtime
   profiles: ["opencode"]
+  networks: [agents]
   read_only: true
   cap_drop: ["ALL"]
   security_opt: ["no-new-privileges:true"]
@@ -27,6 +32,7 @@ services:
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       FORGEJO_DB_PASSWORD: ${FORGEJO_DB_PASSWORD:?Set FORGEJO_DB_PASSWORD in .env}
       TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
+    networks: [data]
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -45,6 +51,7 @@ services:
     environment:
       MP_DATABASE: /data/mailpit.db
       MP_MAX_MESSAGES: "5000"
+    networks: [data]
     ports:
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
@@ -86,6 +93,7 @@ services:
       FORGEJO__mailer__SMTP_PORT: ${SMTP_PORT:-1025}
       FORGEJO__mailer__FROM: forgejo@dev-foundry.test
       FORGEJO__webhook__ALLOWED_HOST_LIST: external,controller-api
+    networks: [data, hooks]
     ports:
       - "127.0.0.1:${FORGEJO_HTTP_PORT:-3000}:3000"
       - "127.0.0.1:${FORGEJO_SSH_PORT:-2222}:22"
@@ -102,6 +110,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Set PGADMIN_DEFAULT_PASSWORD in .env}
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    networks: [data]
     ports:
       - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
     volumes:
@@ -116,6 +125,7 @@ services:
         condition: service_healthy
     environment:
       SQL_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
+    networks: [data]
     volumes:
       - ./temporal/setup-schema.sh:/scripts/setup-schema.sh:ro
     entrypoint: ["/bin/sh", "/scripts/setup-schema.sh"]
@@ -140,6 +150,7 @@ services:
       SQL_VIS_MAX_CONNS: "5"
       SQL_VIS_MAX_IDLE_CONNS: "5"
       DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/dynamicconfig.yaml
+    networks: [data, control, agents]
     ports:
       - "127.0.0.1:${TEMPORAL_PORT:-7233}:7233"
     volumes:
@@ -159,6 +170,9 @@ services:
         condition: service_healthy
     environment:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
+      TEMPORAL_RETENTION: ${TEMPORAL_RETENTION:-7d}
+    networks: [control]
     volumes:
       - ./temporal/setup-namespace.sh:/scripts/setup-namespace.sh:ro
     entrypoint: ["/bin/sh", "/scripts/setup-namespace.sh"]
@@ -171,6 +185,7 @@ services:
         condition: service_completed_successfully
     environment:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+    networks: [control]
     ports:
       - "127.0.0.1:${TEMPORAL_UI_PORT:-8080}:8080"
 
@@ -188,6 +203,7 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
       FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
+    networks: [control, hooks]
     ports:
       - "127.0.0.1:${CONTROLLER_API_PORT:-8000}:8000"
     healthcheck:
@@ -210,6 +226,13 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
+    networks: [control]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/worker-ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
     stop_grace_period: 30s
 
   controller-integration-tests:
@@ -218,18 +241,17 @@ services:
       context: ../tests/integration
     profiles: ["test"]
     restart: "no"
+    networks: [control]
     depends_on:
       controller-api:
         condition: service_healthy
       controller-worker:
-        condition: service_started
+        condition: service_healthy
     environment:
       CONTROLLER_TEST_URL: http://controller-api:8000
       TEMPORAL_TEST_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_TEST_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
-
-
 
   opencode-worker:
     <<: *opencode
@@ -271,6 +293,12 @@ services:
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
       OPENCODE_TASK_QUEUE: ${OPENCODE_TASK_QUEUE:-opencode-tasks}
     command: ["python", "-m", "opencode_worker.submit"]
+
+networks:
+  data:
+  control:
+  hooks:
+  agents:
 
 volumes:
   postgres-data:
