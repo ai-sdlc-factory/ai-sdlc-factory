@@ -81,6 +81,65 @@ public static class TicketComments
         return text.ToString().TrimEnd();
     }
 
+    public static string Design(ArchitectDesign design)
+    {
+        var text = new StringBuilder();
+        text.AppendLine(design.Verdict switch
+        {
+            ArchitectDesign.Pass => "**Design: ready to build**",
+            ArchitectDesign.NeedsDecision => "**Design: a decision is needed**",
+            _ => "**Design: not feasible as asked**",
+        });
+        text.AppendLine();
+        text.AppendLine(Inert(design.Summary));
+        if (design.Approach.Length > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("**Approach**");
+            text.AppendLine(Inert(design.Approach));
+        }
+        if (design.Components.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("**Components**");
+            foreach (var component in design.Components)
+            {
+                // Paths were validated to a safe character set, so they are safe in code spans.
+                text.AppendLine($"- `{component.Path}`: {Inert(component.Change)}");
+            }
+        }
+        if (design.Risks.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("**Risks**");
+            foreach (var risk in design.Risks)
+            {
+                text.AppendLine($"- {Inert(risk)}");
+            }
+        }
+        if (design.Guidance.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("**Guidance for the build**");
+            foreach (var item in design.Guidance)
+            {
+                text.AppendLine($"- {Inert(item)}");
+            }
+        }
+        if (design.Questions.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("**Questions**");
+            for (var i = 0; i < design.Questions.Count; i++)
+            {
+                text.AppendLine($"{i + 1}. {Inert(design.Questions[i])}");
+            }
+            text.AppendLine();
+            text.AppendLine("Reply on this ticket and I will continue.");
+        }
+        return text.ToString().TrimEnd();
+    }
+
     public static string TriageDecision(TriageDecision decision) =>
         decision.NeedsArchitect
             ? "**Triage: design review needed before building**\n\nReasons: " + string.Join("; ", decision.Reasons) + "."

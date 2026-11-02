@@ -98,6 +98,23 @@ before building. It asks for one if any of these hold, and the comment on the ti
 Otherwise the change is "small" and goes straight on. The architect and later stages are not
 built yet, so the workflow ends after triage with status `triaged` and `NeedsArchitect` in its result.
 
+### Architect
+
+Only when triage asks for it, the `architect` agent ([`agents/agents/architect.md`](../../agents/agents/architect.md))
+designs the change in a read-only sandbox. It gets the criteria that still have to be met (the ones the
+coverage check did not find satisfied) and triage's reasons. Its validated answer
+(`ArchitectParser`) holds an approach, the components that change (safe relative paths and what changes
+in each), risks, and guidance for the build; the comment on the ticket shows all of it.
+
+| Verdict | What the workflow does |
+| --- | --- |
+| `pass` | Posts the design and continues (status `designed` for now, because the build is not built yet). |
+| `needs_decision` | Posts the questions, waits for a reply on the ticket, runs the architect again with the answers. At most 3 rounds; the last round forbids questions. |
+| `reject` | Posts why the change is not feasible as asked and stops (`design_rejected`). |
+
+The analyst and the architect share one conversation loop (`ConverseAsync`): run the agent, post the
+answer, then continue, stop, or ask and wait. Code maps the verdict to the next step.
+
 ### Workspace and sandbox check
 
 When a feature starts, the controller clones the repository into

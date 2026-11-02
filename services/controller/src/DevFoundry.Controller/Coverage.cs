@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace DevFoundry.Controller;
 
@@ -39,16 +38,10 @@ public sealed record CoverageReport(string Verdict, string Summary, IReadOnlyLis
     public IEnumerable<CriterionCoverage> Remaining => Criteria.Where(c => c.Status != CoverageStatus.Covered);
 }
 
-public static partial class CoverageParser
+public static class CoverageParser
 {
     private const int MaxEvidencePerCriterion = 3;
     private const int MaxNote = 300;
-
-    [GeneratedRegex(@"\A[A-Za-z0-9._@+/-]{1,200}\z")]
-    private static partial Regex SafePath();
-
-    [GeneratedRegex(@":\d+(-\d+)?\z")]
-    private static partial Regex LineSuffix();
 
     public static bool TryParse(
         string? text, IReadOnlyList<string> criteria, [NotNullWhen(true)] out CoverageReport? report, out string error)
@@ -170,8 +163,7 @@ public static partial class CoverageParser
             {
                 return false;
             }
-            var path = LineSuffix().Replace(entry.GetString()!.Trim(), "");
-            if (!SafePath().IsMatch(path) || path.StartsWith('/') || path.Split('/').Any(part => part is ".." or "." or ""))
+            if (!SafePath.TryNormalize(entry.GetString()!, out var path))
             {
                 return false;
             }

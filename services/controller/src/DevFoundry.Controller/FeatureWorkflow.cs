@@ -8,7 +8,7 @@ public sealed record FeatureResult(string Status, bool? NeedsArchitect = null);
 
 /// <summary>
 /// One run per feature ticket, following docs/feature-factory.md. Built so far: intake (a private
-/// workspace), the analyst, the coverage check and triage. The workflow code owns every decision; agents only return a verdict
+/// workspace), the analyst, the coverage check, triage and, when triage asks for it, the architect. The workflow code owns every decision; agents only return a verdict
 /// value, which is validated before it is used.
 /// </summary>
 [Workflow("FeatureWorkflow")]
@@ -16,6 +16,7 @@ public sealed class FeatureWorkflow
 {
     private static readonly TimeSpan WaitForHuman = TimeSpan.FromDays(7);
     private const int MaxClarificationRounds = 4;
+    private const int MaxDesignRounds = 3;
     private const int MaxAgentAttempts = 2;
 
     private readonly List<HumanReply> replies = [];
@@ -96,8 +97,18 @@ public sealed class FeatureWorkflow
 
         var triage = Triage.Decide(verdict.Complexity, request.Labels ?? []);
         await CommentAsync(request, TicketComments.TriageDecision(triage));
-        await CommentAsync(request, "The next stages (design, build, review, QA) are not built yet, so I stop here.");
-        return new FeatureResult("triaged", triage.NeedsArchitect);
+
+        if (triage.NeedsArchitect)
+        {
+            var design = await DesignAsync(request, workspace, coverage.Verdict!, triage);
+            if (design.Stop is { } designStop)
+            {
+                return designStop;
+            }
+        }
+
+        await CommentAsync(request, "The next stages (build, review, QA) are not built yet, so I stop here.");
+        return new FeatureResult(triage.NeedsArchitect ? "designed" : "triaged", triage.NeedsArchitect);
     }
 
     private sealed record StageResult<T>(FeatureResult? Stop, T? Verdict) where T : class;
@@ -106,64 +117,109 @@ public sealed class FeatureWorkflow
     /// Analyst stage. pass → continue; reject → stop; needs_clarification → ask on the ticket, wait for
     /// a human, and run again with their answers (a bounded number of rounds).
     /// </summary>
-    private async Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace)
+    private Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace) =>
+        ConverseAsync(
+            request, workspace, "analyst", MaxClarificationRounds,
+            (round, answers, problem) => AnalystPrompt.Build(request, answers, problem, round, MaxClarificationRounds),
+            ParseAnalyst,
+            TicketComments.Analysis,
+            verdict => verdict.Verdict switch
+            {
+                AnalystVerdict.Pass => Next.Done,
+                AnalystVerdict.Reject => Next.Stop,
+                _ => Next.Ask,
+            },
+            failedStatus: "analysis_failed", rejectedStatus: "rejected", failureText: "The analysis failed");
+
+    /// <summary>
+    /// Architect stage, only when triage asked for it. Same shape as the analyst: pass → continue,
+    /// reject → stop, needs_decision → ask on the ticket and run again with the answers.
+    /// </summary>
+    private Task<StageResult<ArchitectDesign>> DesignAsync(
+        FeatureRequest request, WorkspaceInfo workspace, CoverageReport coverage, TriageDecision triage) =>
+        ConverseAsync(
+            request, workspace, "architect", MaxDesignRounds,
+            (round, answers, problem) => ArchitectPrompt.Build(
+                request, coverage.Remaining.ToList(), triage.Reasons, answers, problem, round, MaxDesignRounds),
+            ParseDesign,
+            TicketComments.Design,
+            design => design.Verdict switch
+            {
+                ArchitectDesign.Pass => Next.Done,
+                ArchitectDesign.Reject => Next.Stop,
+                _ => Next.Ask,
+            },
+            failedStatus: "design_failed", rejectedStatus: "design_rejected", failureText: "The design failed");
+
+    private enum Next { Done, Stop, Ask }
+
+    /// <summary>
+    /// One agent role that may need to talk to a person: run it, post its answer, and either continue,
+    /// stop, or ask and wait for a reply on the ticket and run it again. The agent supplies the verdict
+    /// value; <paramref name="next"/> (code) maps it to what happens. Rounds are bounded.
+    /// </summary>
+    private async Task<StageResult<T>> ConverseAsync<T>(
+        FeatureRequest request, WorkspaceInfo workspace, string role, int maxRounds,
+        Func<int, IReadOnlyList<string>, string?, string> prompt,
+        Func<string, (T? Value, string? Error)> parse,
+        Func<T, string> comment,
+        Func<T, Next> next,
+        string failedStatus, string rejectedStatus, string failureText)
+        where T : class
     {
         var answers = new List<string>();
 
-        for (var round = 1; round <= MaxClarificationRounds; round++)
+        for (var round = 1; round <= maxRounds; round++)
         {
-            // Answers that arrived while the analyst was running count for this round.
+            // Answers that arrived while the agent was running count for this round.
             DrainReplies(answers);
             if (ticketClosed)
             {
-                return Stop<AnalystVerdict>("closed");
+                return Stop<T>("closed");
             }
 
-            var outcome = await RunAgentAsync<AnalystVerdict>(
-                "analyst", workspace,
-                problem => AnalystPrompt.Build(request, answers, problem, round, MaxClarificationRounds),
-                ParseAnalyst);
+            var outcome = await RunAgentAsync<T>(role, workspace, problem => prompt(round, answers, problem), parse);
             if (ticketClosed)
             {
-                return Stop<AnalystVerdict>("closed");
+                return Stop<T>("closed");
             }
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return Stop<AnalystVerdict>("blocked");
+                return Stop<T>("blocked");
             }
-            if (outcome.Value is not { } verdict)
+            if (outcome.Value is not { } value)
             {
-                await CommentAsync(request, $"The analysis failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return Stop<AnalystVerdict>("analysis_failed");
+                await CommentAsync(request, $"{failureText} and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
+                return Stop<T>(failedStatus);
             }
 
-            await CommentAsync(request, TicketComments.Analysis(verdict));
-            switch (verdict.Verdict)
+            await CommentAsync(request, comment(value));
+            switch (next(value))
             {
-                case AnalystVerdict.Pass:
-                    return new StageResult<AnalystVerdict>(null, verdict);
+                case Next.Done:
+                    return new StageResult<T>(null, value);
 
-                case AnalystVerdict.Reject:
-                    return Stop<AnalystVerdict>("rejected");
+                case Next.Stop:
+                    return Stop<T>(rejectedStatus);
 
-                default: // needs_clarification
+                default:
                     var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
                     if (ticketClosed)
                     {
-                        return Stop<AnalystVerdict>("closed");
+                        return Stop<T>("closed");
                     }
                     if (!answered)
                     {
                         await CommentAsync(request, "No answer for 7 days; stopping. Re-label the ticket to start again.");
-                        return Stop<AnalystVerdict>("timed_out");
+                        return Stop<T>("timed_out");
                     }
                     break;
             }
         }
 
-        await CommentAsync(request, $"Still unclear after {MaxClarificationRounds} rounds of questions. A person needs to decide how to proceed.");
-        return Stop<AnalystVerdict>("needs_human");
+        await CommentAsync(request, $"Still open after {maxRounds} rounds of questions. A person needs to decide how to proceed.");
+        return Stop<T>("needs_human");
     }
 
     /// <summary>
@@ -235,6 +291,9 @@ public sealed class FeatureWorkflow
 
     private static (CoverageReport? Value, string? Error) ParseCoverage(string text, IReadOnlyList<string> criteria) =>
         CoverageParser.TryParse(text, criteria, out var report, out var error) ? (report, null) : (null, error);
+
+    private static (ArchitectDesign? Value, string? Error) ParseDesign(string text) =>
+        ArchitectParser.TryParse(text, out var design, out var error) ? (design, null) : (null, error);
 
     private const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then re-label this ticket.";

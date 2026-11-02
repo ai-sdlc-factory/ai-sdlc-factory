@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
+using static DevFoundry.Controller.JsonFields;
+
 namespace DevFoundry.Controller;
 
 public sealed record Complexity(
@@ -126,36 +128,4 @@ public static class VerdictParser
         return true;
     }
 
-    private static string? Text(JsonElement element, string name) =>
-        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-
-    private static bool Flag(JsonElement element, string name, out bool value)
-    {
-        value = false;
-        if (!element.TryGetProperty(name, out var raw) || raw.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-        {
-            return false;
-        }
-        value = raw.GetBoolean();
-        return true;
-    }
-
-    private static bool TextList(JsonElement element, string name, out IReadOnlyList<string> items)
-    {
-        var list = new List<string>();
-        items = list;
-        if (!element.TryGetProperty(name, out var array) || array.ValueKind != JsonValueKind.Array || array.GetArrayLength() > MaxItems)
-        {
-            return false;
-        }
-        foreach (var item in array.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.String || item.GetString()?.Trim() is not { Length: > 0 and <= MaxItemLength } text)
-            {
-                return false;
-            }
-            list.Add(text);
-        }
-        return true;
-    }
 }

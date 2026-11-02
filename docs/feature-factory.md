@@ -1,8 +1,8 @@
 # Feature factory design
 
-Status: steps 1 to 4 of the build order are done (router, Forgejo client and bot account,
+Status: steps 1 to 4 of the build order are done, plus the architect from step 7 (router, Forgejo client and bot account,
 host workspaces, the sandbox launcher with a .NET image, the analyst stage with its verdict
-handling and ticket conversation, and the coverage check with triage). Everything else below is still design.
+handling and ticket conversation, the coverage check with triage, and the architect). Everything else below is still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -101,7 +101,7 @@ configuration before relying on this.
 4. Coverage check and triage rules (done).
 5. Developer plus deterministic gates, then reviewers and QA with the capped loop.
 6. Publish and PR creation.
-7. Architect stage, bug workflow, then incident handling.
+7. Architect stage (done), bug workflow, then incident handling.
 
 ## Open points
 
