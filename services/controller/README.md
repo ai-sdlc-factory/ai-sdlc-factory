@@ -47,6 +47,26 @@ The controller talks to Forgejo only through `ForgejoClient`, using the bot toke
 `FORGEJO_BOT_TOKEN` (see [the bot account](../../infra/README.md#factory-bot-account)). Without a
 token, feature workflows fail at their first comment and every other event still works.
 
+### Analyst stage
+
+After the workspace is ready, `FeatureWorkflow` runs the `analyst` agent
+([`agents/agents/analyst.md`](../../agents/agents/analyst.md)) in a read-only sandbox with model
+access: `opencode run --agent analyst --format json "<case>"`. The workflow, not the agent, decides
+what happens next, from a validated verdict:
+
+| Verdict | What the workflow does |
+| --- | --- |
+| `pass` | Posts the acceptance criteria and estimate, then stops (later stages are not built). |
+| `needs_clarification` | Posts the questions, waits up to 7 days for a reply on the ticket, then runs the analyst again with the answers. At most 4 rounds; the last round tells the model not to ask. |
+| `reject` | Posts the reason and stops. |
+| unusable answer | One retry that tells the model what was wrong; then asks a person to look. |
+| not signed in | Says so on the ticket and stops. |
+
+`VerdictParser` accepts JSON wrapped in prose or code fences but is strict about the shape (allowed
+verdicts, size limits, the complexity fields). `OpenCodeEvents` extracts the answer from OpenCode's
+event stream. Ticket text and human replies reach the model only between markers, clipped and
+labelled as data (`AnalystPrompt`), and model text is made inert before it is posted (`TicketComments`).
+
 ### Workspace and sandbox check
 
 When a feature starts, the controller clones the repository into

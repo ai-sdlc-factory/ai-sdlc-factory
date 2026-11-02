@@ -77,7 +77,7 @@ to `SANDBOX_IMAGES`.
 
 - A command that exits non-zero is a normal result (`exit_code`), not an activity failure.
 - A command that runs past its timeout is killed; the result has `timed_out: true`.
-- Output is limited to 64 KB per stream; `output_truncated` says when it was cut.
+- Output is limited to the last 512 KB per stream (the end is what matters); `output_truncated` says when the start was cut.
 - Policy violations fail the activity without retries. Failures before the command starts
   (Docker unreachable, create or start errors) are retried only when Docker itself failed.
   Once the command may have run, nothing is retried, because a run can consume model usage.

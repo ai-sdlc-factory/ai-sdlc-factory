@@ -206,11 +206,14 @@ public sealed class DockerClient : IDockerClient
 /// </summary>
 public static class LogDemuxer
 {
+    /// <summary>
+    /// Reads the frames and keeps the last <paramref name="maxBytesPerStream"/> bytes of each stream:
+    /// for a long-running command the end (the result, the error) matters more than the start.
+    /// </summary>
     public static async Task<DockerLogs> ReadAsync(Stream stream, int maxBytesPerStream, CancellationToken cancellationToken)
     {
-        var stdout = new MemoryStream();
-        var stderr = new MemoryStream();
-        var truncated = false;
+        var stdout = new TailBuffer(maxBytesPerStream);
+        var stderr = new TailBuffer(maxBytesPerStream);
         var header = new byte[8];
         var buffer = new byte[8192];
 
@@ -226,22 +229,11 @@ public static class LogDemuxer
                     break;
                 }
                 length -= read;
-                var room = maxBytesPerStream - (int)target.Length;
-                if (read > room)
-                {
-                    truncated = true;
-                }
-                if (room > 0)
-                {
-                    target.Write(buffer, 0, Math.Min(read, room));
-                }
+                target.Append(buffer, read);
             }
         }
-        return new DockerLogs(Decode(stdout), Decode(stderr), truncated);
+        return new DockerLogs(stdout.Text(), stderr.Text(), stdout.Truncated || stderr.Truncated);
     }
-
-    private static string Decode(MemoryStream stream) =>
-        Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
 
     private static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer, CancellationToken cancellationToken)
     {
@@ -256,5 +248,47 @@ public static class LogDemuxer
             offset += read;
         }
         return true;
+    }
+
+    private sealed class TailBuffer(int capacity)
+    {
+        private readonly byte[] data = new byte[capacity];
+        private int start;
+        private int count;
+
+        public bool Truncated { get; private set; }
+
+        public void Append(byte[] source, int length)
+        {
+            if (capacity == 0)
+            {
+                Truncated |= length > 0;
+                return;
+            }
+            for (var i = 0; i < length; i++)
+            {
+                if (count == capacity)
+                {
+                    data[start] = source[i];
+                    start = (start + 1) % capacity;
+                    Truncated = true;
+                }
+                else
+                {
+                    data[(start + count) % capacity] = source[i];
+                    count++;
+                }
+            }
+        }
+
+        public string Text()
+        {
+            var ordered = new byte[count];
+            for (var i = 0; i < count; i++)
+            {
+                ordered[i] = data[(start + i) % capacity];
+            }
+            return Encoding.UTF8.GetString(ordered);
+        }
     }
 }

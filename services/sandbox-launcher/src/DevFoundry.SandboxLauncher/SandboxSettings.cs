@@ -24,7 +24,7 @@ public sealed class SandboxSettings
     public int PidsLimit { get; init; } = 256;
     public int MaxRunSeconds { get; init; } = 1800;
     public int MaxConcurrentRuns { get; init; } = 2;
-    public int MaxOutputBytes { get; init; } = 64 * 1024;
+    public int MaxOutputBytes { get; init; } = 512 * 1024;
 
     /// <summary>Optional host directory with shared agent settings, mounted read-only at /etc/factory.</summary>
     public string? GlobalConfigPath { get; init; }

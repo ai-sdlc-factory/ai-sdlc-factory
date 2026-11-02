@@ -1,8 +1,8 @@
 # Feature factory design
 
-Status: steps 1 and 2 of the build order are done (router, Forgejo client and bot account, a
-skeleton `FeatureWorkflow`, host workspaces, and the sandbox launcher with a .NET image). Everything
-else below is still design.
+Status: steps 1 to 3 of the build order are done (router, Forgejo client and bot account,
+host workspaces, the sandbox launcher with a .NET image, and the analyst stage with its verdict
+handling and ticket conversation). Everything else below is still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -97,7 +97,7 @@ configuration before relying on this.
 
 1. Router in the controller: label handling, comment signals, a bot account, Forgejo client.
 2. Workspace creation on the host and the sandbox launcher with one allowlisted image.
-3. Analyst stage with verdict schema, ticket comment, and a wait for a human reply.
+3. Analyst stage with verdict schema, ticket comment, and a wait for a human reply (done).
 4. Coverage check and triage rules.
 5. Developer plus deterministic gates, then reviewers and QA with the capped loop.
 6. Publish and PR creation.

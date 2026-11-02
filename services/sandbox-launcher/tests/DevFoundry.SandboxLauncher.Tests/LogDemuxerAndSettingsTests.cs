@@ -31,12 +31,12 @@ public sealed class LogDemuxerAndSettingsTests
     }
 
     [Fact]
-    public async Task Output_beyond_the_limit_is_dropped_and_flagged()
+    public async Task Output_beyond_the_limit_keeps_the_end_and_is_flagged()
     {
         var logs = await LogDemuxer.ReadAsync(
-            Stream(Frame(1, new string('a', 100)), Frame(2, "b")), 10, CancellationToken.None);
+            Stream(Frame(1, new string('a', 100)), Frame(1, "0123456789"), Frame(2, "b")), 10, CancellationToken.None);
 
-        Assert.Equal(new string('a', 10), logs.Stdout);
+        Assert.Equal("0123456789", logs.Stdout);
         Assert.Equal("b", logs.Stderr);
         Assert.True(logs.Truncated);
     }
