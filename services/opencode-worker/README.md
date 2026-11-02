@@ -57,6 +57,22 @@ OPENCODE_MODEL=openai/gpt-6.1-sol
 
 Choose a model available to your account. Access and usage depend on your ChatGPT plan.
 
+## Troubleshooting: "OpenCode is not signed in"
+
+The demo fails with `OpenCode is not signed in. Run the opencode-login Compose service first.`
+when the `opencode-data` volume holds no login. You do not log in inside the worker container.
+The worker is read-only and only reads the login; the `opencode-login` service writes it to the
+same volume. Sign in once, then run the demo again:
+
+```bash
+docker compose --profile opencode run --rm --service-ports opencode-login
+docker compose --profile opencode run --rm --no-deps opencode-demo
+```
+
+The login is lost whenever the volume is deleted, for example by `docker compose down -v` or a
+Docker Desktop reset. If the worker still reports "not signed in" after logging in, restart it
+with `docker compose --profile opencode restart opencode-worker`.
+
 ## Execution
 
 `OpenCodeDemoWorkflow` runs on the trusted controller worker and dispatches the
