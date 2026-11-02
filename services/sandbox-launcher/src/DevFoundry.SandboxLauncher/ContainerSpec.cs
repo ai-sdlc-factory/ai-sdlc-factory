@@ -11,6 +11,7 @@ public static class ContainerSpec
     public const string Label = "dev-foundry.sandbox";
     public const string WorkspaceTarget = "/workspace";
     public const string GlobalConfigTarget = "/etc/factory";
+    public const string AuthTarget = "/auth";
 
     public static CreateContainerBody Build(ValidatedRun run, SandboxSettings settings)
     {
@@ -23,13 +24,21 @@ public static class ContainerSpec
             mounts.Add(new MountSpec("bind", globalConfig, GlobalConfigTarget, ReadOnly: true));
         }
 
+        var env = new List<string>(run.Env);
+        if (run.NeedsModelAuth)
+        {
+            // NoCopy: never seed the volume from image content. The entrypoint links auth.json from here.
+            mounts.Add(new MountSpec("volume", settings.AuthVolume!, AuthTarget, settings.AuthReadOnly, new VolumeOptionsSpec(true)));
+            env.Add("FACTORY_REQUIRE_AUTH=1");
+        }
+
         return new CreateContainerBody
         {
             Image = run.Image,
             Cmd = run.Command,
             User = $"{settings.UserId}:{settings.GroupId}",
             WorkingDir = WorkspaceTarget,
-            Env = [.. run.Env, "HOME=/tmp/home", "XDG_CACHE_HOME=/tmp/cache", "XDG_CONFIG_HOME=/tmp/config"],
+            Env = [.. env, "HOME=/tmp/home", "XDG_CACHE_HOME=/tmp/cache", "XDG_CONFIG_HOME=/tmp/config"],
             Labels = new Dictionary<string, string> { [Label] = "true" },
             HostConfig = new HostConfigBody
             {
@@ -54,7 +63,10 @@ public sealed record MountSpec(
     [property: JsonPropertyName("Type")] string Type,
     [property: JsonPropertyName("Source")] string Source,
     [property: JsonPropertyName("Target")] string Target,
-    [property: JsonPropertyName("ReadOnly")] bool ReadOnly);
+    [property: JsonPropertyName("ReadOnly")] bool ReadOnly,
+    [property: JsonPropertyName("VolumeOptions")] VolumeOptionsSpec? VolumeOptions = null);
+
+public sealed record VolumeOptionsSpec([property: JsonPropertyName("NoCopy")] bool NoCopy);
 
 public sealed class CreateContainerBody
 {

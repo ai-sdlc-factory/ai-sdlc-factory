@@ -16,6 +16,14 @@ public sealed class SandboxRunnerTests
 
         public Task EnsureNetworkAsync(string name, CancellationToken ct) => Task.CompletedTask;
 
+        public bool VolumeExists { get; set; } = true;
+
+        public Task<bool> VolumeExistsAsync(string name, CancellationToken ct)
+        {
+            Calls.Add("volume");
+            return Task.FromResult(VolumeExists);
+        }
+
         public Task<string> CreateAsync(CreateContainerBody body, CancellationToken ct)
         {
             Calls.Add("create");
@@ -115,6 +123,30 @@ public sealed class SandboxRunnerTests
 
         Assert.Equal(nonRetryable, error.NonRetryable);
         Assert.DoesNotContain("remove", docker.Calls);
+    }
+
+    [Fact]
+    public async Task Model_run_without_a_login_volume_fails_clearly_and_starts_nothing()
+    {
+        var docker = new FakeDocker { VolumeExists = false };
+
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(
+            () => Runner(docker).RunAsync(Support.Valid(Support.Request(modelAuth: true)), () => { }, CancellationToken.None));
+
+        Assert.True(error.NonRetryable);
+        Assert.Contains("not signed in", error.Message);
+        Assert.Equal(["volume"], docker.Calls);
+    }
+
+    [Fact]
+    public async Task Runs_without_model_access_do_not_look_for_the_login_volume()
+    {
+        var docker = new FakeDocker();
+        docker.Exit.SetResult(0);
+
+        await Runner(docker).RunAsync(Support.Valid(), () => { }, CancellationToken.None);
+
+        Assert.DoesNotContain("volume", docker.Calls);
     }
 
     [Fact]

@@ -107,7 +107,8 @@ configuration before relying on this.
 
 - The workspace lives on the host; the launcher runs in a container, so the workspace root must be
   mounted into it at the same path that Docker uses on the host.
-- Sharing the ChatGPT login with disposable containers (not solved yet; the .NET image has OpenCode
-  but no login): a read-only mount may stop token refresh.
+- Sharing the ChatGPT login with disposable containers: the `opencode-data` volume is mounted into
+  runs that need the model (see the launcher guide). Still to confirm with a real login: that a
+  refreshed token is written back to the volume. Earlier note: a read-only mount may stop token refresh.
   Check how OpenCode refreshes and decide where the token lives.
 - Which models per role, and how much usage each stage may consume.

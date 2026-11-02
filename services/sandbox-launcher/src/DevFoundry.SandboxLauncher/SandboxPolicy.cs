@@ -10,7 +10,8 @@ public sealed record ValidatedRun(
     bool WorkspaceWritable,
     IReadOnlyList<string> Command,
     TimeSpan Timeout,
-    IReadOnlyList<string> Env);
+    IReadOnlyList<string> Env,
+    bool NeedsModelAuth);
 
 /// <summary>
 /// Everything a requester is allowed to influence, and nothing else. The caller is the trusted
@@ -73,7 +74,12 @@ public static partial class SandboxPolicy
         }
         var timeout = TimeSpan.FromSeconds(Math.Min(request.TimeoutSeconds, settings.MaxRunSeconds));
 
-        return new ValidatedRun(image, path, request.WorkspaceWritable, request.Command, timeout, env);
+        if (request.NeedsModelAuth && settings.AuthVolume is null)
+        {
+            throw Reject("Model access is not configured (SANDBOX_AUTH_VOLUME is empty).");
+        }
+
+        return new ValidatedRun(image, path, request.WorkspaceWritable, request.Command, timeout, env, request.NeedsModelAuth);
     }
 
     // Policy violations will not fix themselves, so they are never retried.

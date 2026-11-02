@@ -101,8 +101,13 @@ Set these in `.env` (see `.env.example`):
   this user, so you can read, change and delete the checkouts.
 - `DOCKER_GID`: the group of the Docker socket (`stat -c %g /var/run/docker.sock`), so the sandbox
   launcher does not need root.
-- `FACTORY_GLOBAL_CONFIG` (optional): an absolute host directory with shared agent settings, such
-  as an `opencode.json`, mounted read-only into every sandbox at `/etc/factory`.
+- `FACTORY_GLOBAL_CONFIG`: the absolute path of this repository's [`agents/`](../agents/README.md)
+  folder (agent definitions and OpenCode settings), mounted read-only into every sandbox.
+
+Sandboxes that call the model share the OpenCode login stored in the `opencode-data` volume (see
+[the launcher guide](../services/sandbox-launcher/README.md#model-access-and-the-opencode-login)).
+The one-shot `opencode-data-init` service gives that volume to `FACTORY_UID`; it starts by itself
+before the login and demo services and needs no action from you.
 
 Build the sandbox image once, then start the launcher:
 

@@ -76,9 +76,11 @@ public sealed class FeatureWorkflow
                 return new FeatureResult("setup_failed");
             }
 
+            var agentCheck = await CheckAgentsAsync(workspace);
             await CommentAsync(request,
                 $"Workspace ready: branch `{workspace.Branch}` from `{workspace.DefaultBranch}` at `{workspace.HeadCommit[..7]}`. " +
                 $"Sandbox check {(check.ExitCode == 0 ? "passed" : $"failed (exit {check.ExitCode})")}: `{Short(check.Stdout.Trim())}`. " +
+                $"{agentCheck} " +
                 "The analysis stage is not built yet, so I only wait for a reply here to confirm the round trip works.");
 
             var signalled = await Workflow.WaitConditionAsync(
@@ -106,6 +108,53 @@ public sealed class FeatureWorkflow
                     StartToCloseTimeout = TimeSpan.FromMinutes(1),
                     CancellationToken = CancellationToken.None,
                 });
+        }
+    }
+
+    private static readonly string[] BuiltInAgents = ["build", "compaction", "explore", "general", "plan", "summary", "title"];
+
+    /// <summary>
+    /// Reports whether OpenCode is signed in and which factory agents it can see. A missing login is
+    /// information for the ticket, not a failure: the workspace itself is fine.
+    /// </summary>
+    private static async Task<string> CheckAgentsAsync(WorkspaceInfo workspace)
+    {
+        try
+        {
+            var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
+                SandboxNames.ActivityName,
+                [new SandboxRunRequest(
+                    Image: "dotnet",
+                    Workspace: workspace.Name,
+                    WorkspaceWritable: false,
+                    Command: ["sh", "-c", "opencode auth list 2>&1; opencode agent list 2>&1"],
+                    TimeoutSeconds: 120,
+                    NeedsModelAuth: true)],
+                new ActivityOptions
+                {
+                    TaskQueue = SandboxNames.DefaultTaskQueue,
+                    StartToCloseTimeout = TimeSpan.FromMinutes(5),
+                    HeartbeatTimeout = TimeSpan.FromSeconds(30),
+                    RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },
+                });
+
+            if (result.ExitCode == 78)
+            {
+                return "OpenCode is not signed in yet (run the `opencode-login` service).";
+            }
+
+            var output = System.Text.RegularExpressions.Regex.Replace(result.Stdout, "\x1b\\[[0-9;]*m", "");
+            var credentials = System.Text.RegularExpressions.Regex.Match(output, @"(\d+) credentials?");
+            var agents = System.Text.RegularExpressions.Regex.Matches(output, @"^([a-z][a-z0-9_-]*) \((?:primary|subagent)\)", System.Text.RegularExpressions.RegexOptions.Multiline)
+                .Select(match => match.Groups[1].Value)
+                .Where(name => !BuiltInAgents.Contains(name))
+                .ToList();
+            return $"OpenCode login: {(credentials.Success ? credentials.Groups[1].Value : "?")} credential(s). " +
+                   $"Factory agents: {(agents.Count == 0 ? "none found" : string.Join(", ", agents))}.";
+        }
+        catch (ActivityFailureException error)
+        {
+            return $"OpenCode check failed: {Short(error.InnerException?.Message ?? error.Message)}";
         }
     }
 

@@ -16,6 +16,7 @@ x-opencode: &opencode
     target: runtime
   profiles: ["opencode"]
   networks: [agents]
+  user: "${FACTORY_UID:-1000}:${FACTORY_GID:-1000}"
   read_only: true
   cap_drop: ["ALL"]
   security_opt: ["no-new-privileges:true"]
@@ -283,6 +284,7 @@ services:
       SANDBOX_UID: ${FACTORY_UID:-1000}
       SANDBOX_GID: ${FACTORY_GID:-1000}
       FACTORY_GLOBAL_CONFIG: ${FACTORY_GLOBAL_CONFIG:-}
+      SANDBOX_AUTH_VOLUME: ${COMPOSE_PROJECT_NAME:-dev-foundry}_opencode-data
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Read-only: the launcher only checks that a workspace exists before mounting it into a sandbox.
@@ -325,11 +327,29 @@ services:
       TEMPORAL_TEST_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
 
+  # Gives the OpenCode login volume to the factory user. The login service, the demo worker and the
+  # disposable sandboxes all run as that user, so they can share one login without anyone being root.
+  opencode-data-init:
+    <<: *opencode
+    profiles: ["opencode", "opencode-tools"]
+    user: "0:0"
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "FOWNER", "DAC_OVERRIDE"]
+    restart: "no"
+    volumes:
+      - opencode-data:/data/opencode
+    command:
+      - sh
+      - -c
+      - chown -R ${FACTORY_UID:-1000}:${FACTORY_GID:-1000} /data/opencode && chmod 700 /data/opencode
+
   opencode-worker:
     <<: *opencode
     restart: unless-stopped
     depends_on:
       temporal-namespace:
+        condition: service_completed_successfully
+      opencode-data-init:
         condition: service_completed_successfully
     environment:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
@@ -344,6 +364,9 @@ services:
     <<: *opencode
     profiles: ["opencode-tools"]
     restart: "no"
+    depends_on:
+      opencode-data-init:
+        condition: service_completed_successfully
     volumes:
       - opencode-data:/data/opencode
     ports:

@@ -11,6 +11,14 @@ public sealed class SandboxRunner(IDockerClient docker, SandboxSettings settings
     public async Task<SandboxRunResult> RunAsync(
         ValidatedRun run, Action onHeartbeat, CancellationToken cancellationToken)
     {
+        // Docker would create a missing volume empty and root-owned, which hides the real problem.
+        if (run.NeedsModelAuth && !await docker.VolumeExistsAsync(settings.AuthVolume!, cancellationToken))
+        {
+            throw new ApplicationFailureException(
+                "OpenCode is not signed in: the login volume does not exist. Run the opencode-login Compose service first.",
+                errorType: "NotSignedIn", nonRetryable: true);
+        }
+
         string id;
         try
         {

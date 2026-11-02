@@ -16,7 +16,7 @@ RUN dotnet build services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests 
 CMD ["dotnet", "test", "services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests", "-c", "Release", "--no-build"]
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
-ENV DOTNET_EnableDiagnostics=0 \
+ENV DOTNET_EnableDiagnostics=0 HOME=/tmp \
     XDG_DATA_HOME=/data XDG_CACHE_HOME=/tmp/cache \
     XDG_CONFIG_HOME=/tmp/config XDG_STATE_HOME=/tmp/state \
     OPENCODE_CONFIG=/etc/opencode/opencode.json

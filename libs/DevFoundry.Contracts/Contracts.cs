@@ -31,7 +31,8 @@ public sealed record SandboxRunRequest(
     [property: JsonPropertyName("workspace_writable")] bool WorkspaceWritable,
     [property: JsonPropertyName("command")] IReadOnlyList<string> Command,
     [property: JsonPropertyName("timeout_seconds")] int TimeoutSeconds,
-    [property: JsonPropertyName("env")] IReadOnlyDictionary<string, string>? Env = null);
+    [property: JsonPropertyName("env")] IReadOnlyDictionary<string, string>? Env = null,
+    [property: JsonPropertyName("needs_model_auth")] bool NeedsModelAuth = false);
 
 public sealed record SandboxRunResult(
     [property: JsonPropertyName("exit_code")] long ExitCode,

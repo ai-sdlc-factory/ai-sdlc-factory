@@ -22,7 +22,8 @@ A request (`SandboxRunRequest` in `libs/DevFoundry.Contracts`) can choose:
 - a **workspace** directory name under `FACTORY_WORKSPACE_ROOT` that already exists,
 - whether the workspace is **writable**,
 - the **command** (an argument list, no shell), a **timeout** (capped by `SANDBOX_MAX_RUN_SECONDS`),
-- **environment variables** starting with `OPENCODE_` or `FACTORY_`.
+- **environment variables** starting with `OPENCODE_` or `FACTORY_`,
+- whether the run needs **model access** (the OpenCode login, below).
 
 Everything else is fixed in `ContainerSpec` and tested in `ContainerSpecTests`: non-root user (the
 workspace owner), read-only root filesystem with a 1 GB `/tmp`, all capabilities dropped,
@@ -33,6 +34,31 @@ has outbound internet (agents need their model provider) and contains no factory
 
 Docker Desktop creates a missing bind-mount source as root, so the launcher checks the workspace
 exists, and is not a symlink, before it asks Docker to mount it.
+
+## Model access and the OpenCode login
+
+Only a request with `needs_model_auth: true` gets the login. The launcher then mounts the Docker
+volume named by `SANDBOX_AUTH_VOLUME` (`dev-foundry_opencode-data`, the same volume the
+`opencode-login` service fills) at `/auth` and sets `FACTORY_REQUIRE_AUTH=1`. Lint, build and test
+runs never see the credentials. If the volume does not exist the activity fails at once with
+"OpenCode is not signed in"; if it exists but holds no `auth.json`, the sandbox exits with code 78.
+
+Inside the sandbox, [`factory-entry.sh`](../../sandboxes/dotnet/factory-entry.sh) links only
+`auth.json` into OpenCode's per-run data directory. OpenCode keeps its sessions and logs next to the
+login, so mounting the whole volume as its data directory would mix the history of every ticket.
+The volume is mounted read-write by default so OpenCode can store a refreshed token; set
+`SANDBOX_AUTH_READONLY=true` to forbid that, at the cost of a login that stops working once the token
+expires. An agent can always read the token it runs with, so keep the sandbox network and the
+allowed images tight.
+
+The login volume is owned by the factory user (`FACTORY_UID`). The one-shot `opencode-data-init`
+service sets that up and runs automatically before the login, demo worker and launcher flows.
+
+## Agent definitions
+
+Set `FACTORY_GLOBAL_CONFIG` to the absolute path of the repository's [`agents/`](../../agents/README.md)
+folder. It is mounted read-only at `/etc/factory`; the entrypoint copies it to a writable place and
+points OpenCode at it, because OpenCode writes into its config directory.
 
 ## Images
 

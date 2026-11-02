@@ -72,3 +72,42 @@ public sealed class ContainerSpecTests
         Assert.Equal("true", Spec().GetProperty("Labels").GetProperty("dev-foundry.sandbox").GetString());
     }
 }
+
+public sealed class ModelAuthTests
+{
+    private static JsonElement Spec(SandboxRunRequest request, SandboxSettings settings) =>
+        JsonDocument.Parse(JsonSerializer.Serialize(
+            ContainerSpec.Build(Support.Valid(request, settings), settings))).RootElement;
+
+    private static List<JsonElement> Mounts(JsonElement spec) =>
+        spec.GetProperty("HostConfig").GetProperty("Mounts").EnumerateArray().ToList();
+
+    [Fact]
+    public void Runs_without_model_access_never_see_the_login()
+    {
+        var spec = Spec(Support.Request(), Support.Settings());
+
+        Assert.DoesNotContain(Mounts(spec), m => m.GetProperty("Type").GetString() == "volume");
+        Assert.DoesNotContain(spec.GetProperty("Env").EnumerateArray(), e => e.GetString()!.StartsWith("FACTORY_REQUIRE_AUTH"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Model_runs_get_only_the_login_volume_and_require_it(bool readOnly)
+    {
+        var spec = Spec(Support.Request(modelAuth: true), Support.Settings(authReadOnly: readOnly));
+
+        var volume = Assert.Single(Mounts(spec), m => m.GetProperty("Type").GetString() == "volume");
+        Assert.Equal("dev-foundry_opencode-data", volume.GetProperty("Source").GetString());
+        Assert.Equal("/auth", volume.GetProperty("Target").GetString());
+        Assert.Equal(readOnly, volume.GetProperty("ReadOnly").GetBoolean());
+        Assert.True(volume.GetProperty("VolumeOptions").GetProperty("NoCopy").GetBoolean());
+        Assert.Contains(spec.GetProperty("Env").EnumerateArray(), e => e.GetString() == "FACTORY_REQUIRE_AUTH=1");
+    }
+
+    [Fact]
+    public void Model_runs_are_rejected_when_no_login_volume_is_configured() =>
+        Assert.Throws<Temporalio.Exceptions.ApplicationFailureException>(() =>
+            SandboxPolicy.Validate(Support.Request(modelAuth: true), Support.Settings(authVolume: null), _ => true));
+}

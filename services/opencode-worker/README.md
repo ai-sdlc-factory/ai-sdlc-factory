@@ -57,6 +57,10 @@ OPENCODE_MODEL=openai/gpt-6.1-sol
 
 Choose a model available to your account. Access and usage depend on your ChatGPT plan.
 
+The login, demo worker and sandboxes all run as `FACTORY_UID`. Before they start, the one-shot
+`opencode-data-init` service changes the volume's owner to that user; a volume created by an older
+version (owned by another user) is fixed the first time you run the login.
+
 ## Troubleshooting: "OpenCode is not signed in"
 
 The demo fails with `OpenCode is not signed in. Run the opencode-login Compose service first.`

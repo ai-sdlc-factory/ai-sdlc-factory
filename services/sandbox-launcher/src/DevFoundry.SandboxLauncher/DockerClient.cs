@@ -18,6 +18,7 @@ public interface IDockerClient
 {
     Task PingAsync(CancellationToken cancellationToken);
     Task EnsureNetworkAsync(string name, CancellationToken cancellationToken);
+    Task<bool> VolumeExistsAsync(string name, CancellationToken cancellationToken);
     Task<string> CreateAsync(CreateContainerBody body, CancellationToken cancellationToken);
     Task StartAsync(string id, CancellationToken cancellationToken);
     Task<long> WaitAsync(string id, CancellationToken cancellationToken);
@@ -69,6 +70,19 @@ public sealed class DockerClient : IDockerClient
 
     public async Task PingAsync(CancellationToken cancellationToken) =>
         await SendAsync(HttpMethod.Get, "_ping", null, cancellationToken);
+
+    public async Task<bool> VolumeExistsAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await SendAsync(HttpMethod.Get, $"volumes/{Uri.EscapeDataString(name)}", null, cancellationToken);
+            return true;
+        }
+        catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+    }
 
     public async Task EnsureNetworkAsync(string name, CancellationToken cancellationToken)
     {

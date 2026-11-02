@@ -31,6 +31,18 @@ public sealed class SandboxSettings
 
     public string DockerSocket { get; init; } = "/var/run/docker.sock";
 
+    /// <summary>
+    /// Docker volume that holds the OpenCode login. Mounted only into runs that ask for model access,
+    /// so lint, build and test runs never see the credentials. Empty disables model runs.
+    /// </summary>
+    public string? AuthVolume { get; init; }
+
+    /// <summary>
+    /// Read-only keeps the login unchangeable by an agent, but OpenCode cannot then save a refreshed
+    /// token. Read-write is the default so a long-lived login keeps working.
+    /// </summary>
+    public bool AuthReadOnly { get; init; }
+
     public static SandboxSettings FromConfiguration(IConfiguration configuration)
     {
         var settings = new SandboxSettings
@@ -50,6 +62,8 @@ public sealed class SandboxSettings
             MaxConcurrentRuns = configuration.GetValue("SANDBOX_MAX_CONCURRENT", 2),
             GlobalConfigPath = NullIfEmpty(configuration["FACTORY_GLOBAL_CONFIG"]),
             DockerSocket = NonEmpty(configuration, "DOCKER_SOCKET", "/var/run/docker.sock"),
+            AuthVolume = NullIfEmpty(configuration["SANDBOX_AUTH_VOLUME"]),
+            AuthReadOnly = configuration.GetValue("SANDBOX_AUTH_READONLY", false),
         };
         settings.Validate();
         return settings;

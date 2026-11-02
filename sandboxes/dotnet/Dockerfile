@@ -4,7 +4,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_EnableDiagnostics=0 \
     DOTNET_CLI_HOME=/tmp/dotnet-home NUGET_PACKAGES=/tmp/nuget \
-    XDG_DATA_HOME=/tmp/data OPENCODE_CONFIG=/etc/factory/opencode.json
+    XDG_DATA_HOME=/tmp/data OPENCODE_CONFIG_DIR=/tmp/factory-config
 # Pinned official Linux x64 baseline binary, verified against the release digest.
 RUN test "$(dpkg --print-architecture)" = amd64 \
     && apt-get update \
@@ -19,4 +19,6 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
 # The workspace is owned by the host user; the launcher runs the container as that user.
 # git would otherwise refuse a directory it considers owned by someone else.
 RUN git config --system --add safe.directory /workspace
+COPY --chmod=755 factory-entry.sh /usr/local/bin/factory-entry
 WORKDIR /workspace
+ENTRYPOINT ["factory-entry"]
