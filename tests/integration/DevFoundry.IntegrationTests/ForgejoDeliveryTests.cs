@@ -7,7 +7,7 @@ using Temporalio.Client;
 
 namespace DevFoundry.IntegrationTests;
 
-/// <summary>Exercises the separately deployed API and worker over HTTP and Temporal.</summary>
+/// <summary>Exercises the separately deployed API and controller over HTTP and Temporal.</summary>
 public sealed class ForgejoDeliveryTests
 {
     private static string Env(string name, string? fallback = null) =>
@@ -44,7 +44,7 @@ public sealed class ForgejoDeliveryTests
             });
         using var api = new HttpClient
         {
-            BaseAddress = new Uri(Env("CONTROLLER_TEST_URL")),
+            BaseAddress = new Uri(Env("API_TEST_URL")),
             Timeout = TimeSpan.FromSeconds(10),
         };
 

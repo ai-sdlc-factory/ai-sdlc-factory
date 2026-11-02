@@ -22,7 +22,7 @@ docker compose logs -f controller
 
 Shared settings in `infra/.env` are `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
 (default `default`), and `TEMPORAL_TASK_QUEUE` (default `factory-events`).
-The API and worker must use the same namespace and task queue.
+The API and controller must use the same namespace and task queue.
 
 ## OpenCode demo
 

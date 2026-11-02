@@ -238,8 +238,8 @@ services:
       start_period: 15s
     stop_grace_period: 30s
 
-  controller-integration-tests:
-    image: dev-foundry/controller-integration-tests:local
+  integration-tests:
+    image: dev-foundry/integration-tests:local
     build:
       context: ../tests/integration
     profiles: ["test"]
@@ -251,7 +251,7 @@ services:
       controller:
         condition: service_healthy
     environment:
-      CONTROLLER_TEST_URL: http://api:8000
+      API_TEST_URL: http://api:8000
       TEMPORAL_TEST_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_TEST_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}

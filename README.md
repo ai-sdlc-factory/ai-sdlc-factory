@@ -16,7 +16,7 @@ demo task through Temporal using ChatGPT browser authentication.
 | [Controller API](services/api/README.md) | API endpoints, signed Forgejo webhooks, and API unit tests |
 | [Controller worker](services/controller/README.md) | Temporal workflows, event contract, and worker unit tests |
 | [OpenCode demo](services/opencode-worker/README.md) | Browser authentication, demo tasks, execution worker, and artifacts |
-| [Integration tests](tests/integration/README.md) | Deployed API-to-worker pipeline over HTTP and Temporal |
+| [Integration tests](tests/integration/README.md) | Deployed API-to-controller pipeline over HTTP and Temporal |
 
 Start with the [infrastructure setup](infra/README.md#start), then
 [connect Forgejo to the API](services/api/README.md#connect-forgejo).

@@ -27,7 +27,7 @@ docker compose up -d --build
 docker compose ps -a
 ```
 
-The API and worker build separate images from their own service directories.
+The API and controller build separate images from their own service directories.
 Full pipeline tests are available through the optional
 [test profile](../tests/integration/README.md).
 
