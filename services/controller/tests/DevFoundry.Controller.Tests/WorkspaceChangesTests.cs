@@ -364,6 +364,293 @@ public sealed class WorkspaceChangesTests : IDisposable
     }
 }
 
+public sealed class RescueTests : IDisposable
+{
+    private readonly string temp = Path.Combine(Path.GetTempPath(), "rs-" + Guid.NewGuid().ToString("N"));
+    private readonly string root;
+    private readonly string origin;
+
+    public RescueTests()
+    {
+        root = Path.Combine(temp, "root");
+        Directory.CreateDirectory(root);
+        origin = Seed();
+    }
+
+    public void Dispose() => Directory.Delete(temp, recursive: true);
+
+    private static string Git(string workingDirectory, params string[] arguments)
+    {
+        var start = new ProcessStartInfo("git") { WorkingDirectory = workingDirectory, RedirectStandardError = true, RedirectStandardOutput = true };
+        foreach (var argument in arguments)
+        {
+            start.ArgumentList.Add(argument);
+        }
+        start.Environment["GIT_AUTHOR_NAME"] = start.Environment["GIT_COMMITTER_NAME"] = "t";
+        start.Environment["GIT_AUTHOR_EMAIL"] = start.Environment["GIT_COMMITTER_EMAIL"] = "t@example.com";
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEnd();
+        var error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, error);
+        return output;
+    }
+
+    private string Seed()
+    {
+        var seed = Path.Combine(temp, "seed");
+        var bare = Path.Combine(temp, "origin.git");
+        Directory.CreateDirectory(seed);
+        Git(seed, "init", "--quiet", "--initial-branch=main");
+        File.WriteAllText(Path.Combine(seed, "app.py"), "print('hello')\n");
+        File.WriteAllText(Path.Combine(seed, ".gitignore"), "*.log\n");
+        Directory.CreateDirectory(Path.Combine(seed, ".factory"));
+        File.WriteAllText(Path.Combine(seed, ".factory", "project.json"), "{}");
+        Git(seed, "add", ".");
+        Git(seed, "commit", "--quiet", "-m", "seed");
+        Directory.CreateDirectory(bare);
+        Git(bare, "init", "--quiet", "--bare", "--initial-branch=main");
+        Git(seed, "push", "--quiet", bare, "main");
+        return bare;
+    }
+
+    private GitWorkspace Workspace(string token = "") =>
+        new(new WorkerSettings { WorkspaceRoot = root, ForgejoToken = token }, (_, _) => origin);
+
+    private static async Task<WorkspaceInfo> Prepare(GitWorkspace workspace, string name = "feature-acme-shop-1") =>
+        await workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", name, "factory/issue-1"), CancellationToken.None);
+
+    private static Task<RescueResult> Rescue(GitWorkspace workspace, string name = "feature-acme-shop-1") =>
+        workspace.RescueAsync(new RescueRequest(name, "WIP: add things\n\nSaved when the factory stopped."), "http://ui/run", CancellationToken.None);
+
+    private string[] Tree(string branch) => Git(origin, "ls-tree", "-r", "--name-only", branch).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+    [Fact]
+    public async Task The_work_so_far_is_pushed_to_a_wip_branch_without_a_pull_request()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        File.AppendAllText($"{info.Path}/app.py", "print('more')\n");
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+
+        var result = await Rescue(workspace);
+
+        Assert.True(result.Saved);
+        Assert.Equal("factory/issue-1-wip", result.Branch);
+        Assert.Equal(2, result.FileCount);
+        Assert.Equal("http://ui/run", result.TraceUrl);
+        Assert.Contains("new.py", Tree("factory/issue-1-wip"));
+        Assert.Contains("print('more')", Git(origin, "show", "factory/issue-1-wip:app.py"));
+        Assert.Equal("WIP: add things", Git(origin, "log", "-1", "--format=%s", "factory/issue-1-wip").Trim());
+        Assert.Empty(Git(origin, "branch", "--list", "factory/issue-1").Trim()); // the real branch name stays free
+    }
+
+    [Fact]
+    public async Task Only_files_with_a_problem_of_their_own_are_left_out_and_each_is_named_with_its_reason()
+    {
+        var workspace = Workspace(token: "factory-token-0123456789");
+        var info = await Prepare(workspace);
+        File.WriteAllText($"{info.Path}/good.py", "x = 1\n");
+        Directory.CreateDirectory($"{info.Path}/.github");
+        File.WriteAllText($"{info.Path}/.github/ci.yml", "run: evil");
+        File.WriteAllText($"{info.Path}/config.py", "api_key = \"abcd1234efgh5678ijkl\"\n");
+        File.WriteAllText($"{info.Path}/token.txt", "factory-token-0123456789\n");
+        File.CreateSymbolicLink($"{info.Path}/link.txt", "/etc/passwd");
+        File.WriteAllBytes($"{info.Path}/big.bin", new byte[3 * 1024 * 1024]);
+
+        var result = await Rescue(workspace);
+
+        Assert.True(result.Saved);
+        Assert.Equal(1, result.FileCount);
+        Assert.Equal(["good.py"], Tree("factory/issue-1-wip").Except(["app.py", ".gitignore", ".factory/project.json"]));
+        Assert.Contains(".github/ci.yml: protected file", result.Excluded);
+        Assert.Contains("config.py: possible secret", result.Excluded);
+        Assert.Contains("token.txt: possible secret", result.Excluded);
+        Assert.Contains("link.txt: symbolic link", result.Excluded);
+        Assert.Contains("big.bin: larger than 2 MiB", result.Excluded);
+        Assert.DoesNotContain("abcd1234efgh5678ijkl", Git(origin, "log", "--all", "-p"));
+        Assert.DoesNotContain("factory-token-0123456789", Git(origin, "log", "--all", "-p"));
+    }
+
+    [Fact]
+    public async Task Nothing_changed_means_nothing_saved_and_no_branch()
+    {
+        var workspace = Workspace();
+        await Prepare(workspace);
+
+        var result = await Rescue(workspace);
+
+        Assert.False(result.Saved);
+        Assert.Equal("no files had changed", result.Note);
+        Assert.Empty(Git(origin, "branch", "--list", "factory/issue-1-wip").Trim());
+    }
+
+    [Fact]
+    public async Task Only_problem_files_means_nothing_is_saved_but_they_are_still_reported()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        Directory.CreateDirectory($"{info.Path}/.github");
+        File.WriteAllText($"{info.Path}/.github/ci.yml", "x");
+
+        var result = await Rescue(workspace);
+
+        Assert.False(result.Saved);
+        Assert.Equal("every changed file had a problem of its own", result.Note);
+        Assert.Equal([".github/ci.yml: protected file"], result.Excluded);
+    }
+
+    [Fact]
+    public async Task A_flood_of_files_such_as_build_output_is_not_saved()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        Directory.CreateDirectory($"{info.Path}/generated");
+        for (var i = 0; i < 301; i++)
+        {
+            File.WriteAllText($"{info.Path}/generated/f{i}.txt", "x");
+        }
+
+        var result = await Rescue(workspace);
+
+        Assert.False(result.Saved);
+        Assert.Contains("too much changed to save", result.Note);
+        Assert.Empty(Git(origin, "branch", "--list", "factory/issue-1-wip").Trim());
+    }
+
+    [Fact]
+    public async Task Repeating_the_rescue_reuses_the_branch_it_already_pushed()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+
+        var first = await Rescue(workspace);
+        var second = await Rescue(workspace); // what an activity retry does
+
+        Assert.Equal(first.Branch, second.Branch);
+        Assert.Equal("factory/issue-1-wip", second.Branch);
+        Assert.Single(Git(origin, "branch", "--list", "factory/issue-1-wip*").Split('\n', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public async Task An_earlier_wip_branch_is_never_overwritten_a_new_run_gets_the_next_free_name()
+    {
+        var firstWorkspace = Workspace();
+        var first = await Prepare(firstWorkspace, "feature-acme-shop-1");
+        File.WriteAllText($"{first.Path}/one.py", "1\n");
+        Assert.Equal("factory/issue-1-wip", (await Rescue(firstWorkspace, "feature-acme-shop-1")).Branch);
+
+        var secondWorkspace = Workspace();
+        var second = await Prepare(secondWorkspace, "feature-acme-shop-1b");
+        File.WriteAllText($"{second.Path}/two.py", "2\n");
+        var result = await Rescue(secondWorkspace, "feature-acme-shop-1b");
+
+        Assert.Equal("factory/issue-1-wip-2", result.Branch);
+        Assert.Contains("one.py", Tree("factory/issue-1-wip"));
+        Assert.DoesNotContain("two.py", Tree("factory/issue-1-wip"));
+        Assert.Contains("two.py", Tree("factory/issue-1-wip-2"));
+    }
+
+    [Fact]
+    public async Task A_re_run_that_publishes_gets_the_next_free_branch_instead_of_a_rejected_push()
+    {
+        var firstWorkspace = Workspace();
+        var first = await Prepare(firstWorkspace, "feature-acme-shop-1");
+        File.WriteAllText($"{first.Path}/one.py", "1\n");
+        var firstResult = await firstWorkspace.PublishAsync(new PublishRequest("feature-acme-shop-1", "first run"), CancellationToken.None);
+
+        var secondWorkspace = Workspace();
+        var second = await Prepare(secondWorkspace, "feature-acme-shop-1b");
+        File.WriteAllText($"{second.Path}/two.py", "2\n");
+        var secondResult = await secondWorkspace.PublishAsync(new PublishRequest("feature-acme-shop-1b", "second run"), CancellationToken.None);
+
+        Assert.Equal("factory/issue-1", firstResult!.Branch);
+        Assert.Equal("factory/issue-1-2", secondResult!.Branch);
+        Assert.Contains("one.py", Tree("factory/issue-1"));
+        Assert.DoesNotContain("two.py", Tree("factory/issue-1"));
+    }
+
+    [Fact]
+    public async Task Rescue_after_a_publish_that_committed_but_could_not_push_saves_that_commit_once()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+        // A publish whose commit succeeded but whose push failed leaves the commit in the pristine clone.
+        var basePath = $"{root}/.base/{info.Name}";
+        File.WriteAllText($"{basePath}/new.py", "x = 1\n");
+        Git(basePath, "add", "--all");
+        Git(basePath, "commit", "--quiet", "-m", "committed locally, never pushed");
+
+        var result = await Rescue(workspace);
+
+        // The pristine clone is put back first, so the leftover commit cannot hide the work, and nothing is committed twice.
+        Assert.True(result.Saved);
+        Assert.Equal(1, result.FileCount);
+        Assert.Equal("WIP: add things", Git(origin, "log", "-1", "--format=%s", result.Branch!).Trim());
+        Assert.Equal("2", Git(origin, "rev-list", "--count", result.Branch!).Trim()); // the seed commit and one WIP commit
+        Assert.Contains("new.py", Tree(result.Branch!));
+    }
+
+    [Fact]
+    public async Task A_publish_that_is_retried_after_it_committed_still_finds_the_work()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+        var basePath = $"{root}/.base/{info.Name}";
+        File.WriteAllText($"{basePath}/new.py", "x = 1\n");
+        Git(basePath, "add", "--all");
+        Git(basePath, "commit", "--quiet", "-m", "an earlier attempt committed but could not push");
+
+        var result = await workspace.PublishAsync(new PublishRequest(info.Name, "the retry"), CancellationToken.None);
+
+        Assert.NotNull(result); // it used to conclude there was nothing to publish
+        Assert.Equal("factory/issue-1", result.Branch);
+        Assert.Equal("the retry", Git(origin, "log", "-1", "--format=%s", "factory/issue-1").Trim());
+    }
+
+    [Fact]
+    public async Task A_publish_repeated_after_it_succeeded_reuses_the_branch_and_does_not_add_another()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+        var first = await workspace.PublishAsync(new PublishRequest(info.Name, "publish"), CancellationToken.None);
+
+        var second = await workspace.PublishAsync(new PublishRequest(info.Name, "publish"), CancellationToken.None);
+
+        Assert.Equal(first!.Branch, second!.Branch);
+        Assert.Equal("factory/issue-1", second.Branch);
+        Assert.Single(Git(origin, "branch", "--list", "factory/issue-1*").Split('\n', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public async Task Saving_the_work_never_runs_anything_planted_in_the_workspace()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        var marker = Path.Combine(temp, "pwned-by-rescue");
+        File.WriteAllText($"{info.Path}/.git/hooks/pre-commit", $"#!/bin/sh\ntouch {marker}\n");
+        File.SetUnixFileMode($"{info.Path}/.git/hooks/pre-commit", (UnixFileMode)0b111_101_101);
+        File.AppendAllText($"{info.Path}/.git/config", $"[core]\n\tfsmonitor = touch {marker}\n\thooksPath = {info.Path}/.git/hooks\n");
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+
+        var result = await Rescue(workspace);
+
+        Assert.True(result.Saved);
+        Assert.False(File.Exists(marker));
+    }
+
+    [Fact]
+    public async Task A_missing_workspace_is_a_clear_error()
+    {
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(() => Rescue(Workspace(), "feature-never-prepared"));
+        Assert.True(error.NonRetryable);
+    }
+}
+
 public sealed class ChangeChecksTests
 {
     [Theory]

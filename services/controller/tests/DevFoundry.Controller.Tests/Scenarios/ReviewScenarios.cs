@@ -382,3 +382,208 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
         }
     }
 }
+
+/// <summary>A run that cannot finish keeps its work on a branch, says so on the ticket, and never goes quiet.</summary>
+[Collection("temporal")]
+public sealed class StoppedRunScenarios(TemporalFixture fixture)
+{
+    private static AgentReply Say(string text) => AgentReply.Says(text);
+
+    private static FakeWorld Building() => new FakeWorld()
+        .Agent("analyst", Say(Answers.Analyst()))
+        .Agent("coverage", Say(Answers.Coverage("missing", "missing")));
+
+    private static string StoppedComment(FakeWorld world) =>
+        Assert.Single(world.Comments, comment => comment.Contains("The factory stopped"));
+
+    [SkippableFact]
+    public async Task Three_failed_rounds_save_the_work_to_a_wip_branch_and_the_ticket_is_told_where_it_is()
+    {
+        var failing = Enumerable.Repeat(FakeWorld.Fails("still red"), 3).ToArray();
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()), Say(Answers.Developer()))
+            .Check("python -m pytest -q", failing);
+        var request = ScenarioContext.Request();
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(request));
+
+        Assert.Equal("build_failed", result.Status);
+        Assert.Equal("factory/issue-1-wip", result.WorkBranch);
+        var rescue = Assert.Single(world.Rescues);
+        Assert.Equal(request.WorkflowId, rescue.Name);
+        Assert.StartsWith("WIP: Add goodbye (#1), not finished", rescue.Message);
+        var comment = StoppedComment(world);
+        Assert.Contains("did not get through the checks and the review", comment);
+        Assert.Contains("saved on the branch `factory/issue-1-wip` (2 file(s))", comment);
+        Assert.Contains("http://ui/run", comment);
+        Assert.Empty(world.PullRequests);
+        Assert.Equal([request.WorkflowId], world.CleanedUp); // saving happens before the checkout is removed
+    }
+
+    [SkippableFact]
+    public async Task The_work_is_saved_before_the_checkout_is_deleted_not_after()
+    {
+        var order = new List<string>();
+        var failing = Enumerable.Repeat(FakeWorld.Fails("red"), 3).ToArray();
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()), Say(Answers.Developer()))
+            .Check("python -m pytest -q", failing);
+        world.Rescue = _ =>
+        {
+            order.Add(world.Snapshot(world.CleanedUp).Count == 0 ? "saved first" : "saved after cleanup");
+            return new RescueResult(true, "factory/issue-1-wip", 1, [], "", "http://ui/run");
+        };
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal(["saved first"], order);
+    }
+
+    [SkippableTheory]
+    [InlineData("developer blocked", "build_blocked", "developer reported that it could not continue")]
+    [InlineData("review unusable", "review_failed", "review step could not be completed")]
+    public async Task A_blocked_developer_or_an_unusable_review_also_saves_the_work(string scenario, string status, string reason)
+    {
+        var world = Building().Agent("developer", Say(scenario.StartsWith("developer") ? Answers.Developer("blocked") : Answers.Developer()));
+        if (status == "review_failed")
+        {
+            world.Agent("reviewer", Say("no"), Say("no"));
+        }
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal(status, result.Status);
+        Assert.Equal("factory/issue-1-wip", result.WorkBranch);
+        Assert.Contains(reason, StoppedComment(world));
+    }
+
+    [SkippableFact]
+    public async Task A_failed_publish_saves_the_work_and_says_it_passed_everything()
+    {
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
+        world.Publish = _ => throw new Temporalio.Exceptions.ApplicationFailureException("push rejected", nonRetryable: true);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("publish_failed", result.Status);
+        Assert.Equal("factory/issue-1-wip", result.WorkBranch);
+        Assert.Contains("passed every check and review; only publishing it as a pull request failed", StoppedComment(world));
+    }
+
+    [SkippableFact]
+    public async Task When_only_opening_the_pull_request_fails_the_published_branch_is_pointed_to_and_nothing_is_saved_twice()
+    {
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
+        world.PullRequestFailure = new Temporalio.Exceptions.ApplicationFailureException("forgejo down", nonRetryable: true);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("publish_failed", result.Status);
+        Assert.Equal("factory/issue-1", result.WorkBranch); // the real branch, already pushed
+        Assert.Empty(world.Rescues);
+        Assert.Contains(world.Comments, c => c.Contains("is on the branch `factory/issue-1`") && c.Contains("Open one from that branch by hand"));
+    }
+
+    [SkippableFact]
+    public async Task An_unexpected_error_no_longer_leaves_the_ticket_silent_and_still_saves_the_work()
+    {
+        var world = Building().Agent("developer", Say(Answers.Developer()));
+        world.ChangesFailure = new Temporalio.Exceptions.ApplicationFailureException("disk full", nonRetryable: true);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("error", result.Status);
+        Assert.Equal("factory/issue-1-wip", result.WorkBranch);
+        Assert.Contains(world.Comments, c => c.Contains("The factory hit an unexpected error and stopped") && c.Contains("disk full"));
+        Assert.Contains("an unexpected error", StoppedComment(world));
+    }
+
+    [SkippableFact]
+    public async Task Nothing_to_save_is_still_explained_with_the_link_to_the_record()
+    {
+        var failing = Enumerable.Repeat(FakeWorld.Fails("red"), 3).ToArray();
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()), Say(Answers.Developer()))
+            .Check("python -m pytest -q", failing);
+        world.Rescue = _ => new RescueResult(false, null, 0, ["a.py: possible secret"], "too much changed to save: 400 files changed", "http://ui/run");
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("build_failed", result.Status);
+        Assert.Null(result.WorkBranch);
+        var comment = StoppedComment(world);
+        Assert.Contains("Nothing was saved: too much changed to save: 400 files changed.", comment);
+        Assert.Contains("- a.py: possible secret", comment);
+        Assert.Contains("http://ui/run", comment);
+    }
+
+    [SkippableFact]
+    public async Task A_failure_to_save_never_replaces_the_real_outcome()
+    {
+        var failing = Enumerable.Repeat(FakeWorld.Fails("red"), 3).ToArray();
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()), Say(Answers.Developer()))
+            .Check("python -m pytest -q", failing);
+        world.Rescue = _ => throw new Temporalio.Exceptions.ApplicationFailureException("forgejo unreachable", nonRetryable: true);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("build_failed", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("could not save the work so far") && c.Contains("forgejo unreachable"));
+    }
+
+    [SkippableTheory]
+    [InlineData("closed")]
+    [InlineData("rejected")]
+    [InlineData("already_implemented")]
+    public async Task Runs_that_ended_for_other_reasons_do_not_touch_the_remote(string how)
+    {
+        var world = how switch
+        {
+            "rejected" => new FakeWorld().Agent("analyst", Say(Answers.Analyst("reject"))),
+            "already_implemented" => new FakeWorld().Agent("analyst", Say(Answers.Analyst())).Agent("coverage", Say(Answers.Coverage("covered", "covered"))),
+            _ => new FakeWorld().Agent("analyst", Say(Answers.Analyst("needs_clarification"))),
+        };
+
+        FeatureResult result;
+        if (how == "closed")
+        {
+            result = await world.RunAsync(fixture, async context =>
+            {
+                var handle = await context.StartAsync(ScenarioContext.Request());
+                await world.WaitForCommentAsync(c => c.Contains("I need answers before building"));
+                await handle.SignalAsync(workflow => workflow.OnTicketClosedAsync());
+                return await ScenarioContext.ResultAsync(handle);
+            });
+        }
+        else
+        {
+            result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+        }
+
+        Assert.Equal(how, result.Status);
+        Assert.Empty(world.Rescues);
+        Assert.DoesNotContain(world.Comments, c => c.Contains("The factory stopped"));
+    }
+
+    [SkippableFact]
+    public async Task A_successful_run_saves_nothing_extra()
+    {
+        var world = Building()
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Null(result.WorkBranch);
+        Assert.Empty(world.Rescues);
+    }
+}

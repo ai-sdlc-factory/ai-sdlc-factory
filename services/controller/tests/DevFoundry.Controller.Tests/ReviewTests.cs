@@ -324,3 +324,92 @@ public sealed class ProjectReviewersTests
         Assert.Contains("reviewers", error);
     }
 }
+
+public sealed class StoppedCommentTests
+{
+    private static RescueResult Saved(params string[] excluded) =>
+        new(true, "factory/issue-7-wip", 3, excluded, "", "http://localhost:8080/namespaces/default/workflows/w/r/history");
+
+    private static RescueResult NotSaved(string note = "there was nothing to save") =>
+        new(false, null, 0, [], note, "http://localhost:8080/namespaces/default/workflows/w/r/history");
+
+    [Theory]
+    [InlineData("build_failed", "did not get through the checks and the review")]
+    [InlineData("build_blocked", "developer reported that it could not continue")]
+    [InlineData("review_failed", "review step could not be completed")]
+    [InlineData("publish_failed", "could not be published as a pull request")]
+    [InlineData("blocked", "OpenCode is not signed in")]
+    [InlineData("error", "unexpected error")]
+    public void The_headline_says_why_the_run_stopped(string status, string reason) =>
+        Assert.Contains(reason, TicketComments.Stopped(status, Saved()));
+
+    [Fact]
+    public void Saved_work_names_the_branch_and_says_it_is_not_a_pull_request()
+    {
+        var text = TicketComments.Stopped("build_failed", Saved());
+
+        Assert.Contains("saved on the branch `factory/issue-7-wip` (3 file(s))", text);
+        Assert.Contains("not reviewed and the checks did not all pass", text);
+        Assert.Contains("not as a pull request", text);
+    }
+
+    [Fact]
+    public void Work_that_passed_everything_but_could_not_be_published_says_so()
+    {
+        var text = TicketComments.Stopped("publish_failed", Saved());
+
+        Assert.Contains("passed every check and review; only publishing it as a pull request failed", text);
+        Assert.DoesNotContain("not reviewed", text);
+    }
+
+    [Fact]
+    public void Left_out_files_are_listed_with_their_reasons_and_capped()
+    {
+        var many = Enumerable.Range(1, 13).Select(i => $"f{i}.py: possible secret").ToArray();
+
+        var text = TicketComments.Stopped("build_failed", Saved(many));
+
+        Assert.Contains("Left out of the branch:", text);
+        Assert.Contains("- f1.py: possible secret", text);
+        Assert.Contains("- f10.py: possible secret", text);
+        Assert.DoesNotContain("f11.py", text);
+        Assert.Contains("and 3 more", text);
+    }
+
+    [Fact]
+    public void When_nothing_was_saved_the_comment_says_why()
+    {
+        var text = TicketComments.Stopped("error", NotSaved("too much changed to save: 400 files changed"));
+
+        Assert.Contains("Nothing was saved: too much changed to save: 400 files changed.", text);
+        Assert.DoesNotContain("saved on the branch", text);
+    }
+
+    [Fact]
+    public void Problem_files_are_still_reported_when_nothing_could_be_saved()
+    {
+        var text = TicketComments.Stopped("build_failed", NotSaved() with { Excluded = [".github/ci.yml: protected file"] });
+
+        Assert.Contains("Files with a problem:", text);
+        Assert.Contains("- .github/ci.yml: protected file", text);
+    }
+
+    [Fact]
+    public void The_comment_links_the_full_record_and_says_it_expires()
+    {
+        var text = TicketComments.Stopped("build_failed", Saved());
+
+        Assert.Contains("http://localhost:8080/namespaces/default/workflows/w/r/history", text);
+        Assert.Contains("every prompt, answer and check output", text);
+        Assert.Contains("limited time (7 days unless configured otherwise)", text);
+    }
+
+    [Fact]
+    public void Text_from_files_cannot_ping_people_or_break_the_formatting()
+    {
+        var text = TicketComments.Stopped("build_failed", Saved("a`b@admin.py: protected file"));
+
+        Assert.DoesNotContain("@admin", text);
+        Assert.DoesNotContain("a`b", text);
+    }
+}

@@ -161,3 +161,10 @@ configuration before relying on this.
   one round. Everything that sends work back (blocking findings, unmet or unverifiable QA criteria, the
   three-round cap, unusable reviews) is covered by scenario tests with scripted agents; breaking the
   feedback to the developer or QA\'s evidence check on purpose makes exactly the matching tests fail.
+- A run that cannot finish used to lose its work: the checkout is deleted when the workflow ends and the only
+  publish step is the last one. Now the controller saves what was written to a `factory/issue-<n>-wip` branch
+  and says so on the ticket, with a link to the full record in Temporal (kept 7 days by default). A first live
+  test showed both outcomes: a developer that implemented the feature and then stopped because a project check
+  could never pass left its two files on the branch, and a ticket that needed a protected file changed left
+  nothing and said so. Testing this also exposed a retry bug in publishing: after an attempt that had
+  committed, the next one found "no changes". The pristine clone is now reset before every inspection.

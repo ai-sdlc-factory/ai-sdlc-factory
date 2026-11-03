@@ -17,6 +17,15 @@ public sealed record PublishRequest(string Name, string Message);
 
 public sealed record PublishResult(string CommitSha, string Branch, int FileCount);
 
+public sealed record RescueRequest(string Name, string Message);
+
+/// <summary>
+/// What a rescue did with a run that could not finish: whether the work so far was saved to a branch, what was
+/// left out and why, and where the full record of the run can be read.
+/// </summary>
+public sealed record RescueResult(
+    bool Saved, string? Branch, int FileCount, IReadOnlyList<string> Excluded, string Note, string TraceUrl);
+
 /// <summary>Files an agent may never change: the factory's own configuration and the pipelines that run code.</summary>
 public static class ProtectedPaths
 {

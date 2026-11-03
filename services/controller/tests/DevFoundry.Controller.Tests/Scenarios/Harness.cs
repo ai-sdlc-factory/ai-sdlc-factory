@@ -94,6 +94,17 @@ public sealed class FakeWorld
     public Func<WorkspaceRequest, WorkspaceInfo>? Prepare { get; set; }
     public Func<PublishRequest, PublishResult?>? Publish { get; set; }
 
+    /// <summary>What saving unfinished work returns; by default it saves two files to factory/issue-1-wip.</summary>
+    public Func<RescueRequest, RescueResult>? Rescue { get; set; }
+
+    /// <summary>When set, the check of what changed fails with this, as an unexpected infrastructure error would.</summary>
+    public Exception? ChangesFailure { get; set; }
+
+    public List<RescueRequest> Rescues { get; } = [];
+
+    /// <summary>When set, opening the pull request fails with this.</summary>
+    public Exception? PullRequestFailure { get; set; }
+
     public FakeWorld Agent(string role, params AgentReply[] replies)
     {
         agents[role] = new Queue<AgentReply>(replies);
@@ -164,6 +175,10 @@ public sealed class FakeWorld
         [Activity("forgejo_create_pull_request")]
         public PullRequestInfo CreatePullRequest(PullRequestRequest request)
         {
+            if (world.PullRequestFailure is not null)
+            {
+                throw world.PullRequestFailure;
+            }
             lock (world.gate) { world.PullRequests.Add(request); }
             return new PullRequestInfo(1, "http://forgejo/pulls/1");
         }
@@ -184,11 +199,24 @@ public sealed class FakeWorld
         [Activity("workspace_changes")]
         public ChangeReport DetectChanges(string name)
         {
+            if (world.ChangesFailure is not null)
+            {
+                throw world.ChangesFailure;
+            }
             lock (world.gate)
             {
                 world.ChangeChecks++;
                 return world.changes.Count > 0 ? world.changes.Dequeue() : OneFile();
             }
+        }
+
+        [Activity("workspace_rescue")]
+        public RescueResult RescueWork(RescueRequest request)
+        {
+            lock (world.gate) { world.Rescues.Add(request); }
+            return world.Rescue is null
+                ? new RescueResult(true, "factory/issue-1-wip", 2, [], "", "http://ui/run")
+                : world.Rescue(request);
         }
 
         [Activity("workspace_diff")]

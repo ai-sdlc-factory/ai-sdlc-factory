@@ -6,6 +6,9 @@ public sealed class WorkerSettings
     public string TemporalNamespace { get; init; } = "default";
     public string TemporalTaskQueue { get; init; } = "factory-events";
     public string ForgejoUrl { get; init; } = "http://forgejo:3000";
+
+    /// <summary>Address of the Temporal web UI as a person opens it, used for the link to a run's full record.</summary>
+    public string TemporalUiUrl { get; init; } = "http://localhost:8080";
     /// <summary>Access token of the factory's Forgejo bot account; empty disables ticket actions.</summary>
     public string ForgejoToken { get; init; } = "";
     /// <summary>Absolute host path where per-run checkouts live; the same path inside every container.</summary>
@@ -17,6 +20,7 @@ public sealed class WorkerSettings
         TemporalNamespace = NonEmpty(configuration, "TEMPORAL_NAMESPACE", "default"),
         TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
         ForgejoUrl = NonEmpty(configuration, "FORGEJO_URL", "http://forgejo:3000"),
+        TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
         ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
     };

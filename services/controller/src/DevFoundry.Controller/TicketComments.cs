@@ -140,6 +140,52 @@ public static class TicketComments
         return text.ToString().TrimEnd();
     }
 
+    /// <summary>What the ticket is told when a run stops without a pull request, and where the work and the record are.</summary>
+    public static string Stopped(string status, RescueResult rescue)
+    {
+        var reason = status switch
+        {
+            "build_failed" => "the work did not get through the checks and the review in the allowed rounds",
+            "build_blocked" => "the developer reported that it could not continue",
+            "review_failed" => "a review step could not be completed",
+            "publish_failed" => "the finished work could not be published as a pull request",
+            "blocked" => "OpenCode is not signed in",
+            "error" => "an unexpected error",
+            _ => status,
+        };
+        var text = new StringBuilder();
+        text.AppendLine($"**The factory stopped: {reason}**");
+        text.AppendLine();
+        if (rescue.Saved)
+        {
+            text.AppendLine($"What it had written so far is saved on the branch `{Inert(rescue.Branch ?? "")}` ({rescue.FileCount} file(s)).");
+            text.AppendLine(status == "publish_failed"
+                ? "This work passed every check and review; only publishing it as a pull request failed, so it should be ready to open as one."
+                : "It is **not reviewed and the checks did not all pass**, so treat it as a starting point, not as a pull request.");
+        }
+        else
+        {
+            text.AppendLine($"Nothing was saved: {Inert(rescue.Note)}.");
+        }
+        if (rescue.Excluded.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine(rescue.Saved ? "Left out of the branch:" : "Files with a problem:");
+            foreach (var file in rescue.Excluded.Take(10))
+            {
+                text.AppendLine($"- {Inert(file)}");
+            }
+            if (rescue.Excluded.Count > 10)
+            {
+                text.AppendLine($"- ... and {rescue.Excluded.Count - 10} more");
+            }
+        }
+        text.AppendLine();
+        text.Append($"The full record of this run (every prompt, answer and check output) is in Temporal: {rescue.TraceUrl}. " +
+                    "Temporal keeps it for a limited time (7 days unless configured otherwise).");
+        return text.ToString();
+    }
+
     public static string Review(string role, ReviewReport report)
     {
         var text = new StringBuilder();

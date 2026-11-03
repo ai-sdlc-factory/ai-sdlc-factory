@@ -4,7 +4,7 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed record FeatureResult(string Status, bool? NeedsArchitect = null, string? PullRequestUrl = null);
+public sealed record FeatureResult(string Status, bool? NeedsArchitect = null, string? PullRequestUrl = null, string? WorkBranch = null);
 
 /// <summary>
 /// One run per feature ticket, following docs/feature-factory.md. Built so far: intake (a private
@@ -71,7 +71,18 @@ public sealed partial class FeatureWorkflow
                 return new FeatureResult("needs_config");
             }
 
-            return await StagesAsync(request, workspace, project);
+            FeatureResult result;
+            try
+            {
+                result = await StagesAsync(request, workspace, project);
+            }
+            catch (ActivityFailureException error)
+            {
+                // Without this the ticket would just go quiet while the run shows as failed in Temporal.
+                await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
+                result = new FeatureResult("error");
+            }
+            return await SaveUnfinishedWorkAsync(request, result);
         }
         finally
         {
@@ -84,6 +95,47 @@ public sealed partial class FeatureWorkflow
                     CancellationToken = CancellationToken.None,
                 });
         }
+    }
+
+    // Endings after which code may exist that nobody has seen; a run a person closed, or one that stopped before the build, has none.
+    private static readonly HashSet<string> StoppedWithWork = ["build_failed", "build_blocked", "review_failed", "publish_failed", "blocked", "error"];
+
+    // For these the ticket always gets a summary, even when there was nothing to save.
+    private static readonly HashSet<string> AlwaysExplained = ["build_failed", "build_blocked", "review_failed", "publish_failed", "error"];
+
+    /// <summary>
+    /// When a run stops without publishing, push what it had written to a work-in-progress branch and say so on the
+    /// ticket, with a link to the full record of the run. Saving is best effort: it never replaces the real outcome.
+    /// </summary>
+    private async Task<FeatureResult> SaveUnfinishedWorkAsync(FeatureRequest request, FeatureResult result)
+    {
+        // Already on a branch (only the pull request failed), or nothing that could hold unsaved work.
+        if (!StoppedWithWork.Contains(result.Status) || result.WorkBranch is not null)
+        {
+            return result;
+        }
+
+        RescueResult rescue;
+        try
+        {
+            rescue = await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.RescueAsync(new RescueRequest(
+                    request.WorkflowId,
+                    $"WIP: {PullRequestText.Title(request)} (#{request.IssueNumber}), not finished\n\n" +
+                    $"Saved by the factory when it stopped ({result.Status}). Not reviewed, and the checks did not all pass.")),
+                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+        }
+        catch (ActivityFailureException error)
+        {
+            await CommentAsync(request, $"The factory stopped ({result.Status}) and could not save the work so far: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
+            return result;
+        }
+
+        if (rescue.Saved || AlwaysExplained.Contains(result.Status))
+        {
+            await CommentAsync(request, TicketComments.Stopped(result.Status, rescue));
+        }
+        return rescue.Saved ? result with { WorkBranch = rescue.Branch } : result;
     }
 
     /// <summary>

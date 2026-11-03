@@ -166,8 +166,34 @@ The decision is made by counting, not by an agent (`UiChange`):
 Patterns: `*` matches within one folder, `**` across folders (`**/` also matches none), `?` one character; a
 pattern without a slash is matched against the file name wherever it is, so `*.css` means every stylesheet.
 
-Three rounds that fail leave the ticket with a comment and nothing published. A developer that answers
-`blocked` (for example because the ticket needs a protected file changed) stops the run with its reasons.
+Three rounds that fail leave the ticket with a comment and nothing published as a pull request. A developer
+that answers `blocked` (for example because the ticket needs a protected file changed) stops the run with its
+reasons. In both cases the work so far is saved to a branch (below).
+
+### When a run stops: the work-in-progress branch
+
+A run that stops without a pull request would otherwise lose everything the developer wrote, because the
+checkout is deleted when the workflow ends. So before that happens the controller saves the work:
+
+- **When:** after `build_failed`, `build_blocked`, `review_failed`, `publish_failed`, a lost login (`blocked`) and
+  any unexpected error (`error`, which now also gets a comment instead of silence). Not when a person closed the
+  ticket, and not for runs that stopped before the build, which have no code.
+- **Where:** a branch `factory/issue-<n>-wip` (or `-wip-2`, `-wip-3` if one is already there; an earlier branch is
+  never overwritten), with one commit `WIP: <title> (#<n>), not finished`. No pull request is opened.
+- **What:** the same trusted path as a publish (files are copied onto the pristine clone), but the checks do not
+  have to pass. Only a file with a problem of its own is left out and listed in the comment: a protected file, a
+  symbolic link, a file over 2 MiB, or one the secret scan flags. If more than 300 files changed (usually build
+  output) or the total is too big, nothing is saved and the comment says why. Credentials are never pushed.
+- **The comment** on the ticket says why the run stopped, which branch holds the work and that it is not
+  reviewed, what was left out, and a link to the run in Temporal, where every prompt, agent answer and check
+  output can be read. Temporal keeps that for a limited time (`TEMPORAL_RETENTION`, 7 days by default), which the
+  comment mentions; `TEMPORAL_UI_URL` (default `http://localhost:8080`) sets the address used in the link.
+- When only opening the pull request fails after the branch was published, the comment points at that branch.
+- Saving is best effort: if it fails, the ticket says so and the run keeps its real outcome.
+
+Publishing and saving can be repeated safely: the pristine clone is reset to its starting commit before every
+inspection, a branch that already holds exactly the same content is reused, and a re-run on a ticket whose branch
+exists gets the next free name (`factory/issue-<n>-2`) instead of a rejected push.
 
 **Why there are two copies of the checkout.** The agent can write anything into its workspace, including
 `.git/hooks` and `.git/config` entries that run commands the next time git runs there. Git therefore

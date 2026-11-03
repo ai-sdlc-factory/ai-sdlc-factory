@@ -121,7 +121,7 @@ public sealed partial class FeatureWorkflow
         }
 
         var title = PullRequestText.Title(request);
-        PublishResult? published;
+        PublishResult? published = null;
         PullRequestInfo pullRequest;
         try
         {
@@ -142,7 +142,16 @@ public sealed partial class FeatureWorkflow
         }
         catch (ActivityFailureException error)
         {
-            await CommentAsync(request, $"Publishing failed and needs a person to look at it: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
+            var reason = TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message));
+            if (published is not null)
+            {
+                // The branch is already on the remote; only opening the pull request failed. Nothing needs saving.
+                await CommentAsync(request,
+                    $"The work passed every check and review and is on the branch `{published.Branch}` ({published.FileCount} file(s)), " +
+                    $"but opening the pull request failed: {reason} Open one from that branch by hand.");
+                return new FeatureResult("publish_failed", triage.NeedsArchitect, WorkBranch: published.Branch);
+            }
+            await CommentAsync(request, $"Publishing failed and needs a person to look at it: {reason}");
             return new FeatureResult("publish_failed", triage.NeedsArchitect);
         }
 
