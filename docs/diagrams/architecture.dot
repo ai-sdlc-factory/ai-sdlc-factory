@@ -1,0 +1,56 @@
+// The whole solution: who talks to whom, and where the trust boundaries are.
+digraph architecture {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.38, ranksep=0.7,
+         label="Dev Foundry: system overview", labelloc=t, labeljust=l];
+  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", fillcolor="#eef2f6", color="#5b6773", margin="0.16,0.09"];
+  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+
+  person  [label="You\ncreate tickets, answer questions,\nreview and merge pull requests", shape=ellipse, fillcolor="#fff3c4", color="#b7791f"];
+  model   [label="Model provider\nchatgpt.com · auth.openai.com", shape=box, style="filled", fillcolor="#e9e3f7", color="#6b46c1"];
+  registry[label="Package registries\nPyPI · npm · NuGet · ...", shape=box, style="filled", fillcolor="#e9e3f7", color="#6b46c1"];
+
+  subgraph cluster_stack {
+    label="Docker Compose stack on your machine"; style="rounded,dashed"; color="#8a94a0"; fontsize=11;
+
+    forgejo [label="Forgejo\ntickets · repositories · PRs", fillcolor="#e1f0e3", color="#2f855a"];
+
+    subgraph cluster_control {
+      label="control plane (no model, no Docker)"; style="rounded"; color="#9aa5b1"; fillcolor="#fafbfc"; style="rounded,filled";
+      api        [label="api\nchecks the webhook signature,\nstarts a workflow"];
+      temporal   [label="Temporal\nstores every workflow's history\n(7 days by default)", fillcolor="#dbe8ff", color="#2b6cb0"];
+      controller [label="controller\nthe workflows and all decisions\nholds the Forgejo token\nruns git on the pristine clone", fillcolor="#dbe8ff", color="#2b6cb0"];
+    }
+
+    postgres [label="PostgreSQL\n(Forgejo + Temporal data)", shape=cylinder, fillcolor="#eef2f6"];
+
+    subgraph cluster_sandboxing {
+      label="agent sandboxing (the only place with Docker access)"; style="rounded,filled"; color="#c05621"; fillcolor="#fff6ec";
+      launcher [label="sandbox-launcher\nthe only service with the Docker socket\nfixed isolation policy, max 2 at once", fillcolor="#ffe3c7", color="#c05621"];
+      sandbox  [label="disposable sandbox  (one per agent run)\nOpenCode + one role file + the project's image\nnon-root · read-only root · no capabilities\nno route out except the proxy", fillcolor="#ffe3c7", color="#c05621"];
+      proxy    [label="egress-proxy\nHTTPS tunnels to allowlisted hosts only\nlogs every decision", fillcolor="#ffe3c7", color="#c05621"];
+    }
+
+    workspaces [label="workspace folder on the host\n.base/<ticket>  pristine clone\n<ticket>  copy the agent works in", shape=folder, fillcolor="#fdf2c8", color="#b7791f"];
+    login      [label="opencode-data volume\nthe ChatGPT login", shape=cylinder, fillcolor="#fdf2c8", color="#b7791f"];
+    agents     [label="agents/ folder\nrole files, read-only", shape=folder, fillcolor="#fdf2c8", color="#b7791f"];
+  }
+
+  person -> forgejo [label="tickets, comments,\nPR reviews"];
+  forgejo -> api [label="signed webhook\n(issues, comments)"];
+  api -> temporal [label="start\nForgejoEventWorkflow"];
+  temporal -> controller [label="task queue\nfactory-events", dir=both];
+  controller -> forgejo [label="comments, branches,\npull requests (bot token)"];
+  controller -> workspaces [label="clone · copy · inspect\ncommit · push"];
+  controller -> temporal [label="sandbox_run activity\nqueue: sandbox", style=dashed];
+  temporal -> launcher [style=dashed];
+  launcher -> sandbox [label="docker create/start/remove"];
+  sandbox -> workspaces [label="mounts the copy\n(read-only or writable)", dir=back];
+  sandbox -> login [label="login mounted only\nfor model runs", style=dashed];
+  sandbox -> agents [label="/etc/factory", style=dashed];
+  sandbox -> proxy [label="HTTPS_PROXY"];
+  proxy -> model;
+  proxy -> registry [label="packages /\ndeveloper profile"];
+  forgejo -> postgres [style=dotted, arrowhead=none];
+  temporal -> postgres [style=dotted, arrowhead=none];
+  controller -> agents [style=dotted, label="model names only"];
+}

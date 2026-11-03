@@ -1,6 +1,6 @@
 # Egress Proxy
 
-[Project overview](../../README.md) | [Egress allowlist](../../egress/README.md) | [Sandbox launcher](../sandbox-launcher/README.md)
+[Documentation index](../../docs/README.md) | [Egress allowlist](../../egress/README.md) | [Sandbox launcher](../sandbox-launcher/README.md) | [Architecture](../../docs/architecture.md#trust-boundaries)
 
 The only way out of the disposable agent containers. It is a small forward proxy for **HTTPS tunnels
 (`CONNECT`) and nothing else**: it checks the host name against the sandbox's profile in

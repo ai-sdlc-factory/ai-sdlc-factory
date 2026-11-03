@@ -41,6 +41,11 @@ pipelines:
               - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
               - docker run --rm $SERVICE-test
         - step:
+            name: Check documentation
+            image: python:3.12-slim
+            script:
+              - python3 tools/check-docs.py
+        - step:
             name: Check vulnerable packages
             image: mcr.microsoft.com/dotnet/sdk:10.0
             script:

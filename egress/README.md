@@ -1,5 +1,7 @@
 # Egress allowlist
 
+[Documentation index](../docs/README.md) | [Architecture](../docs/architecture.md#trust-boundaries) | [Egress proxy](../services/egress-proxy/README.md) | [Configuration](../docs/configuration.md#infraenv)
+
 What the disposable agent containers may reach on the internet. A sandbox has **no route out** and no
 external DNS; the only thing it can talk to is an [egress proxy](../services/egress-proxy/README.md) that
 tunnels HTTPS to the hosts listed here and refuses everything else. The file is trusted configuration:
@@ -32,10 +34,10 @@ at all. The factory picks the profile by role, never the agent or the repository
 
 | Profile | Hosts | Used by |
 | --- | --- | --- |
-| `none` (no network) | nothing | the evidence check |
-| `model` | `chatgpt.com`, `auth.openai.com` | analyst, coverage, architect, reviewers, QA |
-| `packages` | package registries (PyPI, npm, NuGet, Maven, crates.io, Go, RubyGems) | the project's own checks |
-| `developer` | `model` + `packages` | the developer |
+| `none` (no network) | nothing | the factory's own small helper commands: does a file or commit exist, a file hash |
+| `model` | `chatgpt.com`, `auth.openai.com` | every agent role except the two below: the analysts, architect, diagnostician, reviewers, QA, the incident roles and the postmortem writer |
+| `packages` | package registries (PyPI, npm, NuGet, Maven, crates.io, Go, RubyGems) | the project's own checks, and a bug fix's red and green test runs |
+| `developer` | `model` + `packages` | the developer and the reproducer (they run the project's tests, which may fetch packages) |
 
 Each profile has its own internal Docker network and its own proxy address, so a container cannot ask
 for a more generous profile: from the `model` network the `developer` proxy is not reachable at all.

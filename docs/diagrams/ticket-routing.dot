@@ -1,0 +1,37 @@
+digraph ticket_routing {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
+  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  label="From a Forgejo event to a workflow";
+
+  forgejo [label="Forgejo\nissue opened · reopened · labelled · closed\ncomment created", shape=box, style="filled", fillcolor="#e1f0e3", color="#2f855a"];
+  api     [label="api\nverifies the HMAC signature\nrejects repeats of the same delivery id", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  router  [label="ForgejoEventWorkflow  (the router)\nstored in Temporal, decides with fixed rules", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  kind    [label="which label?\nincident  >  feature  >  bug", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+  fw [label="FeatureWorkflow\nid  feature-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  bw [label="BugWorkflow\nid  bug-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  iw [label="IncidentWorkflow\nid  incident-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  comment [label="comment on a ticket\nsignal human_reply to the\nrunning workflow", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  none    [label="no running workflow\n(finished or never started)\nreply once: close and reopen to run again", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  closed  [label="ticket closed\nsignal ticket_closed\n(the run stops)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  ignored [label="ignored\npull request events · factory's own comments\ntickets with none of the three labels", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  reopen  [label="reopened\nstarts a new run\n(label changes alone do nothing)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  forgejo -> api [label="signed webhook"];
+  api -> router [label="Temporal workflow"];
+  router -> kind [label="opened / labelled"];
+  router -> reopen [style=dashed];
+  reopen -> kind;
+  kind -> iw; kind -> fw; kind -> bw;
+  router -> comment; router -> closed; router -> ignored;
+  comment -> none [label="nobody listening", style=dashed];
+  comment -> fw [style=dotted]; comment -> bw [style=dotted]; comment -> iw [style=dotted];
+
+  subgraph cluster_legend {
+    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
+    til1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
+    til2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
+    til3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
+    til4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    til1 -> til2 -> til3 -> til4 [style=invis];
+  }
+}

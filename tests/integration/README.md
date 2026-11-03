@@ -1,6 +1,6 @@
 # Integration Tests
 
-[Project overview](../../README.md) | [API](../../services/api/README.md) | [Controller](../../services/controller/README.md)
+[Documentation index](../../docs/README.md) | [API](../../services/api/README.md) | [Controller](../../services/controller/README.md)
 
 Tests the deployed API and controller through HTTP and Temporal. This test image
 does not import either service's application code.

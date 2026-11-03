@@ -1,6 +1,6 @@
 # Factory Controller API
 
-[Project overview](../../README.md) | [Infrastructure](../../infra/README.md) | [Worker](../controller/README.md)
+[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md) | [Controller](../controller/README.md)
 
 An ASP.NET Core (.NET 10) minimal API verifies signed Forgejo webhooks and starts
 Temporal workflows. This service has its own project and Docker image. It sends a JSON envelope to the
@@ -18,7 +18,7 @@ From `infra/`:
 docker compose up -d --build api forgejo
 ```
 
-The [controller worker](../controller/README.md) must also be
+The [controller](../controller/README.md) must also be
 running to process workflows. The API acknowledges events once Temporal stores
 them, even if the worker is temporarily stopped.
 
@@ -43,14 +43,14 @@ In a repository, open **Settings > Webhooks > Add webhook > Forgejo**:
 | Method | `POST` |
 | Content type | `application/json` |
 | Secret | `FORGEJO_WEBHOOK_SECRET` from `infra/.env` |
-| Events | Start with pushes, issues, and pull requests |
+| Trigger on | Custom events: **Issues**, **Issue Label**, **Issue Comment** (all the factory reads; see [Setting up a project](../../docs/project-setup.md#2-add-the-webhook)) |
 
 Enable the webhook and use **Test Delivery**. Forgejo uses the Compose hostname
 `api`; its webhook host list is configured in Compose.
 
 A valid delivery returns `202` with a `workflow_id`. Find it in
-http://localhost:8080 under the configured namespace. The worker records an event
-receipt; agent execution and repository changes will be added later.
+http://localhost:8080 under the configured namespace. The controller records an event
+receipt and routes the event: ticket events start or signal the ticket's workflow ([routing](../../docs/workflows.md#ticket-routing)); other events are only recorded.
 
 ## Delivery behavior
 

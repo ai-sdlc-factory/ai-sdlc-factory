@@ -4,7 +4,7 @@ name: dev-foundry
 #   data    PostgreSQL and its direct clients
 #   control Temporal clients and the trusted controller services
 #   hooks   Forgejo webhook delivery to the controller API
-#   forge   Forgejo API access for the controller (ticket comments, later branches and PRs)
+#   forge   Forgejo API and git access for the controller (ticket comments, branches, pull requests)
 #   agents  the OpenCode login helper only: internet access for the browser login, no factory service
 #   egress  the egress proxy's way to the internet; nothing else joins it
 #   sandbox-model, sandbox-packages, sandbox-developer

@@ -1,0 +1,59 @@
+digraph bug_workflow {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
+  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  label="Bug workflow: a fix proven by a test that fails before and passes after";
+
+  start   [label="Ticket labelled bug", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
+  intake  [label="Intake\nclone · copy · read .factory/project.json", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  banalyst[label="bug-analyst\nexpected vs actual · severity", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  ask1    [label="asks on the ticket\n(4 rounds at most)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
+  rej     [label="rejected\n(not a bug)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  repro   [label="reproducer\nwrites ONE failing test\n(test files only)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  files   [label="only the listed test files changed?\nno deletions · protected paths · secrets", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+  red     [label="RED check\nthe factory runs the test command\non the unchanged code: it must FAIL", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+  cannot  [label="cannot_reproduce\n(3 attempts used)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  quick   [label="quick mode?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+  diag    [label="diagnostician\nroot cause · where to fix", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  large   [label="needs_design\n(too large: open a feature ticket)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+
+  subgraph cluster_build {
+    label="Build loop  (3 rounds at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
+    developer[label="developer\nfixes the code\nmay not edit the test", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    tamper   [label="reproduction test unchanged?\n(SHA-256 of its files)", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    gates    [label="change checks + project checks", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    green    [label="GREEN check\nthe same test command must now PASS", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    reviewers[label="reviewers\n(QA is not used:\nred then green is the proof)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+  }
+  publish [label="Publish\ncommit · push · open the pull request  Fix: <title>", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  pr      [label="Pull request\nwith severity, root cause and the proof", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  wip     [label="Work-in-progress branch\n+ a comment on the ticket", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+
+  start -> intake -> banalyst;
+  banalyst -> ask1 [label="needs\nclarification"]; ask1 -> banalyst;
+  banalyst -> rej [style=dashed, label="reject"];
+  banalyst -> repro [label="pass"];
+  repro -> files -> red;
+  red -> repro [label="passes or can't run:\nsent back with the reason", style=dashed, color="#c53030", fontcolor="#c53030"];
+  red -> cannot [label="3 attempts", style=dashed];
+  red -> quick [label="fails as required"];
+  quick -> diag [label="no"];
+  quick -> developer [label="yes: skip the diagnosis", style=dashed];
+  diag -> large [label="too_large", style=dashed];
+  diag -> developer [label="pass"];
+  developer -> tamper -> gates -> green -> reviewers -> ok;
+  ok -> publish [label="yes"];
+  ok -> developer [label="no: feedback", constraint=false, style=dashed, color="#c53030", fontcolor="#c53030"];
+  publish -> pr;
+  ok -> wip [label="out of rounds", style=dashed];
+
+  subgraph cluster_legend {
+    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
+    bul1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
+    bul2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
+    bul3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
+    bul4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    bul1 -> bul2 -> bul3 -> bul4 [style=invis];
+  }
+}

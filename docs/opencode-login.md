@@ -1,5 +1,7 @@
 # OpenCode login
 
+[Documentation index](README.md) | [Getting started](getting-started.md#5-sign-the-agents-in)
+
 The factory's agents run OpenCode with a ChatGPT Plus/Pro account (browser sign-in; no OpenAI API key).
 You sign in once. The login is stored in the `opencode-data` Docker volume, outside `.env`, Git and
 Temporal history, and the [sandbox launcher](../services/sandbox-launcher/README.md#model-access-and-the-opencode-login)
@@ -30,8 +32,8 @@ docker compose --profile opencode-tools run --rm --no-deps opencode-login openco
 docker compose --profile opencode-tools run --rm --no-deps opencode-login opencode models openai
 ```
 
-The model the agents use is set in [`agents/opencode.json`](../agents/opencode.json); choose one your plan
-includes. Usage depends on your ChatGPT plan.
+The model each agent uses is set in its role file under [`agents/agents/`](../agents/README.md#choosing-the-model-per-role) (with a default in
+[`agents/opencode.json`](../agents/opencode.json)); choose one your plan includes. Usage depends on your ChatGPT plan.
 
 ## How it is shared
 

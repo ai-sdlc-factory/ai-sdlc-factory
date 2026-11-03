@@ -1,6 +1,6 @@
 # Sandbox Launcher
 
-[Project overview](../../README.md) | [Infrastructure](../../infra/README.md) | [Feature factory design](../../docs/feature-factory.md)
+[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md) | [Egress proxy](../egress-proxy/README.md)
 
 Starts disposable containers for the factory's agents. A workflow asks for "run this command in
 the `dotnet` image against workspace X"; the launcher starts one container, waits for it, returns
@@ -70,7 +70,7 @@ volume named by `SANDBOX_AUTH_VOLUME` (`dev-foundry_opencode-data`, the same vol
 runs never see the credentials. If the volume does not exist the activity fails at once with
 "OpenCode is not signed in"; if it exists but holds no `auth.json`, the sandbox exits with code 78.
 
-Inside the sandbox, [`factory-entry.sh`](../../sandboxes/dotnet/factory-entry.sh) links only
+Inside the sandbox, [`factory-entry.sh`](../../sandboxes/common/factory-entry.sh) links only
 `auth.json` into OpenCode's per-run data directory. OpenCode keeps its sessions and logs next to the
 login, so mounting the whole volume as its data directory would mix the history of every ticket.
 The volume is mounted read-write by default so OpenCode can store a refreshed token; set
@@ -79,7 +79,7 @@ expires. An agent can always read the token it runs with, which is why its netwo
 allowlist (see Network).
 
 The login volume is owned by the factory user (`FACTORY_UID`). The one-shot `opencode-data-init`
-service sets that up and runs automatically before the login, demo worker and launcher flows.
+service sets that up and runs automatically before the login helper.
 
 ## Agent definitions
 
@@ -100,8 +100,9 @@ docker compose --profile images build sandbox-image-dotnet
 pinned OpenCode binary) [`sandboxes/python/`](../../sandboxes/python/Dockerfile) the Python 3.12 one
 (plus pytest and ruff), and [`sandboxes/node/`](../../sandboxes/node/Dockerfile) the Node.js 22 LTS one (npm,
 and corepack for pnpm/yarn; projects install their own dependencies through the egress proxy, and
-`node --test` needs nothing extra). Both use the shared entrypoint in `sandboxes/common/`. Add another language by
-adding `sandboxes/<name>/Dockerfile` and one entry to `SANDBOX_IMAGES`.
+`node --test` needs nothing extra). All three use the shared entrypoint in `sandboxes/common/`, which creates `HOME` and the XDG directories in the container's tmpfs (the .NET CLI fails if they are missing), prepares OpenCode's settings and login, and then runs the command.
+Add another language by adding `sandboxes/<name>/Dockerfile`, a build entry for it (profile `images`) in `infra/compose.yaml`, and one `alias=image` pair to `SANDBOX_IMAGES`; projects then pick it with `"image": "<alias>"`.
+The image must contain git, the OpenCode binary, the language's tooling and `/usr/local/bin/factory-entry`; look at the existing Dockerfiles.
 
 ## Behavior
 
@@ -125,4 +126,4 @@ docker run --rm dev-foundry/sandbox-launcher-test
 
 The tests cover the request policy, the fixed container settings, timeout, cancellation and
 cleanup against a fake Docker, and the log parser. Real containers are exercised by creating a
-`feature` ticket (see the [controller guide](../controller/README.md#feature-tickets)).
+`feature`, `bug` or `incident` ticket (see [Getting started](../../docs/getting-started.md#7-connect-your-first-repository)).
