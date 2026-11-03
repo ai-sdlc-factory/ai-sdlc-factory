@@ -8,8 +8,9 @@ public sealed partial class GitWorkspace
     private string RecordPath(string root, string name) => $"{root}/.records/{name}";
 
     /// <summary>Stores one step of the run on the host. It never changes the repository by itself.</summary>
-    public Task RecordAsync(RecordEntry entry)
+    public Task RecordAsync(RecordEntry recorded)
     {
+        var entry = recorded.Kind == "agent" ? recorded with { Model = AgentCatalog.ModelFor(settings.AgentsDirectory, recorded.Slug) } : recorded;
         var root = RequireRoot();
         RequireName(entry.Name);
         if (!RunRecord.IsValidSlug(entry.Slug) || entry.Sequence is < 1 or > 999)
@@ -59,5 +60,9 @@ public sealed partial class GitWorkspace
         }
         File.WriteAllText($"{target}/README.md", RunRecord.Summary(spec, entries));
         File.WriteAllText($"{target}/index.json", RunRecord.Index(entries));
+        if (RunRecord.HasUsage(entries))
+        {
+            File.WriteAllText($"{target}/usage.json", RunRecord.UsageJson(entries));
+        }
     }
 }

@@ -54,7 +54,11 @@ public sealed record AgentReply(SandboxRunResult Result)
     private static string Events(string text) => string.Join('\n',
         JsonSerializer.Serialize(new { type = "step_start" }),
         JsonSerializer.Serialize(new { type = "text", part = new { messageID = "m1", text } }),
-        JsonSerializer.Serialize(new { type = "step_finish" }));
+        JsonSerializer.Serialize(new
+        {
+            type = "step_finish",
+            part = new { reason = "stop", cost = 0.01, tokens = new { total = 175, input = 100, output = 20, reasoning = 5, cache = new { read = 50, write = 0 } } },
+        }));
 }
 
 public sealed record AgentCall(string Role, string Prompt, string Image, bool Writable, bool ModelAuth, string Network);

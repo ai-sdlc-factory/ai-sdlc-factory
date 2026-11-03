@@ -256,12 +256,14 @@ also contains `.factory/runs/issue-<number>-<8 characters of the run id>/`:
 | File | Content |
 | --- | --- |
 | `README.md` | the ticket, how the run ended, and one line per step with a link |
-| `index.json` | the same list, for tools: step, kind, attempt, outcome, seconds, exit code, file |
+| `index.json` | the same list, for tools: step, kind, attempt, outcome, seconds, exit code, file, model, tokens, cost |
+| `usage.json` | tokens and cost: the total, per role, and per step (only when an agent run reported any) |
 | `001-analyst.md`, `002-coverage.md`, ... | one file per agent run or project check, in order |
 
 An agent file holds the **prompt the agent was given** and **the answer it returned** (an answer the factory
 rejected is kept as its own step, so the retry makes sense). A check file holds the command and the end of its
-output. Every step says when it started, how long it took, its exit code and how the factory judged it.
+output. Every step says when it started, how long it took, its exit code and how the factory judged it. Agent
+steps also give the **model** and the **tokens and cost** of the run, and the `README.md` ends with a usage table by role.
 
 Rules that make this safe to commit:
 
@@ -273,7 +275,13 @@ Rules that make this safe to commit:
 - Each run has its own folder, so a re-run on the same ticket never overwrites an older record.
 - A record is only written together with a branch: a run that stops before the build, or saves nothing, leaves none.
 
-Not included: the raw event stream of the agent (its tool calls), model names and token counts, and the final
+Usage numbers are exactly what OpenCode reports: input, output, reasoning and cache tokens added up over the run's
+steps, and its `cost` (0 with a ChatGPT login, which has no per-token price; the field is kept so an API key would
+show real figures). OpenCode does not say which model answered, so the model shown is the one configured for the
+role (`model:` in the role file, else the default in `opencode.json`); the controller reads the agents folder
+read-only for that. If a run's output was cut, its numbers are marked as a lower bound.
+
+Not included: the raw event stream of the agent (its tool calls) and the final
 pull request link (the record is written before the pull request is opened). Temporal's history has the rest while it
 lasts. Prompts contain the ticket text, so a record is as public as the repository.
 

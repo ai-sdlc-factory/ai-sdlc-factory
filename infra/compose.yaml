@@ -262,10 +262,13 @@ services:
       TEMPORAL_UI_URL: ${TEMPORAL_UI_URL:-http://localhost:${TEMPORAL_UI_PORT:-8080}}
       FORGEJO_BOT_TOKEN: ${FORGEJO_BOT_TOKEN:-}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
+      # Only read to name the model each role is configured with in a run record.
+      FACTORY_AGENTS_DIR: /etc/factory
     # Runs as the host user so the checkouts it creates can be read, changed and deleted by that user.
     user: "${FACTORY_UID:-1000}:${FACTORY_GID:-1000}"
     volumes:
       - ${FACTORY_WORKSPACE_ROOT}:${FACTORY_WORKSPACE_ROOT}
+      - ${FACTORY_GLOBAL_CONFIG:-../agents}:/etc/factory:ro
     networks: [control, forge]
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/worker-ready"]

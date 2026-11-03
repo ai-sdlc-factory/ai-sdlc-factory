@@ -21,7 +21,7 @@ public sealed partial class FeatureWorkflow
     /// </summary>
     private async Task RecordAsync(
         WorkspaceInfo workspace, string kind, string slug, string title, int attempt, DateTime started, string outcome,
-        long exitCode, bool timedOut, string input, string output, string? problem)
+        long exitCode, bool timedOut, string input, string output, string? problem, TokenUsage? usage = null)
     {
         if (recordDirectory is null)
         {
@@ -29,7 +29,7 @@ public sealed partial class FeatureWorkflow
         }
         var entry = new RecordEntry(
             workspace.Name, ++recordSequence, kind, slug, title, attempt, started.ToString("u"),
-            Math.Round((Workflow.UtcNow - started).TotalSeconds, 1), outcome, exitCode, timedOut, input, output, problem);
+            Math.Round((Workflow.UtcNow - started).TotalSeconds, 1), outcome, exitCode, timedOut, input, output, problem, Usage: usage);
         try
         {
             await Workflow.ExecuteActivityAsync(

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -23,7 +24,9 @@ public sealed record RecordEntry(
     bool TimedOut,
     string Input,
     string Output,
-    string? Problem = null);
+    string? Problem = null,
+    string? Model = null,
+    TokenUsage? Usage = null);
 
 /// <summary>Where in the repository the record goes, and how the run ended, for the summary file.</summary>
 public sealed record RunRecordSpec(string Directory, string Heading, string Outcome);
@@ -63,6 +66,15 @@ public static partial class RunRecord
         text.AppendLine($"- duration: {entry.Seconds:0.#} s");
         text.AppendLine($"- outcome: {entry.Outcome}");
         text.AppendLine($"- exit code: {entry.ExitCode}{(entry.TimedOut ? " (timed out)" : "")}");
+        if (entry.Model is not null)
+        {
+            text.AppendLine($"- model: {OneLine(entry.Model)} (as configured for this role)");
+        }
+        if (entry.Usage is { } usage)
+        {
+            text.AppendLine($"- tokens: {Describe(usage)}");
+            text.AppendLine($"- cost: {Cost(usage.Cost)} (as reported by OpenCode)");
+        }
         if (entry.Problem is not null)
         {
             text.AppendLine($"- problem: {OneLine(SecretScan.Redact(entry.Problem, secrets))}");
@@ -94,8 +106,59 @@ public static partial class RunRecord
         {
             text.AppendLine($"| {entry.Sequence} | [{entry.Title}]({FileName(entry)}) | {entry.Attempt} | {entry.Outcome} | {entry.Seconds:0.#} |");
         }
+
+        var used = entries.Where(e => e.Usage is not null).ToList();
+        if (used.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine("## Usage");
+            text.AppendLine();
+            text.AppendLine("Tokens as reported by OpenCode, by role (all attempts). Cost is what OpenCode reports; it is 0 with a ChatGPT login. The full list is in [usage.json](usage.json).");
+            text.AppendLine();
+            text.AppendLine("| Role | Model | Runs | Input | Output | Reasoning | Cache read | Total | Cost |");
+            text.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+            foreach (var group in used.GroupBy(e => e.Slug).OrderBy(g => g.Min(e => e.Sequence)))
+            {
+                var sum = TokenUsage.Sum(group.Select(e => e.Usage!));
+                text.AppendLine($"| {group.Key} | {group.First().Model ?? "unknown"} | {group.Count()} | {sum.Input} | {sum.Output} | {sum.Reasoning} | {sum.CacheRead} | {sum.Total} | {Cost(sum.Cost)} |");
+            }
+            var all = TokenUsage.Sum(used.Select(e => e.Usage!));
+            text.AppendLine($"| **all** | | {used.Count} | {all.Input} | {all.Output} | {all.Reasoning} | {all.CacheRead} | **{all.Total}** | {Cost(all.Cost)} |");
+            if (all.Partial)
+            {
+                text.AppendLine();
+                text.AppendLine("Some output was cut, so the numbers are a lower bound.");
+            }
+        }
         return text.ToString();
     }
+
+    /// <summary>The tokens and cost of every recorded step and the totals by role, for tools and later analysis.</summary>
+    public static string UsageJson(IReadOnlyList<RecordEntry> entries)
+    {
+        var used = entries.Where(e => e.Usage is not null).OrderBy(e => e.Sequence).ToList();
+        object Tokens(TokenUsage u) => new
+        {
+            input = u.Input, output = u.Output, reasoning = u.Reasoning, cache_read = u.CacheRead, cache_write = u.CacheWrite,
+            total = u.Total, cost = u.Cost, model_steps = u.Steps, partial = u.Partial,
+        };
+        return JsonSerializer.Serialize(
+            new
+            {
+                note = "Tokens and cost as reported by OpenCode. Cost is 0 with a ChatGPT login. The model is the one configured for the role.",
+                total = Tokens(TokenUsage.Sum(used.Select(e => e.Usage!))),
+                by_role = used.GroupBy(e => e.Slug).ToDictionary(g => g.Key, g => new { model = g.First().Model, runs = g.Count(), usage = Tokens(TokenUsage.Sum(g.Select(e => e.Usage!))) }),
+                steps = used.Select(e => new { step = e.Sequence, role = e.Slug, model = e.Model, attempt = e.Attempt, seconds = e.Seconds, usage = Tokens(e.Usage!) }),
+            },
+            new JsonSerializerOptions { WriteIndented = true }) + "\n";
+    }
+
+    public static bool HasUsage(IReadOnlyList<RecordEntry> entries) => entries.Any(e => e.Usage is not null);
+
+    private static string Describe(TokenUsage u) =>
+        $"{u.Total} in total (input {u.Input}, output {u.Output}, reasoning {u.Reasoning}, cache read {u.CacheRead}, cache write {u.CacheWrite}){(u.Partial ? ", at least: output was cut" : "")}";
+
+    private static string Cost(double cost) => cost.ToString("0.0000", CultureInfo.InvariantCulture);
 
     /// <summary>The machine-readable index: every step without its (large) input and output.</summary>
     public static string Index(IReadOnlyList<RecordEntry> entries) =>
@@ -104,7 +167,7 @@ public static partial class RunRecord
             {
                 step = e.Sequence, kind = e.Kind, title = e.Title, attempt = e.Attempt, started = e.StartedAt,
                 seconds = e.Seconds, outcome = e.Outcome, exit_code = e.ExitCode, timed_out = e.TimedOut,
-                file = FileName(e),
+                file = FileName(e), model = e.Model, tokens = e.Usage?.Total, cost = e.Usage?.Cost,
             }),
             new JsonSerializerOptions { WriteIndented = true }) + "\n";
 

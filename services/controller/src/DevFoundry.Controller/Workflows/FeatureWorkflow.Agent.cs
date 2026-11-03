@@ -54,6 +54,7 @@ public sealed partial class FeatureWorkflow
                     : new AgentOutcome<T>(null, false, message);
             }
 
+            var spent = OpenCodeEvents.Usage(result.Stdout, result.OutputTruncated);
             if (result.ExitCode == 78)
             {
                 await RecordAsync(workspace, "agent", role, role, attempt, started, "not signed in", result.ExitCode, false, promptText, result.Stderr, "OpenCode is not signed in");
@@ -62,13 +63,13 @@ public sealed partial class FeatureWorkflow
             if (result.TimedOut)
             {
                 problem = $"the {role} ran out of time";
-                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, true, promptText, result.Stderr, problem);
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, true, promptText, result.Stderr, problem, spent);
                 continue;
             }
             if (result.ExitCode != 0)
             {
                 problem = $"OpenCode exited with code {result.ExitCode}: {Short(result.Stderr)}";
-                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, false, promptText, result.Stderr, problem);
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, false, promptText, result.Stderr, problem, spent);
                 continue;
             }
 
@@ -76,17 +77,17 @@ public sealed partial class FeatureWorkflow
             if (text is null)
             {
                 problem = result.OutputTruncated ? "the output was too long to contain the answer" : "OpenCode returned no answer";
-                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, false, promptText, result.Stdout, problem);
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, false, promptText, result.Stdout, problem, spent);
                 continue;
             }
             var (value, error2) = parse(text);
             if (value is not null)
             {
-                await RecordAsync(workspace, "agent", role, role, attempt, started, "accepted", result.ExitCode, false, promptText, text, null);
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "accepted", result.ExitCode, false, promptText, text, null, spent);
                 return new AgentOutcome<T>(value, false, null);
             }
             problem = error2;
-            await RecordAsync(workspace, "agent", role, role, attempt, started, "answer rejected", result.ExitCode, false, promptText, text, problem);
+            await RecordAsync(workspace, "agent", role, role, attempt, started, "answer rejected", result.ExitCode, false, promptText, text, problem, spent);
         }
         return new AgentOutcome<T>(null, false, problem);
     }

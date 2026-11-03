@@ -177,8 +177,8 @@ public sealed class RecordPublishTests : IDisposable
         return bare;
     }
 
-    private GitWorkspace Workspace(string token = "") =>
-        new(new WorkerSettings { WorkspaceRoot = root, ForgejoToken = token }, (_, _) => origin);
+    private GitWorkspace Workspace(string token = "", string agents = "") =>
+        new(new WorkerSettings { WorkspaceRoot = root, ForgejoToken = token, AgentsDirectory = agents }, (_, _) => origin);
 
     private static async Task<WorkspaceInfo> PrepareWithChange(GitWorkspace workspace)
     {
@@ -211,6 +211,39 @@ public sealed class RecordPublishTests : IDisposable
         Assert.Contains($"{Directory}/index.json", tree);
         Assert.Contains("Add things to the app", Git(origin, "show", $"{result.Branch}:{Directory}/001-analyst.md"));
         Assert.Contains("[developer](002-developer.md)", Git(origin, "show", $"{result.Branch}:{Directory}/README.md"));
+    }
+
+    [Fact]
+    public async Task The_branch_gets_a_usage_file_and_the_configured_model_of_each_role()
+    {
+        var agents = Path.Combine(temp, "agents");
+        System.IO.Directory.CreateDirectory($"{agents}/agents");
+        File.WriteAllText($"{agents}/agents/developer.md", "---\nmodel: openai/test-model\n---\nPrompt\n");
+        var workspace = Workspace(agents: agents);
+        await PrepareWithChange(workspace);
+        await workspace.RecordAsync(Step(1, "developer", "Implement it", "done") with { Usage = new TokenUsage(100, 20, 5, 50, 0, 175, 0.01, 1) });
+        await workspace.RecordAsync(Step(2, "developer", "Implement it again", "done") with { Usage = new TokenUsage(10, 2, 0, 5, 0, 17, 0, 1) });
+
+        var result = await workspace.PublishAsync(new PublishRequest(Name, "Add things", Spec()), CancellationToken.None);
+
+        Assert.Contains($"{Directory}/usage.json", Tree(result!.Branch));
+        var usage = System.Text.Json.JsonDocument.Parse(Git(origin, "show", $"{result.Branch}:{Directory}/usage.json")).RootElement;
+        Assert.Equal(192, usage.GetProperty("total").GetProperty("total").GetInt64());
+        Assert.Equal("openai/test-model", usage.GetProperty("by_role").GetProperty("developer").GetProperty("model").GetString());
+        Assert.Contains("| developer | openai/test-model | 2 | 110 | 22 |", Git(origin, "show", $"{result.Branch}:{Directory}/README.md"));
+        Assert.Contains("- model: openai/test-model", Git(origin, "show", $"{result.Branch}:{Directory}/001-developer.md"));
+    }
+
+    [Fact]
+    public async Task A_record_without_any_usage_has_no_usage_file()
+    {
+        var workspace = Workspace();
+        await PrepareWithChange(workspace);
+        await workspace.RecordAsync(Step(1, "analyst", "p", "o"));
+
+        var result = await workspace.PublishAsync(new PublishRequest(Name, "Add things", Spec()), CancellationToken.None);
+
+        Assert.DoesNotContain($"{Directory}/usage.json", Tree(result!.Branch));
     }
 
     [Fact]
@@ -345,6 +378,9 @@ public sealed class RecordScenarios(TemporalFixture fixture)
         var gate = world.Records[3];
         Assert.Equal("python -m pytest -q", gate.Input);
         Assert.Equal("passed", gate.Outcome);
+        // Agents carry what OpenCode reported for the run; a check has no model usage.
+        Assert.All(world.Records.Where(r => r.Kind == "agent"), r => Assert.Equal(new TokenUsage(100, 20, 5, 50, 0, 175, 0.01, 1), r.Usage));
+        Assert.Null(gate.Usage);
     }
 
     [SkippableFact]
