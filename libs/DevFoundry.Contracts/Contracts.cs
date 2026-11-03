@@ -24,7 +24,8 @@ public sealed record SandboxRunRequest(
     [property: JsonPropertyName("timeout_seconds")] int TimeoutSeconds,
     [property: JsonPropertyName("env")] IReadOnlyDictionary<string, string>? Env = null,
     [property: JsonPropertyName("needs_model_auth")] bool NeedsModelAuth = false,
-    [property: JsonPropertyName("network")] string Network = SandboxNetworks.None);
+    [property: JsonPropertyName("network")] string Network = SandboxNetworks.None,
+    [property: JsonPropertyName("role")] string? Role = null);
 
 public sealed record SandboxRunResult(
     [property: JsonPropertyName("exit_code")] long ExitCode,

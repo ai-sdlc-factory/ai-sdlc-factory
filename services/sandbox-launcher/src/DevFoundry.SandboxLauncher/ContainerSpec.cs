@@ -9,9 +9,29 @@ namespace DevFoundry.SandboxLauncher;
 public static class ContainerSpec
 {
     public const string Label = "dev-foundry.sandbox";
+    public const string WorkspaceLabel = "dev-foundry.workspace";
+    public const string RoleLabel = "dev-foundry.role";
     public const string WorkspaceTarget = "/workspace";
     public const string GlobalConfigTarget = "/etc/factory";
     public const string AuthTarget = "/auth";
+
+    /// <summary>
+    /// What <c>docker ps --filter label=...</c> can tell apart: which ticket's workspace (its name is the workflow id)
+    /// and which role the container belongs to. Both were validated already.
+    /// </summary>
+    private static Dictionary<string, string> Labels(ValidatedRun run)
+    {
+        var labels = new Dictionary<string, string> { [Label] = "true" };
+        if (run.Workspace is not null)
+        {
+            labels[WorkspaceLabel] = run.Workspace;
+        }
+        if (run.Role is not null)
+        {
+            labels[RoleLabel] = run.Role;
+        }
+        return labels;
+    }
 
     public static CreateContainerBody Build(ValidatedRun run, SandboxSettings settings)
     {
@@ -59,7 +79,7 @@ public static class ContainerSpec
             User = $"{settings.UserId}:{settings.GroupId}",
             WorkingDir = WorkspaceTarget,
             Env = [.. env, "HOME=/tmp/home", "XDG_CACHE_HOME=/tmp/cache", "XDG_CONFIG_HOME=/tmp/config"],
-            Labels = new Dictionary<string, string> { [Label] = "true" },
+            Labels = Labels(run),
             HostConfig = new HostConfigBody
             {
                 Mounts = mounts,

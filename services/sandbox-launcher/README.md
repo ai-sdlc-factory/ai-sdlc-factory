@@ -23,7 +23,12 @@ A request (`SandboxRunRequest` in `libs/DevFoundry.Contracts`) can choose:
 - whether the workspace is **writable**,
 - the **command** (an argument list, no shell), a **timeout** (capped by `SANDBOX_MAX_RUN_SECONDS`),
 - **environment variables** starting with `OPENCODE_` or `FACTORY_`,
-- whether the run needs **model access** (the OpenCode login, below).
+- whether the run needs **model access** (the OpenCode login, below),
+- a **role** (`developer`, `gate`, ...), only used to label the container.
+
+Every container is labelled `dev-foundry.sandbox=true`, `dev-foundry.workspace=<workspace>` (the workflow id, so it
+names the repository and ticket) and `dev-foundry.role=<role>`, so with several runs in parallel
+`docker ps --filter label=dev-foundry.workspace=<id>` shows what belongs to which ticket.
 
 Everything else is fixed in `ContainerSpec` and tested in `ContainerSpecTests`: non-root user (the
 workspace owner), read-only root filesystem with a 1 GB `/tmp`, all capabilities dropped,

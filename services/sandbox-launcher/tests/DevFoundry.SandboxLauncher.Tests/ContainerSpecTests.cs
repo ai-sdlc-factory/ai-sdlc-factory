@@ -74,6 +74,36 @@ public sealed class ContainerSpecTests
     }
 }
 
+public sealed class LabelTests
+{
+    private static JsonElement Labels(SandboxRunRequest request)
+    {
+        var settings = Support.Settings();
+        return JsonDocument.Parse(JsonSerializer.Serialize(ContainerSpec.Build(Support.Valid(request, settings), settings))).RootElement.GetProperty("Labels");
+    }
+
+    [Fact]
+    public void Container_says_which_workspace_and_role_it_belongs_to()
+    {
+        var labels = Labels(Support.Request(workspace: "feature-acme-shop-7-1a2b3c4d") with { Role = "developer" });
+        Assert.Equal("feature-acme-shop-7-1a2b3c4d", labels.GetProperty("dev-foundry.workspace").GetString());
+        Assert.Equal("developer", labels.GetProperty("dev-foundry.role").GetString());
+        Assert.Equal("true", labels.GetProperty("dev-foundry.sandbox").GetString());
+    }
+
+    [Fact]
+    public void A_run_without_a_role_has_no_role_label() =>
+        Assert.False(Labels(Support.Request()).TryGetProperty("dev-foundry.role", out _));
+
+    [Theory]
+    [InlineData("Developer")]
+    [InlineData("a b")]
+    [InlineData("x=y")]
+    [InlineData("")]
+    public void A_role_that_is_not_a_plain_name_is_refused(string role) =>
+        Assert.Throws<Temporalio.Exceptions.ApplicationFailureException>(() => Support.Valid(Support.Request() with { Role = role }));
+}
+
 public sealed class ModelAuthTests
 {
     private static JsonElement Spec(SandboxRunRequest request, SandboxSettings settings) =>

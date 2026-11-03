@@ -29,7 +29,7 @@ The API and controller must use the same namespace and task queue.
 `ForgejoEventWorkflow` also routes Forgejo ticket events (decisions live in `EventRouter`):
 
 - An open ticket labeled `feature` (on `issues` opened, reopened or label updated) starts
-  `FeatureWorkflow` with the ID `feature-<owner>-<repo>-<number>`. Repeated events for the same
+  `FeatureWorkflow` with the ID `feature-<owner>-<repo>-<number>-<hash>`, where the hash (of the exact owner and repository) keeps repositories with similar names, and very long names, apart. The same name is the ticket's workspace folder. Repeated events for the same
   ticket are ignored.
 - A human comment on a feature ticket is signalled to its waiting workflow (`human_reply`);
   closing the ticket sends `ticket_closed`. Comments written by the factory carry a hidden marker and

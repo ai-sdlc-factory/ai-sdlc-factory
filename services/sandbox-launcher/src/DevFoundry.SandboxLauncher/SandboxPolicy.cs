@@ -12,7 +12,9 @@ public sealed record ValidatedRun(
     TimeSpan Timeout,
     IReadOnlyList<string> Env,
     bool NeedsModelAuth,
-    string Network);
+    string Network,
+    string? Role = null,
+    string? Workspace = null);
 
 /// <summary>
 /// Everything a requester is allowed to influence, and nothing else. The caller is the trusted
@@ -27,6 +29,9 @@ public static partial class SandboxPolicy
 
     [GeneratedRegex(@"\A[a-z0-9][a-z0-9._-]{0,127}\z")]
     private static partial Regex WorkspaceName();
+
+    [GeneratedRegex(@"\A[a-z][a-z0-9_-]{0,31}\z")]
+    private static partial Regex RoleName();
 
     [GeneratedRegex(@"\A[A-Z][A-Z0-9_]{0,63}\z")]
     private static partial Regex EnvName();
@@ -86,7 +91,13 @@ public static partial class SandboxPolicy
             throw Reject($"Unknown network profile '{network}'. Known: {SandboxNetworks.None}, {string.Join(", ", settings.Networks.Keys.Order())}.");
         }
 
-        return new ValidatedRun(image, path, request.WorkspaceWritable, request.Command, timeout, env, request.NeedsModelAuth, network);
+        if (request.Role is not null && !RoleName().IsMatch(request.Role))
+        {
+            throw Reject("Role must be 1 to 32 lowercase letters, digits, '-' or '_'.");
+        }
+
+        return new ValidatedRun(image, path, request.WorkspaceWritable, request.Command, timeout, env, request.NeedsModelAuth, network,
+            request.Role, request.Workspace);
     }
 
     // Policy violations will not fix themselves, so they are never retried.

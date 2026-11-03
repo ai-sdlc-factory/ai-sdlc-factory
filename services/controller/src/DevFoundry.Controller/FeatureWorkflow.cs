@@ -332,7 +332,7 @@ public sealed partial class FeatureWorkflow
         {
             var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                 SandboxNames.ActivityName,
-                [new SandboxRunRequest(image, workspace.Name, false, EvidenceCheck.Command(paths), 60)],
+                [new SandboxRunRequest(image, workspace.Name, false, EvidenceCheck.Command(paths), 60, Role: "evidence")],
                 new ActivityOptions
                 {
                     TaskQueue = SandboxNames.DefaultTaskQueue,
@@ -400,7 +400,8 @@ public sealed partial class FeatureWorkflow
                         Command: ["opencode", "run", "--agent", role, "--format", "json", prompt(problem)],
                         TimeoutSeconds: timeoutSeconds,
                         NeedsModelAuth: true,
-                        Network: NetworkFor(role))],
+                        Network: NetworkFor(role),
+                        Role: role)],
                     new ActivityOptions
                     {
                         TaskQueue = SandboxNames.DefaultTaskQueue,

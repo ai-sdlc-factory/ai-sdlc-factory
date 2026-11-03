@@ -50,7 +50,7 @@ public sealed class EventRouterTests
         Assert.Equal(("acme", "shop", 7, "Add wishlist", "As a user...", "alice"),
             (feature.Owner, feature.Repo, feature.IssueNumber, feature.Title, feature.Body, feature.Author));
         Assert.Equal(["feature"], feature.Labels);
-        Assert.Equal("feature-acme-shop-7", feature.WorkflowId);
+        Assert.Equal(FeatureIds.For("acme", "shop", 7), feature.WorkflowId);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class EventRouterTests
     {
         var decision = EventRouter.Decide(Event("issues", Ticket("closed", state: "closed")));
         Assert.Equal(RoutingAction.CloseFeature, decision.Action);
-        Assert.Equal("feature-acme-shop-7", decision.Feature!.WorkflowId);
+        Assert.Equal(FeatureIds.For("acme", "shop", 7), decision.Feature!.WorkflowId);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class EventRouterTests
             Ticket("created", more: new { comment = Comment("Use the existing cart.") })));
 
         Assert.Equal(RoutingAction.ReplyToFeature, decision.Action);
-        Assert.Equal("feature-acme-shop-7", decision.Feature!.WorkflowId);
+        Assert.Equal(FeatureIds.For("acme", "shop", 7), decision.Feature!.WorkflowId);
         Assert.Equal(new HumanReply("bob", "Use the existing cart."), decision.Reply);
     }
 
@@ -155,8 +155,36 @@ public sealed class EventRouterTests
         Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event(name, payload)).Action);
 
     [Theory]
-    [InlineData("Acme", "Shop App", 3, "feature-acme-shop-app-3")]
-    [InlineData("a/b", "c", 1, "feature-a-b-c-1")]
-    public void Workflow_ids_are_stable_and_safe(string owner, string repo, int number, string expected) =>
-        Assert.Equal(expected, FeatureIds.For(owner, repo, number));
+    [InlineData("Acme", "Shop App", 3, "feature-acme-shop-app-3-")]
+    [InlineData("a/b", "c", 1, "feature-a-b-c-1-")]
+    public void Workflow_ids_are_readable_and_safe(string owner, string repo, int number, string prefix)
+    {
+        var id = FeatureIds.For(owner, repo, number);
+        Assert.StartsWith(prefix, id);
+        Assert.Matches(@"^[a-z0-9][a-z0-9._-]{0,127}$", id);
+        Assert.Equal(id, FeatureIds.For(owner, repo, number));
+    }
+
+    [Theory]
+    [InlineData("a-b", "c", "a", "b-c")]
+    [InlineData("a.b", "c", "a-b", "c")]
+    [InlineData("a_b", "c", "a-b", "c")]
+    public void Repositories_whose_cleaned_names_look_alike_get_different_ids(string owner1, string repo1, string owner2, string repo2) =>
+        Assert.NotEqual(FeatureIds.For(owner1, repo1, 1), FeatureIds.For(owner2, repo2, 1));
+
+    [Fact]
+    public void Case_does_not_split_a_repository()
+    {
+        Assert.Equal(FeatureIds.For("Acme", "Shop", 1), FeatureIds.For("acme", "shop", 1));
+    }
+
+    [Fact]
+    public void Very_long_names_still_fit_and_stay_different()
+    {
+        var first = FeatureIds.For(new string('o', 40), new string('r', 100) + "1", int.MaxValue);
+        var second = FeatureIds.For(new string('o', 40), new string('r', 100) + "2", int.MaxValue);
+        Assert.InRange(first.Length, 1, 128);
+        Assert.Matches(@"^[a-z0-9][a-z0-9._-]{0,127}$", first);
+        Assert.NotEqual(first, second);
+    }
 }
