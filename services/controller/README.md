@@ -247,6 +247,21 @@ matching `paths` only; a UX review runs from medium upwards.
 600). The file is untrusted input: it can only choose among the images the factory offers, and the
 commands run in the sandbox the agent already works in. Without it the run stops with an example.
 
+### Quick mode
+
+For small, low-risk changes the full process is more than needed. A person can choose **quick mode**:
+
+- a `quick` label on the ticket, or `"mode": "quick"` in `.factory/project.json` as the project's default;
+- a `full` label on a ticket always wins (also over the project default, and over `quick` if both are set).
+
+Quick mode **skips** the coverage check, the design review and QA. It **keeps** the analyst, the developer, the
+project's checks, the secret and protected-path checks, every configured reviewer (including `security`), the UX
+review when its own rules call for it, the round caps and the run record. Because nothing was checked as "already
+covered", the developer gets every criterion. A person can still force a design review with the
+`needs-architecture` label; if triage would have asked for one on its own, the ticket says so and the pull request
+notes that the stages were skipped. Only a person chooses quick mode: no agent or analyst estimate can switch checks off.
+On a small ticket it saved roughly 40% of the tokens (about 21,600 of 52,600 in one measured run).
+
 ### Run record (`"record": true`)
 
 Temporal keeps a run's full history for 7 days. A project can ask to keep it longer, in its own repository:

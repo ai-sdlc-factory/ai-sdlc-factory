@@ -11,13 +11,19 @@ public static class PullRequestText
     public static string Body(
         FeatureRequest request, DeveloperReport report, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, IReadOnlyList<GateResult> gates, int round,
-        IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null, string? uxNote = null)
+        IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null, string? uxNote = null, string? quickReason = null)
     {
         var text = new StringBuilder();
         text.AppendLine($"Closes #{request.IssueNumber}");
         text.AppendLine();
         text.AppendLine("Built by the factory from the ticket. A person must review this before it is merged.");
         text.AppendLine();
+        if (quickReason is not null)
+        {
+            text.AppendLine("## Quick mode");
+            text.AppendLine($"Because {TicketComments.Inert(quickReason)}, the coverage check, the design review and QA were skipped. The project's checks and the reviewers ran as usual.");
+            text.AppendLine();
+        }
         text.AppendLine("## Summary");
         text.AppendLine(TicketComments.Inert(report.Summary));
         if (remaining.Any())

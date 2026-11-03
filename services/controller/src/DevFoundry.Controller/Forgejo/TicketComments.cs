@@ -240,6 +240,23 @@ public static class TicketComments
         "No factory run is active for this ticket (it has finished, or was never started), so this comment was not used. " +
         "To run it again, close and reopen the ticket; update the ticket text first if the requirements changed.";
 
+    /// <summary>Posted instead of the triage comment when a ticket runs in quick mode.</summary>
+    public static string QuickMode(string reason, IReadOnlyList<string> skippedDesignReasons)
+    {
+        var text = new StringBuilder();
+        text.AppendLine("**Quick mode**");
+        text.AppendLine();
+        text.AppendLine($"Because {reason}, I skip the coverage check, the design review and QA. The analyst, the developer, the project's checks and the reviewers still run.");
+        if (skippedDesignReasons.Count > 0)
+        {
+            text.AppendLine();
+            text.AppendLine($"Triage would have asked for a design review ({string.Join("; ", skippedDesignReasons)}); quick mode builds without it.");
+        }
+        text.AppendLine();
+        text.Append($"For the full process, add the `{WorkMode.FullLabel}` label (or remove `{WorkMode.QuickLabel}`), then close and reopen the ticket.");
+        return text.ToString();
+    }
+
     public static string TriageDecision(TriageDecision decision) =>
         decision.NeedsArchitect
             ? "**Triage: design review needed before building**\n\nReasons: " + string.Join("; ", decision.Reasons) + "."

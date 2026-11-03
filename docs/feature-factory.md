@@ -137,6 +137,13 @@ configuration before relying on this.
   with scripted agents on a Temporal dev server; breaking the round cap or the reopen-restarts rule on
   purpose makes exactly the matching scenario fail.
 
+## Quick mode
+
+A `quick` label (or `"mode": "quick"` in the project file; a `full` label overrides both) skips the coverage
+check, the design review and QA for a small change, and keeps the analyst, developer, project checks, reviewers and
+the human review of the pull request. The choice belongs to a person; see the
+[controller guide](../services/controller/README.md#quick-mode).
+
 ## Run record
 
 With `"record": true` in `.factory/project.json`, the controller commits what each agent was told and answered,

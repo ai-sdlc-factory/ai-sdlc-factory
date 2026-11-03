@@ -20,7 +20,7 @@ public sealed partial class FeatureWorkflow
     /// </summary>
     private async Task<FeatureResult> BuildAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project,
-        IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage)
+        IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null)
     {
         string? feedback = null;
         DeveloperReport? report = null;
@@ -92,8 +92,8 @@ public sealed partial class FeatureWorkflow
                 continue;
             }
 
-            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers and QA.");
-            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results);
+            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(quickReason is null ? " and QA" : "")}.");
+            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results, skipQa: quickReason is not null);
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -138,7 +138,7 @@ public sealed partial class FeatureWorkflow
             pullRequest = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, title,
-                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote))),
+                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote, quickReason))),
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
         }
         catch (ActivityFailureException error)
@@ -216,7 +216,7 @@ public sealed partial class FeatureWorkflow
     /// </summary>
     private async Task<ReviewOutcome> ReviewAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
-        ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates)
+        ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false)
     {
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
@@ -261,6 +261,11 @@ public sealed partial class FeatureWorkflow
             {
                 uxNote = ui.Size == UiSize.None ? "no UI files changed" : $"the UI change is small ({ui.Describe()})";
             }
+        }
+
+        if (skipQa)
+        {
+            return new ReviewOutcome(null, ReviewFeedback.From(reports, null), reports, null, uxNote);
         }
 
         var criteria = remaining.Select(criterion => criterion.Criterion).ToList();

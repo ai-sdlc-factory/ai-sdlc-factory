@@ -12,7 +12,7 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// input: it can only pick among options the factory already offers (an image alias the launcher
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
-public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false);
+public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false);
 
 public static partial class ProjectConfigParser
 {
@@ -192,7 +192,18 @@ public static partial class ProjectConfigParser
                 }
                 record = recordValue.GetBoolean();
             }
-            config = new ProjectConfig(image, gates, reviewers, ui, record);
+            var quickByDefault = false;
+            if (root.TryGetProperty("mode", out var modeValue))
+            {
+                var mode = modeValue.ValueKind == JsonValueKind.String ? modeValue.GetString() : null;
+                if (mode is not ("full" or "quick"))
+                {
+                    error = "\"mode\" must be \"full\" (the default) or \"quick\": quick mode skips the coverage check, the design review and QA for tickets in this project";
+                    return false;
+                }
+                quickByDefault = mode == "quick";
+            }
+            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault);
             return true;
         }
     }
