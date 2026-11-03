@@ -208,9 +208,16 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         foreach (var added in report.Files.Where(file => file.Kind == FileChange.Added))
         {
             var info = new FileInfo($"{work}/{added.Path}");
-            if (!info.Exists || info.LinkTarget is not null || info.Length > 64 * 1024)
+            if (info.Exists && info.LinkTarget is null && info.Length > 64 * 1024)
             {
-                text.AppendLine($"diff --git a/{added.Path} b/{added.Path}\nnew file (not shown: large or not a regular file)");
+                // Too big to show, but say how long it is so a reviewer (and the size rules) can tell.
+                var lineCount = File.ReadLines(info.FullName).Count();
+                text.AppendLine($"diff --git a/{added.Path} b/{added.Path}\nnew file (large: {lineCount} lines, not shown)");
+                continue;
+            }
+            if (!info.Exists || info.LinkTarget is not null)
+            {
+                text.AppendLine($"diff --git a/{added.Path} b/{added.Path}\nnew file (not a regular file, not shown)");
                 continue;
             }
             var bytes = File.ReadAllBytes(info.FullName);
@@ -225,7 +232,7 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
                 text.AppendLine("+" + line);
             }
         }
-        return text.Length > 200_000 ? text.ToString(0, 200_000) : text.ToString();
+        return text.Length > UnifiedDiff.MaxChars ? text.ToString(0, UnifiedDiff.MaxChars) : text.ToString();
     }
 
     /// <summary>

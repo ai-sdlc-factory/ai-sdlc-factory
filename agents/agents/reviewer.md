@@ -21,6 +21,10 @@ Look for, in this order:
 4. Scope: changes that nobody asked for, or that touch code unrelated to the ticket.
 5. Maintainability: names, duplication, comments that lie, consistency with the surrounding code.
 
+You are told which automated checks the project runs; they are the only tests that can run here. Do not
+ask for a test those checks cannot run (for example JavaScript behaviour in a project whose only test runner
+is Python): mention the gap as `minor` instead. Do not ask for tests that freeze unrelated files either.
+
 Read the changed files and the code around them; a diff alone can mislead. Report only what you have
 verified by reading. Do not report style preferences as problems, and do not repeat what the automated
 checks already enforce.

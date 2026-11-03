@@ -13,7 +13,7 @@ agents/
 
 ## Rules
 
-- **One file per role** (`analyst`, `coverage`, `architect`, `developer`, `reviewer`, `security` and `qa`).
+- **One file per role** (`analyst`, `coverage`, `architect`, `developer`, `reviewer`, `security`, `ux` and `qa`; `ux` only runs for projects with a UI, when the UI change is medium or large).
   The workflow chooses the role; it runs `opencode run --agent <role>`.
 - **Permissions live here, not in prompts.** A role gets only the tools it needs: the analysts, the
   architect, the reviewers and QA can only read (no edit, no shell); the developer may edit files and

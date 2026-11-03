@@ -27,6 +27,7 @@ public sealed partial class FeatureWorkflow
         IReadOnlyList<GateResult> passed = [];
         IReadOnlyList<(string Role, ReviewReport Report)> reviews = [];
         QaReport? qa = null;
+        string? uxNote = null;
         var passedRound = 0;
 
         for (var round = 1; round <= MaxBuildRounds && report is null; round++)
@@ -108,6 +109,7 @@ public sealed partial class FeatureWorkflow
             passedRound = round;
             reviews = review.Reports;
             qa = review.Qa;
+            uxNote = review.UxNote;
         }
 
         if (report is null)
@@ -135,7 +137,7 @@ public sealed partial class FeatureWorkflow
             pullRequest = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, title,
-                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa))),
+                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote))),
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
         }
         catch (ActivityFailureException error)
@@ -183,7 +185,7 @@ public sealed partial class FeatureWorkflow
     }
 
     private sealed record ReviewOutcome(
-        FeatureResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa);
+        FeatureResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa, string? UxNote = null);
 
     private static (ReviewReport? Value, string? Error) ParseReview(string text) =>
         ReviewParser.TryParse(text, out var report, out var error) ? (report, null) : (null, error);
@@ -192,7 +194,7 @@ public sealed partial class FeatureWorkflow
         QaParser.TryParse(text, criteria, out var report, out var error) ? (report, null) : (null, error);
 
     /// <summary>
-    /// Review stage, after the automated checks pass. The project's reviewers and then QA look at the change
+    /// Review stage, after the automated checks pass. The project's reviewers, the UX review (when the rules call for it) and then QA look at the change
     /// without a shell (the diff is given to them), and blocking findings or unmet criteria go back to the
     /// developer. A review that cannot be completed stops the run: nothing is published unreviewed.
     /// </summary>
@@ -204,36 +206,51 @@ public sealed partial class FeatureWorkflow
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
             new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
         var gateSummary = BuildFeedback.Summary(gates);
+        var checks = ReviewPrompt.Describe(project.Gates);
         var reports = new List<(string Role, ReviewReport Report)>();
 
         foreach (var role in project.Reviewers)
         {
-            var outcome = await RunAgentAsync<ReviewReport>(
-                role, project.Image, workspace,
-                problem => ReviewPrompt.Build(request, remaining, design, changes, diff, gateSummary, problem),
-                ParseReview);
-            if (ticketClosed)
+            var (review, stop) = await RunReviewAsync(
+                request, workspace, project, role,
+                problem => ReviewPrompt.Build(request, remaining, design, changes, diff, gateSummary, problem, checks: checks));
+            if (stop is not null)
             {
-                return Stopped("closed");
+                return stop;
             }
-            if (outcome.NotSignedIn)
+            reports.Add((role, review!));
+        }
+
+        // UX review: only when the project has a UI, the change touches it, and the UI change is medium or large.
+        // The decision is made by counting (UiChange), not by an agent, and a skipped review is noted on the pull request.
+        string? uxNote = null;
+        if (project.Ui is { } uiConfig)
+        {
+            var ui = UiChange.Classify(changes.Files, diff, uiConfig);
+            if (ui.ShouldReview)
             {
-                await CommentAsync(request, NotSignedInMessage);
-                return Stopped("blocked");
+                var uiChanges = new ChangeReport(changes.Files.Where(file => ui.Files.Contains(file.Path)).ToList(), []);
+                var uiDiff = UnifiedDiff.Only(diff, ui.Files);
+                var others = changes.Files.Count - uiChanges.Files.Count;
+                var (review, stop) = await RunReviewAsync(
+                    request, workspace, project, "ux",
+                    problem => ReviewPrompt.Build(request, remaining, design, uiChanges, uiDiff, gateSummary, problem, others, checks));
+                if (stop is not null)
+                {
+                    return stop;
+                }
+                reports.Add(("ux", review!));
             }
-            if (outcome.Value is not { } review)
+            else
             {
-                await CommentAsync(request, $"The {role} review failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))} Nothing was published.");
-                return Stopped("review_failed");
+                uxNote = ui.Size == UiSize.None ? "no UI files changed" : $"the UI change is small ({ui.Describe()})";
             }
-            await CommentAsync(request, TicketComments.Review(role, review));
-            reports.Add((role, review));
         }
 
         var criteria = remaining.Select(criterion => criterion.Criterion).ToList();
         var qaOutcome = await RunAgentAsync<QaReport>(
             "qa", project.Image, workspace,
-            problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem),
+            problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem, checks),
             text => ParseQa(text, criteria));
         if (ticketClosed)
         {
@@ -254,7 +271,30 @@ public sealed partial class FeatureWorkflow
         var qa = QaParser.Verify(claimed, await FindExistingFilesAsync(workspace, project.Image, QaParser.PathsToCheck(claimed)));
         await CommentAsync(request, TicketComments.Qa(qa));
 
-        return new ReviewOutcome(null, ReviewFeedback.From(reports, qa), reports, qa);
+        return new ReviewOutcome(null, ReviewFeedback.From(reports, qa), reports, qa, uxNote);
+    }
+
+    /// <summary>Runs one reviewing role and posts its review. A review that cannot be completed stops the run.</summary>
+    private async Task<(ReviewReport? Review, ReviewOutcome? Stop)> RunReviewAsync(
+        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, string role, Func<string?, string> prompt)
+    {
+        var outcome = await RunAgentAsync<ReviewReport>(role, project.Image, workspace, prompt, ParseReview);
+        if (ticketClosed)
+        {
+            return (null, Stopped("closed"));
+        }
+        if (outcome.NotSignedIn)
+        {
+            await CommentAsync(request, NotSignedInMessage);
+            return (null, Stopped("blocked"));
+        }
+        if (outcome.Value is not { } review)
+        {
+            await CommentAsync(request, $"The {role} review failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))} Nothing was published.");
+            return (null, Stopped("review_failed"));
+        }
+        await CommentAsync(request, TicketComments.Review(role, review));
+        return (review, null);
     }
 
     private static ReviewOutcome Stopped(string status) => new(new FeatureResult(status), null, [], null);

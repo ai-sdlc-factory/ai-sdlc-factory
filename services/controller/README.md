@@ -145,6 +145,27 @@ After the automated checks pass, the project\'s reviewers and then QA examine th
 Which reviewers run is a per-project choice in `.factory/project.json`: `"reviewers": ["reviewer", "security"]`
 (default `["reviewer"]`; QA always runs).
 
+**UX review.** A `ux` reviewer ([`agents/agents/ux.md`](../../agents/agents/ux.md)) runs between the
+reviewers and QA, but only for a project that has a user interface and only when the UI change is medium or
+large. It looks at usability (flows, states such as loading, empty and error, wording), accessibility visible in
+the code (labels, keyboard use, contrast, semantic elements) and consistency with the existing components and
+styles. It cannot run or see the interface, so it judges from the code and says when something needs to be seen.
+The decision is made by counting, not by an agent (`UiChange`):
+
+- The project opts in with `"ui"` in `.factory/project.json`; without it no UX review ever runs. `paths` lists
+  the UI files (see the patterns below).
+- Only changed files that match `paths` count. A change is **medium** when it touches at least `medium.files`
+  UI files or changes at least `medium.lines` lines in them (defaults 3 files or 40 lines), and **large** from
+  `large.files` or `large.lines` (defaults 8 or 200). Either number is enough. A **small** change, or none in
+  the UI at all, gets no UX review, and the pull request says which: "no UI files changed" or the numbers.
+- When it runs, the UX reviewer is given only the UI files and their diff (and how many other files changed).
+  Its findings use the same severities as the other reviewers: a blocker or major finding goes back to the
+  developer, and the review step is shared with the other reviewers, QA and the three-round cap.
+- A diff too long to be shown whole, or a large new file, counts as large rather than being under-counted.
+
+Patterns: `*` matches within one folder, `**` across folders (`**/` also matches none), `?` one character; a
+pattern without a slash is matched against the file name wherever it is, so `*.css` means every stylesheet.
+
 Three rounds that fail leave the ticket with a comment and nothing published. A developer that answers
 `blocked` (for example because the ticket needs a protected file changed) stops the run with its reasons.
 
@@ -176,7 +197,19 @@ A repository describes itself in `.factory/project.json` on its default branch, 
 }
 ```
 
-Optional: `"reviewers": ["reviewer", "security"]` to add the security reviewer.
+Optional: `"reviewers": ["reviewer", "security"]` to add the security reviewer, and for a project with a user
+interface:
+
+```json
+"ui": {
+  "paths": ["web/**", "*.css", "src/**/*.tsx"],
+  "medium": { "files": 3, "lines": 40 },
+  "large": { "files": 8, "lines": 200 }
+}
+```
+
+`medium` and `large` can be left out (the values above are the defaults). Both are about changes in the files
+matching `paths` only; a UX review runs from medium upwards.
 
 `image` must be an alias the sandbox launcher allows (`dotnet`, `python`). A gate is an argument list
 (no shell; use `["sh", "-c", "..."]` if you need one), 1 to 8 gates, timeout 10 to 1800 seconds (default

@@ -132,7 +132,7 @@ public static class PullRequestText
     public static string Body(
         FeatureRequest request, DeveloperReport report, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, IReadOnlyList<GateResult> gates, int round,
-        IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null)
+        IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null, string? uxNote = null)
     {
         var text = new StringBuilder();
         text.AppendLine($"Closes #{request.IssueNumber}");
@@ -166,7 +166,7 @@ public static class PullRequestText
             }
         }
         text.AppendLine();
-        if (reviews is { Count: > 0 } || qa is not null)
+        if (reviews is { Count: > 0 } || qa is not null || uxNote is not null)
         {
             text.AppendLine();
             text.AppendLine("## Review");
@@ -177,6 +177,10 @@ public static class PullRequestText
                 {
                     text.AppendLine($"  - {finding.Severity}{(finding.Path is null ? "" : $" `{finding.Path}`")}: {TicketComments.Inert(finding.Message)}");
                 }
+            }
+            if (uxNote is not null)
+            {
+                text.AppendLine($"- **ux**: not reviewed, {TicketComments.Inert(uxNote)}");
             }
             if (qa is not null)
             {

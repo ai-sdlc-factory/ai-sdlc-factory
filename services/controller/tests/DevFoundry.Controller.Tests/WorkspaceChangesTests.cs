@@ -278,7 +278,7 @@ public sealed class WorkspaceChangesTests : IDisposable
         Assert.Contains("logo.png", diff);
         Assert.Contains("binary, not shown", diff);
         Assert.Contains("big.txt", diff);
-        Assert.Contains("large or not a regular file", diff);
+        Assert.Contains("large: 1 lines, not shown", diff);
         Assert.DoesNotContain(new string('x', 100), diff);
     }
 

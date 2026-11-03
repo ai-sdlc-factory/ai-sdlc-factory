@@ -199,6 +199,25 @@ public sealed class ReviewPromptTests
     }
 
     [Fact]
+    public void Reviewers_and_QA_are_told_which_automated_checks_exist()
+    {
+        var checks = ReviewPrompt.Describe([new Gate("test", ["python", "-m", "pytest", "-q"], 300), new Gate("lint", ["ruff", "check", "."], 60)]);
+        var request = new FeatureRequest("a", "b", 7, "T", "body", "alice");
+        var changes = new ChangeReport([new FileChange("hello.py", FileChange.Modified)], []);
+
+        var review = ReviewPrompt.Build(request, [], null, changes, "diff", "test passed", null, checks: checks);
+        var qa = QaPrompt.Build(request, ["First."], changes, "diff", "test passed", null, checks);
+
+        foreach (var prompt in new[] { review, qa })
+        {
+            Assert.Contains("the only tests that can run here", prompt);
+            Assert.Contains("- test: python -m pytest -q", prompt);
+            Assert.Contains("- lint: ruff check .", prompt);
+        }
+        Assert.DoesNotContain("the only tests that can run here", ReviewPrompt.Build(request, [], null, changes, "diff", "test passed", null));
+    }
+
+    [Fact]
     public void QA_gets_numbered_criteria_the_diff_and_its_own_limit()
     {
         var prompt = QaPrompt.Build(Request(), ["First.", "Second."], Changes, new string('d', 100_000), "test passed", "criterion 2 needs a note");

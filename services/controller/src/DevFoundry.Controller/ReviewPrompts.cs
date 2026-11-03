@@ -12,7 +12,8 @@ public static class ReviewPrompt
 
     public static string Build(
         FeatureRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
-        ChangeReport changes, string diff, string gateSummary, string? previousProblem)
+        ChangeReport changes, string diff, string gateSummary, string? previousProblem, int otherFilesNotShown = 0,
+        IReadOnlyList<string>? checks = null)
     {
         var text = new StringBuilder();
         text.AppendLine("Review the change that was just made in the repository checked out in the current directory (read-only).");
@@ -33,6 +34,7 @@ public static class ReviewPrompt
         }
         text.AppendLine();
         text.AppendLine($"Automated checks already passed ({gateSummary}). Files changed:");
+        AppendChecks(text, checks);
         foreach (var file in changes.Files.Take(MaxFilesListed))
         {
             text.AppendLine($"- {file.Kind}: {file.Path}");
@@ -40,6 +42,10 @@ public static class ReviewPrompt
         if (changes.Files.Count > MaxFilesListed)
         {
             text.AppendLine($"- ... and {changes.Files.Count - MaxFilesListed} more");
+        }
+        if (otherFilesNotShown > 0)
+        {
+            text.AppendLine($"- ... and {otherFilesNotShown} other changed file(s) that are not part of this review and are not shown.");
         }
         text.AppendLine();
         text.AppendLine("The change as a diff:");
@@ -57,6 +63,25 @@ public static class ReviewPrompt
         text.Append("Follow your role instructions and finish with the JSON verdict.");
         return text.ToString();
     }
+
+    /// <summary>
+    /// Tells a reviewing agent which automated checks the project has, so it does not demand tests that cannot
+    /// be run here (for example browser or JavaScript tests in a project with only a Python test runner).
+    /// </summary>
+    internal static void AppendChecks(StringBuilder text, IReadOnlyList<string>? checks)
+    {
+        if (checks is { Count: > 0 })
+        {
+            text.AppendLine("The project's automated checks are the only tests that can run here (a criterion cannot be required to have a test these cannot run):");
+            foreach (var check in checks.Take(8))
+            {
+                text.AppendLine($"- {Clip(check, 200)}");
+            }
+        }
+    }
+
+    public static IReadOnlyList<string> Describe(IEnumerable<Gate> gates) =>
+        gates.Select(gate => $"{gate.Name}: {string.Join(' ', gate.Command)}").ToList();
 
     public static string ClipDiff(string diff)
     {
@@ -83,7 +108,8 @@ public static class QaPrompt
     private const int MaxDiff = 9_000;
 
     public static string Build(
-        FeatureRequest request, IReadOnlyList<string> criteria, ChangeReport changes, string diff, string gateSummary, string? previousProblem)
+        FeatureRequest request, IReadOnlyList<string> criteria, ChangeReport changes, string diff, string gateSummary, string? previousProblem,
+        IReadOnlyList<string>? checks = null)
     {
         var text = new StringBuilder();
         text.AppendLine("Check whether this change meets each acceptance criterion. The repository is checked out in the current directory (read-only).");
@@ -98,6 +124,7 @@ public static class QaPrompt
         text.AppendLine("CRITERIA>>>");
         text.AppendLine();
         text.AppendLine($"Automated checks already passed ({gateSummary}). Files changed:");
+        ReviewPrompt.AppendChecks(text, checks);
         foreach (var file in changes.Files.Take(60))
         {
             text.AppendLine($"- {file.Kind}: {file.Path}");

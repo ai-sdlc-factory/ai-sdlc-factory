@@ -32,11 +32,14 @@ Forgejo issue (label: feature)
 7. **Deterministic gates**: build, tests, format, lint, secret scan, dependency scan. Plain commands
    with exit codes, defined per project. Agents never decide whether these passed.
 8. **Reviewers** (agents, read-only): code quality, and optionally security.
-9. **QA** (agent): checks every acceptance criterion and writes and runs tests.
-10. **Publish** (controller): pushes the branch, opens the PR with a summary and the findings.
+9. **UX review** (agent, read-only, conditional): for a project that declares a UI, only when the change
+   touches UI files and the UI change is medium or large by file and line counts (small changes are not
+   worth it). The decision is made by code, and the pull request says why it was skipped.
+10. **QA** (agent): checks every acceptance criterion and writes and runs tests.
+11. **Publish** (controller): pushes the branch, opens the PR with a summary and the findings.
     A human code owner reviews and merges. The factory never merges.
 
-Steps 6 to 9 form a loop: any `needs_changes` goes back to the developer, with a cap on rounds.
+Steps 6 to 10 form a loop: any `needs_changes` goes back to the developer, with a cap on rounds.
 
 ## Deterministic control
 

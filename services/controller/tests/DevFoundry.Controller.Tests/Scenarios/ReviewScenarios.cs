@@ -34,6 +34,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
         Assert.Contains(comments, c => c.Contains("QA: every criterion is met"));
         var prompt = Assert.Single(world.Calls("reviewer")).Prompt;
         Assert.Contains("<<<DIFF", prompt);
+        Assert.Contains("- test: python -m pytest -q", prompt);
         Assert.Contains("def goodbye()", prompt);
         Assert.Contains("- modified: hello.py", prompt);
         Assert.Contains("test passed", prompt);
@@ -200,6 +201,184 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
         {
             Assert.False(call.Writable);
             Assert.True(call.ModelAuth);
+        }
+    }
+}
+
+/// <summary>The UX review: only when the project has a UI, the change touches it, and the UI change is medium or large.</summary>
+[Collection("temporal")]
+public sealed class UxReviewScenarios(TemporalFixture fixture)
+{
+    private static AgentReply Say(string text) => AgentReply.Says(text);
+
+    private static string ProjectWithUi(string ui = "{\"paths\":[\"web/**\"]}") =>
+        "{\"image\":\"python\",\"gates\":[{\"name\":\"test\",\"command\":[\"python\",\"-m\",\"pytest\",\"-q\"]}],\"ui\":" + ui + "}";
+
+    private static string Diff(params (string Path, int Lines)[] files) =>
+        string.Join("\n", files.Select(f => $"diff --git a/{f.Path} b/{f.Path}\nnew file\n--- /dev/null\n+++ b/{f.Path}\n" +
+            string.Join("\n", Enumerable.Range(1, f.Lines).Select(i => $"+line {i} of {f.Path}"))));
+
+    /// <summary>A world where the developer changed these files, one round, with the diff to match.</summary>
+    private static FakeWorld Changed(string? project, params (string Path, int Lines)[] files)
+    {
+        var report = new ChangeReport(files.Select(f => new FileChange(f.Path, FileChange.Added)).ToList(), []);
+        var world = new FakeWorld { ProjectConfig = project, Diff = Diff(files) }
+            .Agent("analyst", Say(Answers.Analyst()))
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")))
+            .Changes(report, report);
+        return world;
+    }
+
+    [SkippableFact]
+    public async Task A_project_without_a_ui_never_gets_a_ux_review_however_much_changed()
+    {
+        var world = Changed(
+            "{\"image\":\"python\",\"gates\":[{\"name\":\"test\",\"command\":[\"pytest\"]}]}",
+            ("web/a.html", 90), ("web/b.css", 90), ("web/c.js", 90));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Empty(world.Calls("ux"));
+        Assert.DoesNotContain("ux", world.PullRequests[0].Body);
+    }
+
+    [SkippableFact]
+    public async Task A_change_without_ui_files_skips_the_ux_review_and_the_pull_request_says_so()
+    {
+        var world = Changed(ProjectWithUi(), ("hello.py", 200), ("src/service.py", 200));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Empty(world.Calls("ux"));
+        Assert.Contains("- **ux**: not reviewed, no UI files changed", world.PullRequests[0].Body);
+    }
+
+    [SkippableFact]
+    public async Task A_small_ui_change_skips_the_ux_review_and_the_pull_request_gives_the_numbers()
+    {
+        var world = Changed(ProjectWithUi(), ("web/index.html", 12), ("hello.py", 300));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Empty(world.Calls("ux"));
+        Assert.Contains("the UI change is small (1 UI file(s), 12 changed line(s))", world.PullRequests[0].Body);
+    }
+
+    [SkippableTheory]
+    [InlineData(3, 2, "medium by files")]
+    [InlineData(1, 60, "medium by lines")]
+    [InlineData(9, 2, "large by files")]
+    [InlineData(1, 250, "large by lines")]
+    public async Task A_medium_or_large_ui_change_gets_a_ux_review_before_qa(int files, int linesPerFile, string why)
+    {
+        var world = Changed(ProjectWithUi(), Enumerable.Range(1, files).Select(i => ($"web/page{i}.html", linesPerFile)).ToArray())
+            .Agent("ux", Say(Answers.Review(("minor", "Tighten the heading spacing."))));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.True(result.Status == "pr_opened", why);
+        Assert.Single(world.Calls("ux"));
+        AssertInOrder(world.Comments, "Review (reviewer): no blocking findings", "Review (ux): no blocking findings", "QA: every criterion is met");
+        Assert.Contains("- **ux**: Some things to look at.", world.PullRequests[0].Body);
+        Assert.Contains("Tighten the heading spacing.", world.PullRequests[0].Body);
+        var order = world.AgentCalls.Select(call => call.Role).ToList();
+        Assert.True(order.IndexOf("reviewer") < order.IndexOf("ux") && order.IndexOf("ux") < order.IndexOf("qa"), string.Join(",", order));
+    }
+
+    [SkippableFact]
+    public async Task The_ux_agent_sees_only_the_ui_files_and_is_read_only_on_the_model_network()
+    {
+        var world = Changed(ProjectWithUi(), ("web/a.html", 30), ("web/b.css", 30), ("web/c.js", 30), ("src/service.py", 100))
+            .Agent("ux", Say(Answers.Review()));
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        var call = Assert.Single(world.Calls("ux"));
+        Assert.Contains("- added: web/a.html", call.Prompt);
+        Assert.Contains("+line 1 of web/b.css", call.Prompt);
+        Assert.DoesNotContain("service.py", call.Prompt);
+        Assert.Contains("and 1 other changed file(s) that are not part of this review", call.Prompt);
+        Assert.False(call.Writable);
+        Assert.True(call.ModelAuth);
+        Assert.Equal("model", call.Network);
+    }
+
+    [SkippableFact]
+    public async Task The_project_can_set_what_counts_as_a_medium_ui_change()
+    {
+        var world = Changed(ProjectWithUi("{\"paths\":[\"web/**\"],\"medium\":{\"files\":1,\"lines\":5}}"), ("web/index.html", 8))
+            .Agent("ux", Say(Answers.Review()));
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Single(world.Calls("ux"));
+    }
+
+    [SkippableFact]
+    public async Task A_blocking_ux_finding_goes_back_to_the_developer_like_any_other_review()
+    {
+        var report = new ChangeReport([new FileChange("web/form.html", FileChange.Added)], []);
+        var world = new FakeWorld { ProjectConfig = ProjectWithUi(), Diff = Diff(("web/form.html", 80)) }
+            .Agent("analyst", Say(Answers.Analyst()))
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()), Say(Answers.Review()))
+            .Agent("ux", Say(Answers.Review(("major", "The email input has no label."))), Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")))
+            .Changes(report, report, report, report);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Equal(2, world.Calls("ux").Count());
+        Assert.Contains("[ux, major] hello.py: The email input has no label.", world.Calls("developer").ElementAt(1).Prompt);
+        Assert.DoesNotContain("[ux", world.PullRequests[0].Body.Replace("- **ux**", ""));
+        Assert.Contains(world.Comments, c => c.Contains("Review (ux): changes needed"));
+        // Like the other reviewers, the UX review does not hold QA back: every review step runs each round, so the
+        // developer gets all the feedback at once.
+        Assert.Equal(2, world.Calls("qa").Count());
+    }
+
+    [SkippableFact]
+    public async Task An_unusable_ux_review_stops_the_run_before_qa_and_publishing()
+    {
+        var world = Changed(ProjectWithUi(), ("web/a.html", 90))
+            .Agent("ux", Say("looks nice"), Say("really nice"));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("review_failed", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("ux review failed") && c.Contains("Nothing was published"));
+        Assert.Empty(world.Calls("qa"));
+        Assert.Empty(world.Publishes);
+    }
+
+    [SkippableFact]
+    public async Task A_lost_login_during_the_ux_review_is_reported()
+    {
+        var world = Changed(ProjectWithUi(), ("web/a.html", 90)).Agent("ux", AgentReply.NotSignedIn);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("blocked", result.Status);
+        Assert.Empty(world.Calls("qa"));
+    }
+
+    private static void AssertInOrder(IEnumerable<string> comments, params string[] fragments)
+    {
+        var list = comments.ToList();
+        var from = 0;
+        foreach (var fragment in fragments)
+        {
+            var index = list.FindIndex(from, c => c.Contains(fragment));
+            Assert.True(index >= 0, $"expected a comment containing \"{fragment}\" after position {from}; got:\n{string.Join("\n---\n", list)}");
+            from = index + 1;
         }
     }
 }

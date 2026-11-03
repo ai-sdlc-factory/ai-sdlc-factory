@@ -12,7 +12,7 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// input: it can only pick among options the factory already offers (an image alias the launcher
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
-public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers);
+public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null);
 
 public static partial class ProjectConfigParser
 {
@@ -23,6 +23,62 @@ public static partial class ProjectConfigParser
     public const int DefaultTimeoutSeconds = 600;
     private const int MaxArguments = 32;
     private const int MaxArgumentLength = 500;
+
+    private static bool TryReadUi(JsonElement value, [NotNullWhen(true)] out UiConfig? ui, out string error)
+    {
+        ui = null;
+        error = "";
+        if (value.ValueKind != JsonValueKind.Object
+            || !value.TryGetProperty("paths", out var pathsValue) || pathsValue.ValueKind != JsonValueKind.Array
+            || pathsValue.GetArrayLength() is 0 or > 20)
+        {
+            error = "\"ui\" must be an object with \"paths\": 1 to 20 patterns for the UI files, such as [\"web/**\", \"*.css\"]";
+            return false;
+        }
+        var paths = new List<string>();
+        foreach (var entry in pathsValue.EnumerateArray())
+        {
+            var pattern = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
+            if (pattern is null || !Globs.IsValidPattern(pattern))
+            {
+                error = $"ui path \"{(entry.ValueKind == JsonValueKind.String ? entry.GetString() : entry.ToString())}\" is not a pattern like web/** or *.css (letters, digits and . _ - @ + / * ?, no leading / and no ..)";
+                return false;
+            }
+            paths.Add(pattern);
+        }
+
+        if (!TryReadThreshold(value, "medium", UiConfig.DefaultMedium, out var medium, out error)
+            || !TryReadThreshold(value, "large", UiConfig.DefaultLarge, out var large, out error))
+        {
+            return false;
+        }
+        if (large.Files < medium.Files || large.Lines < medium.Lines)
+        {
+            error = "\"ui\": the \"large\" thresholds must not be smaller than the \"medium\" ones";
+            return false;
+        }
+        ui = new UiConfig(paths, medium, large);
+        return true;
+    }
+
+    private static bool TryReadThreshold(JsonElement ui, string name, UiThreshold fallback, [NotNullWhen(true)] out UiThreshold? threshold, out string error)
+    {
+        threshold = fallback;
+        error = "";
+        if (!ui.TryGetProperty(name, out var value))
+        {
+            return true;
+        }
+        if (value.ValueKind != JsonValueKind.Object
+            || !value.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Number || !files.TryGetInt32(out var fileCount) || fileCount is < 1 or > 10_000
+            || !value.TryGetProperty("lines", out var lines) || lines.ValueKind != JsonValueKind.Number || !lines.TryGetInt32(out var lineCount) || lineCount is < 1 or > 1_000_000)
+        {
+            error = $"\"ui.{name}\" must have \"files\" (1 to 10000) and \"lines\" (1 to 1000000); a change reaches {name} when either number is reached";
+            return false;
+        }
+        threshold = new UiThreshold(fileCount, lineCount);
+        return true;
+    }
 
     [GeneratedRegex(@"\A[a-z][a-z0-9-]{0,30}\z")]
     private static partial Regex ImageAlias();
@@ -121,7 +177,12 @@ public static partial class ProjectConfigParser
                     reviewers.Add(role);
                 }
             }
-            config = new ProjectConfig(image, gates, reviewers);
+            UiConfig? ui = null;
+            if (root.TryGetProperty("ui", out var uiValue) && !TryReadUi(uiValue, out ui, out error))
+            {
+                return false;
+            }
+            config = new ProjectConfig(image, gates, reviewers, ui);
             return true;
         }
     }
