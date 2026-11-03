@@ -339,6 +339,20 @@ for that file.
 The pull request body lists the criteria, the design and the checks that passed, and carries
 `Closes #<n>`; merging it closes the ticket.
 
+## Code layout
+
+`src/DevFoundry.Controller/` is grouped by concern; everything is in the one namespace `DevFoundry.Controller`,
+and the tests follow the same folders.
+
+| Folder | What is in it |
+| --- | --- |
+| `Workflows/` | `FeatureWorkflow` (split into `.Stages`, `.Agent`, `.Build`, `.Record` parts), `ForgejoEventWorkflow`, `EventRouter`, `FeatureRequest` and the workflow id rules |
+| `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision) |
+| `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
+| `Forgejo/` | the API client, the comment and pull request activities, ticket comment texts |
+| `Project/` | `.factory/project.json` parsing |
+| `Common/` | JSON helpers and the OpenCode event reader |
+
 ## Tests
 
 From the repository root:

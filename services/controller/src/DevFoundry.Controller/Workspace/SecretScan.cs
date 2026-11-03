@@ -3,43 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace DevFoundry.Controller;
 
-public sealed record FileChange(string Path, string Kind)
-{
-    public const string Added = "added";
-    public const string Modified = "modified";
-    public const string Deleted = "deleted";
-}
-
-/// <summary>What the agent changed in its workspace, and everything that stops those changes from being published.</summary>
-public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList<string> Violations);
-
-public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null);
-
-public sealed record PublishResult(string CommitSha, string Branch, int FileCount);
-
-public sealed record RescueRequest(string Name, string Message, RunRecordSpec? Record = null);
-
-/// <summary>
-/// What a rescue did with a run that could not finish: whether the work so far was saved to a branch, what was
-/// left out and why, and where the full record of the run can be read.
-/// </summary>
-public sealed record RescueResult(
-    bool Saved, string? Branch, int FileCount, IReadOnlyList<string> Excluded, string Note, string TraceUrl);
-
-/// <summary>Files an agent may never change: the factory's own configuration and the pipelines that run code.</summary>
-public static class ProtectedPaths
-{
-    private static readonly string[] Prefixes = [".factory/", ".forgejo/", ".github/", ".gitea/", ".git/"];
-    private static readonly string[] Files = ["bitbucket-pipelines.yml", ".gitlab-ci.yml", "jenkinsfile"];
-
-    public static bool IsProtected(string path)
-    {
-        var lower = path.ToLowerInvariant().TrimStart('/');
-        return Prefixes.Any(prefix => lower.StartsWith(prefix, StringComparison.Ordinal))
-            || Files.Contains(lower, StringComparer.Ordinal);
-    }
-}
-
 /// <summary>
 /// A deterministic scan of changed file contents for credentials. It is a safety net, not a guarantee:
 /// it catches common token shapes and the factory's own token, and reports where, never the value.
