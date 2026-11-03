@@ -74,7 +74,7 @@ stalled tickets stay visible.
   read-write for the developer and QA) and the global OpenCode settings, read-only.
 - No Docker socket, no host mounts, no Forgejo or Temporal credentials inside the container.
 - Resource limits, a run timeout, read-only root filesystem with a tmpfs for scratch, dropped
-  capabilities and `no-new-privileges`, as for the current OpenCode worker.
+  capabilities and `no-new-privileges`, as for every other container in the stack.
 - The model is chosen per role by the factory's configuration.
 
 ## Project configuration

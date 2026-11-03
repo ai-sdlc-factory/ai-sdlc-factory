@@ -9,8 +9,6 @@
     <Project Path="services/controller/tests/DevFoundry.Controller.Tests/DevFoundry.Controller.Tests.csproj" />
     <Project Path="services/sandbox-launcher/src/DevFoundry.SandboxLauncher/DevFoundry.SandboxLauncher.csproj" />
     <Project Path="services/sandbox-launcher/tests/DevFoundry.SandboxLauncher.Tests/DevFoundry.SandboxLauncher.Tests.csproj" />
-    <Project Path="services/opencode-worker/src/DevFoundry.OpenCodeWorker/DevFoundry.OpenCodeWorker.csproj" />
-    <Project Path="services/opencode-worker/tests/DevFoundry.OpenCodeWorker.Tests/DevFoundry.OpenCodeWorker.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/integration/DevFoundry.IntegrationTests/DevFoundry.IntegrationTests.csproj" />

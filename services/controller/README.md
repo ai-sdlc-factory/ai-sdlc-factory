@@ -24,12 +24,6 @@ Shared settings in `infra/.env` are `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
 (default `default`), and `TEMPORAL_TASK_QUEUE` (default `factory-events`).
 The API and controller must use the same namespace and task queue.
 
-## OpenCode demo
-
-The worker also runs `OpenCodeDemoWorkflow`, which delegates execution to a
-separate activity worker. See the [OpenCode guide](../opencode-worker/README.md)
-for browser login and task submission. Forgejo receipt workflows remain unchanged.
-
 ## Feature tickets
 
 `ForgejoEventWorkflow` also routes Forgejo ticket events (decisions live in `EventRouter`):
@@ -211,9 +205,9 @@ the workflow ends, including when the ticket is closed.
 
 ## Workflow contract
 
-The workflow input and the OpenCode task are defined once in
+The workflow input and the sandbox request and result are defined once in
 [`libs/DevFoundry.Contracts`](../../libs/DevFoundry.Contracts/Contracts.cs), shared with the API
-and the OpenCode worker. The contract tests below pin their JSON names.
+and the sandbox launcher. The contract tests below pin their JSON names.
 
 The API starts workflow type `ForgejoEventWorkflow` with this JSON envelope:
 

@@ -34,13 +34,6 @@ pipelines:
               - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
               - docker run --rm $SERVICE-test
         - step:
-            <<: *service-tests
-            name: Test opencode-worker
-            script:
-              - export SERVICE=opencode-worker
-              - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
-              - docker run --rm $SERVICE-test
-        - step:
             name: Check vulnerable packages
             image: mcr.microsoft.com/dotnet/sdk:10.0
             script:

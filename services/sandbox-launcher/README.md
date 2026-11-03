@@ -39,7 +39,7 @@ exists, and is not a symlink, before it asks Docker to mount it.
 
 Only a request with `needs_model_auth: true` gets the login. The launcher then mounts the Docker
 volume named by `SANDBOX_AUTH_VOLUME` (`dev-foundry_opencode-data`, the same volume the
-`opencode-login` service fills) at `/auth` and sets `FACTORY_REQUIRE_AUTH=1`. Lint, build and test
+`opencode-login` service fills; see the [login guide](../../docs/opencode-login.md)) at `/auth` and sets `FACTORY_REQUIRE_AUTH=1`. Lint, build and test
 runs never see the credentials. If the volume does not exist the activity fails at once with
 "OpenCode is not signed in"; if it exists but holds no `auth.json`, the sandbox exits with code 78.
 

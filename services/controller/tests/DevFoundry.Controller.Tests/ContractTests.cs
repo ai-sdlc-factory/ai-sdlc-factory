@@ -57,16 +57,6 @@ public sealed class ContractTests
     }
 
     [Fact]
-    public void Demo_task_uses_the_snake_case_names_the_execution_worker_reads()
-    {
-        var task = new OpenCodeTask("task-1", "Do it.", "opencode-tasks");
-        var encoded = DataConverter.Default.PayloadConverter.ToPayload(task);
-        Assert.Equal(
-            """{"task_id":"task-1","prompt":"Do it.","activity_task_queue":"opencode-tasks"}""",
-            Encoding.UTF8.GetString(encoded.Data.ToByteArray()));
-    }
-
-    [Fact]
     public void Worker_settings_use_documented_defaults()
     {
         var settings = new WorkerSettings();

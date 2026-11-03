@@ -27,7 +27,7 @@ docker compose up -d --build
 docker compose ps -a
 ```
 
-The API, controller and OpenCode worker build separate images. The build context is the
+The API, controller and sandbox launcher build separate images. The build context is the
 repository root, so every image can use the shared build settings and contracts library.
 Full pipeline tests are available through the optional
 [test profile](../tests/integration/README.md).
@@ -50,9 +50,10 @@ The first start initializes the databases. `temporal-schema` and
 
 Compose isolates services on four networks: `data` (PostgreSQL and its clients),
 `control` (Temporal and the controller services), `hooks` (Forgejo to the controller
-API) and `agents` (Temporal and the OpenCode worker only). The OpenCode worker
-cannot reach PostgreSQL, Forgejo or the controller API. Outbound internet access is
-not restricted.
+API) and `agents` (the OpenCode login helper only). The disposable agent containers run on a
+network the sandbox launcher creates, which no factory service joins. The login helper and the
+sandboxes cannot reach PostgreSQL, Forgejo, Temporal or the controller API. Outbound internet
+access is not restricted.
 
 Host ports can be changed in `.env`. All published ports bind to localhost.
 This is a local development stack; Temporal and Mailpit have no authentication.
@@ -150,11 +151,11 @@ For each repository the factory should serve:
 4. Create the labels `feature` (and `bug` for later). A ticket labeled `feature` starts a feature
    workflow.
 
-## Optional OpenCode demo
+## OpenCode login
 
-The [OpenCode guide](../services/opencode-worker/README.md) covers ChatGPT browser
-login and a manual Temporal task. Enable the worker with `--profile opencode`.
-Login and demo helpers run only when explicitly targeted. The `opencode-data` volume stores the login.
+The agents need a ChatGPT login, created once with `docker compose --profile opencode-tools run --rm
+--service-ports opencode-login`. See the [OpenCode login guide](../docs/opencode-login.md). The helper
+runs only when explicitly targeted; the `opencode-data` volume stores the login.
 
 ## Everyday commands
 

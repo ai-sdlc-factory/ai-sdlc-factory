@@ -13,15 +13,6 @@ public sealed record ForgejoEvent(
     [property: JsonPropertyName("payload")] JsonElement Payload);
 
 /// <summary>
-/// Activity input sent by the controller to the OpenCode worker. The worker validates the
-/// fields itself because the task crosses a trust boundary, so they are nullable here.
-/// </summary>
-public sealed record OpenCodeTask(
-    [property: JsonPropertyName("task_id")] string? TaskId,
-    [property: JsonPropertyName("prompt")] string? Prompt,
-    [property: JsonPropertyName("activity_task_queue")] string? ActivityTaskQueue = null);
-
-/// <summary>
 /// Asks the sandbox launcher to run one command in a disposable container. The launcher decides
 /// what the container may do; this request can only choose among options it already allows.
 /// </summary>
