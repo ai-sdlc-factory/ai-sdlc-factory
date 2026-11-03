@@ -12,7 +12,7 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// input: it can only pick among options the factory already offers (an image alias the launcher
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
-public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null);
+public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false);
 
 public static partial class ProjectConfigParser
 {
@@ -182,7 +182,17 @@ public static partial class ProjectConfigParser
             {
                 return false;
             }
-            config = new ProjectConfig(image, gates, reviewers, ui);
+            var record = false;
+            if (root.TryGetProperty("record", out var recordValue))
+            {
+                if (recordValue.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                {
+                    error = "\"record\" must be true or false: true keeps what each agent was told and answered in .factory/runs/ on the pull request";
+                    return false;
+                }
+                record = recordValue.GetBoolean();
+            }
+            config = new ProjectConfig(image, gates, reviewers, ui, record);
             return true;
         }
     }

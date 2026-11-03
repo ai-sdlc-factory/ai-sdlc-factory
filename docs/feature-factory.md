@@ -137,6 +137,16 @@ configuration before relying on this.
   with scripted agents on a Temporal dev server; breaking the round cap or the reopen-restarts rule on
   purpose makes exactly the matching scenario fail.
 
+## Run record
+
+With `"record": true` in `.factory/project.json`, the controller commits what each agent was told and answered,
+and each check's output, to `.factory/runs/issue-<n>-<run id>/` on the pull request or work-in-progress branch (see the
+[controller guide](../services/controller/README.md#run-record-record-true)). It exists because Temporal keeps
+history for 7 days, and a reviewer should be able to see how a change came about. The controller writes it, not the
+agents, and credential-like lines are removed first. Old records are read by later agents only if the repository's
+own files are (they are ordinary files), so a project that does not want that can add `.factory/runs/` to its
+agents' ignore rules.
+
 ## Known risks of the build stage
 
 - **Only the developer has a shell.** The reviewers and QA are read-only and are given the diff by the

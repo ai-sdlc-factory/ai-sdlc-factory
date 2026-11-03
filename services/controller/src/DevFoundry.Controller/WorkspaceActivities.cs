@@ -32,6 +32,9 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
         return workspace.RescueAsync(request, trace, ActivityExecutionContext.Current.CancellationToken);
     }
 
+    [Activity("workspace_record")]
+    public Task RecordAsync(RecordEntry entry) => workspace.RecordAsync(entry);
+
     [Activity("workspace_publish")]
     public Task<PublishResult?> PublishAsync(PublishRequest request) =>
         workspace.PublishAsync(request, ActivityExecutionContext.Current.CancellationToken);

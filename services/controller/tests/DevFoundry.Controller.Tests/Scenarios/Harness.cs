@@ -102,6 +102,9 @@ public sealed class FakeWorld
 
     public List<RescueRequest> Rescues { get; } = [];
 
+    /// <summary>Every step the workflow asked to keep for the committed record.</summary>
+    public List<RecordEntry> Records { get; } = [];
+
     /// <summary>When set, opening the pull request fails with this.</summary>
     public Exception? PullRequestFailure { get; set; }
 
@@ -217,6 +220,12 @@ public sealed class FakeWorld
             return world.Rescue is null
                 ? new RescueResult(true, "factory/issue-1-wip", 2, [], "", "http://ui/run")
                 : world.Rescue(request);
+        }
+
+        [Activity("workspace_record")]
+        public void Record(RecordEntry entry)
+        {
+            lock (world.gate) { world.Records.Add(entry); }
         }
 
         [Activity("workspace_diff")]

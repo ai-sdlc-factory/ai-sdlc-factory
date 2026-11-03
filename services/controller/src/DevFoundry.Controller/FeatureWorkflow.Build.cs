@@ -127,7 +127,8 @@ public sealed partial class FeatureWorkflow
         {
             published = await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.PublishAsync(new PublishRequest(
-                    workspace.Name, $"{title} (#{request.IssueNumber})\n\nBuilt by the factory for {request.Owner}/{request.Repo}#{request.IssueNumber}.\n\n{TicketComments.Inert(report.Summary)}")),
+                    workspace.Name, $"{title} (#{request.IssueNumber})\n\nBuilt by the factory for {request.Owner}/{request.Repo}#{request.IssueNumber}.\n\n{TicketComments.Inert(report.Summary)}",
+                    RecordSpec(request, $"Published as a pull request after every check and review passed (build round {passedRound})."))),
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
             if (published is null)
             {
@@ -169,8 +170,10 @@ public sealed partial class FeatureWorkflow
             new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
 
     /// <summary>Runs one project check in the sandbox without model access. A check that cannot run counts as failed.</summary>
-    private static async Task<GateResult> RunGateAsync(string image, WorkspaceInfo workspace, Gate gate)
+    private async Task<GateResult> RunGateAsync(string image, WorkspaceInfo workspace, Gate gate)
     {
+        var started = Workflow.UtcNow;
+        var commandText = string.Join(' ', gate.Command);
         try
         {
             var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
@@ -185,11 +188,15 @@ public sealed partial class FeatureWorkflow
                     RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },
                 });
             var output = string.Join('\n', new[] { result.Stdout, result.Stderr }.Where(part => part.Length > 0));
-            return new GateResult(gate.Name, result.ExitCode == 0 && !result.TimedOut, result.ExitCode, result.TimedOut, output);
+            var gatePassed = result.ExitCode == 0 && !result.TimedOut;
+            await RecordAsync(workspace, "gate", $"gate-{gate.Name}", $"check: {gate.Name}", 1, started, gatePassed ? "passed" : "failed", result.ExitCode, result.TimedOut, commandText, output, null);
+            return new GateResult(gate.Name, gatePassed, result.ExitCode, result.TimedOut, output);
         }
         catch (ActivityFailureException error)
         {
-            return new GateResult(gate.Name, false, -1, false, $"the check could not run: {error.InnerException?.Message ?? error.Message}");
+            var reason = $"the check could not run: {error.InnerException?.Message ?? error.Message}";
+            await RecordAsync(workspace, "gate", $"gate-{gate.Name}", $"check: {gate.Name}", 1, started, "could not run", -1, false, commandText, "", reason);
+            return new GateResult(gate.Name, false, -1, false, reason);
         }
     }
 

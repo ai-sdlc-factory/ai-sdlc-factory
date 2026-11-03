@@ -13,11 +13,11 @@ public sealed record FileChange(string Path, string Kind)
 /// <summary>What the agent changed in its workspace, and everything that stops those changes from being published.</summary>
 public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList<string> Violations);
 
-public sealed record PublishRequest(string Name, string Message);
+public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null);
 
 public sealed record PublishResult(string CommitSha, string Branch, int FileCount);
 
-public sealed record RescueRequest(string Name, string Message);
+public sealed record RescueRequest(string Name, string Message, RunRecordSpec? Record = null);
 
 /// <summary>
 /// What a rescue did with a run that could not finish: whether the work so far was saved to a branch, what was
@@ -72,6 +72,24 @@ public static partial class SecretScan
     // password = "something long" / api_key: 'abcdef...' with a quoted literal of 12+ non-space characters.
     [GeneratedRegex(@"(?i)\b(?:api[_-]?key|secret|token|passwd|password|private[_-]?key)\b\s*[:=]\s*[""'][^""'\s]{12,}[""']")]
     private static partial Regex Assignment();
+
+    /// <summary>
+    /// The text with every line that looks like a credential (or holds one of the known secrets) replaced by a
+    /// marker. Used before agent traffic is written to a file that may be committed.
+    /// </summary>
+    public static string Redact(string text, IEnumerable<string> knownSecrets)
+    {
+        var secrets = knownSecrets.Where(secret => secret.Length >= 8).ToList();
+        var lines = text.Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (Rules.Any(rule => rule.Pattern.IsMatch(lines[i])) || secrets.Any(secret => lines[i].Contains(secret, StringComparison.Ordinal)))
+            {
+                lines[i] = "[line left out: possible secret]";
+            }
+        }
+        return string.Join('\n', lines);
+    }
 
     public static IEnumerable<string> Scan(string path, byte[] content, IEnumerable<string> knownSecrets)
     {

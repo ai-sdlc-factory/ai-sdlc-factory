@@ -23,6 +23,11 @@ public sealed partial class FeatureWorkflow
     private readonly List<HumanReply> replies = [];
     private bool ticketClosed;
 
+    // Set when the project asks for a record (.factory/project.json "record": true): where in the repository the
+    // prompts, answers and check output of this run are committed, and the number of the next recorded step.
+    private string? recordDirectory;
+    private int recordSequence;
+
     [WorkflowSignal("human_reply")]
     public Task OnHumanReplyAsync(HumanReply reply)
     {
@@ -69,6 +74,11 @@ public sealed partial class FeatureWorkflow
             {
                 await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then close and reopen this ticket.");
                 return new FeatureResult("needs_config");
+            }
+
+            if (project.Record)
+            {
+                recordDirectory = RunRecord.DirectoryFor(request.IssueNumber, Workflow.Info.RunId ?? "run");
             }
 
             FeatureResult result;
@@ -122,7 +132,8 @@ public sealed partial class FeatureWorkflow
                 (WorkspaceActivities activities) => activities.RescueAsync(new RescueRequest(
                     request.WorkflowId,
                     $"WIP: {PullRequestText.Title(request)} (#{request.IssueNumber}), not finished\n\n" +
-                    $"Saved by the factory when it stopped ({result.Status}). Not reviewed, and the checks did not all pass.")),
+                    $"Saved by the factory when it stopped ({result.Status}). Not reviewed, and the checks did not all pass.",
+                    RecordSpec(request, $"Stopped before finishing ({result.Status}). The work so far is on this work-in-progress branch; it was not reviewed and the checks did not all pass."))),
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
         }
         catch (ActivityFailureException error)
@@ -380,7 +391,7 @@ public sealed partial class FeatureWorkflow
     /// Runs one agent role in a read-only sandbox with model access and parses its answer. An unusable
     /// answer gets one more try that says what was wrong; after that the caller asks a person.
     /// </summary>
-    private static async Task<AgentOutcome<T>> RunAgentAsync<T>(
+    private async Task<AgentOutcome<T>> RunAgentAsync<T>(
         string role, string image, WorkspaceInfo workspace, Func<string?, string> prompt, Func<string, (T? Value, string? Error)> parse,
         bool writable = false, int timeoutSeconds = 900)
         where T : class
@@ -389,6 +400,8 @@ public sealed partial class FeatureWorkflow
         for (var attempt = 1; attempt <= MaxAgentAttempts; attempt++)
         {
             SandboxRunResult result;
+            var promptText = prompt(problem);
+            var started = Workflow.UtcNow;
             try
             {
                 result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
@@ -397,7 +410,7 @@ public sealed partial class FeatureWorkflow
                         Image: image,
                         Workspace: workspace.Name,
                         WorkspaceWritable: writable,
-                        Command: ["opencode", "run", "--agent", role, "--format", "json", prompt(problem)],
+                        Command: ["opencode", "run", "--agent", role, "--format", "json", promptText],
                         TimeoutSeconds: timeoutSeconds,
                         NeedsModelAuth: true,
                         Network: NetworkFor(role),
@@ -414,6 +427,7 @@ public sealed partial class FeatureWorkflow
             catch (ActivityFailureException error)
             {
                 var message = error.InnerException?.Message ?? error.Message;
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", -1, false, promptText, "", message);
                 return message.Contains("not signed in", StringComparison.OrdinalIgnoreCase)
                     ? new AgentOutcome<T>(null, true, null)
                     : new AgentOutcome<T>(null, false, message);
@@ -421,16 +435,19 @@ public sealed partial class FeatureWorkflow
 
             if (result.ExitCode == 78)
             {
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "not signed in", result.ExitCode, false, promptText, result.Stderr, "OpenCode is not signed in");
                 return new AgentOutcome<T>(null, true, null);
             }
             if (result.TimedOut)
             {
                 problem = $"the {role} ran out of time";
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, true, promptText, result.Stderr, problem);
                 continue;
             }
             if (result.ExitCode != 0)
             {
                 problem = $"OpenCode exited with code {result.ExitCode}: {Short(result.Stderr)}";
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, false, promptText, result.Stderr, problem);
                 continue;
             }
 
@@ -438,16 +455,50 @@ public sealed partial class FeatureWorkflow
             if (text is null)
             {
                 problem = result.OutputTruncated ? "the output was too long to contain the answer" : "OpenCode returned no answer";
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "failed", result.ExitCode, false, promptText, result.Stdout, problem);
                 continue;
             }
             var (value, error2) = parse(text);
             if (value is not null)
             {
+                await RecordAsync(workspace, "agent", role, role, attempt, started, "accepted", result.ExitCode, false, promptText, text, null);
                 return new AgentOutcome<T>(value, false, null);
             }
             problem = error2;
+            await RecordAsync(workspace, "agent", role, role, attempt, started, "answer rejected", result.ExitCode, false, promptText, text, problem);
         }
         return new AgentOutcome<T>(null, false, problem);
+    }
+
+    /// <summary>Where and how the record of this run is committed, or null when the project did not ask for one.</summary>
+    private RunRecordSpec? RecordSpec(FeatureRequest request, string outcome) =>
+        recordDirectory is null ? null : new RunRecordSpec(recordDirectory, $"{request.Owner}/{request.Repo}#{request.IssueNumber}: {request.Title}", outcome);
+
+    /// <summary>
+    /// Keeps one step (what an agent was told and answered, or what a check printed) for the committed record.
+    /// A failure to record never changes how the run goes.
+    /// </summary>
+    private async Task RecordAsync(
+        WorkspaceInfo workspace, string kind, string slug, string title, int attempt, DateTime started, string outcome,
+        long exitCode, bool timedOut, string input, string output, string? problem)
+    {
+        if (recordDirectory is null)
+        {
+            return;
+        }
+        var entry = new RecordEntry(
+            workspace.Name, ++recordSequence, kind, slug, title, attempt, started.ToString("u"),
+            Math.Round((Workflow.UtcNow - started).TotalSeconds, 1), outcome, exitCode, timedOut, input, output, problem);
+        try
+        {
+            await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.RecordAsync(entry),
+                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+        }
+        catch (ActivityFailureException)
+        {
+            // Not worth stopping a run for.
+        }
     }
 
     private void DrainReplies(List<string> answers)

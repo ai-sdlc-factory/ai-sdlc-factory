@@ -242,6 +242,41 @@ matching `paths` only; a UX review runs from medium upwards.
 600). The file is untrusted input: it can only choose among the images the factory offers, and the
 commands run in the sandbox the agent already works in. Without it the run stops with an example.
 
+### Run record (`"record": true`)
+
+Temporal keeps a run's full history for 7 days. A project can ask to keep it longer, in its own repository:
+
+```json
+"record": true
+```
+
+Off by default. When on, the pull request (and the work-in-progress branch of a run that could not finish)
+also contains `.factory/runs/issue-<number>-<8 characters of the run id>/`:
+
+| File | Content |
+| --- | --- |
+| `README.md` | the ticket, how the run ended, and one line per step with a link |
+| `index.json` | the same list, for tools: step, kind, attempt, outcome, seconds, exit code, file |
+| `001-analyst.md`, `002-coverage.md`, ... | one file per agent run or project check, in order |
+
+An agent file holds the **prompt the agent was given** and **the answer it returned** (an answer the factory
+rejected is kept as its own step, so the retry makes sense). A check file holds the command and the end of its
+output. Every step says when it started, how long it took, its exit code and how the factory judged it.
+
+Rules that make this safe to commit:
+
+- The **controller writes the record**, from what it sent and received. Agents cannot change it, and
+  `.factory/` is a protected path for them anyway.
+- Lines that look like credentials (the secret scan's patterns, and the factory's own token) are replaced by a
+  marker before anything is written.
+- Large prompts and outputs are cut and say so (100,000 and 60,000 characters).
+- Each run has its own folder, so a re-run on the same ticket never overwrites an older record.
+- A record is only written together with a branch: a run that stops before the build, or saves nothing, leaves none.
+
+Not included: the raw event stream of the agent (its tool calls), model names and token counts, and the final
+pull request link (the record is written before the pull request is opened). Temporal's history has the rest while it
+lasts. Prompts contain the ticket text, so a record is as public as the repository.
+
 ### Limits and error messages
 
 Every agent answer is validated against explicit limits (for example the architect: at most 30
