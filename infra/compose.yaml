@@ -6,8 +6,11 @@ name: dev-foundry
 #   hooks   Forgejo webhook delivery to the controller API
 #   forge   Forgejo API access for the controller (ticket comments, later branches and PRs)
 #   agents  the OpenCode login helper only: internet access for the browser login, no factory service
-#   sandbox (dev-foundry_sandbox) is created by the sandbox launcher for the disposable agent
-#           containers it starts; no Compose service ever joins it
+#   egress  the egress proxy's way to the internet; nothing else joins it
+#   sandbox-model, sandbox-packages, sandbox-developer
+#           one internal network (no route out, no external DNS) per egress profile for the disposable agent
+#           containers the sandbox launcher starts. Only the egress proxy joins them, and it lets a sandbox
+#           reach just the hosts its profile lists (egress/profiles.json)
 
 # Helpers for the OpenCode login. They run from the Python sandbox image (which already has OpenCode),
 # only when asked for (profile opencode-tools), as the factory user and with no capabilities.
@@ -270,6 +273,37 @@ services:
       start_period: 15s
     stop_grace_period: 30s
 
+  # The only way out for disposable agent containers. Each profile has its own internal network and its own
+  # address here, so a container can only reach the address of its own profile; the proxy tunnels HTTPS to
+  # the hosts that profile lists and logs every decision (docker compose logs egress-proxy).
+  egress-proxy:
+    <<: *hardened
+    image: dev-foundry/egress-proxy:local
+    build:
+      context: ..
+      dockerfile: services/egress-proxy/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    environment:
+      EGRESS_PROFILES_FILE: /etc/egress/profiles.json
+      EGRESS_LISTEN_MAP: model=${SANDBOX_NET_BASE:-10.250}.1.2,packages=${SANDBOX_NET_BASE:-10.250}.2.2,developer=${SANDBOX_NET_BASE:-10.250}.3.2
+    volumes:
+      - ../egress/profiles.json:/etc/egress/profiles.json:ro
+    networks:
+      egress:
+      sandbox-model:
+        ipv4_address: ${SANDBOX_NET_BASE:-10.250}.1.2
+      sandbox-packages:
+        ipv4_address: ${SANDBOX_NET_BASE:-10.250}.2.2
+      sandbox-developer:
+        ipv4_address: ${SANDBOX_NET_BASE:-10.250}.3.2
+    healthcheck:
+      test: ["CMD", "dotnet", "DevFoundry.EgressProxy.dll", "--healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   # The only service with Docker access. It starts disposable agent containers with fixed isolation
   # settings (see services/sandbox-launcher/README.md) and has no Forgejo credentials.
   sandbox-launcher:
@@ -283,6 +317,8 @@ services:
     depends_on:
       temporal-namespace:
         condition: service_completed_successfully
+      egress-proxy:
+        condition: service_healthy
     group_add:
       - "${DOCKER_GID:?Set DOCKER_GID in .env (stat -c %g /var/run/docker.sock)}"
     environment:
@@ -290,7 +326,8 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
       SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local;python=dev-foundry/sandbox-python:local
-      SANDBOX_NETWORK: dev-foundry_sandbox
+      SANDBOX_NETWORKS: model=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-model;packages=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-packages;developer=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-developer
+      SANDBOX_PROXIES: model=http://${SANDBOX_NET_BASE:-10.250}.1.2:3128;packages=http://${SANDBOX_NET_BASE:-10.250}.2.2:3128;developer=http://${SANDBOX_NET_BASE:-10.250}.3.2:3128
       SANDBOX_UID: ${FACTORY_UID:-1000}
       SANDBOX_GID: ${FACTORY_GID:-1000}
       FACTORY_GLOBAL_CONFIG: ${FACTORY_GLOBAL_CONFIG:-}
@@ -380,6 +417,24 @@ networks:
   hooks:
   forge:
   agents:
+  egress:
+  # Internal: no route out and no external DNS. The fixed subnets give each profile's proxy a stable address;
+  # change SANDBOX_NET_BASE in .env if 10.250.x.x clashes with a network you use.
+  sandbox-model:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SANDBOX_NET_BASE:-10.250}.1.0/24
+  sandbox-packages:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SANDBOX_NET_BASE:-10.250}.2.0/24
+  sandbox-developer:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SANDBOX_NET_BASE:-10.250}.3.0/24
 
 volumes:
   postgres-data:

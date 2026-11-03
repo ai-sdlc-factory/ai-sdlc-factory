@@ -12,8 +12,14 @@ public sealed class SandboxSettings
     /// <summary>Image aliases a request may choose from, mapped to concrete image names.</summary>
     public required IReadOnlyDictionary<string, string> Images { get; init; }
 
-    /// <summary>Docker network the sandboxes join. It must not contain the factory's own services.</summary>
-    public string Network { get; init; } = "dev-foundry_sandbox";
+    /// <summary>
+    /// Egress profile name to the internal Docker network a sandbox with that profile joins. The network has no
+    /// route out; the only way off it is the profile's egress proxy. A run that asks for no profile gets no network.
+    /// </summary>
+    public required IReadOnlyDictionary<string, string> Networks { get; init; }
+
+    /// <summary>Egress profile name to the address of that profile's proxy on its network, such as http://10.250.1.2:3128.</summary>
+    public required IReadOnlyDictionary<string, string> Proxies { get; init; }
 
     /// <summary>Owner of the files in the workspace; the sandbox runs as this user.</summary>
     public int UserId { get; init; } = 1000;
@@ -52,7 +58,8 @@ public sealed class SandboxSettings
             TaskQueue = NonEmpty(configuration, "SANDBOX_TASK_QUEUE", SandboxNames.DefaultTaskQueue),
             WorkspaceRoot = (configuration["FACTORY_WORKSPACE_ROOT"] ?? "").TrimEnd('/'),
             Images = ParseImages(configuration["SANDBOX_IMAGES"]),
-            Network = NonEmpty(configuration, "SANDBOX_NETWORK", "dev-foundry_sandbox"),
+            Networks = ParsePairs(configuration["SANDBOX_NETWORKS"], "SANDBOX_NETWORKS"),
+            Proxies = ParsePairs(configuration["SANDBOX_PROXIES"], "SANDBOX_PROXIES"),
             UserId = configuration.GetValue("SANDBOX_UID", 1000),
             GroupId = configuration.GetValue("SANDBOX_GID", 1000),
             MemoryBytes = configuration.GetValue("SANDBOX_MEMORY_BYTES", 2L * 1024 * 1024 * 1024),
@@ -79,6 +86,22 @@ public sealed class SandboxSettings
         {
             throw new InvalidOperationException("SANDBOX_IMAGES must list at least one alias=image pair.");
         }
+        if (Networks.Count == 0 || !Networks.Keys.Order().SequenceEqual(Proxies.Keys.Order()))
+        {
+            throw new InvalidOperationException(
+                "SANDBOX_NETWORKS and SANDBOX_PROXIES must list the same egress profiles, each with a network and a proxy.");
+        }
+        if (Networks.ContainsKey(SandboxNetworks.None))
+        {
+            throw new InvalidOperationException($"\"{SandboxNetworks.None}\" is reserved for runs without a network and cannot be a profile.");
+        }
+        foreach (var (profile, proxy) in Proxies)
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(proxy, @"\Ahttp://[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]{2,5}\z"))
+            {
+                throw new InvalidOperationException($"The proxy of profile \"{profile}\" must look like http://10.250.1.2:3128.");
+            }
+        }
         if (UserId <= 0 || GroupId <= 0)
         {
             throw new InvalidOperationException("SANDBOX_UID and SANDBOX_GID must not be root.");
@@ -90,7 +113,10 @@ public sealed class SandboxSettings
     }
 
     /// <summary>Parses <c>alias=image;alias=image</c>.</summary>
-    public static Dictionary<string, string> ParseImages(string? value)
+    public static Dictionary<string, string> ParseImages(string? value) => ParsePairs(value, "SANDBOX_IMAGES");
+
+    /// <summary>Parses <c>name=value;name=value</c>.</summary>
+    public static Dictionary<string, string> ParsePairs(string? value, string setting)
     {
         var images = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var pair in (value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -98,7 +124,7 @@ public sealed class SandboxSettings
             var parts = pair.Split('=', 2, StringSplitOptions.TrimEntries);
             if (parts.Length != 2 || parts[0].Length == 0 || parts[1].Length == 0)
             {
-                throw new InvalidOperationException("SANDBOX_IMAGES entries must look like alias=image.");
+                throw new InvalidOperationException($"{setting} entries must look like name=value.");
             }
             images[parts[0]] = parts[1];
         }

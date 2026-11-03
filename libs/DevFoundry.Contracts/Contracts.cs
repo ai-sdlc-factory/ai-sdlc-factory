@@ -23,7 +23,8 @@ public sealed record SandboxRunRequest(
     [property: JsonPropertyName("command")] IReadOnlyList<string> Command,
     [property: JsonPropertyName("timeout_seconds")] int TimeoutSeconds,
     [property: JsonPropertyName("env")] IReadOnlyDictionary<string, string>? Env = null,
-    [property: JsonPropertyName("needs_model_auth")] bool NeedsModelAuth = false);
+    [property: JsonPropertyName("needs_model_auth")] bool NeedsModelAuth = false,
+    [property: JsonPropertyName("network")] string Network = SandboxNetworks.None);
 
 public sealed record SandboxRunResult(
     [property: JsonPropertyName("exit_code")] long ExitCode,
@@ -31,6 +32,25 @@ public sealed record SandboxRunResult(
     [property: JsonPropertyName("stdout")] string Stdout,
     [property: JsonPropertyName("stderr")] string Stderr,
     [property: JsonPropertyName("output_truncated")] bool OutputTruncated);
+
+/// <summary>
+/// The network a sandbox may use. Each name is an egress profile: a list of hosts the egress proxy lets
+/// that sandbox reach (see egress/profiles.json). A run that asks for nothing gets no network at all.
+/// </summary>
+public static class SandboxNetworks
+{
+    /// <summary>No network interface at all.</summary>
+    public const string None = "none";
+
+    /// <summary>The model provider only: for agents that read code and answer.</summary>
+    public const string Model = "model";
+
+    /// <summary>Package registries only: for the project's own checks (restore, install).</summary>
+    public const string Packages = "packages";
+
+    /// <summary>The model provider and package registries: for the developer.</summary>
+    public const string Developer = "developer";
+}
 
 /// <summary>Names shared by the launcher and the workflows that call it.</summary>
 public static class SandboxNames

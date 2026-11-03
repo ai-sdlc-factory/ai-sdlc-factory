@@ -48,12 +48,16 @@ The first start initializes the databases. `temporal-schema` and
 | Controller API | http://localhost:8000/openapi/v1.json (OpenAPI document) |
 | Controller worker | Temporal task queue; no HTTP port |
 
-Compose isolates services on four networks: `data` (PostgreSQL and its clients),
-`control` (Temporal and the controller services), `hooks` (Forgejo to the controller
-API) and `agents` (the OpenCode login helper only). The disposable agent containers run on a
-network the sandbox launcher creates, which no factory service joins. The login helper and the
-sandboxes cannot reach PostgreSQL, Forgejo, Temporal or the controller API. Outbound internet
-access is not restricted.
+Compose isolates services on separate networks: `data` (PostgreSQL and its clients),
+`control` (Temporal and the controller services), `hooks` (Forgejo to the controller API),
+`forge` (Forgejo and the controller) and `agents` (the OpenCode login helper only, which has internet
+access for the browser login). The disposable agent containers run on three **internal** networks
+(`sandbox-model`, `sandbox-packages`, `sandbox-developer`) that have no route out and no external DNS;
+the only thing on them besides the sandboxes is the egress proxy, which lets each profile reach just the
+hosts listed in [`egress/profiles.json`](../egress/README.md). The sandboxes cannot reach PostgreSQL,
+Forgejo, Temporal or the controller API. Their networks use `10.250.x.0/24`; set `SANDBOX_NET_BASE` in
+`.env` if that clashes with a network you use. See what a sandbox tried to reach with
+`docker compose logs egress-proxy`.
 
 Host ports can be changed in `.env`. All published ports bind to localhost.
 This is a local development stack; Temporal and Mailpit have no authentication.

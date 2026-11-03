@@ -155,6 +155,14 @@ copies that to `<root>/<name>` for the agents. Changes are read from the agent's
 through git's trusted directory, and published by copying regular files onto the pristine clone.
 `WorkspaceChangesTests` plants a hostile hook and config and proves nothing runs.
 
+### Network access
+
+Every sandbox run asks the launcher for an egress profile, chosen by role in code (`NetworkFor`) and never
+by the agent or the repository: read-only agents (analyst, coverage, architect, reviewers, QA) get `model`
+(the model provider only), the developer gets `developer` (model provider and package registries), the
+project\'s checks get `packages` (registries only, no model), and the evidence check gets no network at
+all. The hosts behind each profile are in [`egress/profiles.json`](../../egress/README.md).
+
 ### Project configuration
 
 A repository describes itself in `.factory/project.json` on its default branch, read from the pristine clone:

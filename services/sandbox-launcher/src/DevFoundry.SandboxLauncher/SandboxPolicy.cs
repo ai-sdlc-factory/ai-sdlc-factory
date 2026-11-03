@@ -11,7 +11,8 @@ public sealed record ValidatedRun(
     IReadOnlyList<string> Command,
     TimeSpan Timeout,
     IReadOnlyList<string> Env,
-    bool NeedsModelAuth);
+    bool NeedsModelAuth,
+    string Network);
 
 /// <summary>
 /// Everything a requester is allowed to influence, and nothing else. The caller is the trusted
@@ -79,7 +80,13 @@ public static partial class SandboxPolicy
             throw Reject("Model access is not configured (SANDBOX_AUTH_VOLUME is empty).");
         }
 
-        return new ValidatedRun(image, path, request.WorkspaceWritable, request.Command, timeout, env, request.NeedsModelAuth);
+        var network = request.Network ?? SandboxNetworks.None;
+        if (network != SandboxNetworks.None && !settings.Networks.ContainsKey(network))
+        {
+            throw Reject($"Unknown network profile '{network}'. Known: {SandboxNetworks.None}, {string.Join(", ", settings.Networks.Keys.Order())}.");
+        }
+
+        return new ValidatedRun(image, path, request.WorkspaceWritable, request.Command, timeout, env, request.NeedsModelAuth, network);
     }
 
     // Policy violations will not fix themselves, so they are never retried.

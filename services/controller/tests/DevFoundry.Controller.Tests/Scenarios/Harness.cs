@@ -57,7 +57,7 @@ public sealed record AgentReply(SandboxRunResult Result)
         JsonSerializer.Serialize(new { type = "step_finish" }));
 }
 
-public sealed record AgentCall(string Role, string Prompt, string Image, bool Writable, bool ModelAuth);
+public sealed record AgentCall(string Role, string Prompt, string Image, bool Writable, bool ModelAuth, string Network);
 
 /// <summary>
 /// Everything the workflow talks to, scripted: agents, project checks, the workspace and Forgejo. It records
@@ -73,6 +73,8 @@ public sealed class FakeWorld
     public List<string> Comments { get; } = [];
     public List<AgentCall> AgentCalls { get; } = [];
     public List<string> CheckCalls { get; } = [];
+    public List<string> CheckNetworks { get; } = [];
+    public List<string> EvidenceNetworks { get; } = [];
     public List<string> Problems { get; } = [];
     public List<PullRequestRequest> PullRequests { get; } = [];
     public List<PublishRequest> Publishes { get; } = [];
@@ -214,7 +216,7 @@ public sealed class FakeWorld
             if (command is ["opencode", "run", ..])
             {
                 var role = command[command.ToList().IndexOf("--agent") + 1];
-                AgentCalls.Add(new AgentCall(role, command[^1], request.Image, request.WorkspaceWritable, request.NeedsModelAuth));
+                AgentCalls.Add(new AgentCall(role, command[^1], request.Image, request.WorkspaceWritable, request.NeedsModelAuth, request.Network));
                 if (agents.TryGetValue(role, out var queue) && queue.Count > 0)
                 {
                     return queue.Dequeue().Result;
@@ -226,12 +228,14 @@ public sealed class FakeWorld
             // The evidence check: sh -c <script> sh <paths...>
             if (command is ["sh", "-c", _, "sh", ..])
             {
+                EvidenceNetworks.Add(request.Network);
                 var found = command.Skip(4).Where(path => ExistingFiles is null || ExistingFiles.Contains(path));
                 return new SandboxRunResult(0, false, string.Join('\n', found.Select(path => $"found {path}")), "", false);
             }
 
             var key = string.Join(' ', command);
             CheckCalls.Add(key);
+            CheckNetworks.Add(request.Network);
             return checks.TryGetValue(key, out var scripted) && scripted.Count > 0 ? scripted.Dequeue() : Passes();
         }
     }

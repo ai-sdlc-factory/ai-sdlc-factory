@@ -311,6 +311,12 @@ public sealed partial class FeatureWorkflow
         "{\n  \"image\": \"python\",\n  \"gates\": [\n    { \"name\": \"test\", \"command\": [\"python\", \"-m\", \"pytest\", \"-q\"] }\n  ]\n}\n```\n\n" +
         "Then close and reopen this ticket.";
 
+    /// <summary>
+    /// The network each agent role gets: the developer may also fetch packages, every other agent can reach only
+    /// the model provider. Which hosts a profile allows is decided in egress/profiles.json, not here.
+    /// </summary>
+    public static string NetworkFor(string role) => role == "developer" ? SandboxNetworks.Developer : SandboxNetworks.Model;
+
     private const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";
 
@@ -341,7 +347,8 @@ public sealed partial class FeatureWorkflow
                         WorkspaceWritable: writable,
                         Command: ["opencode", "run", "--agent", role, "--format", "json", prompt(problem)],
                         TimeoutSeconds: timeoutSeconds,
-                        NeedsModelAuth: true)],
+                        NeedsModelAuth: true,
+                        Network: NetworkFor(role))],
                     new ActivityOptions
                     {
                         TaskQueue = SandboxNames.DefaultTaskQueue,

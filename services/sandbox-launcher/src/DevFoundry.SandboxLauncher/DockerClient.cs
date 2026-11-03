@@ -17,7 +17,7 @@ public sealed class DockerException(HttpStatusCode status, string message)
 public interface IDockerClient
 {
     Task PingAsync(CancellationToken cancellationToken);
-    Task EnsureNetworkAsync(string name, CancellationToken cancellationToken);
+    Task<bool> NetworkExistsAsync(string name, CancellationToken cancellationToken);
     Task<bool> VolumeExistsAsync(string name, CancellationToken cancellationToken);
     Task<string> CreateAsync(CreateContainerBody body, CancellationToken cancellationToken);
     Task StartAsync(string id, CancellationToken cancellationToken);
@@ -84,28 +84,16 @@ public sealed class DockerClient : IDockerClient
         }
     }
 
-    public async Task EnsureNetworkAsync(string name, CancellationToken cancellationToken)
+    public async Task<bool> NetworkExistsAsync(string name, CancellationToken cancellationToken)
     {
         try
         {
-            using var existing = await SendAsync(HttpMethod.Get, $"networks/{Uri.EscapeDataString(name)}", null, cancellationToken);
-            return;
+            using var response = await SendAsync(HttpMethod.Get, $"networks/{Uri.EscapeDataString(name)}", null, cancellationToken);
+            return true;
         }
         catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
         {
-            // Created below.
-        }
-
-        // A plain bridge: outbound internet works (the agents need their model provider), and Docker
-        // keeps it separate from every other network, so no factory service is reachable from it.
-        var body = new { Name = name, Driver = "bridge", Labels = new Dictionary<string, string> { [ContainerSpec.Label] = "true" } };
-        try
-        {
-            using var created = await SendAsync(HttpMethod.Post, "networks/create", JsonContent.Create(body, options: Json), cancellationToken);
-        }
-        catch (DockerException error) when (error.Status == HttpStatusCode.Conflict)
-        {
-            // Created concurrently by another process.
+            return false;
         }
     }
 

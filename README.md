@@ -31,6 +31,7 @@ Start with the [infrastructure setup](infra/README.md#start), then
 - [`tests/integration/`](tests/integration/README.md): tests spanning the independently deployed services.
 - [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access; starts disposable agent containers.
 - [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in.
+- [`services/egress-proxy/`](services/egress-proxy/README.md) and [`egress/`](egress/README.md): the proxy and the allowlist that decide what the agent containers may reach on the internet.
 - [`agents/`](agents/README.md): agent definitions (one Markdown file per role) and shared OpenCode settings.
 - [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services (Forgejo event, sandbox run request and result).
 - [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, and the integration tests.

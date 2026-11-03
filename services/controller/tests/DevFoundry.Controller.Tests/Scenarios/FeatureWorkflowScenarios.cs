@@ -527,3 +527,68 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         }
     }
 }
+
+/// <summary>Which network each kind of sandbox run is given.</summary>
+[Collection("temporal")]
+public sealed class NetworkScenarios(TemporalFixture fixture)
+{
+    private static AgentReply Say(string text) => AgentReply.Says(text);
+
+    private static FakeWorld Everything(bool design) => new FakeWorld()
+        .Agent("analyst", Say(Answers.Analyst(api: design)))
+        .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+        .Agent("architect", Say(Answers.Architect()))
+        .Agent("developer", Say(Answers.Developer()))
+        .Agent("reviewer", Say(Answers.Review()))
+        .Agent("qa", Say(Answers.Qa("met", "met")));
+
+    [SkippableFact]
+    public async Task Only_the_developer_may_fetch_packages_and_every_other_agent_reaches_the_model_provider_only()
+    {
+        var world = Everything(design: true);
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        var networks = world.AgentCalls.ToDictionary(call => call.Role, call => call.Network);
+        Assert.Equal("developer", networks["developer"]);
+        foreach (var role in new[] { "analyst", "coverage", "architect", "reviewer", "qa" })
+        {
+            Assert.Equal("model", networks[role]);
+        }
+        Assert.Empty(world.Problems);
+    }
+
+    [SkippableFact]
+    public async Task The_projects_checks_get_package_registries_and_nothing_else()
+    {
+        var world = Everything(design: false);
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.NotEmpty(world.CheckNetworks);
+        Assert.All(world.CheckNetworks, network => Assert.Equal("packages", network));
+    }
+
+    [SkippableFact]
+    public async Task The_evidence_check_needs_no_network_at_all()
+    {
+        var world = Everything(design: false);
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.NotEmpty(world.EvidenceNetworks);
+        Assert.All(world.EvidenceNetworks, network => Assert.Equal("none", network));
+    }
+
+    [SkippableFact]
+    public async Task The_security_reviewer_is_also_limited_to_the_model_provider()
+    {
+        var world = Everything(design: false);
+        world.ProjectConfig = """{"image":"python","reviewers":["reviewer","security"],"gates":[{"name":"test","command":["pytest"]}]}""";
+        world.Agent("security", Say(Answers.Review()));
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("model", Assert.Single(world.Calls("security")).Network);
+    }
+}

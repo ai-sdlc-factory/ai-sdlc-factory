@@ -14,7 +14,7 @@ public sealed class SandboxRunnerTests
 
         public Task PingAsync(CancellationToken ct) => Task.CompletedTask;
 
-        public Task EnsureNetworkAsync(string name, CancellationToken ct) => Task.CompletedTask;
+        public Task<bool> NetworkExistsAsync(string name, CancellationToken ct) => Task.FromResult(true);
 
         public bool VolumeExists { get; set; } = true;
 

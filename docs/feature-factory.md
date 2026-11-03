@@ -73,6 +73,8 @@ stalled tickets stay visible.
 - Mounts are only the run's workspace (read-only for analyst, coverage, architect and reviewers;
   read-write for the developer and QA) and the global OpenCode settings, read-only.
 - No Docker socket, no host mounts, no Forgejo or Temporal credentials inside the container.
+- A network profile per run (none by default), enforced by internal networks and an egress proxy rather
+  than by the agent's good behaviour.
 - Resource limits, a run timeout, read-only root filesystem with a tmpfs for scratch, dropped
   capabilities and `no-new-privileges`, as for every other container in the stack.
 - The model is chosen per role by the factory's configuration.
@@ -136,12 +138,14 @@ configuration before relying on this.
 
 - **Only the developer has a shell.** The reviewers and QA are read-only and are given the diff by the
   controller, so the agents that judge the work cannot run commands.
-- **The developer can run commands and reach the network.** Its sandbox has outbound internet (package
-  restore and the model provider need it) and the OpenCode login is readable inside it, so an agent
+- **The developer can run commands, and the OpenCode login is readable inside its sandbox.** An agent
   that is tricked by text in the ticket or repository could try to send the login or the code out. The
-  sandbox boundary, the lack of any Forgejo or Temporal credential in it, and the fixed checks limit
-  what a bad change can do, but not what a tricked agent can send. The next hardening step is an egress
-  allowlist (model provider and package mirrors only).
+  network is therefore an allowlist ([`egress/`](../egress/README.md)): sandboxes have no route out and
+  no external DNS, and an egress proxy tunnels HTTPS only to the hosts of the run's profile (the developer:
+  the model provider and package registries; the read-only agents: the model provider only; every
+  decision is logged). That stops sending anything to an arbitrary server and reaching your own network.
+  It cannot stop data going to a host that is allowed: the model provider receives whatever is in a
+  prompt, and the proxy sees host names, not content.
 - **Gate commands come from the repository.** They run inside the sandbox, like the agent, so they get no
   more reach than the agent has, but a repository owner decides what runs.
 - **The secret scan is a safety net**, not a guarantee: it finds common token shapes and the factory's own

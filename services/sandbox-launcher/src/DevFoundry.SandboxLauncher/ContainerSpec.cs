@@ -25,6 +25,23 @@ public static class ContainerSpec
         }
 
         var env = new List<string>(run.Env);
+        // OpenCode otherwise fetches its model list, checks for updates and downloads language servers at run
+        // time; none of that is needed, and each would need another host on the allowlist.
+        env.AddRange(["OPENCODE_DISABLE_MODELS_FETCH=1", "OPENCODE_DISABLE_AUTOUPDATE=1", "OPENCODE_DISABLE_LSP_DOWNLOAD=1"]);
+        if (run.Network != SandboxNetworks.None)
+        {
+            // The sandbox's network has no route out. Tools that honour these variables reach the allowlisted hosts
+            // through the profile's egress proxy; anything that ignores them simply cannot connect.
+            var proxy = settings.Proxies[run.Network];
+            // OpenCode tries to install helper packages from the npm registry at start (they are not needed). Agents
+            // that only read code never run npm, so point npm at a dead address and spare them the failed attempts.
+            // The developer and the project's checks keep the real registry, because projects install from it.
+            if (run.Network == SandboxNetworks.Model)
+            {
+                env.Add("NPM_CONFIG_REGISTRY=http://127.0.0.1:9");
+            }
+            env.AddRange([$"HTTP_PROXY={proxy}", $"HTTPS_PROXY={proxy}", $"http_proxy={proxy}", $"https_proxy={proxy}", "NO_PROXY=localhost,127.0.0.1", "no_proxy=localhost,127.0.0.1"]);
+        }
         if (run.NeedsModelAuth)
         {
             // NoCopy: never seed the volume from image content. The entrypoint links auth.json from here.
@@ -52,7 +69,7 @@ public static class ContainerSpec
                 Memory = settings.MemoryBytes,
                 MemorySwap = settings.MemoryBytes,
                 NanoCpus = (long)(settings.Cpus * 1_000_000_000),
-                NetworkMode = settings.Network,
+                NetworkMode = run.Network == SandboxNetworks.None ? "none" : settings.Networks[run.Network],
                 Tmpfs = new Dictionary<string, string> { ["/tmp"] = "rw,size=1g,mode=1777" },
             },
         };

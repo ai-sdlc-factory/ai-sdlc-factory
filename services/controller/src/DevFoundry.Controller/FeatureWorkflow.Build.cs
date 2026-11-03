@@ -164,7 +164,8 @@ public sealed partial class FeatureWorkflow
         {
             var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                 SandboxNames.ActivityName,
-                [new SandboxRunRequest(image, workspace.Name, WorkspaceWritable: true, gate.Command, gate.TimeoutSeconds)],
+                // The project's own checks may restore packages, but they never get the model login or the model provider.
+                [new SandboxRunRequest(image, workspace.Name, WorkspaceWritable: true, gate.Command, gate.TimeoutSeconds, Network: SandboxNetworks.Packages)],
                 new ActivityOptions
                 {
                     TaskQueue = SandboxNames.DefaultTaskQueue,

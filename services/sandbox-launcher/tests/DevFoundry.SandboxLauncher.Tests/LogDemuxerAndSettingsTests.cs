@@ -68,10 +68,10 @@ public sealed class LogDemuxerAndSettingsTests
     [InlineData("")]
     public void Workspace_root_must_be_absolute(string root) =>
         Assert.Throws<InvalidOperationException>(() =>
-            new SandboxSettings { WorkspaceRoot = root, Images = Support.Settings().Images }.Validate());
+            new SandboxSettings { WorkspaceRoot = root, Images = Support.Settings().Images, Networks = Support.Settings().Networks, Proxies = Support.Settings().Proxies }.Validate());
 
     [Fact]
     public void Sandbox_cannot_run_as_root() =>
         Assert.Throws<InvalidOperationException>(() =>
-            new SandboxSettings { WorkspaceRoot = "/work", Images = Support.Settings().Images, UserId = 0 }.Validate());
+            new SandboxSettings { WorkspaceRoot = "/work", Images = Support.Settings().Images, Networks = Support.Settings().Networks, Proxies = Support.Settings().Proxies, UserId = 0 }.Validate());
 }

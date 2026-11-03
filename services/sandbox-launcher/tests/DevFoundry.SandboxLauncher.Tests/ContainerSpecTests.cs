@@ -22,7 +22,8 @@ public sealed class ContainerSpecTests
         Assert.Equal(["no-new-privileges:true"], host.GetProperty("SecurityOpt").EnumerateArray().Select(e => e.GetString()));
         Assert.Equal(256, host.GetProperty("PidsLimit").GetInt32());
         Assert.Equal(host.GetProperty("Memory").GetInt64(), host.GetProperty("MemorySwap").GetInt64());
-        Assert.Equal("dev-foundry_sandbox", host.GetProperty("NetworkMode").GetString());
+        // A run that asks for no network gets none at all.
+        Assert.Equal("none", host.GetProperty("NetworkMode").GetString());
     }
 
     [Fact]

@@ -1,7 +1,7 @@
 namespace DevFoundry.SandboxLauncher;
 
 /// <summary>
-/// Fails fast when Docker is unreachable, makes sure the sandbox network exists, and removes sandboxes left behind by a previous
+/// Fails fast when Docker is unreachable, checks that every egress network exists, and removes sandboxes left behind by a previous
 /// launcher process that died mid-run.
 /// </summary>
 public sealed class SandboxJanitor(IDockerClient docker, SandboxSettings settings, ILogger<SandboxJanitor> logger) : IHostedService
@@ -9,7 +9,16 @@ public sealed class SandboxJanitor(IDockerClient docker, SandboxSettings setting
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await docker.PingAsync(cancellationToken);
-        await docker.EnsureNetworkAsync(settings.Network, cancellationToken);
+        // The networks are created by Compose for the egress proxy. Without them a sandbox would either fail to
+        // start or, worse, be given a network nobody intended, so refuse to run.
+        foreach (var (profile, network) in settings.Networks)
+        {
+            if (!await docker.NetworkExistsAsync(network, cancellationToken))
+            {
+                throw new InvalidOperationException(
+                    $"The network \"{network}\" for egress profile \"{profile}\" does not exist. Start the egress proxy first (docker compose up -d egress-proxy); it creates the networks.");
+            }
+        }
         foreach (var id in await docker.ListSandboxIdsAsync(cancellationToken))
         {
             logger.LogWarning("Removing leftover sandbox container {ContainerId}", id[..Math.Min(12, id.Length)]);

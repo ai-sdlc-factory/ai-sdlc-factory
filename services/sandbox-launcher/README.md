@@ -29,11 +29,27 @@ Everything else is fixed in `ContainerSpec` and tested in `ContainerSpecTests`: 
 workspace owner), read-only root filesystem with a 1 GB `/tmp`, all capabilities dropped,
 `no-new-privileges`, no privileged mode, no devices, a PID limit, memory and CPU limits, and no
 mounts except the workspace and, if `FACTORY_GLOBAL_CONFIG` is set, that directory read-only at
-`/etc/factory`. Sandboxes join the `dev-foundry_sandbox` network, which the launcher creates. It
-has outbound internet (agents need their model provider) and contains no factory service.
+`/etc/factory`. The network is chosen per run (see Network below); a run that asks for none has no
+network interface at all.
 
 Docker Desktop creates a missing bind-mount source as root, so the launcher checks the workspace
 exists, and is not a symlink, before it asks Docker to mount it.
+
+## Network
+
+A request names an **egress profile** in `network`: `none` (the default: no network interface),
+`model`, `packages` or `developer` (`SandboxNetworks` in the contracts). Anything else is rejected.
+A profile puts the container on that profile's **internal** Docker network (no route out, no external
+DNS) and sets `HTTPS_PROXY` and friends to that profile's address on the [egress
+proxy](../egress-proxy/README.md), which tunnels HTTPS only to the hosts the profile lists
+([`egress/`](../../egress/README.md)). Tools that ignore the proxy settings cannot connect at all. The
+proxy variables are fixed by the launcher; a request cannot set them (only `OPENCODE_` and `FACTORY_`
+variables are accepted), and the launcher's `OPENCODE_DISABLE_*` settings (no model-list fetch, no
+update check, no language-server downloads) are always last, so a request cannot undo them.
+
+`SANDBOX_NETWORKS` and `SANDBOX_PROXIES` map each profile to its network and proxy address; both are set
+in `infra/compose.yaml`. The factory picks the profile by role: read-only agents get `model`, the
+developer `developer`, the project's checks `packages`.
 
 ## Model access and the OpenCode login
 
@@ -48,8 +64,8 @@ Inside the sandbox, [`factory-entry.sh`](../../sandboxes/dotnet/factory-entry.sh
 login, so mounting the whole volume as its data directory would mix the history of every ticket.
 The volume is mounted read-write by default so OpenCode can store a refreshed token; set
 `SANDBOX_AUTH_READONLY=true` to forbid that, at the cost of a login that stops working once the token
-expires. An agent can always read the token it runs with, so keep the sandbox network and the
-allowed images tight.
+expires. An agent can always read the token it runs with, which is why its network is limited to an
+allowlist (see Network).
 
 The login volume is owned by the factory user (`FACTORY_UID`). The one-shot `opencode-data-init`
 service sets that up and runs automatically before the login, demo worker and launcher flows.
@@ -82,8 +98,8 @@ adding `sandboxes/<name>/Dockerfile` and one entry to `SANDBOX_IMAGES`.
 - Policy violations fail the activity without retries. Failures before the command starts
   (Docker unreachable, create or start errors) are retried only when Docker itself failed.
   Once the command may have run, nothing is retried, because a run can consume model usage.
-- On start the launcher checks Docker, creates the sandbox network, and removes sandbox
-  containers left by a previous launcher process.
+- On start the launcher checks Docker and that every egress network exists (it refuses to run
+  otherwise), and removes sandbox containers left by a previous launcher process.
 
 ## Tests
 
