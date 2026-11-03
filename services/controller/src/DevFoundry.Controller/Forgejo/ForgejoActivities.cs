@@ -14,6 +14,12 @@ public sealed class ForgejoActivities(ForgejoClient forgejo)
             request.Owner, request.Repo, request.IssueNumber, request.Body,
             ActivityExecutionContext.Current.CancellationToken);
 
+    [Activity("forgejo_post_notice_once")]
+    public Task<bool> PostNoticeOnceAsync(CommentRequest request) =>
+        forgejo.PostNoticeOnceAsync(
+            request.Owner, request.Repo, request.IssueNumber, request.Body,
+            ActivityExecutionContext.Current.CancellationToken);
+
     [Activity("forgejo_create_pull_request")]
     public Task<PullRequestInfo> CreatePullRequestAsync(PullRequestRequest request) =>
         forgejo.CreatePullRequestAsync(

@@ -80,6 +80,10 @@ public sealed class FakeWorld
     public List<string> CheckNetworks { get; } = [];
     public List<string> EvidenceNetworks { get; } = [];
     public List<string> Problems { get; } = [];
+    public List<string> Notices { get; } = [];
+
+    /// <summary>Called inside the sandbox activity just before a scripted agent answers, so a test can act while a stage runs.</summary>
+    public Action<string>? BeforeAgent { get; set; }
     public List<PullRequestRequest> PullRequests { get; } = [];
     public List<PublishRequest> Publishes { get; } = [];
     public List<string> CleanedUp { get; } = [];
@@ -179,6 +183,21 @@ public sealed class FakeWorld
             lock (world.gate) { world.Comments.Add(request.Body); }
         }
 
+        [Activity("forgejo_post_notice_once")]
+        public bool PostNotice(CommentRequest request)
+        {
+            lock (world.gate)
+            {
+                if (world.Notices.Any(n => n == request.Body))
+                {
+                    return false; // the real activity skips a notice that is already among the latest comments
+                }
+                world.Notices.Add(request.Body);
+                world.Comments.Add(request.Body);
+                return true;
+            }
+        }
+
         [Activity("forgejo_create_pull_request")]
         public PullRequestInfo CreatePullRequest(PullRequestRequest request)
         {
@@ -257,6 +276,7 @@ public sealed class FakeWorld
             if (command is ["opencode", "run", ..])
             {
                 var role = command[command.ToList().IndexOf("--agent") + 1];
+                BeforeAgent?.Invoke(role);
                 AgentCalls.Add(new AgentCall(role, command[^1], request.Image, request.WorkspaceWritable, request.NeedsModelAuth, request.Network));
                 if (agents.TryGetValue(role, out var queue) && queue.Count > 0)
                 {

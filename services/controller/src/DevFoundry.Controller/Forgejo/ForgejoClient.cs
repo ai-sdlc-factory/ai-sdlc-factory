@@ -45,6 +45,45 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
             nonRetryable: !retryable);
     }
 
+    /// <summary>The bodies of a ticket's latest comments, oldest first.</summary>
+    public async Task<IReadOnlyList<string>> RecentCommentBodiesAsync(
+        string owner, string repo, int issueNumber, int count, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Get,
+            $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/issues/{issueNumber}/comments");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("comment list", response.StatusCode, response.ReasonPhrase);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+        return document.RootElement.EnumerateArray()
+            .Select(comment => comment.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String ? body.GetString()! : "")
+            .TakeLast(count)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Posts a notice unless one of the ticket's latest comments is already the same kind of notice, so a string of
+    /// comments gets one reply, not one each. Returns whether it posted.
+    /// </summary>
+    public async Task<bool> PostNoticeOnceAsync(
+        string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
+    {
+        var recent = await RecentCommentBodiesAsync(owner, repo, issueNumber, 10, cancellationToken);
+        if (recent.Any(comment => comment.Contains(TicketComments.NoticeMarker, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+        await PostIssueCommentAsync(owner, repo, issueNumber, $"{TicketComments.NoticeMarker}\n{body}", cancellationToken);
+        return true;
+    }
+
     /// <summary>
     /// Opens a pull request for a pushed branch. If one already exists for the branch (a retried attempt
     /// after the first one succeeded), that one is returned instead of failing.

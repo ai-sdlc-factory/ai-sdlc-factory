@@ -23,11 +23,26 @@ public sealed partial class FeatureWorkflow
     private readonly List<HumanReply> replies = [];
     private bool ticketClosed;
 
+    // The ticket this run is for, and whether any later stage can still take a human comment: the analyst and the
+    // architect read them, the build does not.
+    private FeatureRequest? current;
+    private bool commentsCanStillBeUsed = true;
+    private bool tooLateNoticePosted;
+
     [WorkflowSignal("human_reply")]
-    public Task OnHumanReplyAsync(HumanReply reply)
+    public async Task OnHumanReplyAsync(HumanReply reply)
     {
+        if (current is not null && !commentsCanStillBeUsed)
+        {
+            // One notice per run is enough, however many comments follow.
+            if (!tooLateNoticePosted)
+            {
+                tooLateNoticePosted = true;
+                await CommentAsync(current, TicketComments.CommentTooLate);
+            }
+            return;
+        }
         replies.Add(reply);
-        return Task.CompletedTask;
     }
 
     [WorkflowSignal("ticket_closed")]
@@ -40,6 +55,7 @@ public sealed partial class FeatureWorkflow
     [WorkflowRun]
     public async Task<FeatureResult> RunAsync(FeatureRequest request)
     {
+        current = request;
         await CommentAsync(request, "The factory picked up this feature ticket. Preparing a workspace.");
 
         try
@@ -87,6 +103,7 @@ public sealed partial class FeatureWorkflow
                 await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
                 result = new FeatureResult("error");
             }
+            await NoteUnusedCommentsAsync(request, result);
             return await SaveUnfinishedWorkAsync(request, result);
         }
         finally
@@ -99,6 +116,21 @@ public sealed partial class FeatureWorkflow
                     StartToCloseTimeout = TimeSpan.FromMinutes(1),
                     CancellationToken = CancellationToken.None,
                 });
+        }
+    }
+
+    /// <summary>
+    /// Comments that arrived but were never read by a stage (nothing asked a question afterwards) are reported once at
+    /// the end, so a person is not left wondering. A ticket a person closed needs no such reply.
+    /// </summary>
+    private async Task NoteUnusedCommentsAsync(FeatureRequest request, FeatureResult result)
+    {
+        commentsCanStillBeUsed = false;
+        if (replies.Count > 0 && !ticketClosed && result.Status != "closed")
+        {
+            var count = replies.Count;
+            replies.Clear();
+            await CommentAsync(request, TicketComments.CommentsNotUsed(count));
         }
     }
 
@@ -177,6 +209,8 @@ public sealed partial class FeatureWorkflow
             approved = design.Verdict;
         }
 
+        // From here no stage asks a question, so a new comment can no longer change the outcome.
+        commentsCanStillBeUsed = false;
         return await BuildAsync(request, workspace, project, coverage.Verdict!.Remaining.ToList(), approved, triage);
     }
 

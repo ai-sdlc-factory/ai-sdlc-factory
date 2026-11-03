@@ -34,6 +34,11 @@ The API and controller must use the same namespace and task queue.
 - A human comment on a feature ticket is signalled to its waiting workflow (`human_reply`);
   closing the ticket sends `ticket_closed`. Comments written by the factory carry a hidden marker and
   are ignored. Pull request events are ignored.
+- **Comments that cannot be used get a reply, not silence.** Only the analyst and the architect read human
+  comments (as answers to their questions). A comment that arrives once the build has started gets one notice per
+  run (`it cannot take new input`); comments that no stage ever read are reported when the run ends; and a comment
+  on a feature ticket with no running workflow (finished, or never started) gets a notice that is not repeated while
+  it is still among the ticket's latest 10 comments. Each says to update the ticket text and close and reopen it.
 - `FeatureWorkflow` is a skeleton for now: it comments on the ticket, waits up to 7 days for a reply
   and finishes. The stages in [the design](../../docs/feature-factory.md) will be added to it.
 

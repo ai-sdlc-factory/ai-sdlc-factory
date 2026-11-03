@@ -58,7 +58,15 @@ public sealed class ForgejoEventWorkflow
                 break;
 
             case RoutingAction.ReplyToFeature:
-                await SignalAsync(decision.Feature!.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
+                if (!await SignalAsync(decision.Feature!.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!)))
+                {
+                    // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
+                    var feature = decision.Feature!;
+                    await Workflow.ExecuteActivityAsync(
+                        (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                            new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActive)),
+                        new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(30), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                }
                 break;
 
             case RoutingAction.CloseFeature:
@@ -67,16 +75,18 @@ public sealed class ForgejoEventWorkflow
         }
     }
 
-    private static async Task SignalAsync(
+    /// <summary>Sends the signal; false when there is no running workflow for this ticket (never started, or finished).</summary>
+    private static async Task<bool> SignalAsync(
         string workflowId, System.Linq.Expressions.Expression<Func<FeatureWorkflow, Task>> signal)
     {
         try
         {
             await Workflow.GetExternalWorkflowHandle<FeatureWorkflow>(workflowId).SignalAsync(signal);
+            return true;
         }
         catch (FailureException)
         {
-            // No running workflow for this ticket (never started, or already finished).
+            return false;
         }
     }
 

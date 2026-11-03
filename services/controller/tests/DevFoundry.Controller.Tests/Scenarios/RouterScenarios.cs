@@ -41,6 +41,41 @@ public sealed class RouterScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_comment_on_a_ticket_with_no_running_workflow_gets_a_notice_instead_of_silence()
+    {
+        var world = new FakeWorld();
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "Why did you stop?"));
+            await Route(context, Event("issue_comment", "created", repo, comment: "Hello? Anyone?"));
+            return 0;
+        });
+
+        // Two comments, one notice: the notice is not repeated while it is still among the latest comments.
+        var notice = Assert.Single(world.Snapshot(world.Notices));
+        Assert.Equal(TicketComments.NoRunActive, notice);
+        Assert.Contains("close and reopen the ticket", notice);
+        Assert.Empty(world.Calls("analyst"));
+    }
+
+    [SkippableFact]
+    public async Task A_comment_the_factory_wrote_itself_gets_no_notice()
+    {
+        var world = new FakeWorld();
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: EventRouter.BotMarker + "\nSomething the factory said"));
+            return 0;
+        });
+
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
+
+    [SkippableFact]
     public async Task A_second_opening_event_is_ignored_but_reopening_runs_the_factory_again()
     {
         var world = new FakeWorld().Agent("analyst",

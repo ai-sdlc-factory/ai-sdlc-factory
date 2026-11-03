@@ -221,6 +221,25 @@ public static class TicketComments
         return text.ToString().TrimEnd();
     }
 
+    /// <summary>Hidden marker on a notice about a comment that could not be used, so the same notice is not repeated.</summary>
+    public const string NoticeMarker = "<!-- dev-foundry:notice -->";
+
+    /// <summary>A comment arrived while the build was running, which no longer takes new input.</summary>
+    public const string CommentTooLate =
+        "I saw your comment, but the build has already started and it cannot take new input, so it was not used. " +
+        "To change what is built, update the ticket text, then close and reopen the ticket; that starts a new run.";
+
+    /// <summary>Comments that arrived but that no stage ever asked for.</summary>
+    public static string CommentsNotUsed(int count) =>
+        $"{count} comment{(count == 1 ? "" : "s")} arrived during this run, but no stage was waiting for an answer, so " +
+        $"{(count == 1 ? "it was" : "they were")} not used. To have {(count == 1 ? "it" : "them")} taken into account, add " +
+        "the details to the ticket text, then close and reopen the ticket.";
+
+    /// <summary>A comment on a feature ticket that has no running workflow.</summary>
+    public const string NoRunActive =
+        "No factory run is active for this ticket (it has finished, or was never started), so this comment was not used. " +
+        "To run it again, close and reopen the ticket; update the ticket text first if the requirements changed.";
+
     public static string TriageDecision(TriageDecision decision) =>
         decision.NeedsArchitect
             ? "**Triage: design review needed before building**\n\nReasons: " + string.Join("; ", decision.Reasons) + "."
