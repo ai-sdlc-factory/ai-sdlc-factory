@@ -155,6 +155,30 @@ public sealed class EventRouterTests
     }
 
     [Fact]
+    public void An_incident_ticket_starts_an_incident_run_and_the_incident_label_wins_over_the_others()
+    {
+        foreach (var labels in new[] { new[] { "incident" }, ["incident", "feature"], ["bug", "incident"] })
+        {
+            var decision = EventRouter.Decide(Event("issues", Ticket("opened", labels)));
+
+            Assert.Equal(RoutingAction.StartFeature, decision.Action);
+            Assert.True(decision.Feature!.IsIncident);
+            Assert.StartsWith("incident-acme-shop-7-", decision.Feature.WorkflowId);
+        }
+    }
+
+    [Fact]
+    public void Comments_and_closing_on_an_incident_ticket_go_to_the_incident_run()
+    {
+        var comment = EventRouter.Decide(Event("issue_comment", Ticket("created", ["incident"], more: new { comment = Comment("/option 1") })));
+        var closed = EventRouter.Decide(Event("issues", Ticket("closed", ["incident"], "closed")));
+
+        Assert.StartsWith("incident-acme-shop-7-", comment.Feature!.WorkflowId);
+        Assert.Equal(RoutingAction.CloseFeature, closed.Action);
+        Assert.StartsWith("incident-acme-shop-7-", closed.Feature!.WorkflowId);
+    }
+
+    [Fact]
     public void Feature_and_bug_ids_for_the_same_ticket_number_differ()
     {
         Assert.NotEqual(FeatureIds.For("acme", "shop", 7), FeatureIds.For("acme", "shop", 7, FeatureIds.Bug));

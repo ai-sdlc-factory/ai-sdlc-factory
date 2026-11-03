@@ -89,7 +89,11 @@ public abstract partial class FactoryWorkflowBase
                 return Stop<T>(failedStatus);
             }
 
-            await CommentAsync(request, comment(value));
+            var commentText = comment(value);
+            if (commentText.Length > 0)
+            {
+                await CommentAsync(request, commentText);
+            }
             switch (next(value))
             {
                 case Next.Done:

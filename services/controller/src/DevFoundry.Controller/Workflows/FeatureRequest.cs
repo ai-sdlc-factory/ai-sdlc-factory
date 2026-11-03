@@ -9,6 +9,8 @@ public sealed record FeatureRequest(
     public string WorkflowId => FeatureIds.For(Owner, Repo, IssueNumber, Kind);
 
     public bool IsBug => Kind == FeatureIds.Bug;
+
+    public bool IsIncident => Kind == FeatureIds.Incident;
 }
 
 /// <summary>A human comment on a ticket that has a feature workflow.</summary>
@@ -25,6 +27,7 @@ public static class FeatureIds
 {
     public const string Feature = "feature";
     public const string Bug = "bug";
+    public const string Incident = "incident";
 
     private const int MaxReadable = 80;
 

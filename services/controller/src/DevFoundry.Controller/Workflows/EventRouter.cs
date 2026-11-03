@@ -25,6 +25,7 @@ public static class EventRouter
 {
     public const string FeatureLabel = "feature";
     public const string BugLabel = "bug";
+    public const string IncidentLabel = "incident";
 
     /// <summary>Hidden marker on every comment the factory writes, so it never answers itself.</summary>
     public const string BotMarker = "<!-- dev-foundry:factory -->";
@@ -52,8 +53,10 @@ public static class EventRouter
             return Ignore("pull request");
         }
 
-        // A feature label wins over a bug label: a ticket with both is built as a feature.
-        var kind = HasLabel(issue, FeatureLabel) ? FeatureIds.Feature : HasLabel(issue, BugLabel) ? FeatureIds.Bug : null;
+        // An incident is never built as a feature or a bug; a feature label wins over a bug label.
+        var kind = HasLabel(issue, IncidentLabel) ? FeatureIds.Incident
+            : HasLabel(issue, FeatureLabel) ? FeatureIds.Feature
+            : HasLabel(issue, BugLabel) ? FeatureIds.Bug : null;
         var hasFeatureLabel = kind is not null;
         var action = AsString(Get(payload, "action"));
         var isOpen = AsString(Get(issue, "state")) is null or "open";

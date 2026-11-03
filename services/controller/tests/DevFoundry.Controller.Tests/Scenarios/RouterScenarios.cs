@@ -6,7 +6,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 [Collection("temporal")]
 public sealed class RouterScenarios(TemporalFixture fixture)
 {
-    private static ForgejoEvent Event(string name, string action, string repo, string? comment = null, string state = "open")
+    private static ForgejoEvent Event(string name, string action, string repo, string? comment = null, string state = "open", string label = "feature")
     {
         var payload = new Dictionary<string, object?>
         {
@@ -15,7 +15,7 @@ public sealed class RouterScenarios(TemporalFixture fixture)
             ["issue"] = new
             {
                 number = 1, title = "Add goodbye", body = "Add a goodbye greeting.", state,
-                user = new { login = "alice" }, labels = new[] { new { name = "feature" } }, pull_request = (object?)null,
+                user = new { login = "alice" }, labels = new[] { new { name = label } }, pull_request = (object?)null,
             },
         };
         if (comment is not null)
@@ -58,6 +58,28 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         Assert.Equal(TicketComments.NoRunActive, notice);
         Assert.Contains("close and reopen the ticket", notice);
         Assert.Empty(world.Calls("analyst"));
+    }
+
+    [SkippableFact]
+    public async Task An_incident_ticket_runs_the_incident_workflow_and_a_comment_reaches_it()
+    {
+        var world = new FakeWorld()
+            .Agent("incident-analyst", AgentReply.Says(Answers.IncidentAssessment("needs_clarification")), AgentReply.Says(Answers.IncidentAssessment("reject")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", repo, label: "incident"));
+            await world.WaitForCommentAsync(c => c.Contains("I need more information"));
+            await Route(context, Event("issue_comment", "created", repo, comment: "Production, EU.", label: "incident"));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 1);
+            return 0;
+        });
+
+        Assert.Equal(2, world.Calls("incident-analyst").Count()); // the comment reached the waiting incident run
+        Assert.Contains("Production, EU.", world.Calls("incident-analyst").ElementAt(1).Prompt);
+        Assert.Empty(world.Calls("analyst"));
+        Assert.Empty(world.Snapshot(world.Notices)); // it was delivered, so no "nobody is listening" notice
     }
 
     [SkippableFact]

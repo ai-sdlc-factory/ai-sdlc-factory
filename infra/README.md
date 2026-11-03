@@ -154,8 +154,8 @@ For each repository the factory should serve:
    for the Issues and Issue Comment events.
 3. Add `.factory/project.json` (sandbox image and checks; see the
    [controller guide](../services/controller/README.md#project-configuration)) on the default branch.
-4. Create the labels `feature` and `bug` (and optionally `quick`, `full`, `needs-architecture`). A ticket labeled
-   `feature` starts a feature workflow, one labeled `bug` starts a bug workflow.
+4. Create the labels `feature`, `bug` and `incident` (and optionally `quick`, `full`, `needs-architecture`). A ticket labeled
+   `feature` starts a feature workflow, `bug` a bug workflow, `incident` an advice-only incident workflow.
 
 ## OpenCode login
 

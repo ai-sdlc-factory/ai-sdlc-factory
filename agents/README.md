@@ -13,7 +13,7 @@ agents/
 
 ## Rules
 
-- **One file per role** (`analyst`, `coverage`, `architect`, `developer`, `reviewer`, `security`, `ux` and `qa`; `ux` only runs for projects with a UI, when the UI change is medium or large). Bug tickets add three more: `bug-analyst`, `reproducer` (the only extra role that edits files, and only tests) and `diagnostician`; the bug workflow reuses the `developer` and the reviewers.
+- **One file per role** (`analyst`, `coverage`, `architect`, `developer`, `reviewer`, `security`, `ux` and `qa`; `ux` only runs for projects with a UI, when the UI change is medium or large). Bug tickets add three more: `bug-analyst`, `reproducer` (edits files, only tests) and `diagnostician`; the bug workflow reuses the `developer` and the reviewers. Incident tickets add four: `incident-analyst`, `investigator` (read-only, may use git), `mitigator` and `postmortem-writer` (writes one document).
   The workflow chooses the role; it runs `opencode run --agent <role>`.
 - **Permissions live here, not in prompts.** A role gets only the tools it needs: the analysts, the
   architect, the reviewers and QA can only read (no edit, no shell); the developer may edit files and

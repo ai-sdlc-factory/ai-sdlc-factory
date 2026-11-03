@@ -4,6 +4,8 @@ namespace DevFoundry.Controller;
 
 public sealed record CommentRequest(string Owner, string Repo, int IssueNumber, string Body);
 
+public sealed record CreateIssueRequest(string Owner, string Repo, string Title, string Body, IReadOnlyList<string> Labels);
+
 public sealed record PullRequestRequest(string Owner, string Repo, string Head, string Base, string Title, string Body);
 
 public sealed class ForgejoActivities(ForgejoClient forgejo)
@@ -18,6 +20,12 @@ public sealed class ForgejoActivities(ForgejoClient forgejo)
     public Task<bool> PostNoticeOnceAsync(CommentRequest request) =>
         forgejo.PostNoticeOnceAsync(
             request.Owner, request.Repo, request.IssueNumber, request.Body,
+            ActivityExecutionContext.Current.CancellationToken);
+
+    [Activity("forgejo_create_issue")]
+    public Task<IssueInfo> CreateIssueAsync(CreateIssueRequest request) =>
+        forgejo.CreateIssueAsync(
+            request.Owner, request.Repo, request.Title, request.Body, request.Labels,
             ActivityExecutionContext.Current.CancellationToken);
 
     [Activity("forgejo_create_pull_request")]

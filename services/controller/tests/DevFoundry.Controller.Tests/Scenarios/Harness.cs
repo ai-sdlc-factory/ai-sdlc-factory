@@ -82,6 +82,10 @@ public sealed class FakeWorld
     public List<string> Problems { get; } = [];
     public List<string> Notices { get; } = [];
 
+    /// <summary>Tickets the workflow opened, and an error to throw instead (as when the label is missing).</summary>
+    public List<CreateIssueRequest> CreatedIssues { get; } = [];
+    public Exception? IssueFailure { get; set; }
+
     /// <summary>How many times the reproduction test was fingerprinted, and what the hash is at call number n (1-based).</summary>
     public int Fingerprints { get; private set; }
     public Func<int, string>? FingerprintOf { get; set; }
@@ -189,6 +193,20 @@ public sealed class FakeWorld
         public void PostComment(CommentRequest request)
         {
             lock (world.gate) { world.Comments.Add(request.Body); }
+        }
+
+        [Activity("forgejo_create_issue")]
+        public IssueInfo CreateIssue(CreateIssueRequest request)
+        {
+            if (world.IssueFailure is not null)
+            {
+                throw world.IssueFailure;
+            }
+            lock (world.gate)
+            {
+                world.CreatedIssues.Add(request);
+                return new IssueInfo(90 + world.CreatedIssues.Count, $"http://forgejo/issues/{90 + world.CreatedIssues.Count}");
+            }
         }
 
         [Activity("forgejo_post_notice_once")]
@@ -325,7 +343,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -356,9 +374,22 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     public Task<WorkflowHandle<BugWorkflow, FeatureResult>> StartBugAsync(FeatureRequest request) =>
         Client.StartWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
-    /// <summary>Runs the ticket's workflow (feature or bug, by its kind) to the end and returns its result.</summary>
+    public Task<WorkflowHandle<IncidentWorkflow, FeatureResult>> StartIncidentAsync(FeatureRequest request) =>
+        Client.StartWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+
+    public static async Task<FeatureResult> ResultAsync(WorkflowHandle<IncidentWorkflow, FeatureResult> handle)
+    {
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
+    }
+
+    /// <summary>Runs the ticket's workflow (feature, bug or incident, by its kind) to the end and returns its result.</summary>
     public async Task<FeatureResult> RunToEndAsync(FeatureRequest request)
     {
+        if (request.IsIncident)
+        {
+            return await ResultAsync(await StartIncidentAsync(request));
+        }
         if (request.IsBug)
         {
             return await ResultAsync(await StartBugAsync(request));
@@ -436,6 +467,52 @@ public static class Answers
             fix_outline = "Multiply by times.",
             questions = questions ?? (verdict == "needs_clarification" ? ["Is 0 allowed?"] : []),
         });
+
+    public static string IncidentAssessment(string verdict = "pass", string severity = "high", string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = "Checkout requests fail with 500 errors since the last deploy.",
+            severity,
+            impact = "Customers cannot pay; about 30% of checkouts fail.",
+            timeline = new[] { "10:40 deploy", "10:42 error rate rose" },
+            evidence_gaps = new[] { "Which environment is affected" },
+            questions = questions ?? (verdict == "needs_clarification" ? ["Which environment?"] : []),
+        });
+
+    public static string Investigation(string verdict = "pass", object[]? hypotheses = null, string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = "The retry change in hello.py is the best lead.",
+            hypotheses = verdict == "pass"
+                ? hypotheses ?? [new { cause = "The new retry loop doubles the load.", confidence = "medium", evidence = new[] { "hello.py" }, commits = new[] { "a1b2c3d" } }]
+                : [],
+            questions = questions ?? (verdict == "needs_clarification" ? ["Which service logs the 500s?"] : []),
+        });
+
+    public static string Mitigation(string verdict = "pass", int options = 2, int recommended = 1, string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = "Roll back first, fix later.",
+            options = verdict == "pass"
+                ? Enumerable.Range(1, options).Select(i => new
+                {
+                    kind = i == 1 ? "rollback" : "feature_flag",
+                    title = $"Option {i} title",
+                    steps = new[] { $"Step A of option {i}", $"Step B of option {i}" },
+                    risk = "low",
+                    verify = "Error rate drops below 1%.",
+                    reversible = true,
+                }).ToArray()
+                : [],
+            recommended = verdict == "pass" ? recommended : 0,
+            questions = questions ?? (verdict == "needs_clarification" ? ["Is there a feature flag?"] : []),
+        });
+
+    public static string Postmortem(string verdict = "done") =>
+        JsonSerializer.Serialize(new { verdict, summary = "A bad deploy caused failed checkouts; rolled back after 40 minutes." });
 
     public static string Architect(string verdict = "pass", string[]? questions = null) =>
         JsonSerializer.Serialize(new

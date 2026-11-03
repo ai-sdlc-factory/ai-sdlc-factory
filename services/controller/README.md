@@ -267,6 +267,31 @@ before and passes after). The failing run is posted on the ticket. The `quick` l
 that are specific to bugs: `cannot_reproduce`, `needs_design`, `diagnosis_failed`, `reproduction_failed`.
 A ticket with both `feature` and `bug` is built as a feature.
 
+### Incident tickets
+
+A ticket labelled `incident` starts an **incident run**: advice only. Nothing touches production. The ticket is the only source
+of facts, written by a person or filed by something else (a monitoring collector, once there is a production to watch);
+agents have no logs, metrics or credentials. An `incident` label wins over `feature` and `bug`.
+
+| Step | Who | What the factory checks itself |
+| --- | --- | --- |
+| 1. Assess | `incident-analyst` (read-only) | answer shape; asks on the ticket if the report is unclear; severity low/medium/high/critical, impact, timeline, what is missing |
+| 2. Investigate | `investigator` (read-only, may use `git log/show/blame/diff` on the full history) | every file and commit it cites must exist; what cannot be found is dropped, and a hypothesis left with nothing is shown as a **guess (low confidence)** |
+| 3. Options | `mitigator` (read-only) | 1 to 4 options (rollback, feature flag, config change, scale, restart, hotfix, monitor) with steps, risk, how to verify, reversible; a recommendation |
+| 4. People decide | fixed slash commands, not a model | see below |
+
+Commands (a line that starts with them, in any comment):
+
+- `/option N` posts the checklist for option N (unchecked boxes; a person carries it out);
+- `/hotfix` opens **one** `bug` ticket with the suspected cause, which starts the bug workflow (needs a `bug` label in the repository and the webhook);
+- `/resolved` drafts a **postmortem** as a pull request: `postmortem-writer` writes exactly one new file,
+  `docs/postmortems/<date>-incident-<n>.md`, from the ticket's record only (comments, assessment, hypotheses, options, timeline), marked unknown
+  where the record is silent; the factory rejects anything other than that one file;
+- any other comment is **new information**: the investigator and the mitigator look again (three times at most, then the ticket is told to use a command or close).
+
+Closing the ticket ends the run; no reply for 7 days ends it too. Statuses: `rejected`, `assessment_failed`, `investigation_failed`,
+`mitigation_failed`, `postmortem_opened`, `postmortem_failed`, `closed`, `timed_out`. Anyone who can comment on the ticket can use the commands.
+
 ### Quick mode
 
 For small, low-risk changes the full process is more than needed. A person can choose **quick mode**:
@@ -394,7 +419,7 @@ and the tests follow the same folders.
 
 | Folder | What is in it |
 | --- | --- |
-| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record` parts), `FeatureWorkflow` (the feature stage order), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `FeatureRequest` and the workflow id rules |
+| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), `FeatureWorkflow`, `BugWorkflow` and `IncidentWorkflow` (their own stage orders), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `FeatureRequest` and the workflow id rules |
 | `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
 | `Forgejo/` | the API client, the comment and pull request activities, ticket comment texts |

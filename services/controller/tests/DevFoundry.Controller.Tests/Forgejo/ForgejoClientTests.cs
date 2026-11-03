@@ -120,6 +120,54 @@ public sealed class ForgejoClientTests
     }
 }
 
+public sealed class CreateIssueTests
+{
+    private sealed class Handler(string labelsJson) : HttpMessageHandler
+    {
+        public List<(HttpMethod Method, string Path, string? Body)> Calls { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Calls.Add((request.Method, request.RequestUri!.AbsolutePath, request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken)));
+            return request.Method == HttpMethod.Get
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(labelsJson) }
+                : new HttpResponseMessage(HttpStatusCode.Created) { Content = new StringContent("""{"number":12,"html_url":"http://forgejo/acme/shop/issues/12"}""") };
+        }
+    }
+
+    private static ForgejoClient Client(Handler handler) =>
+        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+
+    [Fact]
+    public async Task A_ticket_is_opened_with_the_ids_of_the_labels_asked_for_by_name()
+    {
+        var handler = new Handler("""[{"id":4,"name":"feature"},{"id":5,"name":"Bug"}]""");
+
+        var issue = await Client(handler).CreateIssueAsync("acme", "shop", "Fix it", "Body text", ["bug"], CancellationToken.None);
+
+        Assert.Equal(new IssueInfo(12, "http://forgejo/acme/shop/issues/12"), issue);
+        var post = Assert.Single(handler.Calls, call => call.Method == HttpMethod.Post);
+        Assert.Equal("/api/v1/repos/acme/shop/issues", post.Path);
+        var body = JsonDocument.Parse(post.Body!).RootElement;
+        Assert.Equal("Fix it", body.GetProperty("title").GetString());
+        Assert.Equal("Body text", body.GetProperty("body").GetString());
+        Assert.Equal([5], body.GetProperty("labels").EnumerateArray().Select(id => id.GetInt32()));
+    }
+
+    [Fact]
+    public async Task A_missing_label_fails_for_good_and_opens_nothing()
+    {
+        var handler = new Handler("""[{"id":4,"name":"feature"}]""");
+
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(
+            () => Client(handler).CreateIssueAsync("acme", "shop", "Fix it", "Body", ["bug"], CancellationToken.None));
+
+        Assert.True(error.NonRetryable);
+        Assert.Contains("has no \"bug\" label", error.Message);
+        Assert.DoesNotContain(handler.Calls, call => call.Method == HttpMethod.Post);
+    }
+}
+
 public sealed class NoticeTextTests
 {
     [Fact]

@@ -48,7 +48,11 @@ public sealed class ForgejoEventWorkflow
                         ParentClosePolicy = ParentClosePolicy.Abandon,
                         IdReusePolicy = decision.Restart ? WorkflowIdReusePolicy.AllowDuplicate : WorkflowIdReusePolicy.RejectDuplicate,
                     };
-                    if (decision.Feature.IsBug)
+                    if (decision.Feature.IsIncident)
+                    {
+                        await Workflow.StartChildWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
+                    }
+                    else if (decision.Feature.IsBug)
                     {
                         await Workflow.StartChildWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
                     }
@@ -64,9 +68,11 @@ public sealed class ForgejoEventWorkflow
                 break;
 
             case RoutingAction.ReplyToFeature:
-                var delivered = decision.Feature!.IsBug
-                    ? await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
-                    : await SignalAsync<FeatureWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
+                var delivered = decision.Feature!.IsIncident
+                    ? await SignalAsync<IncidentWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+                    : decision.Feature.IsBug
+                        ? await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+                        : await SignalAsync<FeatureWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
                 if (!delivered)
                 {
                     // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
@@ -79,7 +85,11 @@ public sealed class ForgejoEventWorkflow
                 break;
 
             case RoutingAction.CloseFeature:
-                if (decision.Feature!.IsBug)
+                if (decision.Feature!.IsIncident)
+                {
+                    await SignalAsync<IncidentWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+                }
+                else if (decision.Feature.IsBug)
                 {
                     await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
                 }

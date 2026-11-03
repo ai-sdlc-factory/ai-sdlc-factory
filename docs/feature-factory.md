@@ -2,7 +2,7 @@
 
 Status: steps 1 to 4 of the build order are done, plus the architect (step 7) and the developer with its
 automated checks, the reviewers and QA, and the pull request (steps 5 and 6): a labelled ticket becomes
-a reviewed pull request. The bug workflow is built too; incidents below are still design.
+a reviewed pull request. The bug workflow and the advice-only incident workflow are built too.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -98,8 +98,11 @@ configuration before relying on this.
   code; a diagnostician finds the root cause; the developer fixes it; the factory checks that the same test now passes
   and was not edited, along with the project's checks; reviewers judge the change. QA and the architect are not used:
   the failing-then-passing test is the proof. See the [controller guide](../services/controller/README.md#bug-tickets).
-- **Incident**: read-only diagnosis; any action beyond that is a proposed runbook step that a
-  human authorizes.
+- **Incident** (built, advice only): an `incident` ticket starts an `IncidentWorkflow`. An incident analyst, an investigator
+  (code and git history; the factory checks every file and commit it cites) and a mitigator produce an assessment, ranked
+  hypotheses and options. The factory never acts on production. People answer with `/option N` (a checklist), `/hotfix` (opens a
+  bug ticket) and `/resolved` (a draft postmortem as a pull request). Detecting incidents in production and filing the ticket
+  is a separate collector that does not exist yet. See the [controller guide](../services/controller/README.md#incident-tickets).
 
 ## Build order
 
@@ -109,9 +112,9 @@ configuration before relying on this.
 4. Coverage check and triage rules (done).
 5. Developer plus deterministic gates (done), then reviewers and QA with the capped loop.
 6. Publish and PR creation (done, currently straight after the gates).
-7. Architect stage (done), bug workflow (done), then incident handling. For incidents, a separate collector that
-   watches production and files tickets (so no agent gets production access) is the intended design, but it waits
-   until there is a production system to watch.
+7. Architect stage (done), bug workflow (done), incident workflow (done, advice only). A separate collector that
+   watches production and files incident tickets (so no agent gets production access) is the intended next step, but it
+   waits until there is a production system to watch.
 
 ## Open points
 

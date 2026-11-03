@@ -12,6 +12,8 @@ namespace DevFoundry.Controller;
 /// </summary>
 public sealed record PullRequestInfo(int Number, string Url);
 
+public sealed record IssueInfo(int Number, string Url);
+
 public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
 {
     public async Task PostIssueCommentAsync(
@@ -43,6 +45,45 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
         throw new ApplicationFailureException(
             $"Forgejo rejected the comment: {(int)response.StatusCode} {response.ReasonPhrase}",
             nonRetryable: !retryable);
+    }
+
+    /// <summary>Opens a ticket with the given labels (by name). A label that does not exist fails the call without retries.</summary>
+    public async Task<IssueInfo> CreateIssueAsync(
+        string owner, string repo, string title, string body, IReadOnlyList<string> labelNames, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var repoPath = $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}";
+
+        using var list = Authorized(HttpMethod.Get, $"{repoPath}/labels?limit=100");
+        using var listed = await http.SendAsync(list, cancellationToken);
+        if (!listed.IsSuccessStatusCode)
+        {
+            throw Failure("label list", listed.StatusCode, listed.ReasonPhrase);
+        }
+        using var labels = await JsonDocument.ParseAsync(await listed.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        var ids = new List<long>();
+        foreach (var name in labelNames)
+        {
+            var match = labels.RootElement.ValueKind == JsonValueKind.Array
+                ? labels.RootElement.EnumerateArray().FirstOrDefault(label =>
+                    label.TryGetProperty("name", out var n) && string.Equals(n.GetString(), name, StringComparison.OrdinalIgnoreCase))
+                : default;
+            if (match.ValueKind != JsonValueKind.Object || !match.TryGetProperty("id", out var id))
+            {
+                throw new ApplicationFailureException($"The repository has no \"{name}\" label, so the ticket could not be opened.", nonRetryable: true);
+            }
+            ids.Add(id.GetInt64());
+        }
+
+        using var create = Authorized(HttpMethod.Post, $"{repoPath}/issues");
+        create.Content = JsonContent.Create(new { title, body, labels = ids });
+        using var response = await http.SendAsync(create, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("ticket", response.StatusCode, response.ReasonPhrase);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return new IssueInfo(document.RootElement.GetProperty("number").GetInt32(), document.RootElement.GetProperty("html_url").GetString() ?? "");
     }
 
     /// <summary>The bodies of a ticket's latest comments, oldest first.</summary>
