@@ -2,6 +2,10 @@
 # Entrypoint of every sandbox: prepares OpenCode's settings and login, then runs the command.
 set -e
 
+# The launcher points HOME and the XDG directories into the container's tmpfs but does not create them. Most tools
+# create what they need; the .NET CLI crashes instead, which made every .NET project check fail.
+mkdir -p "${HOME:-/tmp/home}" "${XDG_CACHE_HOME:-/tmp/cache}" "${XDG_CONFIG_HOME:-/tmp/config}"
+
 # OpenCode writes into its config directory, so give it a writable copy of the shared settings
 # (agents/ and opencode.json from the factory's agents folder, mounted read-only at /etc/factory).
 if [ -d /etc/factory ]; then
