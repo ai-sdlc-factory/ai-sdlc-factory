@@ -211,7 +211,7 @@ interface:
 `medium` and `large` can be left out (the values above are the defaults). Both are about changes in the files
 matching `paths` only; a UX review runs from medium upwards.
 
-`image` must be an alias the sandbox launcher allows (`dotnet`, `python`). A gate is an argument list
+`image` must be an alias the sandbox launcher allows (`dotnet`, `python`, `node`). A gate is an argument list
 (no shell; use `["sh", "-c", "..."]` if you need one), 1 to 8 gates, timeout 10 to 1800 seconds (default
 600). The file is untrusted input: it can only choose among the images the factory offers, and the
 commands run in the sandbox the agent already works in. Without it the run stops with an example.

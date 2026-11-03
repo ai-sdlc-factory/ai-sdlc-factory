@@ -92,8 +92,10 @@ docker compose --profile images build sandbox-image-dotnet
 ```
 
 [`sandboxes/dotnet/`](../../sandboxes/dotnet/Dockerfile) holds the .NET image (SDK, git, ripgrep and the
-pinned OpenCode binary) and [`sandboxes/python/`](../../sandboxes/python/Dockerfile) the Python 3.12 one
-(plus pytest and ruff). Both use the shared entrypoint in `sandboxes/common/`. Add another language by
+pinned OpenCode binary) [`sandboxes/python/`](../../sandboxes/python/Dockerfile) the Python 3.12 one
+(plus pytest and ruff), and [`sandboxes/node/`](../../sandboxes/node/Dockerfile) the Node.js 22 LTS one (npm,
+and corepack for pnpm/yarn; projects install their own dependencies through the egress proxy, and
+`node --test` needs nothing extra). Both use the shared entrypoint in `sandboxes/common/`. Add another language by
 adding `sandboxes/<name>/Dockerfile` and one entry to `SANDBOX_IMAGES`.
 
 ## Behavior

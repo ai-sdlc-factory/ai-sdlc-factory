@@ -116,10 +116,10 @@ Sandboxes that call the model share the OpenCode login stored in the `opencode-d
 The one-shot `opencode-data-init` service gives that volume to `FACTORY_UID`; it starts by itself
 before the login and demo services and needs no action from you.
 
-Build the sandbox images once (`dotnet` and `python`), then start the launcher:
+Build the sandbox images once (`dotnet`, `python` and `node`), then start the launcher:
 
 ```bash
-docker compose --profile images build sandbox-image-dotnet sandbox-image-python
+docker compose --profile images build sandbox-image-dotnet sandbox-image-python sandbox-image-node
 docker compose up -d --build sandbox-launcher controller
 ```
 

@@ -328,7 +328,7 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
-      SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local;python=dev-foundry/sandbox-python:local
+      SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local;python=dev-foundry/sandbox-python:local;node=dev-foundry/sandbox-node:local
       # enforce / audit: through the egress proxy. open: no restrictions, an ordinary internet-connected network.
       SANDBOX_EGRESS_MODE: ${SANDBOX_EGRESS:-enforce}
       SANDBOX_OPEN_NETWORK: ${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-open
@@ -358,6 +358,15 @@ services:
     build:
       context: ../sandboxes
       dockerfile: dotnet/Dockerfile
+    profiles: ["images"]
+    entrypoint: ["true"]
+    restart: "no"
+
+  sandbox-image-node:
+    image: dev-foundry/sandbox-node:local
+    build:
+      context: ../sandboxes
+      dockerfile: node/Dockerfile
     profiles: ["images"]
     entrypoint: ["true"]
     restart: "no"
