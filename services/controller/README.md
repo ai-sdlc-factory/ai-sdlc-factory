@@ -374,7 +374,7 @@ and the tests follow the same folders.
 
 | Folder | What is in it |
 | --- | --- |
-| `Workflows/` | `FeatureWorkflow` (split into `.Stages`, `.Agent`, `.Build`, `.Record` parts), `ForgejoEventWorkflow`, `EventRouter`, `FeatureRequest` and the workflow id rules |
+| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record` parts), `FeatureWorkflow` (the feature stage order), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `FeatureRequest` and the workflow id rules |
 | `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
 | `Forgejo/` | the API client, the comment and pull request activities, ticket comment texts |

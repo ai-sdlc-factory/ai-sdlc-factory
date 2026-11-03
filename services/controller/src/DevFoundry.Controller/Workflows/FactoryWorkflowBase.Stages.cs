@@ -4,15 +4,15 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed partial class FeatureWorkflow
+public abstract partial class FactoryWorkflowBase
 {
-    private sealed record StageResult<T>(FeatureResult? Stop, T? Verdict) where T : class;
+    protected sealed record StageResult<T>(FeatureResult? Stop, T? Verdict) where T : class;
 
     /// <summary>
     /// Analyst stage. pass → continue; reject → stop; needs_clarification → ask on the ticket, wait for
     /// a human, and run again with their answers (a bounded number of rounds).
     /// </summary>
-    private Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace, string image) =>
+    protected Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace, string image) =>
         ConverseAsync(
             request, workspace, image, "analyst", MaxClarificationRounds,
             (round, answers, problem) => AnalystPrompt.Build(request, answers, problem, round, MaxClarificationRounds),
@@ -30,7 +30,7 @@ public sealed partial class FeatureWorkflow
     /// Architect stage, only when triage asked for it. Same shape as the analyst: pass → continue,
     /// reject → stop, needs_decision → ask on the ticket and run again with the answers.
     /// </summary>
-    private Task<StageResult<ArchitectDesign>> DesignAsync(
+    protected Task<StageResult<ArchitectDesign>> DesignAsync(
         FeatureRequest request, WorkspaceInfo workspace, string image, CoverageReport coverage, TriageDecision triage) =>
         ConverseAsync(
             request, workspace, image, "architect", MaxDesignRounds,
@@ -46,14 +46,14 @@ public sealed partial class FeatureWorkflow
             },
             failedStatus: "design_failed", rejectedStatus: "design_rejected", failureText: "The design failed");
 
-    private enum Next { Done, Stop, Ask }
+    protected enum Next { Done, Stop, Ask }
 
     /// <summary>
     /// One agent role that may need to talk to a person: run it, post its answer, and either continue,
     /// stop, or ask and wait for a reply on the ticket and run it again. The agent supplies the verdict
     /// value; <paramref name="next"/> (code) maps it to what happens. Rounds are bounded.
     /// </summary>
-    private async Task<StageResult<T>> ConverseAsync<T>(
+    protected async Task<StageResult<T>> ConverseAsync<T>(
         FeatureRequest request, WorkspaceInfo workspace, string image, string role, int maxRounds,
         Func<int, IReadOnlyList<string>, string?, string> prompt,
         Func<string, (T? Value, string? Error)> parse,
@@ -121,7 +121,7 @@ public sealed partial class FeatureWorkflow
     /// Coverage stage. Fully covered → stop (nothing to build); otherwise continue. Whatever the agent
     /// claims is checked against the workspace first, and a failed check can only weaken a claim.
     /// </summary>
-    private async Task<StageResult<CoverageReport>> CheckCoverageAsync(
+    protected async Task<StageResult<CoverageReport>> CheckCoverageAsync(
         FeatureRequest request, WorkspaceInfo workspace, string image, AnalystVerdict analysis)
     {
         var outcome = await RunAgentAsync<CoverageReport>(
@@ -154,7 +154,7 @@ public sealed partial class FeatureWorkflow
     }
 
     /// <summary>Which of the cited files exist. If the check cannot run, nothing counts as verified.</summary>
-    private static async Task<HashSet<string>> FindExistingFilesAsync(WorkspaceInfo workspace, string image, IReadOnlyList<string> paths)
+    protected static async Task<HashSet<string>> FindExistingFilesAsync(WorkspaceInfo workspace, string image, IReadOnlyList<string> paths)
     {
         if (paths.Count == 0)
         {
@@ -180,14 +180,14 @@ public sealed partial class FeatureWorkflow
         }
     }
 
-    private static (AnalystVerdict? Value, string? Error) ParseAnalyst(string text) =>
+    protected static (AnalystVerdict? Value, string? Error) ParseAnalyst(string text) =>
         VerdictParser.TryParseAnalyst(text, out var verdict, out var error) ? (verdict, null) : (null, error);
 
-    private static (CoverageReport? Value, string? Error) ParseCoverage(string text, IReadOnlyList<string> criteria) =>
+    protected static (CoverageReport? Value, string? Error) ParseCoverage(string text, IReadOnlyList<string> criteria) =>
         CoverageParser.TryParse(text, criteria, out var report, out var error) ? (report, null) : (null, error);
 
-    private static (ArchitectDesign? Value, string? Error) ParseDesign(string text) =>
+    protected static (ArchitectDesign? Value, string? Error) ParseDesign(string text) =>
         ArchitectParser.TryParse(text, out var design, out var error) ? (design, null) : (null, error);
 
-    private static StageResult<T> Stop<T>(string status) where T : class => new(new FeatureResult(status), null);
+    protected static StageResult<T> Stop<T>(string status) where T : class => new(new FeatureResult(status), null);
 }

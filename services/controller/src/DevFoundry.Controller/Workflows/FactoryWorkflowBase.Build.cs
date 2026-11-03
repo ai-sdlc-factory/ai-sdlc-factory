@@ -4,12 +4,12 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed partial class FeatureWorkflow
+public abstract partial class FactoryWorkflowBase
 {
-    private const int MaxBuildRounds = 3;
-    private const int DeveloperTimeoutSeconds = 1800;
+    protected const int MaxBuildRounds = 3;
+    protected const int DeveloperTimeoutSeconds = 1800;
 
-    private static (DeveloperReport? Value, string? Error) ParseDeveloper(string text) =>
+    protected static (DeveloperReport? Value, string? Error) ParseDeveloper(string text) =>
         DeveloperParser.TryParse(text, out var report, out var error) ? (report, null) : (null, error);
 
     /// <summary>
@@ -18,7 +18,7 @@ public sealed partial class FeatureWorkflow
     /// factory (not the agent) commits, pushes and opens the pull request. Anything else goes back to the
     /// developer as feedback, up to a fixed number of rounds.
     /// </summary>
-    private async Task<FeatureResult> BuildAsync(
+    protected async Task<FeatureResult> BuildAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project,
         IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null)
     {
@@ -160,17 +160,17 @@ public sealed partial class FeatureWorkflow
         return new FeatureResult("pr_opened", triage.NeedsArchitect, pullRequest.Url);
     }
 
-    private static string? Combine(string? feedback, string? unusableAnswer) =>
+    protected static string? Combine(string? feedback, string? unusableAnswer) =>
         unusableAnswer is null ? feedback
         : (feedback is null ? "" : feedback + "\n\n") + $"Your previous reply could not be used: {unusableAnswer}. Reply again with exactly one JSON object in the required shape.";
 
-    private static Task<ChangeReport> DetectChangesAsync(WorkspaceInfo workspace) =>
+    protected static Task<ChangeReport> DetectChangesAsync(WorkspaceInfo workspace) =>
         Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DetectChangesAsync(workspace.Name),
             new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
 
     /// <summary>Runs one project check in the sandbox without model access. A check that cannot run counts as failed.</summary>
-    private async Task<GateResult> RunGateAsync(string image, WorkspaceInfo workspace, Gate gate)
+    protected async Task<GateResult> RunGateAsync(string image, WorkspaceInfo workspace, Gate gate)
     {
         var started = Workflow.UtcNow;
         var commandText = string.Join(' ', gate.Command);
@@ -200,13 +200,13 @@ public sealed partial class FeatureWorkflow
         }
     }
 
-    private sealed record ReviewOutcome(
+    protected sealed record ReviewOutcome(
         FeatureResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa, string? UxNote = null);
 
-    private static (ReviewReport? Value, string? Error) ParseReview(string text) =>
+    protected static (ReviewReport? Value, string? Error) ParseReview(string text) =>
         ReviewParser.TryParse(text, out var report, out var error) ? (report, null) : (null, error);
 
-    private static (QaReport? Value, string? Error) ParseQa(string text, IReadOnlyList<string> criteria) =>
+    protected static (QaReport? Value, string? Error) ParseQa(string text, IReadOnlyList<string> criteria) =>
         QaParser.TryParse(text, criteria, out var report, out var error) ? (report, null) : (null, error);
 
     /// <summary>
@@ -214,7 +214,7 @@ public sealed partial class FeatureWorkflow
     /// without a shell (the diff is given to them), and blocking findings or unmet criteria go back to the
     /// developer. A review that cannot be completed stops the run: nothing is published unreviewed.
     /// </summary>
-    private async Task<ReviewOutcome> ReviewAsync(
+    protected async Task<ReviewOutcome> ReviewAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false)
     {
@@ -296,7 +296,7 @@ public sealed partial class FeatureWorkflow
     }
 
     /// <summary>Runs one reviewing role and posts its review. A review that cannot be completed stops the run.</summary>
-    private async Task<(ReviewReport? Review, ReviewOutcome? Stop)> RunReviewAsync(
+    protected async Task<(ReviewReport? Review, ReviewOutcome? Stop)> RunReviewAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, string role, Func<string?, string> prompt)
     {
         var outcome = await RunAgentAsync<ReviewReport>(role, project.Image, workspace, prompt, ParseReview);
@@ -318,5 +318,5 @@ public sealed partial class FeatureWorkflow
         return (review, null);
     }
 
-    private static ReviewOutcome Stopped(string status) => new(new FeatureResult(status), null, [], null);
+    protected static ReviewOutcome Stopped(string status) => new(new FeatureResult(status), null, [], null);
 }

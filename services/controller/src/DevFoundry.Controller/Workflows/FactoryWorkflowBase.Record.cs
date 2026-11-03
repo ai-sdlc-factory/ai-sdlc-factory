@@ -4,22 +4,22 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed partial class FeatureWorkflow
+public abstract partial class FactoryWorkflowBase
 {
     // Set when the project asks for a record (.factory/project.json "record": true): where in the repository the
     // prompts, answers and check output of this run are committed, and the number of the next recorded step.
-    private string? recordDirectory;
-    private int recordSequence;
+    protected string? recordDirectory;
+    protected int recordSequence;
 
     /// <summary>Where and how the record of this run is committed, or null when the project did not ask for one.</summary>
-    private RunRecordSpec? RecordSpec(FeatureRequest request, string outcome) =>
+    protected RunRecordSpec? RecordSpec(FeatureRequest request, string outcome) =>
         recordDirectory is null ? null : new RunRecordSpec(recordDirectory, $"{request.Owner}/{request.Repo}#{request.IssueNumber}: {request.Title}", outcome);
 
     /// <summary>
     /// Keeps one step (what an agent was told and answered, or what a check printed) for the committed record.
     /// A failure to record never changes how the run goes.
     /// </summary>
-    private async Task RecordAsync(
+    protected async Task RecordAsync(
         WorkspaceInfo workspace, string kind, string slug, string title, int attempt, DateTime started, string outcome,
         long exitCode, bool timedOut, string input, string output, string? problem, TokenUsage? usage = null)
     {

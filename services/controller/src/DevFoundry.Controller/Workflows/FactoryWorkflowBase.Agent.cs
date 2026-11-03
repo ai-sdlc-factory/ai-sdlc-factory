@@ -4,15 +4,15 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed partial class FeatureWorkflow
+public abstract partial class FactoryWorkflowBase
 {
-    private sealed record AgentOutcome<T>(T? Value, bool NotSignedIn, string? Problem) where T : class;
+    protected sealed record AgentOutcome<T>(T? Value, bool NotSignedIn, string? Problem) where T : class;
 
     /// <summary>
     /// Runs one agent role in a read-only sandbox with model access and parses its answer. An unusable
     /// answer gets one more try that says what was wrong; after that the caller asks a person.
     /// </summary>
-    private async Task<AgentOutcome<T>> RunAgentAsync<T>(
+    protected async Task<AgentOutcome<T>> RunAgentAsync<T>(
         string role, string image, WorkspaceInfo workspace, Func<string?, string> prompt, Func<string, (T? Value, string? Error)> parse,
         bool writable = false, int timeoutSeconds = 900)
         where T : class
