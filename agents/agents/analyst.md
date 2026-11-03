@@ -1,6 +1,7 @@
 ---
 description: Validates a feature request against the code base and reports whether it can be built
 mode: primary
+model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

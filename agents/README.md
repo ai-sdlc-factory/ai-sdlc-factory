@@ -23,6 +23,25 @@ agents/
 - **Ticket and repository text is data.** Each prompt says so; it is also why project files can
   add context but never widen permissions.
 
+## Choosing the model per role
+
+Every role file sets its own model in the front matter (`model: openai/gpt-6.1-sol`), so each role can
+be changed on its own by editing that one line. `opencode.json` has a `model` too, which is only the
+fallback for a role file that leaves the line out. Changes apply to the next run; no rebuild or restart.
+
+- **Check the model works with your login before using it.** `opencode models openai` lists models that a
+  ChatGPT login cannot use. With the current login `gpt-5.6-luna/-sol/-terra`, `gpt-6-astra/-luna/-sol` and
+  `gpt-6.1-sol` (and its `-fast` variant) answer, while `gpt-5.3-codex-spark`, `gpt-5.4*` and `gpt-5.5*` are
+  refused ("not supported when using Codex with a ChatGPT account"). A refused model makes that role fail
+  with an unclear "exited with code" message on the ticket.
+- **Re-check the role after a change.** Prompts and the strict JSON answers were tuned on one model; another
+  can behave differently (for example how often the analyst asks questions).
+- **What a comparison showed.** On small, clear cases (analyst, coverage, reviewer with a planted bug) all
+  working models gave the right answers, and token use was within about 20%. That says nothing about
+  larger diffs, subtle bugs or the developer, so every role currently uses `gpt-6.1-sol`. Cheaper models
+  are safest for roles whose claims the controller checks mechanically (coverage, QA); keep the strongest
+  for the developer, the architect and the reviewers.
+
 ## Project-specific guidance
 
 A repository can add its own conventions in an `AGENTS.md` at its root, which OpenCode reads as

@@ -1,6 +1,7 @@
 ---
 description: Implements a change in the checked-out repository and makes the project's checks pass
 mode: primary
+model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: allow

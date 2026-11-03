@@ -1,6 +1,7 @@
 ---
 description: Reviews a code change for security problems
 mode: primary
+model: openai/gpt-6.1-sol
 permission:
   edit: deny
   bash: deny
