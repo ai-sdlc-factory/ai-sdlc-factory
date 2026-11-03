@@ -12,11 +12,14 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// input: it can only pick among options the factory already offers (an image alias the launcher
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
-public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates);
+public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers);
 
 public static partial class ProjectConfigParser
 {
     public const int MaxGates = 8;
+
+    /// <summary>Review roles a project may switch on. The quality reviewer is the default.</summary>
+    public static readonly string[] KnownReviewers = ["reviewer", "security"];
     public const int DefaultTimeoutSeconds = 600;
     private const int MaxArguments = 32;
     private const int MaxArgumentLength = 500;
@@ -98,7 +101,27 @@ public static partial class ProjectConfigParser
                 }
                 gates.Add(new Gate(name, command, timeout));
             }
-            config = new ProjectConfig(image, gates);
+            var reviewers = new List<string> { "reviewer" };
+            if (root.TryGetProperty("reviewers", out var reviewersValue))
+            {
+                reviewers.Clear();
+                if (reviewersValue.ValueKind != JsonValueKind.Array || reviewersValue.GetArrayLength() is 0 or > 4)
+                {
+                    error = $"\"reviewers\" must be an array of review roles: {string.Join(", ", KnownReviewers)}";
+                    return false;
+                }
+                foreach (var entry in reviewersValue.EnumerateArray())
+                {
+                    var role = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
+                    if (role is null || !KnownReviewers.Contains(role) || reviewers.Contains(role))
+                    {
+                        error = $"\"reviewers\" may list each of these once: {string.Join(", ", KnownReviewers)}";
+                        return false;
+                    }
+                    reviewers.Add(role);
+                }
+            }
+            config = new ProjectConfig(image, gates, reviewers);
             return true;
         }
     }

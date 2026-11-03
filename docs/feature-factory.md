@@ -1,8 +1,8 @@
 # Feature factory design
 
 Status: steps 1 to 4 of the build order are done, plus the architect (step 7) and the developer with its
-automated checks and the pull request (steps 5 and 6, without reviewers and QA yet): a labelled ticket
-now becomes a pull request. Reviewers, QA, the bug workflow and incidents below are still design.
+automated checks, the reviewers and QA, and the pull request (steps 5 and 6): a labelled ticket becomes
+a reviewed pull request. The bug workflow and incidents below are still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -134,6 +134,8 @@ configuration before relying on this.
 
 ## Known risks of the build stage
 
+- **Only the developer has a shell.** The reviewers and QA are read-only and are given the diff by the
+  controller, so the agents that judge the work cannot run commands.
 - **The developer can run commands and reach the network.** Its sandbox has outbound internet (package
   restore and the model provider need it) and the OpenCode login is readable inside it, so an agent
   that is tricked by text in the ticket or repository could try to send the login or the code out. The
@@ -147,3 +149,7 @@ configuration before relying on this.
 - **Findings from running it:** the first run produced a good pull request in one round; the pull request
   body initially quoted the maximum round count instead of the passing round (fixed). A request to change
   `.factory/` was refused by the developer itself and reported as blocked.
+- A first live run with both reviewers and QA took about a minute from ticket to pull request and passed in
+  one round. Everything that sends work back (blocking findings, unmet or unverifiable QA criteria, the
+  three-round cap, unusable reviews) is covered by scenario tests with scripted agents; breaking the
+  feedback to the developer or QA\'s evidence check on purpose makes exactly the matching tests fail.

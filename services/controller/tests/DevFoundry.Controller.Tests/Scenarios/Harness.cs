@@ -86,6 +86,9 @@ public sealed class FakeWorld
     /// <summary>Files that exist in the workspace, for the evidence check. Null means every cited file exists.</summary>
     public HashSet<string>? ExistingFiles { get; set; }
 
+    /// <summary>The diff the reviewers are given.</summary>
+    public string Diff { get; set; } = "diff --git a/hello.py b/hello.py\n--- a/hello.py\n+++ b/hello.py\n+def goodbye():\n+    return 'Goodbye, world!'\n";
+
     public Func<WorkspaceRequest, WorkspaceInfo>? Prepare { get; set; }
     public Func<PublishRequest, PublishResult?>? Publish { get; set; }
 
@@ -185,6 +188,9 @@ public sealed class FakeWorld
                 return world.changes.Count > 0 ? world.changes.Dequeue() : OneFile();
             }
         }
+
+        [Activity("workspace_diff")]
+        public string DiffOf(string name) => world.Diff;
 
         [Activity("workspace_publish")]
         public PublishResult? Publish(PublishRequest request)
@@ -315,6 +321,30 @@ public static class Answers
             risks = Array.Empty<string>(),
             guidance = new[] { "Keep hello unchanged." },
             questions = questions ?? (verdict == "needs_decision" ? ["JSON file or SQLite?"] : []),
+        });
+
+    /// <summary>A review answer; the verdict follows from the findings, as a real reviewer's must.</summary>
+    public static string Review(params (string Severity, string Message)[] findings) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict = findings.Any(f => f.Severity is "blocker" or "major") ? "needs_changes" : "pass",
+            summary = findings.Length == 0 ? "Looks right." : "Some things to look at.",
+            findings = findings.Select(f => new { severity = f.Severity, path = "hello.py", message = f.Message }).ToArray(),
+        });
+
+    /// <summary>A QA answer with one entry per status; met criteria cite test_hello.py.</summary>
+    public static string Qa(params string[] statuses) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict = statuses.All(s => s == "met") ? "pass" : "needs_changes",
+            summary = statuses.All(s => s == "met") ? "Every criterion holds." : "Something is missing.",
+            criteria = statuses.Select((status, i) => new
+            {
+                index = i + 1,
+                status,
+                evidence = status == "met" ? new[] { "test_hello.py" } : Array.Empty<string>(),
+                note = status == "met" ? "" : "no test checks this",
+            }).ToArray(),
         });
 
     public static string Developer(string verdict = "done", string[]? notes = null) =>

@@ -259,7 +259,7 @@ public sealed partial class FeatureWorkflow
             return Stop<CoverageReport>("coverage_failed");
         }
 
-        var report = EvidenceCheck.Apply(claimed, await FindExistingEvidenceAsync(workspace, image, claimed));
+        var report = EvidenceCheck.Apply(claimed, await FindExistingFilesAsync(workspace, image, EvidenceCheck.PathsToCheck(claimed)));
         await CommentAsync(request, TicketComments.Coverage(report));
         if (report.Verdict == CoverageVerdicts.FullyCovered)
         {
@@ -270,9 +270,8 @@ public sealed partial class FeatureWorkflow
     }
 
     /// <summary>Which of the cited files exist. If the check cannot run, nothing counts as verified.</summary>
-    private static async Task<HashSet<string>> FindExistingEvidenceAsync(WorkspaceInfo workspace, string image, CoverageReport claimed)
+    private static async Task<HashSet<string>> FindExistingFilesAsync(WorkspaceInfo workspace, string image, IReadOnlyList<string> paths)
     {
-        var paths = EvidenceCheck.PathsToCheck(claimed);
         if (paths.Count == 0)
         {
             return [];

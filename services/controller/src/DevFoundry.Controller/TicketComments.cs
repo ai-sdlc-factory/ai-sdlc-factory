@@ -140,6 +140,41 @@ public static class TicketComments
         return text.ToString().TrimEnd();
     }
 
+    public static string Review(string role, ReviewReport report)
+    {
+        var text = new StringBuilder();
+        text.AppendLine(report.Verdict == ReviewReport.Pass ? $"**Review ({role}): no blocking findings**" : $"**Review ({role}): changes needed**");
+        text.AppendLine();
+        text.AppendLine(Inert(report.Summary));
+        foreach (var finding in report.Findings)
+        {
+            text.AppendLine($"- **{finding.Severity}**{(finding.Path is null ? "" : $" `{finding.Path}`")}: {Inert(finding.Message)}");
+        }
+        return text.ToString().TrimEnd();
+    }
+
+    public static string Qa(QaReport report)
+    {
+        var text = new StringBuilder();
+        text.AppendLine(report.Verdict == ReviewReport.Pass ? "**QA: every criterion is met**" : $"**QA: {report.NotMet.Count()} criterion not met**");
+        text.AppendLine();
+        text.AppendLine(Inert(report.Summary));
+        foreach (var criterion in report.Criteria)
+        {
+            text.Append($"- **{criterion.Status.Replace('_', ' ')}**: {Inert(criterion.Criterion)}");
+            if (criterion.Evidence.Count > 0)
+            {
+                text.Append(" (" + string.Join(", ", criterion.Evidence.Select(path => $"`{path}`")) + ")");
+            }
+            if (criterion.Note.Length > 0)
+            {
+                text.Append($" - {Inert(criterion.Note)}");
+            }
+            text.AppendLine();
+        }
+        return text.ToString().TrimEnd();
+    }
+
     public static string TriageDecision(TriageDecision decision) =>
         decision.NeedsArchitect
             ? "**Triage: design review needed before building**\n\nReasons: " + string.Join("; ", decision.Reasons) + "."

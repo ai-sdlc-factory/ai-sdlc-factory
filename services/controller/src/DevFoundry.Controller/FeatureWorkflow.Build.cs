@@ -25,6 +25,8 @@ public sealed partial class FeatureWorkflow
         string? feedback = null;
         DeveloperReport? report = null;
         IReadOnlyList<GateResult> passed = [];
+        IReadOnlyList<(string Role, ReviewReport Report)> reviews = [];
+        QaReport? qa = null;
         var passedRound = 0;
 
         for (var round = 1; round <= MaxBuildRounds && report is null; round++)
@@ -89,16 +91,29 @@ public sealed partial class FeatureWorkflow
                 continue;
             }
 
+            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers and QA.");
+            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results);
+            if (review.Stop is { } reviewStop)
+            {
+                return reviewStop;
+            }
+            if (review.Feedback is not null)
+            {
+                feedback = review.Feedback;
+                continue;
+            }
+
             report = developer;
             passed = results;
             passedRound = round;
-            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Opening a pull request.");
+            reviews = review.Reports;
+            qa = review.Qa;
         }
 
         if (report is null)
         {
             await CommentAsync(request,
-                $"I could not get the work to pass the checks in {MaxBuildRounds} rounds, so nothing was published. " +
+                $"I could not get the work through the checks and the review in {MaxBuildRounds} rounds, so nothing was published. " +
                 $"Last problem: {TicketComments.Inert(Short(feedback ?? "unknown"))} A person needs to take over.");
             return new FeatureResult("build_failed", triage.NeedsArchitect);
         }
@@ -120,7 +135,7 @@ public sealed partial class FeatureWorkflow
             pullRequest = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, title,
-                    PullRequestText.Body(request, report, remaining, design, passed, passedRound))),
+                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa))),
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
         }
         catch (ActivityFailureException error)
@@ -165,4 +180,81 @@ public sealed partial class FeatureWorkflow
             return new GateResult(gate.Name, false, -1, false, $"the check could not run: {error.InnerException?.Message ?? error.Message}");
         }
     }
+
+    private sealed record ReviewOutcome(
+        FeatureResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa);
+
+    private static (ReviewReport? Value, string? Error) ParseReview(string text) =>
+        ReviewParser.TryParse(text, out var report, out var error) ? (report, null) : (null, error);
+
+    private static (QaReport? Value, string? Error) ParseQa(string text, IReadOnlyList<string> criteria) =>
+        QaParser.TryParse(text, criteria, out var report, out var error) ? (report, null) : (null, error);
+
+    /// <summary>
+    /// Review stage, after the automated checks pass. The project's reviewers and then QA look at the change
+    /// without a shell (the diff is given to them), and blocking findings or unmet criteria go back to the
+    /// developer. A review that cannot be completed stops the run: nothing is published unreviewed.
+    /// </summary>
+    private async Task<ReviewOutcome> ReviewAsync(
+        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
+        ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates)
+    {
+        var diff = await Workflow.ExecuteActivityAsync(
+            (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
+            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+        var gateSummary = BuildFeedback.Summary(gates);
+        var reports = new List<(string Role, ReviewReport Report)>();
+
+        foreach (var role in project.Reviewers)
+        {
+            var outcome = await RunAgentAsync<ReviewReport>(
+                role, project.Image, workspace,
+                problem => ReviewPrompt.Build(request, remaining, design, changes, diff, gateSummary, problem),
+                ParseReview);
+            if (ticketClosed)
+            {
+                return Stopped("closed");
+            }
+            if (outcome.NotSignedIn)
+            {
+                await CommentAsync(request, NotSignedInMessage);
+                return Stopped("blocked");
+            }
+            if (outcome.Value is not { } review)
+            {
+                await CommentAsync(request, $"The {role} review failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))} Nothing was published.");
+                return Stopped("review_failed");
+            }
+            await CommentAsync(request, TicketComments.Review(role, review));
+            reports.Add((role, review));
+        }
+
+        var criteria = remaining.Select(criterion => criterion.Criterion).ToList();
+        var qaOutcome = await RunAgentAsync<QaReport>(
+            "qa", project.Image, workspace,
+            problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem),
+            text => ParseQa(text, criteria));
+        if (ticketClosed)
+        {
+            return Stopped("closed");
+        }
+        if (qaOutcome.NotSignedIn)
+        {
+            await CommentAsync(request, NotSignedInMessage);
+            return Stopped("blocked");
+        }
+        if (qaOutcome.Value is not { } claimed)
+        {
+            await CommentAsync(request, $"The QA check failed and needs a person to look at it: {TicketComments.Inert(Short(qaOutcome.Problem ?? "unknown problem"))} Nothing was published.");
+            return Stopped("review_failed");
+        }
+
+        // QA may only call a criterion met if the files it cites exist.
+        var qa = QaParser.Verify(claimed, await FindExistingFilesAsync(workspace, project.Image, QaParser.PathsToCheck(claimed)));
+        await CommentAsync(request, TicketComments.Qa(qa));
+
+        return new ReviewOutcome(null, ReviewFeedback.From(reports, qa), reports, qa);
+    }
+
+    private static ReviewOutcome Stopped(string status) => new(new FeatureResult(status), null, [], null);
 }

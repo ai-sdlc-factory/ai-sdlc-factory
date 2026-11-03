@@ -17,7 +17,9 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     {
         var world = new FakeWorld()
             .Agent("analyst", Say(Answers.Analyst(api: design)))
-            .Agent("coverage", Say(Answers.Coverage("missing", "missing")));
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
         if (design)
         {
             world.Agent("architect", Say(Answers.Architect()));
@@ -64,7 +66,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         var calls = world.AgentCalls.ToDictionary(call => call.Role);
-        foreach (var role in new[] { "analyst", "coverage", "architect" })
+        foreach (var role in new[] { "analyst", "coverage", "architect", "reviewer", "qa" })
         {
             Assert.False(calls[role].Writable, $"{role} must be read-only");
             Assert.True(calls[role].ModelAuth);
@@ -153,7 +155,9 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         var world = new FakeWorld()
             .Agent("analyst", Say(Answers.Analyst("needs_clarification")), Say(Answers.Analyst()))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
-            .Agent("developer", Say(Answers.Developer()));
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, async context =>
         {
@@ -274,10 +278,13 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task A_covered_claim_without_a_real_file_is_downgraded_and_the_work_goes_on()
     {
-        var world = new FakeWorld { ExistingFiles = [] }
+        // hello.py (cited by the coverage agent) does not exist; test_hello.py (cited later by QA) does.
+        var world = new FakeWorld { ExistingFiles = ["test_hello.py"] }
             .Agent("analyst", Say(Answers.Analyst()))
             .Agent("coverage", Say(Answers.Coverage("covered", "covered")))
-            .Agent("developer", Say(Answers.Developer()));
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -310,7 +317,9 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
             .Agent("analyst", Say(Answers.Analyst(api: true)))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("architect", Say(Answers.Architect("needs_decision")), Say(Answers.Architect()))
-            .Agent("developer", Say(Answers.Developer()));
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, async context =>
         {

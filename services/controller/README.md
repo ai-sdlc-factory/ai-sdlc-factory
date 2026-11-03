@@ -126,9 +126,30 @@ After the design (or straight after triage for a small change) the build runs, u
    scan. `.gitignore` decides what counts as noise. Violations go back to the developer as feedback.
 3. The project's own checks (gates) run one by one in the sandbox **without** model access.
    Failures go back to the developer with the end of their output.
-4. When everything passes, the factory publishes. `PublishAsync` repeats the checks, applies only the
+4. The reviewers and QA look at the change (see below). Blocking findings or unmet criteria go back to
+   the developer like a failed check and use up one of the three rounds.
+5. When everything passes, the factory publishes. `PublishAsync` repeats the checks, applies only the
    verified files onto the pristine clone, commits, pushes `factory/issue-<n>`, and `ForgejoClient`
    opens the pull request (`Closes #<n>`). A person reviews and merges; the factory never merges.
+
+### Review and QA
+
+After the automated checks pass, the project\'s reviewers and then QA examine the change:
+
+- **Reviewers** (`reviewer`, and `security` if the project lists it) answer with findings, each a
+  `blocker`, `major`, `minor` or `nit`. Any blocker or major finding means `needs_changes`; `ReviewParser`
+  derives the verdict from the findings and refuses an answer where the two disagree. Minor findings and
+  nits do not block; they are listed in the pull request.
+- **QA** judges every remaining acceptance criterion as `met` or `not_met`. A `met` criterion must cite
+  files, and the controller checks they exist; one that does not counts as `not_met`.
+- The reviewing agents have **no shell and a read-only workspace**. The controller produces the diff
+  (`GitWorkspace.DiffAsync`, with git running only in the trusted directory) and puts it in the prompt, so
+  the agents that judge the work cannot run commands while the OpenCode login is readable.
+- A review or QA answer that stays unusable after the retry stops the run (`review_failed`): nothing is
+  published unreviewed.
+
+Which reviewers run is a per-project choice in `.factory/project.json`: `"reviewers": ["reviewer", "security"]`
+(default `["reviewer"]`; QA always runs).
 
 Three rounds that fail leave the ticket with a comment and nothing published. A developer that answers
 `blocked` (for example because the ticket needs a protected file changed) stops the run with its reasons.
@@ -152,6 +173,8 @@ A repository describes itself in `.factory/project.json` on its default branch, 
   ]
 }
 ```
+
+Optional: `"reviewers": ["reviewer", "security"]` to add the security reviewer.
 
 `image` must be an alias the sandbox launcher allows (`dotnet`, `python`). A gate is an argument list
 (no shell; use `["sh", "-c", "..."]` if you need one), 1 to 8 gates, timeout 10 to 1800 seconds (default

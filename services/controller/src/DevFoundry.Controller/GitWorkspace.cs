@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
 
@@ -178,6 +179,53 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
             violations.Add($"the changes add up to {total / 1024 / 1024} MiB, more than the {MaxTotalBytes / 1024 / 1024} MiB limit");
         }
         return new ChangeReport(files, violations);
+    }
+
+    /// <summary>
+    /// A unified diff of the agent's changes for the reviewers, produced by the controller so the reviewing
+    /// agents need no shell. Tracked files come from git (trusted directory, agent tree read as plain files);
+    /// new files are shown whole. Capped, because it goes into a prompt.
+    /// </summary>
+    public async Task<string> DiffAsync(string name, CancellationToken cancellationToken)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        var work = WorkPath(root, name);
+        var basePath = BasePath(root, name);
+        var report = await DetectChangesAsync(name, cancellationToken);
+        var text = new StringBuilder();
+
+        var tracked = report.Files.Where(file => file.Kind != FileChange.Added).Select(file => file.Path).ToList();
+        if (tracked.Count > 0)
+        {
+            string[] arguments =
+            [
+                $"--git-dir={basePath}/.git", $"--work-tree={work}", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null",
+                "diff", "--no-color", "--no-ext-diff", "--no-textconv", "-U3", "--", .. tracked,
+            ];
+            text.Append(await GitAsync(arguments, basePath, useToken: false, cancellationToken));
+        }
+        foreach (var added in report.Files.Where(file => file.Kind == FileChange.Added))
+        {
+            var info = new FileInfo($"{work}/{added.Path}");
+            if (!info.Exists || info.LinkTarget is not null || info.Length > 64 * 1024)
+            {
+                text.AppendLine($"diff --git a/{added.Path} b/{added.Path}\nnew file (not shown: large or not a regular file)");
+                continue;
+            }
+            var bytes = File.ReadAllBytes(info.FullName);
+            if (Array.IndexOf(bytes, (byte)0, 0, Math.Min(bytes.Length, 8192)) >= 0)
+            {
+                text.AppendLine($"diff --git a/{added.Path} b/{added.Path}\nnew file (binary, not shown)");
+                continue;
+            }
+            text.AppendLine($"diff --git a/{added.Path} b/{added.Path}\nnew file\n--- /dev/null\n+++ b/{added.Path}");
+            foreach (var line in Encoding.UTF8.GetString(bytes).TrimEnd('\n').Split('\n'))
+            {
+                text.AppendLine("+" + line);
+            }
+        }
+        return text.Length > 200_000 ? text.ToString(0, 200_000) : text.ToString();
     }
 
     /// <summary>

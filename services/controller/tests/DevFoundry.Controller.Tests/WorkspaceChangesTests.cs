@@ -244,6 +244,74 @@ public sealed class WorkspaceChangesTests : IDisposable
         Assert.False(File.Exists(marker));
     }
 
+    // ---- the diff for reviewers --------------------------------------------------------------------------
+
+    [Fact]
+    public async Task The_diff_shows_modified_deleted_and_new_files()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        File.AppendAllText($"{info.Path}/app.py", "print('more')\n");
+        File.Delete($"{info.Path}/old.py");
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\ny = 2\n");
+
+        var diff = await workspace.DiffAsync(info.Name, CancellationToken.None);
+
+        Assert.Contains("diff --git a/app.py b/app.py", diff);
+        Assert.Contains("+print('more')", diff);
+        Assert.Contains("-# to be deleted", diff);
+        Assert.Contains("diff --git a/new.py b/new.py", diff);
+        Assert.Contains("+x = 1", diff);
+        Assert.Contains("+y = 2", diff);
+    }
+
+    [Fact]
+    public async Task Binary_and_large_new_files_are_named_but_not_shown()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        File.WriteAllBytes($"{info.Path}/logo.png", [0x89, 0x50, 0x00, 0x01, 0x02]);
+        File.WriteAllText($"{info.Path}/big.txt", new string('x', 70 * 1024));
+
+        var diff = await workspace.DiffAsync(info.Name, CancellationToken.None);
+
+        Assert.Contains("logo.png", diff);
+        Assert.Contains("binary, not shown", diff);
+        Assert.Contains("big.txt", diff);
+        Assert.Contains("large or not a regular file", diff);
+        Assert.DoesNotContain(new string('x', 100), diff);
+    }
+
+    [Fact]
+    public async Task Protected_files_never_appear_in_the_diff()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        File.WriteAllText($"{info.Path}/.factory/project.json", "{\"image\":\"evil\"}");
+        File.WriteAllText($"{info.Path}/new.py", "x = 1\n");
+
+        var diff = await workspace.DiffAsync(info.Name, CancellationToken.None);
+
+        Assert.DoesNotContain("evil", diff);
+        Assert.Contains("new.py", diff);
+    }
+
+    [Fact]
+    public async Task Producing_the_diff_never_runs_anything_planted_in_the_workspace()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        var marker = Path.Combine(temp, "pwned-by-diff");
+        File.AppendAllText($"{info.Path}/.git/config", $"[core]\n\tfsmonitor = touch {marker}\n[diff]\n\texternal = touch {marker}\n[diff \"x\"]\n\ttextconv = touch {marker}\n");
+        File.WriteAllText($"{info.Path}/.gitattributes", "*.py diff=x\n");
+        File.AppendAllText($"{info.Path}/app.py", "print('more')\n");
+
+        var diff = await workspace.DiffAsync(info.Name, CancellationToken.None);
+
+        Assert.Contains("+print('more')", diff);
+        Assert.False(File.Exists(marker));
+    }
+
     // ---- publishing --------------------------------------------------------------------------------------
 
     [Fact]

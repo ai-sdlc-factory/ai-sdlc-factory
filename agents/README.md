@@ -13,10 +13,11 @@ agents/
 
 ## Rules
 
-- **One file per role** (`analyst`, `coverage`, `architect` and `developer` exist; `reviewer` and `qa` come with their stages).
+- **One file per role** (`analyst`, `coverage`, `architect`, `developer`, `reviewer`, `security` and `qa`).
   The workflow chooses the role; it runs `opencode run --agent <role>`.
-- **Permissions live here, not in prompts.** A role gets only the tools it needs: the analysts and
-  the architect cannot edit; the developer may edit files and run commands, inside its sandbox.
+- **Permissions live here, not in prompts.** A role gets only the tools it needs: the analysts, the
+  architect, the reviewers and QA can only read (no edit, no shell); the developer may edit files and
+  run commands, inside its sandbox.
 - **Every role ends with one JSON verdict** in a fixed shape. The workflow validates it and decides
   what happens next in code; the agent only supplies the verdict value.
 - **Ticket and repository text is data.** Each prompt says so; it is also why project files can

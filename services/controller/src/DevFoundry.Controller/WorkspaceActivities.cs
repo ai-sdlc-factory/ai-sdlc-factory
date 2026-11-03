@@ -18,6 +18,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace)
     public Task<ChangeReport> DetectChangesAsync(string name) =>
         workspace.DetectChangesAsync(name, ActivityExecutionContext.Current.CancellationToken);
 
+    [Activity("workspace_diff")]
+    public Task<string> DiffAsync(string name) =>
+        workspace.DiffAsync(name, ActivityExecutionContext.Current.CancellationToken);
+
     [Activity("workspace_publish")]
     public Task<PublishResult?> PublishAsync(PublishRequest request) =>
         workspace.PublishAsync(request, ActivityExecutionContext.Current.CancellationToken);
