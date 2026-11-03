@@ -36,6 +36,21 @@ if (!EgressPolicy.TryParseListenMap(Environment.GetEnvironmentVariable("EGRESS_L
     Console.Error.WriteLine($"EGRESS_LISTEN_MAP cannot be used: {mapError}");
     return 2;
 }
+// EGRESS_MODE: enforce (default) uses the allowlist; audit allows every HTTPS host and logs it. "open" is a
+// launcher setting that bypasses this proxy altogether, so here it changes nothing.
+var mode = (Environment.GetEnvironmentVariable("EGRESS_MODE") ?? "enforce").Trim().ToLowerInvariant();
+switch (mode)
+{
+    case "" or "enforce" or "open":
+        break;
+    case "audit":
+        config = config.WithAuditMode();
+        break;
+    default:
+        Console.Error.WriteLine($"EGRESS_MODE \"{mode}\" is not one of enforce, audit, open.");
+        return 2;
+}
+
 foreach (var profile in listenMap.Values.Distinct())
 {
     if (!config.Profiles.ContainsKey(profile))
@@ -49,6 +64,10 @@ foreach (var profile in config.Profiles.Values)
 {
     Console.WriteLine($"profile {profile.Name}: {profile.Hosts.Count} hosts, ports {string.Join(",", config.Ports)}"
         + (profile.Audit ? " -- AUDIT MODE: every host is allowed and only logged" : ""));
+}
+if (mode == "audit")
+{
+    Console.WriteLine("WARNING: EGRESS_MODE=audit. The allowlist is NOT being enforced; every HTTPS host is reachable.");
 }
 foreach (var unused in config.Profiles.Keys.Except(listenMap.Values))
 {

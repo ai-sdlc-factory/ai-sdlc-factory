@@ -6,6 +6,25 @@ tunnels HTTPS to the hosts listed here and refuses everything else. The file is 
 only a person editing it can add a host. A repository's `.factory/project.json` cannot, because that
 would let repository content widen what an agent can reach.
 
+## Modes and your own rules
+
+One setting in `infra/.env` decides how strict it is; after changing it run
+`docker compose up -d --force-recreate egress-proxy sandbox-launcher`.
+
+| `SANDBOX_EGRESS` | What happens |
+| --- | --- |
+| `enforce` (default) | Only the hosts of the run's profile are reachable, through the proxy. |
+| `audit` | Everything still goes through the proxy over HTTPS and is **allowed**, and each connection that the allowlist would have refused is logged as `audit`. Use it to find out what a new tool needs. HTTPS ports, IP addresses and private addresses stay refused. |
+| `open` | **No restrictions.** Sandboxes that ask for a network get an ordinary internet-connected network, with no proxy, no allowlist and no log; direct connections, plain HTTP, SSH and any port work. The launcher prints a warning at start. A run that asks for no network (`none`) still gets none, and nothing else about the sandbox changes: it is still non-root, read-only and without capabilities. |
+
+Anything else (a typo such as `off`) stops the proxy or the launcher from starting, instead of guessing.
+
+Your own rules: write a file in the format below and set `EGRESS_PROFILES` in `.env` to its path (relative
+to `infra/` or absolute) instead of editing `egress/profiles.json`. Add hosts, add ports, or define more
+profiles. A file the proxy cannot parse stops it from starting with the reason, so no sandbox gets any
+network until it is fixed. Switching back from `open` leaves an unused `<project>_sandbox-open` network
+behind; remove it with `docker network rm dev-foundry_sandbox-open` if you like.
+
 ## Profiles
 
 A run asks the sandbox launcher for one profile (`network` in the request); no profile means no network

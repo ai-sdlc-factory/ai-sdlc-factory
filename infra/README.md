@@ -56,7 +56,9 @@ access for the browser login). The disposable agent containers run on three **in
 the only thing on them besides the sandboxes is the egress proxy, which lets each profile reach just the
 hosts listed in [`egress/profiles.json`](../egress/README.md). The sandboxes cannot reach PostgreSQL,
 Forgejo, Temporal or the controller API. Their networks use `10.250.x.0/24`; set `SANDBOX_NET_BASE` in
-`.env` if that clashes with a network you use. See what a sandbox tried to reach with
+`.env` if that clashes with a network you use. `SANDBOX_EGRESS` (`enforce`, `audit`, `open`) and
+`EGRESS_PROFILES` (your own allowlist file) change how strict this is; see the
+[egress guide](../egress/README.md#modes-and-your-own-rules). See what a sandbox tried to reach with
 `docker compose logs egress-proxy`.
 
 Host ports can be changed in `.env`. All published ports bind to localhost.

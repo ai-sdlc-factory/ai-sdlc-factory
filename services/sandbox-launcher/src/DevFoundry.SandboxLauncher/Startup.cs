@@ -9,8 +9,28 @@ public sealed class SandboxJanitor(IDockerClient docker, SandboxSettings setting
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await docker.PingAsync(cancellationToken);
-        // The networks are created by Compose for the egress proxy. Without them a sandbox would either fail to
-        // start or, worse, be given a network nobody intended, so refuse to run.
+        if (settings.Egress == EgressMode.Open)
+        {
+            logger.LogWarning(
+                "EGRESS RESTRICTIONS ARE OFF (SANDBOX_EGRESS_MODE=open): sandboxes that ask for a network get unrestricted internet access, with no allowlist and no log.");
+            await docker.EnsureNetworkAsync(settings.OpenNetwork, cancellationToken);
+        }
+        else
+        {
+            await CheckEgressNetworksAsync(cancellationToken);
+        }
+
+        foreach (var id in await docker.ListSandboxIdsAsync(cancellationToken))
+        {
+            logger.LogWarning("Removing leftover sandbox container {ContainerId}", id[..Math.Min(12, id.Length)]);
+            await docker.RemoveAsync(id, cancellationToken);
+        }
+    }
+
+    // The networks are created by Compose for the egress proxy. Without them a sandbox would either fail to
+    // start or, worse, be given a network nobody intended, so refuse to run.
+    private async Task CheckEgressNetworksAsync(CancellationToken cancellationToken)
+    {
         foreach (var (profile, network) in settings.Networks)
         {
             if (!await docker.NetworkExistsAsync(network, cancellationToken))
@@ -18,11 +38,6 @@ public sealed class SandboxJanitor(IDockerClient docker, SandboxSettings setting
                 throw new InvalidOperationException(
                     $"The network \"{network}\" for egress profile \"{profile}\" does not exist. Start the egress proxy first (docker compose up -d egress-proxy); it creates the networks.");
             }
-        }
-        foreach (var id in await docker.ListSandboxIdsAsync(cancellationToken))
-        {
-            logger.LogWarning("Removing leftover sandbox container {ContainerId}", id[..Math.Min(12, id.Length)]);
-            await docker.RemoveAsync(id, cancellationToken);
         }
     }
 

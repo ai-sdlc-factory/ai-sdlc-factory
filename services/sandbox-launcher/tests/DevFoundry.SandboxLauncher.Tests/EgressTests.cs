@@ -161,7 +161,9 @@ public sealed class StartupCheckTests
     {
         public List<string> Removed { get; } = [];
         public Task PingAsync(CancellationToken ct) => Task.CompletedTask;
+        public List<string> Created { get; } = [];
         public Task<bool> NetworkExistsAsync(string name, CancellationToken ct) => Task.FromResult(networks.Contains(name));
+        public Task EnsureNetworkAsync(string name, CancellationToken ct) { Created.Add(name); return Task.CompletedTask; }
         public Task<bool> VolumeExistsAsync(string name, CancellationToken ct) => Task.FromResult(true);
         public Task<string> CreateAsync(CreateContainerBody body, CancellationToken ct) => throw new NotSupportedException();
         public Task StartAsync(string id, CancellationToken ct) => throw new NotSupportedException();
@@ -172,8 +174,29 @@ public sealed class StartupCheckTests
         public Task<IReadOnlyList<string>> ListSandboxIdsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<string>>(["leftover-container-id"]);
     }
 
-    private static SandboxJanitor Janitor(Docker docker) =>
-        new(docker, Support.Settings(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SandboxJanitor>.Instance);
+    private static SandboxJanitor Janitor(Docker docker, EgressMode mode = EgressMode.Enforce) =>
+        new(docker, Support.Settings(egress: mode), Microsoft.Extensions.Logging.Abstractions.NullLogger<SandboxJanitor>.Instance);
+
+    [Fact]
+    public async Task In_open_mode_the_launcher_creates_the_open_network_and_does_not_need_the_egress_networks()
+    {
+        var docker = new Docker([]);
+
+        await Janitor(docker, EgressMode.Open).StartAsync(CancellationToken.None);
+
+        Assert.Equal(["dev-foundry_sandbox-open"], docker.Created);
+        Assert.Equal(["leftover-container-id"], docker.Removed);
+    }
+
+    [Fact]
+    public async Task In_enforce_mode_it_never_creates_an_open_network()
+    {
+        var docker = new Docker(["dev-foundry_sandbox-model", "dev-foundry_sandbox-packages", "dev-foundry_sandbox-developer"]);
+
+        await Janitor(docker).StartAsync(CancellationToken.None);
+
+        Assert.Empty(docker.Created);
+    }
 
     [Fact]
     public async Task The_launcher_refuses_to_start_when_an_egress_network_is_missing()
@@ -195,4 +218,69 @@ public sealed class StartupCheckTests
 
         Assert.Equal(["leftover-container-id"], docker.Removed);
     }
+}
+
+public sealed class OpenModeTests
+{
+    private static JsonElement Spec(SandboxRunRequest request, EgressMode mode)
+    {
+        var settings = Support.Settings(egress: mode);
+        return JsonDocument.Parse(JsonSerializer.Serialize(ContainerSpec.Build(Support.Valid(request, settings), settings))).RootElement;
+    }
+
+    private static string[] Env(JsonElement spec) => spec.GetProperty("Env").EnumerateArray().Select(e => e.GetString()!).ToArray();
+
+    private static string NetworkMode(JsonElement spec) => spec.GetProperty("HostConfig").GetProperty("NetworkMode").GetString()!;
+
+    [Theory]
+    [InlineData("model")]
+    [InlineData("packages")]
+    [InlineData("developer")]
+    public void In_open_mode_every_profile_gets_the_ordinary_network_and_no_proxy(string profile)
+    {
+        var spec = Spec(Support.Request(network: profile), EgressMode.Open);
+
+        Assert.Equal("dev-foundry_sandbox-open", NetworkMode(spec));
+        Assert.DoesNotContain(Env(spec), e => e.Contains("PROXY", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(Env(spec), e => e.StartsWith("NPM_CONFIG_REGISTRY"));
+    }
+
+    [Fact]
+    public void A_run_that_asks_for_no_network_still_gets_none_in_open_mode()
+    {
+        var spec = Spec(Support.Request(), EgressMode.Open);
+
+        Assert.Equal("none", NetworkMode(spec));
+    }
+
+    [Fact]
+    public void Open_mode_does_not_loosen_anything_else()
+    {
+        var host = Spec(Support.Request(network: "developer"), EgressMode.Open).GetProperty("HostConfig");
+
+        Assert.True(host.GetProperty("ReadonlyRootfs").GetBoolean());
+        Assert.False(host.GetProperty("Privileged").GetBoolean());
+        Assert.Equal(["ALL"], host.GetProperty("CapDrop").EnumerateArray().Select(e => e.GetString()));
+        Assert.Single(host.GetProperty("Mounts").EnumerateArray());
+        Assert.Contains("OPENCODE_DISABLE_AUTOUPDATE=1", Env(Spec(Support.Request(network: "developer"), EgressMode.Open)));
+    }
+
+    [Theory]
+    [InlineData(null, EgressMode.Enforce)]
+    [InlineData("", EgressMode.Enforce)]
+    [InlineData("enforce", EgressMode.Enforce)]
+    [InlineData("ENFORCE", EgressMode.Enforce)]
+    [InlineData("audit", EgressMode.Enforce)]
+    [InlineData("open", EgressMode.Open)]
+    [InlineData(" Open ", EgressMode.Open)]
+    public void The_mode_setting_is_read_case_insensitively(string? value, EgressMode expected) =>
+        Assert.Equal(expected, SandboxSettings.ParseEgress(value));
+
+    [Theory]
+    [InlineData("off")]
+    [InlineData("disabled")]
+    [InlineData("opn")]
+    [InlineData("true")]
+    public void A_mistyped_mode_stops_the_launcher_instead_of_guessing(string value) =>
+        Assert.Throws<InvalidOperationException>(() => SandboxSettings.ParseEgress(value));
 }

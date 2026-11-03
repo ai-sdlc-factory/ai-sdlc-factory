@@ -18,6 +18,7 @@ public interface IDockerClient
 {
     Task PingAsync(CancellationToken cancellationToken);
     Task<bool> NetworkExistsAsync(string name, CancellationToken cancellationToken);
+    Task EnsureNetworkAsync(string name, CancellationToken cancellationToken);
     Task<bool> VolumeExistsAsync(string name, CancellationToken cancellationToken);
     Task<string> CreateAsync(CreateContainerBody body, CancellationToken cancellationToken);
     Task StartAsync(string id, CancellationToken cancellationToken);
@@ -94,6 +95,24 @@ public sealed class DockerClient : IDockerClient
         catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
         {
             return false;
+        }
+    }
+
+    public async Task EnsureNetworkAsync(string name, CancellationToken cancellationToken)
+    {
+        if (await NetworkExistsAsync(name, cancellationToken))
+        {
+            return;
+        }
+        // An ordinary bridge with outbound internet: used only when egress restrictions are switched off.
+        var body = new { Name = name, Driver = "bridge", Labels = new Dictionary<string, string> { ["dev-foundry.egress"] = "open" } };
+        try
+        {
+            using var created = await SendAsync(HttpMethod.Post, "networks/create", JsonContent.Create(body, options: Json), cancellationToken);
+        }
+        catch (DockerException error) when (error.Status == HttpStatusCode.Conflict)
+        {
+            // Created concurrently.
         }
     }
 

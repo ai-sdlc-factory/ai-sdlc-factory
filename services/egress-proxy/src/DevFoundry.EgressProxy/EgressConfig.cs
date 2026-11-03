@@ -7,7 +7,15 @@ namespace DevFoundry.EgressProxy;
 /// <summary>A named list of hosts a sandbox may reach. Audit profiles allow everything and log what they would have denied.</summary>
 public sealed record EgressProfile(string Name, IReadOnlyList<string> Hosts, bool Audit);
 
-public sealed record EgressConfig(IReadOnlySet<int> Ports, IReadOnlyDictionary<string, EgressProfile> Profiles);
+public sealed record EgressConfig(IReadOnlySet<int> Ports, IReadOnlyDictionary<string, EgressProfile> Profiles)
+{
+    /// <summary>
+    /// The same ports and profiles with every profile in audit mode: any host is allowed and logged. The other
+    /// rules (HTTPS ports, no IP addresses, no private addresses) stay in force.
+    /// </summary>
+    public EgressConfig WithAuditMode() =>
+        this with { Profiles = Profiles.ToDictionary(pair => pair.Key, pair => pair.Value with { Audit = true }) };
+}
 
 /// <summary>
 /// Reads the factory\'s trusted allowlist file (egress/profiles.json). Nothing a repository or an agent

@@ -54,6 +54,19 @@ public sealed class EgressConfigTests
         Assert.Contains("is not a host name", Problem("{\"ports\":[443],\"profiles\":{\"a\":{\"hosts\":[\"" + host + "\"]}}}"));
 
     [Fact]
+    public void Audit_mode_for_the_whole_file_turns_every_profile_to_audit_and_keeps_the_hosts()
+    {
+        var enforced = Parse("""{"ports":[443],"profiles":{"a":{"hosts":["a.example.com"]},"b":{"hosts":["b.example.com"]}}}""");
+
+        var audited = enforced.WithAuditMode();
+
+        Assert.All(audited.Profiles.Values, profile => Assert.True(profile.Audit));
+        Assert.Equal(enforced.Profiles["a"].Hosts, audited.Profiles["a"].Hosts);
+        Assert.Equal(enforced.Ports, audited.Ports);
+        Assert.All(enforced.Profiles.Values, profile => Assert.False(profile.Audit)); // the original is untouched
+    }
+
+    [Fact]
     public void Includes_must_exist_and_cannot_nest_or_loop()
     {
         Assert.Contains("includes", Problem("""{"ports":[443],"profiles":{"a":{"include":["missing"]}}}"""));
@@ -183,6 +196,18 @@ public sealed class EgressPolicyTests
         var decision = Model("chatgpt.com").Decide("model", host, 443);
         Assert.False(decision.Allowed);
         Assert.Contains("IP address", decision.Reason);
+    }
+
+    [Fact]
+    public void Whole_file_audit_mode_still_refuses_what_audit_never_lifts()
+    {
+        var audited = new EgressPolicy(
+            new EgressConfig(new HashSet<int> { 443 }, new Dictionary<string, EgressProfile> { ["model"] = new("model", ["chatgpt.com"], false) }).WithAuditMode(),
+            new Dictionary<IPAddress, string>());
+
+        Assert.True(audited.Decide("model", "anything.example.org", 443).Audit);
+        Assert.False(audited.Decide("model", "anything.example.org", 25).Allowed);
+        Assert.False(audited.Decide("model", "8.8.8.8", 443).Allowed);
     }
 
     [Fact]

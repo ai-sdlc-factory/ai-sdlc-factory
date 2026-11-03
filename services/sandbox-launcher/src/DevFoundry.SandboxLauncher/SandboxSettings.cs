@@ -1,5 +1,15 @@
 namespace DevFoundry.SandboxLauncher;
 
+/// <summary>
+/// How sandboxes reach the internet. Enforce: only through the egress proxy, to the hosts of the run's profile
+/// (the proxy may additionally run in audit mode). Open: no restrictions; sandboxes get a normal network.
+/// </summary>
+public enum EgressMode
+{
+    Enforce,
+    Open,
+}
+
 public sealed class SandboxSettings
 {
     public string TemporalAddress { get; init; } = "localhost:7233";
@@ -17,6 +27,11 @@ public sealed class SandboxSettings
     /// route out; the only way off it is the profile's egress proxy. A run that asks for no profile gets no network.
     /// </summary>
     public required IReadOnlyDictionary<string, string> Networks { get; init; }
+
+    public EgressMode Egress { get; init; } = EgressMode.Enforce;
+
+    /// <summary>The ordinary internet-connected network used when <see cref="Egress"/> is open. The launcher creates it.</summary>
+    public string OpenNetwork { get; init; } = "dev-foundry_sandbox-open";
 
     /// <summary>Egress profile name to the address of that profile's proxy on its network, such as http://10.250.1.2:3128.</summary>
     public required IReadOnlyDictionary<string, string> Proxies { get; init; }
@@ -60,6 +75,8 @@ public sealed class SandboxSettings
             Images = ParseImages(configuration["SANDBOX_IMAGES"]),
             Networks = ParsePairs(configuration["SANDBOX_NETWORKS"], "SANDBOX_NETWORKS"),
             Proxies = ParsePairs(configuration["SANDBOX_PROXIES"], "SANDBOX_PROXIES"),
+            Egress = ParseEgress(configuration["SANDBOX_EGRESS_MODE"]),
+            OpenNetwork = NonEmpty(configuration, "SANDBOX_OPEN_NETWORK", "dev-foundry_sandbox-open"),
             UserId = configuration.GetValue("SANDBOX_UID", 1000),
             GroupId = configuration.GetValue("SANDBOX_GID", 1000),
             MemoryBytes = configuration.GetValue("SANDBOX_MEMORY_BYTES", 2L * 1024 * 1024 * 1024),
@@ -114,6 +131,18 @@ public sealed class SandboxSettings
 
     /// <summary>Parses <c>alias=image;alias=image</c>.</summary>
     public static Dictionary<string, string> ParseImages(string? value) => ParsePairs(value, "SANDBOX_IMAGES");
+
+    /// <summary>
+    /// "enforce" and "audit" both mean the proxy decides (audit is the proxy's own switch); "open" lifts the
+    /// restrictions. Anything else fails loudly: a typo must not silently change what is allowed.
+    /// </summary>
+    public static EgressMode ParseEgress(string? value) =>
+        (value ?? "").Trim().ToLowerInvariant() switch
+        {
+            "" or "enforce" or "audit" => EgressMode.Enforce,
+            "open" => EgressMode.Open,
+            _ => throw new InvalidOperationException($"SANDBOX_EGRESS_MODE \"{value}\" is not one of enforce, audit, open."),
+        };
 
     /// <summary>Parses <c>name=value;name=value</c>.</summary>
     public static Dictionary<string, string> ParsePairs(string? value, string setting)

@@ -28,7 +28,10 @@ public static class ContainerSpec
         // OpenCode otherwise fetches its model list, checks for updates and downloads language servers at run
         // time; none of that is needed, and each would need another host on the allowlist.
         env.AddRange(["OPENCODE_DISABLE_MODELS_FETCH=1", "OPENCODE_DISABLE_AUTOUPDATE=1", "OPENCODE_DISABLE_LSP_DOWNLOAD=1"]);
-        if (run.Network != SandboxNetworks.None)
+        // In open mode a run that wants a network gets an ordinary one, with no proxy; a run that asked for none
+        // still gets none.
+        var open = settings.Egress == EgressMode.Open && run.Network != SandboxNetworks.None;
+        if (run.Network != SandboxNetworks.None && !open)
         {
             // The sandbox's network has no route out. Tools that honour these variables reach the allowlisted hosts
             // through the profile's egress proxy; anything that ignores them simply cannot connect.
@@ -69,7 +72,7 @@ public static class ContainerSpec
                 Memory = settings.MemoryBytes,
                 MemorySwap = settings.MemoryBytes,
                 NanoCpus = (long)(settings.Cpus * 1_000_000_000),
-                NetworkMode = run.Network == SandboxNetworks.None ? "none" : settings.Networks[run.Network],
+                NetworkMode = run.Network == SandboxNetworks.None ? "none" : open ? settings.OpenNetwork : settings.Networks[run.Network],
                 Tmpfs = new Dictionary<string, string> { ["/tmp"] = "rw,size=1g,mode=1777" },
             },
         };

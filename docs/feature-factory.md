@@ -144,7 +144,8 @@ configuration before relying on this.
   no external DNS, and an egress proxy tunnels HTTPS only to the hosts of the run's profile (the developer:
   the model provider and package registries; the read-only agents: the model provider only; every
   decision is logged). That stops sending anything to an arbitrary server and reaching your own network.
-  It cannot stop data going to a host that is allowed: the model provider receives whatever is in a
+  The restriction can be relaxed on purpose (`SANDBOX_EGRESS=audit` allows and logs everything over HTTPS,
+  `open` removes it), or replaced by your own rules file. It cannot stop data going to a host that is allowed: the model provider receives whatever is in a
   prompt, and the proxy sees host names, not content.
 - **Gate commands come from the repository.** They run inside the sandbox, like the agent, so they get no
   more reach than the agent has, but a repository owner decides what runs.

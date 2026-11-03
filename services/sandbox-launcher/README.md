@@ -47,6 +47,12 @@ proxy variables are fixed by the launcher; a request cannot set them (only `OPEN
 variables are accepted), and the launcher's `OPENCODE_DISABLE_*` settings (no model-list fetch, no
 update check, no language-server downloads) are always last, so a request cannot undo them.
 
+`SANDBOX_EGRESS_MODE` (`enforce`, `audit` or `open`, from `SANDBOX_EGRESS` in `.env`) switches the
+restrictions: in `open` mode every profile maps to one ordinary internet-connected network
+(`SANDBOX_OPEN_NETWORK`, created by the launcher) with no proxy, and the launcher logs a warning at start;
+`none` stays none. `audit` is the proxy's own switch, so the launcher treats it like `enforce`. See the
+[egress guide](../../egress/README.md#modes-and-your-own-rules).
+
 `SANDBOX_NETWORKS` and `SANDBOX_PROXIES` map each profile to its network and proxy address; both are set
 in `infra/compose.yaml`. The factory picks the profile by role: read-only agents get `model`, the
 developer `developer`, the project's checks `packages`.

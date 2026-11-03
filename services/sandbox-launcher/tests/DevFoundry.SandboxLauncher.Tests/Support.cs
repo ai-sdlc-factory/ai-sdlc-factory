@@ -3,7 +3,8 @@ namespace DevFoundry.SandboxLauncher.Tests;
 internal static class Support
 {
     public static SandboxSettings Settings(
-        string? globalConfig = null, string? authVolume = "dev-foundry_opencode-data", bool authReadOnly = false) => new()
+        string? globalConfig = null, string? authVolume = "dev-foundry_opencode-data", bool authReadOnly = false,
+        EgressMode egress = EgressMode.Enforce) => new()
     {
         WorkspaceRoot = "/work",
         Images = new Dictionary<string, string> { ["dotnet"] = "dev-foundry/sandbox-dotnet:local" },
@@ -22,6 +23,7 @@ internal static class Support
         GlobalConfigPath = globalConfig,
         AuthVolume = authVolume,
         AuthReadOnly = authReadOnly,
+        Egress = egress,
     };
 
     public static SandboxRunRequest Request(

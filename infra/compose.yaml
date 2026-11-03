@@ -286,9 +286,12 @@ services:
     restart: unless-stopped
     environment:
       EGRESS_PROFILES_FILE: /etc/egress/profiles.json
+      # enforce (default), audit (allow every HTTPS host and log it) or open (this proxy is bypassed; see SANDBOX_EGRESS)
+      EGRESS_MODE: ${SANDBOX_EGRESS:-enforce}
       EGRESS_LISTEN_MAP: model=${SANDBOX_NET_BASE:-10.250}.1.2,packages=${SANDBOX_NET_BASE:-10.250}.2.2,developer=${SANDBOX_NET_BASE:-10.250}.3.2
     volumes:
-      - ../egress/profiles.json:/etc/egress/profiles.json:ro
+      # Your own rules: set EGRESS_PROFILES in .env to a file in the same format (see egress/README.md).
+      - ${EGRESS_PROFILES:-../egress/profiles.json}:/etc/egress/profiles.json:ro
     networks:
       egress:
       sandbox-model:
@@ -326,6 +329,9 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
       SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local;python=dev-foundry/sandbox-python:local
+      # enforce / audit: through the egress proxy. open: no restrictions, an ordinary internet-connected network.
+      SANDBOX_EGRESS_MODE: ${SANDBOX_EGRESS:-enforce}
+      SANDBOX_OPEN_NETWORK: ${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-open
       SANDBOX_NETWORKS: model=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-model;packages=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-packages;developer=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-developer
       SANDBOX_PROXIES: model=http://${SANDBOX_NET_BASE:-10.250}.1.2:3128;packages=http://${SANDBOX_NET_BASE:-10.250}.2.2:3128;developer=http://${SANDBOX_NET_BASE:-10.250}.3.2:3128
       SANDBOX_UID: ${FACTORY_UID:-1000}
