@@ -10,7 +10,8 @@ builder.Services
     .AddScopedActivities<ForgejoActivities>()
     .AddScopedActivities<WorkspaceActivities>()
     .AddWorkflow<ForgejoEventWorkflow>()
-    .AddWorkflow<FeatureWorkflow>();
+    .AddWorkflow<FeatureWorkflow>()
+    .AddWorkflow<BugWorkflow>();
 builder.Services.AddSingleton(settings);
 builder.Services.AddSingleton(new GitWorkspace(settings));
 builder.Services.AddSingleton(new ForgejoClient(

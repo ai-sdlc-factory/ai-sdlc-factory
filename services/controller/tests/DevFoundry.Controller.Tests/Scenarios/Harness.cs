@@ -82,6 +82,10 @@ public sealed class FakeWorld
     public List<string> Problems { get; } = [];
     public List<string> Notices { get; } = [];
 
+    /// <summary>How many times the reproduction test was fingerprinted, and what the hash is at call number n (1-based).</summary>
+    public int Fingerprints { get; private set; }
+    public Func<int, string>? FingerprintOf { get; set; }
+
     /// <summary>Called inside the sandbox activity just before a scripted agent answers, so a test can act while a stage runs.</summary>
     public Action<string>? BeforeAgent { get; set; }
     public List<PullRequestRequest> PullRequests { get; } = [];
@@ -136,6 +140,10 @@ public sealed class FakeWorld
         }
         return this;
     }
+
+    /// <summary>What the reproducer changed: a new test file, plus anything else the test wants to show.</summary>
+    public static ChangeReport TestOnly(params string[] others) =>
+        new([new FileChange("test_hello.py", FileChange.Added), .. others.Select(path => new FileChange(path, FileChange.Modified))], []);
 
     public static ChangeReport OneFile() => new([new FileChange("hello.py", FileChange.Modified)], []);
 
@@ -286,6 +294,14 @@ public sealed class FakeWorld
                 return new SandboxRunResult(99, false, "", "unscripted", false);
             }
 
+            // The fingerprint of the reproduction test: sha256sum -- <paths...>
+            if (command is ["sha256sum", "--", ..])
+            {
+                Fingerprints++;
+                var hash = FingerprintOf?.Invoke(Fingerprints) ?? new string('a', 64);
+                return new SandboxRunResult(0, false, string.Join('\n', command.Skip(2).Select(path => $"{hash}  {path}")), "", false);
+            }
+
             // The evidence check: sh -c <script> sh <paths...>
             if (command is ["sh", "-c", _, "sh", ..])
             {
@@ -309,7 +325,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -337,11 +353,24 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     public Task<WorkflowHandle<FeatureWorkflow, FeatureResult>> StartAsync(FeatureRequest request) =>
         Client.StartWorkflowAsync((FeatureWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
-    /// <summary>Runs the workflow to the end and returns its result.</summary>
+    public Task<WorkflowHandle<BugWorkflow, FeatureResult>> StartBugAsync(FeatureRequest request) =>
+        Client.StartWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+
+    /// <summary>Runs the ticket's workflow (feature or bug, by its kind) to the end and returns its result.</summary>
     public async Task<FeatureResult> RunToEndAsync(FeatureRequest request)
     {
+        if (request.IsBug)
+        {
+            return await ResultAsync(await StartBugAsync(request));
+        }
         var handle = await StartAsync(request);
         return await ResultAsync(handle);
+    }
+
+    public static async Task<FeatureResult> ResultAsync(WorkflowHandle<BugWorkflow, FeatureResult> handle)
+    {
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     /// <summary>The workflow result, but a stuck workflow fails the test instead of hanging it.</summary>
@@ -374,6 +403,38 @@ public static class Answers
             verdict = statuses.All(s => s == "covered") ? "fully_covered" : statuses.All(s => s == "missing") ? "not_covered" : "partly_covered",
             summary = "Checked the code.",
             criteria = statuses.Select((status, i) => new { index = i + 1, status, evidence = status == "missing" ? Array.Empty<string>() : ["hello.py"], note = "" }).ToArray(),
+        });
+
+    public static string BugAnalyst(string verdict = "pass", string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = "repeat() returns one repetition too few.",
+            expected = "repeat('ab', 3) returns 'ababab'",
+            actual = "repeat('ab', 3) returns 'abab'",
+            hints = new[] { "see repeat() in hello.py" },
+            severity = "medium",
+            questions = questions ?? (verdict == "needs_clarification" ? ["Which input fails?"] : []),
+        });
+
+    public static string Reproduction(string verdict = "reproduced", string[]? command = null, string[]? files = null, string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict == "reproduced" ? "The test calls repeat('ab', 3) and expects 'ababab'." : "I could not make it fail.",
+            test_command = verdict == "reproduced" ? command ?? ["python", "-m", "pytest", "-q", "test_hello.py"] : [],
+            test_files = verdict == "reproduced" ? files ?? ["test_hello.py"] : [],
+            questions = questions ?? (verdict == "cannot_reproduce" ? ["Which input fails?"] : []),
+        });
+
+    public static string Diagnosis(string verdict = "pass", string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            root_cause = "repeat() multiplies by times - 1 instead of times.",
+            locations = new[] { new { path = "hello.py", note = "the multiplication in repeat()" } },
+            fix_outline = "Multiply by times.",
+            questions = questions ?? (verdict == "needs_clarification" ? ["Is 0 allowed?"] : []),
         });
 
     public static string Architect(string verdict = "pass", string[]? questions = null) =>

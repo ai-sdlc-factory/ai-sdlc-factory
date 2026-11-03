@@ -5,13 +5,16 @@ namespace DevFoundry.Controller;
 /// <summary>The title and body of the pull request the factory opens.</summary>
 public static class PullRequestText
 {
-    public static string Title(FeatureRequest request) =>
-        TicketComments.Inert(request.Title) is { Length: > 0 } title ? (title.Length > 120 ? title[..120] : title) : $"Ticket #{request.IssueNumber}";
+    public static string Title(FeatureRequest request)
+    {
+        var title = TicketComments.Inert(request.Title) is { Length: > 0 } clean ? (clean.Length > 120 ? clean[..120] : clean) : $"Ticket #{request.IssueNumber}";
+        return request.IsBug && !title.StartsWith("fix", StringComparison.OrdinalIgnoreCase) ? $"Fix: {title}" : title;
+    }
 
     public static string Body(
         FeatureRequest request, DeveloperReport report, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, IReadOnlyList<GateResult> gates, int round,
-        IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null, string? uxNote = null, string? quickReason = null)
+        IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null, string? uxNote = null, string? quickReason = null, BugBrief? bug = null)
     {
         var text = new StringBuilder();
         text.AppendLine($"Closes #{request.IssueNumber}");
@@ -22,6 +25,18 @@ public static class PullRequestText
         {
             text.AppendLine("## Quick mode");
             text.AppendLine($"Because {TicketComments.Inert(quickReason)}, the coverage check, the design review and QA were skipped. The project's checks and the reviewers ran as usual.");
+            text.AppendLine();
+        }
+        if (bug is not null)
+        {
+            text.AppendLine("## Bug fix");
+            text.AppendLine($"- **Severity:** {bug.Severity}");
+            if (bug.RootCause is not null)
+            {
+                text.AppendLine($"- **Root cause:** {TicketComments.Inert(bug.RootCause)}");
+            }
+            text.AppendLine($"- **Reproduction test:** `{TicketComments.Inert(string.Join(' ', bug.TestCommand))}` ({string.Join(", ", bug.TestFiles.Select(file => $"`{TicketComments.Inert(file)}`"))})");
+            text.AppendLine($"- **Before the fix:** the test failed on the unchanged code (exit code {bug.RedExitCode}). **After the fix:** it passes, and the project's checks pass.");
             text.AppendLine();
         }
         text.AppendLine("## Summary");

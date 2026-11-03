@@ -20,7 +20,7 @@ public abstract partial class FactoryWorkflowBase
     /// </summary>
     protected async Task<FeatureResult> BuildAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project,
-        IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null)
+        IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null, BugBrief? bug = null)
     {
         string? feedback = null;
         DeveloperReport? report = null;
@@ -40,7 +40,7 @@ public abstract partial class FactoryWorkflowBase
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<DeveloperReport>(
                 "developer", project.Image, workspace,
-                problem => DeveloperPrompt.Build(request, remaining, design, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds),
+                problem => DeveloperPrompt.Build(request, remaining, design, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds, bug),
                 ParseDeveloper, writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (ticketClosed)
             {
@@ -72,6 +72,13 @@ public abstract partial class FactoryWorkflowBase
                 continue;
             }
 
+            if (bug is not null && await CheckReproductionTestUntouchedAsync(project.Image, workspace, bug) is { } tampered)
+            {
+                feedback = tampered;
+                await CommentAsync(request, $"Build round {round}: {TicketComments.Inert(Short(tampered))}");
+                continue;
+            }
+
             var results = new List<GateResult>();
             foreach (var gate in project.Gates)
             {
@@ -92,8 +99,17 @@ public abstract partial class FactoryWorkflowBase
                 continue;
             }
 
-            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(quickReason is null ? " and QA" : "")}.");
-            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results, skipQa: quickReason is not null);
+            // A bug fix is proven by the reproduction test: it failed before, so it must pass now.
+            if (bug is not null && await CheckReproductionPassesAsync(project.Image, workspace, bug) is { } stillFailing)
+            {
+                feedback = stillFailing;
+                await CommentAsync(request, $"Build round {round}: the project's checks passed, but {TicketComments.Inert(Short(stillFailing))}");
+                continue;
+            }
+
+            var skipQa = quickReason is not null || bug is not null;
+            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(skipQa ? "" : " and QA")}.");
+            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results, skipQa);
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -138,7 +154,7 @@ public abstract partial class FactoryWorkflowBase
             pullRequest = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, title,
-                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote, quickReason))),
+                    PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote, quickReason, bug))),
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
         }
         catch (ActivityFailureException error)

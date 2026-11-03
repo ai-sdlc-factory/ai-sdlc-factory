@@ -2,7 +2,7 @@
 
 Status: steps 1 to 4 of the build order are done, plus the architect (step 7) and the developer with its
 automated checks, the reviewers and QA, and the pull request (steps 5 and 6): a labelled ticket becomes
-a reviewed pull request. The bug workflow and incidents below are still design.
+a reviewed pull request. The bug workflow is built too; incidents below are still design.
 
 This document describes how a Forgejo ticket turns into a
 reviewed pull request, using role agents that run in disposable OpenCode containers. It follows
@@ -93,8 +93,11 @@ configuration before relying on this.
 
 ## Other workflows (later)
 
-- **Bug**: reproduce with a failing test first, find the root cause, fix, add a regression test.
-  The architect is skipped by default. Same activities, different flow.
+- **Bug** (built): a `bug` ticket starts a `BugWorkflow` on the same shared stages. A bug analyst reads the report, a
+  reproducer writes a failing test, and the *factory* (not the agent) checks that the test fails on the unchanged
+  code; a diagnostician finds the root cause; the developer fixes it; the factory checks that the same test now passes
+  and was not edited, along with the project's checks; reviewers judge the change. QA and the architect are not used:
+  the failing-then-passing test is the proof. See the [controller guide](../services/controller/README.md#bug-tickets).
 - **Incident**: read-only diagnosis; any action beyond that is a proposed runbook step that a
   human authorizes.
 
@@ -106,7 +109,9 @@ configuration before relying on this.
 4. Coverage check and triage rules (done).
 5. Developer plus deterministic gates (done), then reviewers and QA with the capped loop.
 6. Publish and PR creation (done, currently straight after the gates).
-7. Architect stage (done), bug workflow, then incident handling.
+7. Architect stage (done), bug workflow (done), then incident handling. For incidents, a separate collector that
+   watches production and files tickets (so no agent gets production access) is the intended design, but it waits
+   until there is a production system to watch.
 
 ## Open points
 

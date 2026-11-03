@@ -182,7 +182,7 @@ public abstract partial class FactoryWorkflowBase
     /// The network each agent role gets: the developer may also fetch packages, every other agent can reach only
     /// the model provider. Which hosts a profile allows is decided in egress/profiles.json, not here.
     /// </summary>
-    public static string NetworkFor(string role) => role == "developer" ? SandboxNetworks.Developer : SandboxNetworks.Model;
+    public static string NetworkFor(string role) => role is "developer" or "reproducer" ? SandboxNetworks.Developer : SandboxNetworks.Model;
 
     protected const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";

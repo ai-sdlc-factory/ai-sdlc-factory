@@ -69,9 +69,10 @@ public sealed class EventRouterTests
     }
 
     [Theory]
-    [InlineData("bug", "open")]
+    [InlineData("question", "open")]
     [InlineData("", "open")]
     [InlineData("feature", "closed")]
+    [InlineData("bug", "closed")]
     public void Other_tickets_are_ignored(string label, string state)
     {
         var decision = EventRouter.Decide(Event("issues", Ticket("opened", label == "" ? [] : [label], state)));
@@ -114,11 +115,49 @@ public sealed class EventRouterTests
     }
 
     [Fact]
-    public void Comments_on_non_feature_tickets_are_ignored()
+    public void Comments_on_tickets_that_are_neither_features_nor_bugs_are_ignored()
     {
         var decision = EventRouter.Decide(Event("issue_comment",
-            Ticket("created", ["bug"], more: new { comment = Comment("hi") })));
+            Ticket("created", ["question"], more: new { comment = Comment("hi") })));
         Assert.Equal(RoutingAction.Ignore, decision.Action);
+    }
+
+    [Fact]
+    public void A_bug_ticket_starts_a_bug_run_with_its_own_workflow_id()
+    {
+        var decision = EventRouter.Decide(Event("issues", Ticket("opened", ["bug"])));
+
+        Assert.Equal(RoutingAction.StartFeature, decision.Action);
+        Assert.True(decision.Feature!.IsBug);
+        Assert.Equal(FeatureIds.Bug, decision.Feature.Kind);
+        Assert.StartsWith("bug-acme-shop-7-", decision.Feature.WorkflowId);
+    }
+
+    [Fact]
+    public void A_ticket_with_both_labels_is_built_as_a_feature()
+    {
+        var decision = EventRouter.Decide(Event("issues", Ticket("opened", ["bug", "feature"])));
+
+        Assert.False(decision.Feature!.IsBug);
+        Assert.StartsWith("feature-acme-shop-7-", decision.Feature.WorkflowId);
+    }
+
+    [Fact]
+    public void Comments_and_closing_on_a_bug_ticket_go_to_the_bug_run()
+    {
+        var comment = EventRouter.Decide(Event("issue_comment", Ticket("created", ["bug"], more: new { comment = Comment("here is the stack trace") })));
+        var closed = EventRouter.Decide(Event("issues", Ticket("closed", ["bug"], "closed")));
+
+        Assert.Equal(RoutingAction.ReplyToFeature, comment.Action);
+        Assert.StartsWith("bug-acme-shop-7-", comment.Feature!.WorkflowId);
+        Assert.Equal(RoutingAction.CloseFeature, closed.Action);
+        Assert.StartsWith("bug-acme-shop-7-", closed.Feature!.WorkflowId);
+    }
+
+    [Fact]
+    public void Feature_and_bug_ids_for_the_same_ticket_number_differ()
+    {
+        Assert.NotEqual(FeatureIds.For("acme", "shop", 7), FeatureIds.For("acme", "shop", 7, FeatureIds.Bug));
     }
 
     [Fact]

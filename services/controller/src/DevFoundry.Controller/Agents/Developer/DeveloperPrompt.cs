@@ -17,10 +17,12 @@ public static class DeveloperPrompt
 
     public static string Build(
         FeatureRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
-        IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds)
+        IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds, BugBrief? bug = null)
     {
         var text = new StringBuilder();
-        text.AppendLine("Implement this feature request in the repository checked out in the current directory.");
+        text.AppendLine(bug is null
+            ? "Implement this feature request in the repository checked out in the current directory."
+            : "Fix this bug in the repository checked out in the current directory.");
         text.AppendLine("You may edit files and run commands here. Do not commit or push; the factory does that after its checks pass.");
         text.AppendLine($"This is build round {round} of at most {maxRounds}.");
         text.AppendLine();
@@ -37,6 +39,11 @@ public static class DeveloperPrompt
             text.AppendLine($"{criterion.Index}. {Clip(criterion.Criterion, MaxCriterion)} [{criterion.Status}]");
         }
         text.AppendLine("CRITERIA>>>");
+
+        if (bug is not null)
+        {
+            BugPrompts.DeveloperSection(text, bug);
+        }
 
         if (design is not null)
         {

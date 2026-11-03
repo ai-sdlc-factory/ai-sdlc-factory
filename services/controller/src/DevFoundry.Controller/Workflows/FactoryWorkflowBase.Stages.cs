@@ -59,7 +59,7 @@ public abstract partial class FactoryWorkflowBase
         Func<string, (T? Value, string? Error)> parse,
         Func<T, string> comment,
         Func<T, Next> next,
-        string failedStatus, string rejectedStatus, string failureText)
+        string failedStatus, string rejectedStatus, string failureText, bool writable = false)
         where T : class
     {
         var answers = new List<string>();
@@ -73,7 +73,7 @@ public abstract partial class FactoryWorkflowBase
                 return Stop<T>("closed");
             }
 
-            var outcome = await RunAgentAsync<T>(role, image, workspace, problem => prompt(round, answers, problem), parse);
+            var outcome = await RunAgentAsync<T>(role, image, workspace, problem => prompt(round, answers, problem), parse, writable);
             if (ticketClosed)
             {
                 return Stop<T>("closed");

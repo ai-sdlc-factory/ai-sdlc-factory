@@ -41,15 +41,21 @@ public sealed class ForgejoEventWorkflow
             case RoutingAction.StartFeature:
                 try
                 {
-                    // Abandon: the feature workflow outlives this short routing run.
-                    await Workflow.StartChildWorkflowAsync(
-                        (FeatureWorkflow workflow) => workflow.RunAsync(decision.Feature!),
-                        new ChildWorkflowOptions
-                        {
-                            Id = decision.Feature!.WorkflowId,
-                            ParentClosePolicy = ParentClosePolicy.Abandon,
-                            IdReusePolicy = decision.Restart ? WorkflowIdReusePolicy.AllowDuplicate : WorkflowIdReusePolicy.RejectDuplicate,
-                        });
+                    // Abandon: the ticket's workflow outlives this short routing run.
+                    var options = new ChildWorkflowOptions
+                    {
+                        Id = decision.Feature!.WorkflowId,
+                        ParentClosePolicy = ParentClosePolicy.Abandon,
+                        IdReusePolicy = decision.Restart ? WorkflowIdReusePolicy.AllowDuplicate : WorkflowIdReusePolicy.RejectDuplicate,
+                    };
+                    if (decision.Feature.IsBug)
+                    {
+                        await Workflow.StartChildWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
+                    }
+                    else
+                    {
+                        await Workflow.StartChildWorkflowAsync((FeatureWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
+                    }
                 }
                 catch (WorkflowAlreadyStartedException)
                 {
@@ -58,7 +64,10 @@ public sealed class ForgejoEventWorkflow
                 break;
 
             case RoutingAction.ReplyToFeature:
-                if (!await SignalAsync(decision.Feature!.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!)))
+                var delivered = decision.Feature!.IsBug
+                    ? await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+                    : await SignalAsync<FeatureWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
+                if (!delivered)
                 {
                     // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
                     var feature = decision.Feature!;
@@ -70,18 +79,25 @@ public sealed class ForgejoEventWorkflow
                 break;
 
             case RoutingAction.CloseFeature:
-                await SignalAsync(decision.Feature!.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+                if (decision.Feature!.IsBug)
+                {
+                    await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+                }
+                else
+                {
+                    await SignalAsync<FeatureWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+                }
                 break;
         }
     }
 
     /// <summary>Sends the signal; false when there is no running workflow for this ticket (never started, or finished).</summary>
-    private static async Task<bool> SignalAsync(
-        string workflowId, System.Linq.Expressions.Expression<Func<FeatureWorkflow, Task>> signal)
+    private static async Task<bool> SignalAsync<TWorkflow>(
+        string workflowId, System.Linq.Expressions.Expression<Func<TWorkflow, Task>> signal)
     {
         try
         {
-            await Workflow.GetExternalWorkflowHandle<FeatureWorkflow>(workflowId).SignalAsync(signal);
+            await Workflow.GetExternalWorkflowHandle<TWorkflow>(workflowId).SignalAsync(signal);
             return true;
         }
         catch (FailureException)

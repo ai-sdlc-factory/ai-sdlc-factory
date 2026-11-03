@@ -24,6 +24,7 @@ public sealed record RoutingDecision(
 public static class EventRouter
 {
     public const string FeatureLabel = "feature";
+    public const string BugLabel = "bug";
 
     /// <summary>Hidden marker on every comment the factory writes, so it never answers itself.</summary>
     public const string BotMarker = "<!-- dev-foundry:factory -->";
@@ -51,10 +52,11 @@ public static class EventRouter
             return Ignore("pull request");
         }
 
-        var hasFeatureLabel = HasLabel(issue, FeatureLabel);
+        // A feature label wins over a bug label: a ticket with both is built as a feature.
+        var kind = HasLabel(issue, FeatureLabel) ? FeatureIds.Feature : HasLabel(issue, BugLabel) ? FeatureIds.Bug : null;
+        var hasFeatureLabel = kind is not null;
         var action = AsString(Get(payload, "action"));
         var isOpen = AsString(Get(issue, "state")) is null or "open";
-        var workflowId = FeatureIds.For(owner, repo, issueNumber);
 
         switch (input.Event)
         {
@@ -73,12 +75,13 @@ public static class EventRouter
                         AsString(Get(issue, "title")) ?? "",
                         AsString(Get(issue, "body")) ?? "",
                         AsString(Get(Get(issue, "user"), "login")) ?? "",
-                        LabelNames(issue)));
+                        LabelNames(issue),
+                        kind!));
 
             case "issues" when action == "closed":
                 return hasFeatureLabel
                     ? new RoutingDecision(RoutingAction.CloseFeature, "ticket closed",
-                        Feature: new FeatureRequest(owner, repo, issueNumber, "", "", ""))
+                        Feature: new FeatureRequest(owner, repo, issueNumber, "", "", "", Kind: kind!))
                     : Ignore("ticket is not a feature");
 
             case "issue_comment" when action == "created":
@@ -94,7 +97,7 @@ public static class EventRouter
                 return new RoutingDecision(
                     RoutingAction.ReplyToFeature,
                     "human comment",
-                    Feature: new FeatureRequest(owner, repo, issueNumber, "", "", ""),
+                    Feature: new FeatureRequest(owner, repo, issueNumber, "", "", "", Kind: kind!),
                     Reply: new HumanReply(AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", body));
 
             default:

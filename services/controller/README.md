@@ -247,6 +247,26 @@ matching `paths` only; a UX review runs from medium upwards.
 600). The file is untrusted input: it can only choose among the images the factory offers, and the
 commands run in the sandbox the agent already works in. Without it the run stops with an example.
 
+### Bug tickets
+
+A ticket labelled `bug` (and not `feature`) starts a **bug run**, on the same workspace, checks, reviewers, run record and
+rescue as a feature. The aim is a fix that is proven by a test that failed before and passes after.
+
+| Step | Who | What the factory checks itself |
+| --- | --- | --- |
+| 1 | `bug-analyst` (read-only) | the answer's shape; asks on the ticket if the report is unclear |
+| 2 | `reproducer` (writes tests only) | only the test files it lists changed; no deletions; protected paths and secrets as usual |
+| 3 | the factory | runs the reproducer's `test_command` on the unchanged code: it **must fail**. A test that passes, or a command that cannot run (exit 126/127, timeout), goes back to the reproducer, 3 attempts at most |
+| 4 | `diagnostician` (read-only) | the answer's shape; `too_large` stops the run and suggests a feature ticket. Skipped in quick mode |
+| 5 | `developer` | gets the failing test, the observed failure and the root cause; may not edit the test |
+| 6 | the factory | the test file's SHA-256 is unchanged; the project's checks pass; **the same test command now passes** |
+| 7 | reviewers | as for features. QA is not used: the failing-then-passing test is the proof |
+
+The pull request is titled `Fix: <title>` and has a **Bug fix** section (severity, root cause, the test and that it failed
+before and passes after). The failing run is posted on the ticket. The `quick` label skips only the diagnosis. Statuses
+that are specific to bugs: `cannot_reproduce`, `needs_design`, `diagnosis_failed`, `reproduction_failed`.
+A ticket with both `feature` and `bug` is built as a feature.
+
 ### Quick mode
 
 For small, low-risk changes the full process is more than needed. A person can choose **quick mode**:
