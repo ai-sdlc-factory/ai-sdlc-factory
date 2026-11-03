@@ -17,6 +17,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | **operate** it: watch runs, troubleshoot, clean up, back up, update | [Operations](operations.md) |
 | change an **agent**, its model or its permissions | [Agents](../agents/README.md) |
 | sign the agents in with ChatGPT | [OpenCode login](opencode-login.md) |
+| see what is planned next | [Roadmap and ideas](roadmap.md) |
 
 ## Guides by component
 
