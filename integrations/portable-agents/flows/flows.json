@@ -1,0 +1,238 @@
+{
+  "feature": {
+    "roles": [
+      "analyst",
+      "coverage",
+      "architect",
+      "developer",
+      "reviewer",
+      "security",
+      "ux",
+      "qa"
+    ],
+    "steps": [
+      {
+        "id": "intake",
+        "actor": "code"
+      },
+      {
+        "id": "analyse",
+        "role": "analyst",
+        "on": {
+          "pass": "coverage",
+          "needs_clarification": "ask",
+          "reject": "stop"
+        },
+        "max_question_rounds": 3
+      },
+      {
+        "id": "coverage",
+        "role": "coverage",
+        "check": "cited files exist",
+        "on": {
+          "fully_covered": "stop:already_implemented",
+          "partly_covered": "triage",
+          "not_covered": "triage"
+        }
+      },
+      {
+        "id": "triage",
+        "actor": "code",
+        "needs_design_if": [
+          "files_estimate>5",
+          "multiple_projects",
+          "public_api_change",
+          "data_model_change",
+          "new_dependency",
+          "label:needs-architecture"
+        ],
+        "on": {
+          "design": "design",
+          "no_design": "build"
+        }
+      },
+      {
+        "id": "design",
+        "role": "architect",
+        "on": {
+          "pass": "build",
+          "needs_decision": "ask",
+          "reject": "stop"
+        }
+      },
+      {
+        "id": "build",
+        "loop": "build_round",
+        "max_rounds": 3,
+        "then": "publish"
+      },
+      {
+        "id": "publish",
+        "actor": "code"
+      }
+    ],
+    "build_round": [
+      "developer",
+      "change_checks",
+      "project_checks",
+      "project_rules",
+      "reviewers(parallel)",
+      "qa(unless quick)"
+    ],
+    "quick_mode_skips": [
+      "coverage",
+      "design",
+      "qa"
+    ]
+  },
+  "bug": {
+    "roles": [
+      "bug-analyst",
+      "reproducer",
+      "diagnostician",
+      "developer",
+      "reviewer",
+      "security"
+    ],
+    "steps": [
+      {
+        "id": "analyse",
+        "role": "bug-analyst",
+        "on": {
+          "pass": "reproduce",
+          "needs_clarification": "ask",
+          "reject": "stop"
+        }
+      },
+      {
+        "id": "reproduce",
+        "role": "reproducer",
+        "on": {
+          "reproduced": "red_check",
+          "cannot_reproduce": "ask_or_stop"
+        }
+      },
+      {
+        "id": "red_check",
+        "actor": "code",
+        "rule": "test command fails on unchanged code",
+        "max_attempts": 3
+      },
+      {
+        "id": "diagnose",
+        "role": "diagnostician",
+        "skipped_in_quick": true,
+        "on": {
+          "pass": "fix",
+          "too_large": "stop:needs_design",
+          "needs_clarification": "ask"
+        }
+      },
+      {
+        "id": "fix",
+        "loop": "build_round",
+        "max_rounds": 3,
+        "rules": [
+          "test files hash unchanged"
+        ]
+      },
+      {
+        "id": "green_check",
+        "actor": "code",
+        "rule": "same test command passes, project checks pass"
+      },
+      {
+        "id": "publish",
+        "actor": "code"
+      }
+    ]
+  },
+  "incident": {
+    "roles": [
+      "incident-analyst",
+      "investigator",
+      "mitigator",
+      "postmortem-writer"
+    ],
+    "steps": [
+      {
+        "id": "assess",
+        "role": "incident-analyst",
+        "on": {
+          "pass": "investigate",
+          "needs_clarification": "ask",
+          "reject": "stop"
+        }
+      },
+      {
+        "id": "investigate",
+        "role": "investigator",
+        "check": "cited files and commits exist"
+      },
+      {
+        "id": "options",
+        "role": "mitigator"
+      },
+      {
+        "id": "people_decide",
+        "actor": "commands",
+        "commands": {
+          "/option N": "post checklist",
+          "/hotfix": "open one bug ticket",
+          "/resolved": "postmortem-writer, one new file, pull request",
+          "other": "new information: rerun investigate and options (max 3)"
+        }
+      }
+    ]
+  },
+  "pr-revision": {
+    "roles": [
+      "pr-resolver",
+      "reviewer",
+      "security"
+    ],
+    "steps": [
+      {
+        "id": "eligibility",
+        "actor": "code",
+        "rules": [
+          "own pull request",
+          "open",
+          "same repository",
+          "fewer than 3 revisions",
+          "something to act on"
+        ]
+      },
+      {
+        "id": "collect",
+        "actor": "code"
+      },
+      {
+        "id": "resolve",
+        "role": "pr-resolver",
+        "rule": "exactly one response per comment; fixed requires changed files"
+      },
+      {
+        "id": "checks",
+        "actor": "code",
+        "max_rounds": 3
+      },
+      {
+        "id": "review",
+        "roles": [
+          "reviewer",
+          "security"
+        ]
+      },
+      {
+        "id": "push",
+        "actor": "code",
+        "rule": "never force; rebase once if the branch moved"
+      },
+      {
+        "id": "reply",
+        "actor": "code"
+      }
+    ]
+  }
+}

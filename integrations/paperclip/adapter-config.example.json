@@ -1,0 +1,33 @@
+{
+  "_comment": "Examples of the adapterType / adapterConfig shape from the Paperclip OpenCode adapter page. Copy into each agent's Harness/Runtime page (or set it in the imported company). cwd must be an absolute path to the checkout the agents work in. The model line is the one the dev-foundry roles use; use any model your OpenCode login can run.",
+  "writable_roles": {
+    "applies_to": ["developer", "reproducer", "pr-resolver", "postmortem-writer"],
+    "adapterType": "opencode_local",
+    "adapterConfig": {
+      "cwd": "/absolute/path/to/the/checkout",
+      "model": "openai/gpt-6.1-sol",
+      "timeoutSec": 1800,
+      "graceSec": 15
+    }
+  },
+  "read_only_roles": {
+    "applies_to": ["analyst", "coverage", "architect", "reviewer", "security", "ux", "qa", "bug-analyst", "diagnostician", "incident-analyst", "investigator", "mitigator"],
+    "adapterType": "opencode_local",
+    "adapterConfig": {
+      "cwd": "/absolute/path/to/the/checkout",
+      "model": "openai/gpt-6.1-sol",
+      "dangerouslySkipPermissions": false,
+      "timeoutSec": 900,
+      "graceSec": 15
+    }
+  },
+  "delivery_lead": {
+    "adapterType": "opencode_local",
+    "adapterConfig": {
+      "cwd": "/absolute/path/to/the/checkout",
+      "model": "openai/gpt-6.1-sol",
+      "timeoutSec": 1800,
+      "graceSec": 15
+    }
+  }
+}
