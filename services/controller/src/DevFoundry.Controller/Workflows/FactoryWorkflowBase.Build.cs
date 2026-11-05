@@ -99,6 +99,14 @@ public abstract partial class FactoryWorkflowBase
                 continue;
             }
 
+            var (ruleBlock, ruleNotes) = await CheckRulesAsync(workspace, project);
+            if (ruleBlock is not null)
+            {
+                feedback = ruleBlock;
+                await CommentAsync(request, $"Build round {round}: the project's checks passed, but {TicketComments.Inert(Short(ruleBlock))}");
+                continue;
+            }
+
             // A bug fix is proven by the reproduction test: it failed before, so it must pass now.
             if (bug is not null && await CheckReproductionPassesAsync(project.Image, workspace, bug) is { } stillFailing)
             {
@@ -109,7 +117,7 @@ public abstract partial class FactoryWorkflowBase
 
             var skipQa = quickReason is not null || bug is not null;
             await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(skipQa ? "" : " and QA")}.");
-            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results, skipQa);
+            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results, skipQa, ruleNotes: ruleNotes);
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -233,12 +241,12 @@ public abstract partial class FactoryWorkflowBase
     protected async Task<ReviewOutcome> ReviewAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false,
-        IReadOnlyList<CriterionCoverage>? qaCriteria = null)
+        IReadOnlyList<CriterionCoverage>? qaCriteria = null, string? ruleNotes = null)
     {
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
             new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
-        var gateSummary = BuildFeedback.Summary(gates);
+        var gateSummary = BuildFeedback.Summary(gates) + (ruleNotes is null ? "" : "\n\n" + ruleNotes);
         var checks = ReviewPrompt.Describe(project.Gates);
         var reports = new List<(string Role, ReviewReport Report)>();
 
@@ -310,6 +318,23 @@ public abstract partial class FactoryWorkflowBase
         await CommentAsync(request, TicketComments.Qa(qa));
 
         return new ReviewOutcome(null, ReviewFeedback.From(reports, qa), reports, qa, uxNote);
+    }
+
+    /// <summary>
+    /// The project's own rules (<c>rules</c> in project.json) against the lines the change adds: what blocks goes back to the developer,
+    /// what only warns goes to the reviewers. Nothing to do, and no extra activity, for a project without rules.
+    /// </summary>
+    protected async Task<(string? Block, string? Warnings)> CheckRulesAsync(WorkspaceInfo workspace, ProjectConfig project)
+    {
+        if (project.Rules is not { Count: > 0 } rules)
+        {
+            return (null, null);
+        }
+        var diff = await Workflow.ExecuteActivityAsync(
+            (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
+            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+        var hits = ProjectRules.Check(rules, diff);
+        return (ProjectRules.BlockingFeedback(hits), ProjectRules.WarningNotes(hits));
     }
 
     /// <summary>Runs one reviewing role and posts its review. A review that cannot be completed stops the run.</summary>

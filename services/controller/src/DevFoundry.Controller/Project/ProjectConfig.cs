@@ -12,7 +12,7 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// input: it can only pick among options the factory already offers (an image alias the launcher
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
-public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false);
+public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false, IReadOnlyList<ProjectRule>? Rules = null);
 
 public static partial class ProjectConfigParser
 {
@@ -77,6 +77,73 @@ public static partial class ProjectConfigParser
             return false;
         }
         threshold = new UiThreshold(fileCount, lineCount);
+        return true;
+    }
+
+    private static bool TryReadRules(JsonElement value, out List<ProjectRule> rules, out string error)
+    {
+        rules = [];
+        error = "";
+        if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > ProjectRules.MaxRules)
+        {
+            error = $"\"rules\" must be an array of at most {ProjectRules.MaxRules} rules, each with \"id\", \"files\", \"forbid\" and \"message\"";
+            return false;
+        }
+        foreach (var item in value.EnumerateArray())
+        {
+            var id = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("id", out var idValue) && idValue.ValueKind == JsonValueKind.String ? idValue.GetString() : null;
+            if (id is null || !GateName().IsMatch(id) || rules.Any(r => r.Id == id))
+            {
+                error = $"rule {rules.Count + 1}: \"id\" must be unique, lower case, and use only letters, digits, - and _";
+                return false;
+            }
+            var files = new List<string>();
+            if (item.TryGetProperty("files", out var filesValue))
+            {
+                if (filesValue.ValueKind == JsonValueKind.String)
+                {
+                    files.Add(filesValue.GetString() ?? "");
+                }
+                else if (filesValue.ValueKind == JsonValueKind.Array && filesValue.GetArrayLength() is >= 1 and <= 5)
+                {
+                    files.AddRange(filesValue.EnumerateArray().Select(f => f.ValueKind == JsonValueKind.String ? f.GetString() ?? "" : ""));
+                }
+            }
+            if (files.Count == 0 || files.Any(f => !Globs.IsValidPattern(f)))
+            {
+                error = $"rule \"{id}\": \"files\" must be a pattern like src/**/*.cs, or 1 to 5 of them (letters, digits and . _ - @ + / * ?, no leading / and no ..)";
+                return false;
+            }
+            var forbid = item.TryGetProperty("forbid", out var forbidValue) && forbidValue.ValueKind == JsonValueKind.String ? forbidValue.GetString() : null;
+            if (string.IsNullOrEmpty(forbid) || forbid.Length > ProjectRules.MaxPatternLength)
+            {
+                error = $"rule \"{id}\": \"forbid\" must be a regular expression of at most {ProjectRules.MaxPatternLength} characters; a line a change adds that matches it breaks the rule";
+                return false;
+            }
+            if (ProjectRules.Compile(forbid, out var regexError) is null)
+            {
+                error = $"rule \"{id}\": \"forbid\" {regexError}";
+                return false;
+            }
+            var message = item.TryGetProperty("message", out var messageValue) && messageValue.ValueKind == JsonValueKind.String ? messageValue.GetString() : null;
+            if (string.IsNullOrWhiteSpace(message) || message.Length > ProjectRules.MaxMessageLength || message.Contains('\0'))
+            {
+                error = $"rule \"{id}\": \"message\" must say, in at most {ProjectRules.MaxMessageLength} characters, what to do instead";
+                return false;
+            }
+            var block = true;
+            if (item.TryGetProperty("severity", out var severityValue))
+            {
+                var severity = severityValue.ValueKind == JsonValueKind.String ? severityValue.GetString() : null;
+                if (severity is not ("block" or "warn"))
+                {
+                    error = $"rule \"{id}\": \"severity\" must be \"block\" (the default: the developer must fix it) or \"warn\" (only the reviewers are told)";
+                    return false;
+                }
+                block = severity == "block";
+            }
+            rules.Add(new ProjectRule(id, files, forbid, message.Trim(), block));
+        }
         return true;
     }
 
@@ -203,7 +270,12 @@ public static partial class ProjectConfigParser
                 }
                 quickByDefault = mode == "quick";
             }
-            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault);
+            var rules = new List<ProjectRule>();
+            if (root.TryGetProperty("rules", out var rulesValue) && !TryReadRules(rulesValue, out rules, out error))
+            {
+                return false;
+            }
+            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules);
             return true;
         }
     }

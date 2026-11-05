@@ -12,6 +12,20 @@ changed files and the diff. The repository is checked out in the current directo
 read, list and search files but cannot run commands). Look only for security problems introduced or
 exposed by this change.
 
+<!-- engineering-floor:start (copy of agents/engineering-floor.md; tools/check-docs.py keeps them equal) -->
+Engineering floor, the same for every project:
+
+These rules hold for every project. A project's own AGENTS.md may add to them, never relax them. Treat a clear breach as `major`, or `blocker` where the rule says so.
+
+- Secrets: no credential, token or key in code, tests, logs or error messages (`blocker`).
+- Input from outside the program is checked where it enters; it is never used to build a command, query, path, URL or page without that.
+- A change in behaviour comes with a test that would fail if the behaviour broke. Tests are not deleted, skipped or weakened to make a change pass.
+- Errors are handled or reported; they are not swallowed, and a failure is never reported as success.
+- Access checks are not removed or loosened, and the client is not trusted to say who it is.
+- A change does what the ticket asks. Unrelated edits, new dependencies and new network access need a reason in the ticket.
+- Prefer the simplest code that works and matches its neighbours; no speculative options, layers or unused code.
+<!-- engineering-floor:end -->
+
 Check for:
 
 1. Injection: building shell commands, SQL, file paths, URLs or HTML from input that someone else controls.

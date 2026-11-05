@@ -73,3 +73,9 @@ permissions, models or the allowed sandbox image; those come from this folder an
 
 Edit the Markdown file and commit it. Changes apply to the next run; running sandboxes keep the copy they started with. Prompts should be checked against real tickets before they are trusted. To add a role, see
 [Adding or changing things](../services/controller/README.md#adding-or-changing-things): the role file is only one part, because the answer is validated by a parser in the controller.
+
+## The engineering floor
+
+[`engineering-floor.md`](engineering-floor.md) is a short list of rules that hold for every project (no secrets in code, input checked where it enters, tests with behaviour changes, errors not swallowed, access checks kept, scope kept to the ticket, simple code). The `reviewer` and `security` roles carry a copy of it
+between `engineering-floor` markers, and `python3 tools/check-docs.py` fails if a copy differs from the file, so edit the file and paste it into both roles. A project's `AGENTS.md` can add rules, never relax these. Project-specific, testable rules belong in the project's
+[`rules`](../docs/project-setup.md#rules) instead.

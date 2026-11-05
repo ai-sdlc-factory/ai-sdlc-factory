@@ -173,12 +173,20 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
                 continue;
             }
 
+            var (ruleBlock, ruleNotes) = await CheckRulesAsync(workspace, project);
+            if (ruleBlock is not null)
+            {
+                feedback = ruleBlock;
+                await CommentAsync(request, $"Revision round {round}: the project's checks passed, but {TicketComments.Inert(Short(ruleBlock))}");
+                continue;
+            }
+
             await CommentAsync(request, $"Revision round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers.");
             // A larger revision is also checked against what the ticket asked for (the criteria in the pull request body).
             var original = PullRequestCriteria.FromBody(pull.Body);
             var checkOriginal = original.Count > 0 && after.Files.Count >= PullRequestCriteria.QaFromChangedFiles;
             var review = await ReviewAsync(reviewRequest, workspace, project, criteria, null, after, results,
-                skipQa: !checkOriginal, qaCriteria: checkOriginal ? original : null);
+                skipQa: !checkOriginal, qaCriteria: checkOriginal ? original : null, ruleNotes: ruleNotes);
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;

@@ -387,4 +387,46 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         Assert.Equal(["pr-resolver", "reviewer", "qa"], Roles(world));
         Assert.Contains("Says goodbye", world.Calls("qa").Single().Prompt);
     }
+
+    private const string RuleProject = """{"image":"python","gates":[{"name":"test","command":["python","-m","pytest","-q"]}],"rules":[{"id":"no-print","files":"*.py","forbid":"\\bprint\\(","message":"Use logging."}]}""";
+    private const string DirtyDiff = "diff --git a/hello.py b/hello.py\n--- a/hello.py\n+++ b/hello.py\n@@ -1,0 +1,1 @@\n+print('x')\n";
+    private const string CleanDiff = "diff --git a/hello.py b/hello.py\n--- a/hello.py\n+++ b/hello.py\n@@ -1,0 +1,1 @@\n+log('x')\n";
+
+    [SkippableFact]
+    public async Task A_blocking_project_rule_sends_the_revision_back_until_the_added_lines_comply()
+    {
+        var three = Answers.Revision("done", "fixed", "fixed", "fixed");
+        var world = Reviewing(three, three);
+        world.ProjectConfig = RuleProject;
+        world.Diff = DirtyDiff;
+        var calls = 0;
+        world.BeforeAgent = role =>
+        {
+            if (role == "pr-resolver" && Interlocked.Increment(ref calls) == 2)
+            {
+                world.Diff = CleanDiff;
+            }
+        };
+
+        var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
+
+        Assert.Equal("revision_pushed", result.Status);
+        Assert.Equal(2, world.Calls("pr-resolver").Count());
+        Assert.Contains("no-print", world.Calls("pr-resolver").Last().Prompt);
+        Assert.Contains("Use logging.", world.Calls("pr-resolver").Last().Prompt);
+    }
+
+    [SkippableFact]
+    public async Task A_warning_rule_blocks_nothing_but_the_reviewers_are_told()
+    {
+        var world = Reviewing();
+        world.ProjectConfig = RuleProject.Replace("\"message\":\"Use logging.\"", "\"message\":\"Use logging.\",\"severity\":\"warn\"");
+        world.Diff = DirtyDiff;
+
+        var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
+
+        Assert.Equal("revision_pushed", result.Status);
+        Assert.Single(world.Calls("pr-resolver"));
+        Assert.Contains("only warn", world.Calls("reviewer").Single().Prompt);
+    }
 }

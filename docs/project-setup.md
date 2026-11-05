@@ -77,6 +77,7 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 | `gates[].timeout_seconds` | no | `600` | 10 to 1800 |
 | `reviewers` | no | `["reviewer"]` | Which review roles run: `reviewer` (code quality), `security`. Each at most once. QA is separate and always runs in the full process |
 | `ui` | no | none | Declares a user interface so the `ux` reviewer can run, [below](#ui) |
+| `rules` | no | none | Your own mechanical rules, checked on the lines a change adds: up to 20, [below](#rules) |
 | `record` | no | `false` | `true` commits a [run record](workflows.md#the-run-record) (prompts, answers, check output, tokens) to `.factory/runs/` on the pull request branch |
 | `mode` | no | `"full"` | `"quick"` makes [quick mode](workflows.md#quick-mode) the project's default. Anything other than `"full"` or `"quick"` is refused |
 
@@ -159,6 +160,27 @@ registries reachable and nothing else.
 }
 ```
 
+### Rules
+
+A rule says "a change may not add a line like this in these files". The controller checks it on the diff, so unlike a sentence in `AGENTS.md` it cannot be talked around. Only **added** lines count: old code is not blamed.
+
+```json
+"rules": [
+  { "id": "no-raw-fetch", "files": "src/**/*.tsx", "forbid": "\\bfetch\\(", "message": "Call the backend through the typed client in src/api.", "severity": "block" },
+  { "id": "no-console", "files": ["src/**/*.ts", "src/**/*.tsx"], "forbid": "console\\.log", "message": "Use the logger.", "severity": "warn" }
+]
+```
+
+| Key | Required inside a rule | Default | Meaning |
+| --- | --- | --- | --- |
+| `id` | **yes** | | Unique; lower case, letters, digits, `-` and `_`, starting with a letter |
+| `files` | **yes** | | A file pattern, or 1 to 5 of them (same syntax as `ui` paths below) |
+| `forbid` | **yes** | | A regular expression of at most 300 characters. A line the change adds that matches it breaks the rule. It runs without backtracking, so **lookarounds and backreferences are not supported** |
+| `message` | **yes** | | At most 300 characters: what to do instead. It is sent to the developer |
+| `severity` | no | `"block"` | `"block"`: the change goes back to the developer until the rule holds (it counts as a failed round). `"warn"`: nothing is blocked; the reviewers are told and decide |
+
+Rules apply to features, bug fixes and [pull request revisions](workflows.md#pull-request-revisions). A rule cannot loosen anything: it only adds a check, and the protected paths and secret scan stay as they are. Use it for what can be tested with a pattern (a forbidden import, a banned call); judgement calls belong in `AGENTS.md`.
+
 ### UI
 
 Setting `ui` lets the `ux` reviewer look at interface changes. It runs only when **both** hold: the change touches files that match `paths`, and the change is
@@ -177,6 +199,22 @@ Patterns: `*` matches within one folder, `**` across folders, `?` one character.
 
 A short `AGENTS.md` in the repository root is read by OpenCode, so the agents know your conventions. It helps most for the **developer** (and the architect): in a
 test, a developer that was told "tests go in `check_x.py`, plain asserts, no pytest" wrote exactly that, though the ticket never said so.
+
+Suggested outline (short headings, a few lines each; the agents read the whole file on every run, so every line costs tokens):
+
+```markdown
+# <Project name>
+## What this is          one or two sentences: the product and who uses it
+## Layout                the folders that matter and what lives in each
+## Build and test        the exact commands, and which of them the gates run
+## Conventions           naming, error handling, logging, where new code goes
+## Architecture rules    layering ("Domain must not reference Infrastructure"), allowed dependencies
+## Testing               framework, where tests live, how a good test looks here
+## UI and UX             design system, accessibility expectations (only for projects with a UI)
+## Do not touch          generated code, vendored folders, files a person owns
+```
+
+Rules that can be tested with a pattern belong in [`rules`](#rules) instead, where they are enforced. The factory also applies a short, project-independent [engineering floor](../agents/README.md#the-engineering-floor) in its review roles; `AGENTS.md` may add to it, never relax it.
 
 Good content: what the project is, the folder layout, how to build and test, naming and style rules, and what **not** to touch. Keep it short, and keep it
 consistent with `gates`: if `AGENTS.md` says tests run with one command and `gates` runs another, the gate wins. The analyst, coverage and architect roles

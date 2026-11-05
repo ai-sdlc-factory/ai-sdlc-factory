@@ -140,6 +140,16 @@ def check_roles() -> None:
             fail(f"agents/agents/{role.name}: role `{role.stem}` is not in the table in docs/configuration.md")
 
 
+def check_engineering_floor() -> None:
+    floor = read(ROOT / "agents/engineering-floor.md").strip()
+    for role in ("reviewer", "security"):
+        text = read(ROOT / f"agents/agents/{role}.md")
+        match = re.search(r"<!-- engineering-floor:start[^>]*-->\n(.*?)\n<!-- engineering-floor:end -->", text, re.S)
+        if not match or not match.group(1).endswith(floor):
+            fail(f"agents/agents/{role}.md must contain the text of agents/engineering-floor.md between the engineering-floor markers")
+    checked["engineering floor roles"] = 2
+
+
 def check_statuses_and_labels() -> None:
     workflows = read(ROOT / "docs/workflows.md")
     statuses: set[str] = set()
@@ -173,6 +183,7 @@ def main() -> int:
     check_settings()
     check_project_keys()
     check_roles()
+    check_engineering_floor()
     check_statuses_and_labels()
     if problems:
         print(f"{len(problems)} documentation problem(s):")

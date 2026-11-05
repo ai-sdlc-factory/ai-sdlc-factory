@@ -83,7 +83,8 @@ Each round:
 2. **Change checks** (code) read what changed: protected paths (`.factory/`, `.forgejo/`, `.github/`, `.gitea/`, CI files), symbolic links,
    file size and count (300 files, 2 MiB per file, 10 MiB total), and a secret scan. `.gitignore` decides what counts as noise.
 3. **Project checks** (the gates in `.factory/project.json`) run one by one in the sandbox, **without** model access. Failures go back to the
-   developer with the end of their output.
+   developer with the end of their output. Then the project's own [`rules`](project-setup.md#rules), if it has any, are checked on the lines the change adds:
+   a `block` rule sends the change back to the developer, a `warn` rule is passed to the reviewers.
 4. **Reviewers** (read-only, **no shell**): `reviewer`, plus `security` if the project lists it, plus `ux` when the rules below apply. They
    get the diff in the prompt, so the agents that judge the work cannot run commands while the OpenCode login is readable. Findings are
    `blocker`, `major`, `minor` or `nit`; a blocker or major finding means `needs_changes`, and the verdict is derived from the findings
