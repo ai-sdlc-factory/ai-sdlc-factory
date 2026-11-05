@@ -79,3 +79,8 @@ Edit the Markdown file and commit it. Changes apply to the next run; running san
 [`engineering-floor.md`](engineering-floor.md) is a short list of rules that hold for every project (no secrets in code, input checked where it enters, tests with behaviour changes, errors not swallowed, access checks kept, scope kept to the ticket, simple code). The `reviewer` and `security` roles carry a copy of it
 between `engineering-floor` markers, and `python3 tools/check-docs.py` fails if a copy differs from the file, so edit the file and paste it into both roles. A project's `AGENTS.md` can add rules, never relax these. Project-specific, testable rules belong in the project's
 [`rules`](../docs/project-setup.md#rules) instead.
+
+## The security checklist
+
+[`standards/security-checklist.md`](standards/security-checklist.md) is a short checklist for the `security` role, grouped by the OWASP Top 10 and API Security Top 10, with a default severity for each group. It is copied into `agents/agents/security.md` between `security-checklist` markers and kept equal by `python3 tools/check-docs.py`, the same way as the engineering floor.
+It lists only what a reviewer can verify by reading a diff. Stack-specific items (a framework's authorisation attribute, unsafe HTML in a UI library) belong in the project's [`rules`](../docs/project-setup.md#rules) or `AGENTS.md`, and dependency audits belong in a `gates` entry.

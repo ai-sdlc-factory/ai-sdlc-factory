@@ -140,14 +140,22 @@ def check_roles() -> None:
             fail(f"agents/agents/{role.name}: role `{role.stem}` is not in the table in docs/configuration.md")
 
 
-def check_engineering_floor() -> None:
-    floor = read(ROOT / "agents/engineering-floor.md").strip()
-    for role in ("reviewer", "security"):
-        text = read(ROOT / f"agents/agents/{role}.md")
-        match = re.search(r"<!-- engineering-floor:start[^>]*-->\n(.*?)\n<!-- engineering-floor:end -->", text, re.S)
-        if not match or not match.group(1).endswith(floor):
-            fail(f"agents/agents/{role}.md must contain the text of agents/engineering-floor.md between the engineering-floor markers")
-    checked["engineering floor roles"] = 2
+def check_embedded_copies() -> None:
+    """A shared text (the engineering floor, the security checklist) is copied into role files; the copies must equal the source."""
+    copies = [
+        ("engineering-floor", "agents/engineering-floor.md", ("reviewer", "security")),
+        ("security-checklist", "agents/standards/security-checklist.md", ("security",)),
+    ]
+    count = 0
+    for marker, source, roles in copies:
+        text_of_source = read(ROOT / source).strip()
+        for role in roles:
+            text = read(ROOT / f"agents/agents/{role}.md")
+            match = re.search(rf"<!-- {marker}:start[^>]*-->\n(.*?)\n<!-- {marker}:end -->", text, re.S)
+            if not match or not match.group(1).endswith(text_of_source):
+                fail(f"agents/agents/{role}.md must contain the text of {source} between the {marker} markers")
+            count += 1
+    checked["embedded shared texts"] = count
 
 
 def check_statuses_and_labels() -> None:
@@ -183,7 +191,7 @@ def main() -> int:
     check_settings()
     check_project_keys()
     check_roles()
-    check_engineering_floor()
+    check_embedded_copies()
     check_statuses_and_labels()
     if problems:
         print(f"{len(problems)} documentation problem(s):")

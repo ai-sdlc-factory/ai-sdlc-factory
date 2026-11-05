@@ -181,6 +181,15 @@ A rule says "a change may not add a line like this in these files". The controll
 
 Rules apply to features, bug fixes and [pull request revisions](workflows.md#pull-request-revisions). A rule cannot loosen anything: it only adds a check, and the protected paths and secret scan stay as they are. Use it for what can be tested with a pattern (a forbidden import, a banned call); judgement calls belong in `AGENTS.md`.
 
+**Starting points** (adapt the paths; each pattern runs on added lines only):
+
+- **Python**, `files: "**/*.py"`: `forbid: "\\b(pickle\\.loads?|eval|exec)\\(|yaml\\.load\\("` (unsafe deserialisation and dynamic code), and `forbid: "shell\\s*=\\s*True"` (shell injection).
+- **.NET**, `files: "**/*.cs"`: `forbid: "BinaryFormatter|AllowAnyOrigin\\(\\)"` (unsafe deserialisation, wide-open CORS).
+- **Node and UI**, `files: ["**/*.js", "**/*.ts", "**/*.tsx"]`: `forbid: "dangerouslySetInnerHTML|\\beval\\(|new Function\\("` (script injection).
+- Credentials in code are already caught by the factory's built-in secret scan, so no rule is needed for them.
+
+Dependency problems are better caught by a tool than a pattern: add an audit as a gate, for example `{ "name": "audit", "command": ["pip-audit"] }`, `["npm", "audit", "--omit=dev"]` or `["dotnet", "list", "package", "--vulnerable"]`. Note that a gate runs with package registries reachable and nothing else.
+
 ### UI
 
 Setting `ui` lets the `ux` reviewer look at interface changes. It runs only when **both** hold: the change touches files that match `paths`, and the change is
