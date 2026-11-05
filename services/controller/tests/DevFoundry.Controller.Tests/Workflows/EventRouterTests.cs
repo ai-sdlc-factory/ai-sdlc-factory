@@ -54,6 +54,14 @@ public sealed class EventRouterTests
     }
 
     [Fact]
+    public void Forgejos_real_event_name_for_a_review_that_requests_changes_is_routed()
+    {
+        var decision = EventRouter.Decide(Event("pull_request_rejected", ReviewPayload()));
+
+        Assert.Equal(RoutingAction.RevisePullRequest, decision.Action);
+    }
+
+    [Fact]
     public void Only_reopening_a_ticket_restarts_a_finished_feature()
     {
         Assert.True(EventRouter.Decide(Event("issues", Ticket("reopened"))).Restart);

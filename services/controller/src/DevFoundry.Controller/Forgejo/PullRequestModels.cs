@@ -8,19 +8,15 @@ public sealed record PullRequestDetails(
 /// <summary>
 /// One comment of a review: where it is (when it is attached to a line), what it says, and the code it was written on
 /// (<see cref="DiffHunk"/>), so a line number that moved since the comment was written does not make it ambiguous.
-/// <see cref="CommitId"/> and <see cref="OldSide"/> say where a reply must be anchored to land in the same conversation.
 /// </summary>
 public sealed record ReviewComment(
-    long Id, string Author, string? Path, int? Line, string Body, string? DiffHunk = null, string? CommitId = null, bool OldSide = false);
+    long Id, string Author, string? Path, int? Line, string Body, string? DiffHunk = null);
 
 /// <summary>A review of the pull request: its overall text and the comments attached to lines.</summary>
 public sealed record ReviewDetails(long Id, string Reviewer, string State, string Body, IReadOnlyList<ReviewComment> Comments);
 
 /// <summary>Everything read from Forgejo to decide whether and what to revise.</summary>
 public sealed record RevisionContext(PullRequestDetails Pull, string BotLogin, IReadOnlyList<ReviewDetails> Reviews, int PriorRevisions);
-
-/// <summary>A reply to a line comment, posted on the same line and commit so Forgejo shows it in that conversation.</summary>
-public sealed record CommentReply(string Path, int Line, bool OldSide, string CommitId, string Body);
 
 /// <summary>How many revisions the factory has made on a pull request, and when the last reply was posted.</summary>
 public sealed record RevisionHistory(int Count, DateTimeOffset? LastAt);

@@ -38,7 +38,8 @@ public static partial class EventRouter
     {
         var payload = input.Payload;
         // A review that requests changes carries the pull request, not a ticket.
-        if (input.Event == "pull_request_review_rejected")
+        // Forgejo names this event "pull_request_rejected" in its header (the payload's review.type says "pull_request_review_rejected").
+        if (input.Event is "pull_request_rejected" or "pull_request_review_rejected")
         {
             return DecideReview(payload);
         }

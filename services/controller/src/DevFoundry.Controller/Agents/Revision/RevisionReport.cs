@@ -6,7 +6,7 @@ using static DevFoundry.Controller.JsonFields;
 namespace DevFoundry.Controller;
 
 /// <summary>One thing a person asked for, numbered so the agent can answer each one: a line comment, a review's overall text, or the text after <c>/fix</c>.</summary>
-public sealed record RevisionComment(int Index, string Author, string? Path, int? Line, string Body, string? DiffHunk = null, string? CommitId = null, bool OldSide = false)
+public sealed record RevisionComment(int Index, string Author, string? Path, int? Line, string Body, string? DiffHunk = null)
 {
     public string Where => Path is null ? "general" : Line is null ? Path : $"{Path}:{Line}";
 }
@@ -118,11 +118,11 @@ public static class RevisionComments
     public static IReadOnlyList<RevisionComment> Collect(RevisionRequest request, IReadOnlyList<ReviewDetails> reviews)
     {
         var list = new List<RevisionComment>();
-        void Add(string author, string? path, int? line, string? body, string? hunk = null, string? commit = null, bool oldSide = false)
+        void Add(string author, string? path, int? line, string? body, string? hunk = null)
         {
             if (!string.IsNullOrWhiteSpace(body) && list.Count < RevisionRules.MaxComments)
             {
-                list.Add(new RevisionComment(list.Count + 1, author, path, line, body.Trim(), hunk, commit, oldSide));
+                list.Add(new RevisionComment(list.Count + 1, author, path, line, body.Trim(), hunk));
             }
         }
 
@@ -136,7 +136,7 @@ public static class RevisionComments
             }
             foreach (var comment in review.Comments)
             {
-                Add(comment.Author, string.IsNullOrWhiteSpace(comment.Path) ? null : comment.Path, comment.Line, comment.Body, comment.DiffHunk, comment.CommitId, comment.OldSide);
+                Add(comment.Author, string.IsNullOrWhiteSpace(comment.Path) ? null : comment.Path, comment.Line, comment.Body, comment.DiffHunk);
             }
         }
         return list;

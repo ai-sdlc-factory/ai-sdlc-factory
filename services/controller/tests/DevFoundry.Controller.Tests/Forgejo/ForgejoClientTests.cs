@@ -259,8 +259,8 @@ public sealed class RevisionClientTests
         var seven = reviews[1];
         Assert.Equal(("bob", "REQUEST_CHANGES", "Please rename these."), (seven.Reviewer, seven.State, seven.Body));
         Assert.Equal(
-            [("hello.py", 4, "Rename this.", "c1", false), ("test_hello.py", 9, "On an old diff.", "c2", true)],
-            seven.Comments.Select(c => (c.Path, c.Line, c.Body, c.CommitId, c.OldSide)));
+            [("hello.py", 4, "Rename this."), ("test_hello.py", 9, "On an old diff.")],
+            seven.Comments.Select(c => (c.Path, c.Line, c.Body)));
         Assert.Equal("@@ -1 +1 @@", seven.Comments[0].DiffHunk);
     }
 

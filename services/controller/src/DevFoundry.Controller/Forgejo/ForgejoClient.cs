@@ -170,21 +170,18 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
                             continue;
                         }
                         int? line = null;
-                        var oldSide = false;
-                        foreach (var (name, old) in new[] { ("line", false), ("position", false), ("original_position", true) })
+                        foreach (var name in new[] { "line", "position", "original_position" })
                         {
                             if (comment.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var lineNumber) && lineNumber > 0)
                             {
                                 line = lineNumber;
-                                oldSide = old;
                                 break;
                             }
                         }
                         comments.Add(new ReviewComment(
                             comment.TryGetProperty("id", out var commentId) && commentId.ValueKind == JsonValueKind.Number ? commentId.GetInt64() : 0,
                             Login(comment), Text(comment, "path") is { Length: > 0 } filePath ? filePath : null, line, Text(comment, "body"),
-                            Text(comment, "diff_hunk") is { Length: > 0 } hunk ? hunk : null,
-                            Text(comment, "commit_id") is { Length: > 0 } commit ? commit : null, oldSide));
+                            Text(comment, "diff_hunk") is { Length: > 0 } hunk ? hunk : null));
                     }
                 }
             }
@@ -256,44 +253,6 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
             throw Failure("review request", response.StatusCode, response.ReasonPhrase);
         }
         return false;
-    }
-
-    /// <summary>
-    /// Replies to line comments by posting comments on the same lines (and commits), which Forgejo shows in the same conversation.
-    /// Forgejo's API has no thread reply and no way to mark a conversation resolved, so this is the closest it allows. Best effort:
-    /// returns how many replies were posted.
-    /// </summary>
-    public async Task<int> ReplyToCommentsAsync(string owner, string repo, int number, IReadOnlyList<CommentReply> replies, CancellationToken cancellationToken)
-    {
-        RequireToken();
-        var posted = 0;
-        foreach (var group in replies.GroupBy(reply => reply.CommitId))
-        {
-            using var request = Authorized(HttpMethod.Post, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}/reviews");
-            request.Content = JsonContent.Create(new
-            {
-                @event = "COMMENT",
-                body = "",
-                commit_id = group.Key,
-                comments = group.Select(reply => new
-                {
-                    path = reply.Path,
-                    body = reply.Body,
-                    new_position = reply.OldSide ? 0 : reply.Line,
-                    old_position = reply.OldSide ? reply.Line : 0,
-                }).ToArray(),
-            });
-            using var response = await http.SendAsync(request, cancellationToken);
-            if (response.IsSuccessStatusCode)
-            {
-                posted += group.Count();
-            }
-            else if ((int)response.StatusCode >= 500)
-            {
-                throw Failure("reply", response.StatusCode, response.ReasonPhrase);
-            }
-        }
-        return posted;
     }
 
     /// <summary>The bodies of a ticket's latest comments, oldest first.</summary>

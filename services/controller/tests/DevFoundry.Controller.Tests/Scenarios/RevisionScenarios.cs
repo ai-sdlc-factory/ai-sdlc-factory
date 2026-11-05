@@ -37,12 +37,7 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         Assert.Contains("| 2 | `hello.py:4` Rename this function. | answered: Reason for comment 2. |", reply);
         Assert.Contains("A person should look at the new commit", reply);
 
-        // Line comments get an answer in their own conversation; the reviewer is asked to look again.
-        var threads = Assert.Single(world.ThreadReplies);
-        Assert.Equal(2, threads.Replies.Count);
-        Assert.Equal("c1", threads.Replies[0].CommitId);
-        Assert.Contains("Reason for comment 2.", threads.Replies[0].Body);
-        Assert.Contains("Fixed in `c0ffee`", threads.Replies[1].Body);
+        // The reviewer is asked to look again.
         Assert.Equal(["bob"], Assert.Single(world.ReviewRequests).Reviewers);
         Assert.Equal([request.WorkflowId], world.CleanedUp);
     }

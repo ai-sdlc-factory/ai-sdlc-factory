@@ -8,7 +8,6 @@ public sealed record CreateIssueRequest(string Owner, string Repo, string Title,
 
 public sealed record ReviewRequestInput(string Owner, string Repo, int PullNumber, IReadOnlyList<string> Reviewers);
 
-public sealed record CommentRepliesInput(string Owner, string Repo, int PullNumber, IReadOnlyList<CommentReply> Replies);
 
 public sealed record PullRequestRequest(string Owner, string Repo, string Head, string Base, string Title, string Body);
 
@@ -50,9 +49,7 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
         forgejo.RequestReviewAsync(request.Owner, request.Repo, request.PullNumber, request.Reviewers, ActivityExecutionContext.Current.CancellationToken);
 
     /// <summary>Replies to the line comments that were addressed, in their own conversations. Never fails the run.</summary>
-    [Activity("forgejo_reply_to_comments")]
-    public Task<int> ReplyToCommentsAsync(CommentRepliesInput request) =>
-        forgejo.ReplyToCommentsAsync(request.Owner, request.Repo, request.PullNumber, request.Replies, ActivityExecutionContext.Current.CancellationToken);
+
 
     [Activity("forgejo_create_pull_request")]
     public Task<PullRequestInfo> CreatePullRequestAsync(PullRequestRequest request) =>

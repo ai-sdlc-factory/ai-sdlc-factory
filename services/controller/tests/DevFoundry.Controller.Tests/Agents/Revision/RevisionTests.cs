@@ -352,14 +352,13 @@ public sealed class RevisionReplyTests
     [Fact]
     public void Comments_of_several_reviews_are_all_taken_oldest_first_with_their_code()
     {
-        var first = new ReviewDetails(1, "carol", "COMMENT", "", [new ReviewComment(5, "carol", "a.py", 3, "Rename x.", "@@ -1 +1 @@\n-x\n+y", "c1")]);
-        var second = new ReviewDetails(2, "dave", "REQUEST_CHANGES", "", [new ReviewComment(6, "dave", "b.py", 8, "Add a test.", null, "c2", true)]);
+        var first = new ReviewDetails(1, "carol", "COMMENT", "", [new ReviewComment(5, "carol", "a.py", 3, "Rename x.", "@@ -1 +1 @@\n-x\n+y")]);
+        var second = new ReviewDetails(2, "dave", "REQUEST_CHANGES", "", [new ReviewComment(6, "dave", "b.py", 8, "Add a test.")]);
 
         var comments = RevisionComments.Collect(new RevisionRequest("acme", "shop", 7, RevisionRequest.ByCommand, "", "bob"), [first, second]);
 
         Assert.Equal(["Rename x.", "Add a test."], comments.Select(c => c.Body));
-        Assert.Equal(("@@ -1 +1 @@\n-x\n+y", "c1", false), (comments[0].DiffHunk, comments[0].CommitId, comments[0].OldSide));
-        Assert.True(comments[1].OldSide);
+        Assert.Equal("@@ -1 +1 @@\n-x\n+y", comments[0].DiffHunk);
         Assert.Equal(["carol", "dave"], RevisionComments.Reviewers([first, second, first]));
     }
 
@@ -367,7 +366,7 @@ public sealed class RevisionReplyTests
     public void Thirty_comments_with_long_code_still_fit_in_one_prompt()
     {
         var hunk = string.Join('\n', Enumerable.Range(0, 40).Select(i => new string('x', 200)));
-        var comments = Enumerable.Range(1, 30).Select(i => new RevisionComment(i, "carol", "a.py", i, new string('b', 3000), hunk, "c1")).ToList();
+        var comments = Enumerable.Range(1, 30).Select(i => new RevisionComment(i, "carol", "a.py", i, new string('b', 3000), hunk)).ToList();
         var pull = new PullRequestDetails(7, "Add goodbye", "Closes #3", "open", false, "factory/issue-7", "abc", "a/b", "a/b", "main", "factory-bot");
 
         var prompt = RevisionPrompts.Build(pull, comments, [], new string('f', 20000), 1, 3);
@@ -385,25 +384,5 @@ public sealed class RevisionReplyTests
 
         Assert.Equal(["Says goodbye", "Test covers it"], criteria.Select(c => c.Criterion));
         Assert.Empty(PullRequestCriteria.FromBody("no section here"));
-    }
-
-    [Fact]
-    public void Thread_replies_are_made_only_for_line_comments_with_their_commit()
-    {
-        var comments = new List<RevisionComment>
-        {
-            new(1, "bob", null, null, "General."),
-            new(2, "bob", "a.py", 4, "Rename.", "@@", "c1"),
-            new(3, "bob", "b.py", 9, "Why?", "@@", "c2", true),
-        };
-        var report = new RevisionReport("done", "s", [new(1, "answered", "ok"), new(2, "fixed", "renamed"), new(3, "answered", "Because.")], []);
-
-        var replies = RevisionReply.ThreadReplies(report, comments, "0123456789abcdef");
-
-        Assert.Equal(2, replies.Count);
-        Assert.Contains("`01234567`", replies[0].Body);
-        Assert.Equal(("a.py", 4, false, "c1"), (replies[0].Path, replies[0].Line, replies[0].OldSide, replies[0].CommitId));
-        Assert.StartsWith("Because.", replies[1].Body);
-        Assert.True(replies[1].OldSide);
     }
 }

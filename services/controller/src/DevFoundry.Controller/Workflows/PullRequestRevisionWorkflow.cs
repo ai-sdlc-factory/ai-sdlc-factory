@@ -212,14 +212,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             var notes = review.Reports.SelectMany(r => r.Report.Advice.Take(3).Select(f => $"{r.Role}, {f.Severity}: {f.Message}")).Take(6).ToList();
             await CommentAsync(request, RevisionReply.Pushed(published.CommitSha, report, comments, BuildFeedback.Summary(results), notes, published.RebasedOver));
 
-            // Both are courtesies: if either fails the push still stands.
-            var replies = RevisionReply.ThreadReplies(report, comments, published.CommitSha);
-            if (replies.Count > 0)
-            {
-                await BestEffortAsync(() => Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.ReplyToCommentsAsync(new CommentRepliesInput(request.Owner, request.Repo, pull.Number, replies)),
-                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(2), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } }));
-            }
+            // A courtesy: if it fails the push still stands.
             var reviewers = RevisionComments.Reviewers(reviews);
             if (reviewers.Count > 0)
             {
