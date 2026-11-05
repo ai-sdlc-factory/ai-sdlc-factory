@@ -221,6 +221,18 @@ public static class TicketComments
         return text.ToString().TrimEnd();
     }
 
+    /// <summary>A review or <c>/fix</c> on a pull request that is closed or merged.</summary>
+    public const string RevisionClosed = "This pull request is closed or merged, so I will not change it.";
+
+    public static string RevisionLimit(int max) =>
+        $"I have already made {max} revisions on this pull request. A person should take it from here (the branch is theirs to change).";
+
+    public const string RevisionNothingToDo =
+        "I found nothing to act on. Write what to change after `/fix`, or submit a review that requests changes and has comments, then ask again with `/fix`.";
+
+    public const string RevisionBusy =
+        "A revision of this pull request is already running. When it has finished, ask again with `/fix` and what to change.";
+
     /// <summary>Hidden marker on a notice about a comment that could not be used, so the same notice is not repeated.</summary>
     public const string NoticeMarker = "<!-- dev-foundry:notice -->";
 

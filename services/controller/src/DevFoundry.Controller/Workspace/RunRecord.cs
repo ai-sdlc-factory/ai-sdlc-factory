@@ -54,6 +54,10 @@ public static partial class RunRecord
     public static string DirectoryFor(int issueNumber, string runId) =>
         $"{Root}/issue-{issueNumber}-{new string(runId.Where(char.IsAsciiLetterOrDigit).Take(8).ToArray()).ToLowerInvariant()}";
 
+    /// <summary>The directory of a pull request revision's record: the pull request plus the start of the run's id.</summary>
+    public static string DirectoryForRevision(int pullNumber, string runId) =>
+        $"{Root}/pr-{pullNumber}-{new string(runId.Where(char.IsAsciiLetterOrDigit).Take(8).ToArray()).ToLowerInvariant()}";
+
     /// <summary>One step as a readable markdown file. Lines that look like credentials are replaced, never written.</summary>
     public static string Render(RecordEntry entry, IEnumerable<string> knownSecrets)
     {

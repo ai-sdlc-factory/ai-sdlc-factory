@@ -11,7 +11,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | --- | --- |
 | **run the factory** for the first time | [Getting started](getting-started.md) |
 | **connect a repository** and understand `.factory/project.json` (what is required, what is optional) | [Setting up a project](project-setup.md) |
-| understand **what happens to a ticket**, step by step, with diagrams | [Workflows](workflows.md) |
+| understand **what happens to a ticket or a review**, step by step, with diagrams | [Workflows](workflows.md) |
 | understand **how it is built** and why it is safe to run | [Architecture](architecture.md) and [Design and decisions](design.md) |
 | look up a **setting**, a port, a default | [Configuration reference](configuration.md) |
 | **operate** it: watch runs, troubleshoot, clean up, back up, update | [Operations](operations.md) |
@@ -40,6 +40,7 @@ Every picture is a Graphviz source in [`diagrams/`](diagrams/) with a rendered S
 | [ticket-routing](images/ticket-routing.svg) | from a Forgejo event to a workflow |
 | [feature-workflow](images/feature-workflow.svg) | a feature ticket to a pull request |
 | [bug-workflow](images/bug-workflow.svg) | the red-then-green bug fix |
+| [pr-revision](images/pr-revision.svg) | a review becomes one new commit on the same branch |
 | [incident-workflow](images/incident-workflow.svg) | advice, commands and the postmortem |
 | [agent-run](images/agent-run.svg) | one agent run, from request to verdict |
 | [workspace-trust](images/workspace-trust.svg) | the two copies of the checkout |

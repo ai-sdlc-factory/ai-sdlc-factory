@@ -32,6 +32,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 
 | Key | What | Default |
 | --- | --- | --- |
+| `FORGEJO_BOT_LOGIN` | the bot account's username. The factory revises only pull requests this account opened, and compares the author with it (the token's own scopes do not allow asking Forgejo) | `factory-bot` |
 | `FORGEJO_BOT_TOKEN` | the factory bot's access token (scopes `write:issue`, `write:repository`). Only the controller receives it. Empty disables all ticket actions | empty |
 | `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
 
@@ -82,6 +83,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | as above | the queue the workflows run on |
 | `FORGEJO_URL` | `http://forgejo:3000` | where the controller reaches Forgejo (over the `forge` network) |
 | `FORGEJO_BOT_TOKEN` | empty | the bot's token |
+| `FORGEJO_BOT_LOGIN` | `factory-bot` | the bot's username, used to recognise the factory's own pull requests |
 | `FACTORY_WORKSPACE_ROOT` | none (required) | where checkouts live |
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |
 | `TEMPORAL_UI_URL` | `http://localhost:8080` | base of the trace link in comments |
@@ -155,6 +157,7 @@ Which roles can do what:
 | `reviewer`, `security`, `ux`, `qa` | feature, bug (QA: feature) | yes (given the diff) | no | no | `model` |
 | `bug-analyst`, `diagnostician` | bug | yes | no | no | `model` |
 | `reproducer` | bug | yes | yes (tests only, checked) | yes | `developer` |
+| `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
 | `investigator` | incident | yes (and git history) | no | yes (read-only workspace) | `model` |
 | `postmortem-writer` | incident | yes | yes (one new file, checked) | no | `model` |

@@ -15,12 +15,13 @@ What the workflows do for a ticket is described in the [workflows guide](../../d
 | `FeatureWorkflow` | a `feature` ticket | [feature workflow](../../docs/workflows.md#feature-workflow) |
 | `BugWorkflow` | a `bug` ticket | [bug workflow](../../docs/workflows.md#bug-workflow) |
 | `IncidentWorkflow` | an `incident` ticket | [incident workflow](../../docs/workflows.md#incident-workflow) |
+| `PullRequestRevisionWorkflow` | a review that requests changes, or `/fix`, on a factory pull request | [pull request revision](../../docs/workflows.md#pull-request-revisions): one new commit on the same branch |
 
 The three ticket workflows share one base class, `FactoryWorkflowBase`: the workspace, the conversation with people, running one agent, the build loop with the project's checks and
 reviewers, and saving unfinished work. Each concrete workflow only defines its own stage order.
 
 Activities (all in this service, except `sandbox_run`): `workspace_prepare`, `workspace_cleanup`, `workspace_read_project_config`, `workspace_changes`, `workspace_diff`, `workspace_rescue`,
-`workspace_publish`, `workspace_record`, `forgejo_post_issue_comment`, `forgejo_post_notice_once`, `forgejo_create_issue`, `forgejo_create_pull_request`. The workflows call `sandbox_run` on the
+`workspace_publish`, `workspace_record`, `forgejo_post_issue_comment`, `forgejo_post_notice_once`, `forgejo_create_issue`, `forgejo_create_pull_request`, `forgejo_read_revision_context`. The workflows call `sandbox_run` on the
 `sandbox` task queue, which the [sandbox launcher](../sandbox-launcher/README.md) serves. The controller itself polls `factory-events`.
 
 ## Run
@@ -44,8 +45,8 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 
 | Folder | What is in it |
 | --- | --- |
-| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), `FeatureWorkflow`, `BugWorkflow` and `IncidentWorkflow` (their own stage orders), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `FeatureRequest` and the workflow id rules |
-| `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision, `Bug`, `Incident`) |
+| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow` and `PullRequestRevisionWorkflow` (their own stage orders), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `FeatureRequest` and the workflow id rules |
+| `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision, `Bug`, `Incident`, `Revision`) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
 | `Forgejo/` | the API client, the comment, ticket and pull request activities, ticket comment texts |
 | `Project/` | `.factory/project.json` parsing |
@@ -61,7 +62,7 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 4. Test it: parser and prompt unit tests, and a scenario test with scripted agents (`FakeWorld`, `Answers`). Break the rule on purpose once to see the right test fail.
 5. Document it: the role table in [configuration](../../docs/configuration.md#agents-and-models), the stage in [workflows](../../docs/workflows.md), and any new result status. `python3 tools/check-docs.py` fails until the role and statuses are listed.
 
-**A new workflow kind** extends `FactoryWorkflowBase`, defines its signals (`human_reply`, `ticket_closed`) and a `RunAsync` that calls `RunPipelineAsync`, and is registered in `Program.cs`, `EventRouter` (the label and the
+**A new workflow kind** extends `FactoryWorkflowBase`, defines its signals (when it waits for people; the revision workflow does not) (`human_reply`, `ticket_closed`) and a `RunAsync` that calls `RunPipelineAsync`, and is registered in `Program.cs`, `EventRouter` (the label and the
 `FeatureIds` kind) and `ForgejoEventWorkflow` (start and signal).
 
 ## Tests

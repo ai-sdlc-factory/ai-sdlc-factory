@@ -261,6 +261,8 @@ services:
       # How a person opens the Temporal web UI; used for the link to a run's record in ticket comments.
       TEMPORAL_UI_URL: ${TEMPORAL_UI_URL:-http://localhost:${TEMPORAL_UI_PORT:-8080}}
       FORGEJO_BOT_TOKEN: ${FORGEJO_BOT_TOKEN:-}
+      # The factory only revises pull requests this account opened.
+      FORGEJO_BOT_LOGIN: ${FORGEJO_BOT_LOGIN:-factory-bot}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
       # Only read to name the model each role is configured with in a run record.
       FACTORY_AGENTS_DIR: /etc/factory

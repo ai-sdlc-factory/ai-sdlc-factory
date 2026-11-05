@@ -22,7 +22,7 @@ public sealed partial class GitWorkspace
     }
 
     private async Task<string> GitAsync(
-        IReadOnlyList<string> arguments, string workingDirectory, bool useToken, CancellationToken cancellationToken)
+        IReadOnlyList<string> arguments, string workingDirectory, bool useToken, CancellationToken cancellationToken, bool allowFailure = false)
     {
         var start = new ProcessStartInfo("git")
         {
@@ -59,6 +59,10 @@ public sealed partial class GitWorkspace
             throw;
         }
 
+        if (process.ExitCode != 0 && allowFailure)
+        {
+            return "";
+        }
         if (process.ExitCode != 0)
         {
             // The token is passed by environment, so it cannot appear in git's own messages.

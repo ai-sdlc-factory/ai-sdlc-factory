@@ -86,6 +86,103 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
         return new IssueInfo(document.RootElement.GetProperty("number").GetInt32(), document.RootElement.GetProperty("html_url").GetString() ?? "");
     }
 
+    public async Task<PullRequestDetails> GetPullRequestAsync(string owner, string repo, int number, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("pull request", response.StatusCode, response.ReasonPhrase);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        var root = document.RootElement;
+        // A part that is missing reads as empty text, never as an error (a default element must not be asked for properties).
+        static string Text(JsonElement element, string name) =>
+            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        static JsonElement Child(JsonElement element, string name) =>
+            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object ? v : default;
+        string Repository(JsonElement side) => Text(Child(side, "repo"), "full_name");
+
+        var head = Child(root, "head");
+        var @base = Child(root, "base");
+        return new PullRequestDetails(
+            number, Text(root, "title"), Text(root, "body"), Text(root, "state"),
+            root.TryGetProperty("merged", out var merged) && merged.ValueKind == JsonValueKind.True,
+            Text(head, "ref"), Text(head, "sha"), Repository(head), Repository(@base), Text(@base, "ref"), Text(Child(root, "user"), "login"));
+    }
+
+    /// <summary>
+    /// The most recent review of a pull request that is worth acting on (changes requested, or comments) and was not written by the bot,
+    /// with the comments attached to its lines. Null when there is none.
+    /// </summary>
+    public async Task<ReviewDetails?> GetLatestReviewAsync(string owner, string repo, int number, string botLogin, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var path = $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}/reviews";
+        using var list = Authorized(HttpMethod.Get, path);
+        using var listed = await http.SendAsync(list, cancellationToken);
+        if (!listed.IsSuccessStatusCode)
+        {
+            throw Failure("review list", listed.StatusCode, listed.ReasonPhrase);
+        }
+        using var reviews = await JsonDocument.ParseAsync(await listed.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        if (reviews.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        static string Text(JsonElement element, string name) => element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        static string Login(JsonElement element) => element.TryGetProperty("user", out var u) && u.ValueKind == JsonValueKind.Object ? Text(u, "login") : "";
+        var chosen = reviews.RootElement.EnumerateArray()
+            .Where(review => review.TryGetProperty("id", out _)
+                && Text(review, "state") is "REQUEST_CHANGES" or "COMMENT"
+                && !(review.TryGetProperty("dismissed", out var dismissed) && dismissed.ValueKind == JsonValueKind.True)
+                && !string.Equals(Login(review), botLogin, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(review => review.GetProperty("id").GetInt64())
+            .Select(review => (JsonElement?)review)
+            .FirstOrDefault();
+        if (chosen is not { } found)
+        {
+            return null;
+        }
+
+        var id = found.GetProperty("id").GetInt64();
+        using var commentsRequest = Authorized(HttpMethod.Get, $"{path}/{id}/comments");
+        using var commentsResponse = await http.SendAsync(commentsRequest, cancellationToken);
+        var comments = new List<ReviewComment>();
+        if (commentsResponse.IsSuccessStatusCode)
+        {
+            using var document = await JsonDocument.ParseAsync(await commentsResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var comment in document.RootElement.EnumerateArray())
+                {
+                    int? line = null;
+                    foreach (var name in new[] { "line", "position" })
+                    {
+                        if (comment.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var lineNumber) && lineNumber > 0)
+                        {
+                            line = lineNumber;
+                            break;
+                        }
+                    }
+                    comments.Add(new ReviewComment(
+                        comment.TryGetProperty("id", out var commentId) && commentId.ValueKind == JsonValueKind.Number ? commentId.GetInt64() : 0,
+                        Login(comment), Text(comment, "path") is { Length: > 0 } filePath ? filePath : null, line, Text(comment, "body")));
+                }
+            }
+        }
+        return new ReviewDetails(id, Login(found), Text(found, "state"), Text(found, "body"), comments);
+    }
+
+    /// <summary>How many revisions the factory has already made on a pull request: its replies carry a hidden marker.</summary>
+    public async Task<int> CountRevisionsAsync(string owner, string repo, int number, CancellationToken cancellationToken)
+    {
+        var bodies = await RecentCommentBodiesAsync(owner, repo, number, 1000, cancellationToken);
+        return bodies.Count(body => body.Contains(RevisionReply.Marker, StringComparison.Ordinal));
+    }
+
     /// <summary>The bodies of a ticket's latest comments, oldest first.</summary>
     public async Task<IReadOnlyList<string>> RecentCommentBodiesAsync(
         string owner, string repo, int issueNumber, int count, CancellationToken cancellationToken)

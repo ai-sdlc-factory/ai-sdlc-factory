@@ -28,6 +28,7 @@ public static class FeatureIds
     public const string Feature = "feature";
     public const string Bug = "bug";
     public const string Incident = "incident";
+    public const string Revision = "revision";
 
     private const int MaxReadable = 80;
 

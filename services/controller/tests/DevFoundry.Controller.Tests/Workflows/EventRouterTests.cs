@@ -154,6 +154,98 @@ public sealed class EventRouterTests
         Assert.StartsWith("bug-acme-shop-7-", closed.Feature!.WorkflowId);
     }
 
+    private static string ReviewPayload(string headRef = "factory/issue-3", string state = "open", string content = "Please rename these.", string reviewer = "bob") =>
+        JsonSerializer.Serialize(new
+        {
+            action = "reviewed",
+            repository = new { full_name = "acme/shop" },
+            pull_request = new { number = 7, state, head = new { @ref = headRef } },
+            review = new { type = "pull_request_review_rejected", content },
+            sender = new { login = reviewer },
+        });
+
+    [Fact]
+    public void A_review_that_requests_changes_on_a_factory_branch_starts_a_revision()
+    {
+        var decision = EventRouter.Decide(Event("pull_request_review_rejected", ReviewPayload()));
+
+        Assert.Equal(RoutingAction.RevisePullRequest, decision.Action);
+        var revision = decision.Revision!;
+        Assert.Equal(("acme", "shop", 7, RevisionRequest.ByReview, "Please rename these.", "bob"), (revision.Owner, revision.Repo, revision.PullNumber, revision.Trigger, revision.Instruction, revision.Author));
+        Assert.StartsWith("revision-acme-shop-7-", revision.WorkflowId);
+    }
+
+    [Theory]
+    [InlineData("feature/other", "open")]
+    [InlineData("main", "open")]
+    [InlineData("factory/issue-3-wip", "open")]
+    [InlineData("factory/issue-3", "closed")]
+    public void A_review_on_anything_but_an_open_factory_branch_is_ignored(string branch, string state) =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("pull_request_review_rejected", ReviewPayload(branch, state))).Action);
+
+    [Fact]
+    public void A_review_written_by_the_factory_is_ignored() =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("pull_request_review_rejected", ReviewPayload(content: $"{EventRouter.BotMarker}\nsomething"))).Action);
+
+    [Theory]
+    [InlineData("""{"repository":{"full_name":"acme/shop"}}""")]
+    [InlineData("""{"repository":{"full_name":"acme/shop"},"pull_request":"text"}""")]
+    [InlineData("[]")]
+    public void A_review_event_of_an_unexpected_shape_is_ignored_without_failing(string payload) =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("pull_request_review_rejected", payload)).Action);
+
+    private static string PullComment(string body, string eventUser = "bob") =>
+        Ticket("created", [], more: new { comment = new { body, user = new { login = eventUser } }, is_pull = true }).Replace("\"pull_request\":null", "\"pull_request\":{\"merged\":false}");
+
+    [Theory]
+    [InlineData("issue_comment")]
+    [InlineData("pull_request_comment")]
+    public void The_fix_command_on_a_pull_request_starts_a_revision_with_what_follows_it(string eventName)
+    {
+        var decision = EventRouter.Decide(Event(eventName, PullComment("Looks good overall.\n/fix rename the helper\nand add a test")));
+
+        Assert.Equal(RoutingAction.RevisePullRequest, decision.Action);
+        Assert.Equal(RevisionRequest.ByCommand, decision.Revision!.Trigger);
+        Assert.Equal("rename the helper\nand add a test", decision.Revision.Instruction);
+        Assert.Equal("bob", decision.Revision.Author);
+        Assert.Equal(7, decision.Revision.PullNumber);
+    }
+
+    [Theory]
+    [InlineData("/revise just this")]
+    [InlineData("  /FIX  shout")]
+    public void The_command_has_an_alias_and_forgives_case_and_spaces(string body) =>
+        Assert.Equal(RoutingAction.RevisePullRequest, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
+
+    [Fact]
+    public void The_fix_command_alone_is_a_request_to_act_on_the_latest_review()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment("/fix")));
+
+        Assert.Equal(RoutingAction.RevisePullRequest, decision.Action);
+        Assert.Equal("", decision.Revision!.Instruction);
+    }
+
+    [Theory]
+    [InlineData("I think we should /fix this later")]
+    [InlineData("please fix this")]
+    [InlineData("/fixing the build")]
+    [InlineData("/option 1")]
+    public void Any_other_comment_on_a_pull_request_does_nothing(string body) =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
+
+    [Fact]
+    public void A_fix_command_written_by_the_factory_is_ignored() =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment($"{EventRouter.BotMarker}\n/fix this"))).Action);
+
+    [Fact]
+    public void A_fix_command_on_an_ordinary_ticket_is_still_just_a_human_comment()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", ["feature"], more: new { comment = Comment("/fix this") })));
+
+        Assert.Equal(RoutingAction.ReplyToFeature, decision.Action);
+    }
+
     [Fact]
     public void An_incident_ticket_starts_an_incident_run_and_the_incident_label_wins_over_the_others()
     {

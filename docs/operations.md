@@ -33,6 +33,7 @@ shows what the router decided.
 | A run says the image does not exist | Build it: `docker compose --profile images build sandbox-image-<name>`. |
 | A run seems stuck | It is probably **waiting for you**: the last comment asks a question (up to 7 days). Otherwise check `docker compose logs controller sandbox-launcher` and the workflow in the Temporal UI. |
 | Nothing happens when two tickets run together | Only 2 sandboxes run at once; the others queue (`SANDBOX_MAX_CONCURRENT`). |
+| `/fix` or a review did nothing on a pull request | The pull request must be the factory's own (branch `factory/issue-<n>`, authored by the bot, same repository, open) and have fewer than 3 revisions. A review that requests changes needs the webhook's **Pull Request Review Rejected** event; `/fix` needs only Issue Comment. `docker compose logs api` shows each delivery's event name. |
 | A reopened ticket did not restart | A `reopened` event starts a new run; check the webhook delivered it. Re-labelling or editing a ticket that already had a run does nothing. |
 | The controller was restarted while runs were active | Runs are durable in Temporal and continue; a sandbox that was mid-run is removed at the launcher's next start and the activity is retried or fails with a comment. |
 | A network error in the launcher at start | One of the three internal sandbox networks is missing or clashes with yours (`SANDBOX_NET_BASE`). The launcher refuses to run without them. |
@@ -108,7 +109,7 @@ Reference points from real runs: a small feature in the full process used about 
 | --- | --- |
 | No automatic cleanup of old checkouts and `-wip` branches | see above |
 | No token or spending limits | recorded, not enforced |
-| Comments on a finished pull request are not acted on | planned: a bounded revision loop |
+| Pull request revisions answer in one comment | a reply to each review comment in its own thread is not built; only the factory's own pull requests are revised |
 | Incident tickets are written by people | a collector that files them from monitoring waits until there is a production system |
 | Unknown keys in `.factory/project.json` are ignored silently | check spelling against the [reference](project-setup.md#reference) |
 | Forgejo only | the router reads Forgejo's webhook format |

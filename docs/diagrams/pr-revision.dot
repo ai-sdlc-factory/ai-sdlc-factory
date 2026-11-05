@@ -1,0 +1,39 @@
+digraph pr_revision {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
+  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  label="Pull request revision: a person's review becomes one new commit on the same branch";
+
+  start  [label="A person requests changes on a pull request\nthe factory opened, or comments /fix", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
+  read   [label="Read the pull request and the latest review\nfrom Forgejo: its comments, line by line", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  rules  [label="Is it the factory's own pull request?\nopen · same repository · fewer than 3 revisions\nsomething to act on?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+  refuse [label="ignored without a word (not the factory's)\nor a short note: closed · limit reached · nothing to do", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  intake [label="Check out the pull request's own branch\nread .factory/project.json", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+
+  subgraph cluster_loop {
+    label="Revision loop  (3 rounds at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
+    resolver [label="pr-resolver\nfor each numbered comment: fixed, answered,\ndeclined (with a reason) or needs clarification", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    answers  [label="every comment answered exactly once?\n\"fixed\" must mean files really changed", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    checks   [label="change checks + the project's checks", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    reviewers[label="reviewers look at the revision\n(QA is not used)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+  }
+  replied [label="Reply on the pull request: nothing was pushed,\nwith the answer to each comment", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  push    [label="Push ONE new commit onto the same branch\nnever forced; refused if someone pushed meanwhile", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  reply   [label="Reply on the pull request: the commit,\na table of what was done per comment, the checks", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  again   [label="A person reviews again and merges\n(the factory never merges)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
+  wip     [label="Nothing pushed to the pull request\nwork saved on a -wip branch + a comment", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+
+  start -> read -> rules;
+  rules -> refuse [label="no", style=dashed];
+  rules -> intake [label="yes"];
+  intake -> resolver -> answers;
+  answers -> resolver [label="no: sent back with the reason", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  answers -> replied [label="no file changed:\nall answered or declined"];
+  answers -> checks [label="files changed"];
+  checks -> reviewers -> ok;
+  ok -> push [label="yes"];
+  ok -> resolver [label="no: feedback", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  ok -> wip [label="out of rounds\nor blocked", style=dashed];
+  push -> reply -> again;
+}

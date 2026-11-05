@@ -20,7 +20,10 @@ public sealed partial class GitWorkspace
 
     private async Task ResetBaseAsync(string basePath, CancellationToken cancellationToken)
     {
-        var start = (await GitAsync(["rev-parse", "origin/HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        var recorded = File.Exists($"{basePath}/.git/factory-start") ? File.ReadAllText($"{basePath}/.git/factory-start").Trim() : "";
+        var start = System.Text.RegularExpressions.Regex.IsMatch(recorded, "^[0-9a-f]{40}$")
+            ? recorded
+            : (await GitAsync(["rev-parse", "origin/HEAD"], basePath, useToken: false, cancellationToken)).Trim();
         await GitAsync(["reset", "--hard", "--quiet", start], basePath, useToken: false, cancellationToken);
         await GitAsync(["clean", "--force", "-d", "-x", "--quiet"], basePath, useToken: false, cancellationToken);
     }

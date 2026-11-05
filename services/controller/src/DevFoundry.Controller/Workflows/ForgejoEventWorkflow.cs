@@ -67,6 +67,29 @@ public sealed class ForgejoEventWorkflow
                 }
                 break;
 
+            case RoutingAction.RevisePullRequest:
+                var revision = decision.Revision!;
+                try
+                {
+                    // One revision at a time per pull request; a finished one may be followed by another.
+                    await Workflow.StartChildWorkflowAsync(
+                        (PullRequestRevisionWorkflow workflow) => workflow.RunAsync(revision),
+                        new ChildWorkflowOptions
+                        {
+                            Id = revision.WorkflowId,
+                            ParentClosePolicy = ParentClosePolicy.Abandon,
+                            IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                        });
+                }
+                catch (WorkflowAlreadyStartedException)
+                {
+                    var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, TicketComments.RevisionBusy);
+                    await Workflow.ExecuteActivityAsync(
+                        (ForgejoActivities activities) => activities.PostNoticeOnceAsync(busy),
+                        new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(30), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                }
+                break;
+
             case RoutingAction.ReplyToFeature:
                 var delivered = decision.Feature!.IsIncident
                     ? await SignalAsync<IncidentWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))

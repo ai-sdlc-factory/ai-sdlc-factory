@@ -49,10 +49,13 @@ public abstract partial class FactoryWorkflowBase
     /// <paramref name="stages"/>, report comments nobody read, save unfinished work, and always remove the checkout.
     /// </summary>
     protected async Task<FeatureResult> RunPipelineAsync(
-        FeatureRequest request, string kind, Func<FeatureRequest, WorkspaceInfo, ProjectConfig, Task<FeatureResult>> stages)
+        FeatureRequest request, string kind, Func<FeatureRequest, WorkspaceInfo, ProjectConfig, Task<FeatureResult>> stages,
+        Func<FeatureRequest, WorkspaceRequest>? workspaceFor = null, string? startMessage = null)
     {
         current = request;
-        await CommentAsync(request, $"The factory picked up this {kind} ticket. Preparing a workspace.");
+        await CommentAsync(request, startMessage ?? $"The factory picked up this {kind} ticket. Preparing a workspace.");
+        var workspaceRequest = workspaceFor?.Invoke(request)
+            ?? new WorkspaceRequest(request.Owner, request.Repo, request.WorkflowId, $"factory/issue-{request.IssueNumber}");
 
         try
         {
@@ -60,8 +63,7 @@ public abstract partial class FactoryWorkflowBase
             try
             {
                 workspace = await Workflow.ExecuteActivityAsync(
-                    (WorkspaceActivities activities) => activities.PrepareAsync(
-                        new WorkspaceRequest(request.Owner, request.Repo, request.WorkflowId, $"factory/issue-{request.IssueNumber}")),
+                    (WorkspaceActivities activities) => activities.PrepareAsync(workspaceRequest),
                     new ActivityOptions
                     {
                         StartToCloseTimeout = TimeSpan.FromMinutes(5),
@@ -79,13 +81,15 @@ public abstract partial class FactoryWorkflowBase
                 new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
             if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
             {
-                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then close and reopen this ticket.");
+                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == FeatureIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
                 return new FeatureResult("needs_config");
             }
 
             if (project.Record)
             {
-                recordDirectory = RunRecord.DirectoryFor(request.IssueNumber, Workflow.Info.RunId ?? "run");
+                recordDirectory = request.Kind == FeatureIds.Revision
+                    ? RunRecord.DirectoryForRevision(request.IssueNumber, Workflow.Info.RunId ?? "run")
+                    : RunRecord.DirectoryFor(request.IssueNumber, Workflow.Info.RunId ?? "run");
             }
 
             FeatureResult result;
@@ -182,7 +186,7 @@ public abstract partial class FactoryWorkflowBase
     /// The network each agent role gets: the developer may also fetch packages, every other agent can reach only
     /// the model provider. Which hosts a profile allows is decided in egress/profiles.json, not here.
     /// </summary>
-    public static string NetworkFor(string role) => role is "developer" or "reproducer" ? SandboxNetworks.Developer : SandboxNetworks.Model;
+    public static string NetworkFor(string role) => role is "developer" or "reproducer" or "pr-resolver" ? SandboxNetworks.Developer : SandboxNetworks.Model;
 
     protected const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";

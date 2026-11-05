@@ -82,6 +82,21 @@ public sealed class FakeWorld
     public List<string> Problems { get; } = [];
     public List<string> Notices { get; } = [];
 
+    /// <summary>What Forgejo says about the pull request being revised; the default is a pull request the factory opened with two line comments.</summary>
+    public RevisionContext RevisionContext { get; set; } = FactoryPullRequest();
+
+    /// <summary>When set, reading the pull request fails with this (as when Forgejo refuses the token).</summary>
+    public Exception? RevisionContextFailure { get; set; }
+
+    public List<WorkspaceRequest> PrepareRequests { get; } = [];
+
+    public static RevisionContext FactoryPullRequest(
+        string headRef = "factory/issue-7", string author = "factory-bot", string state = "open", bool merged = false,
+        string headRepo = "acme/shop", int prior = 0, ReviewDetails? review = null, bool noReview = false) =>
+        new(new PullRequestDetails(7, "Add goodbye", "Closes #3", state, merged, headRef, "abc123", headRepo, "acme/shop", "main", author),
+            "factory-bot", noReview ? null : review ?? new ReviewDetails(11, "bob", "REQUEST_CHANGES", "Please fix these",
+            [new ReviewComment(1, "bob", "hello.py", 4, "Rename this function."), new ReviewComment(2, "bob", "test_hello.py", 9, "This test does not assert the text.")]), prior);
+
     /// <summary>Tickets the workflow opened, and an error to throw instead (as when the label is missing).</summary>
     public List<CreateIssueRequest> CreatedIssues { get; } = [];
     public Exception? IssueFailure { get; set; }
@@ -195,6 +210,10 @@ public sealed class FakeWorld
             lock (world.gate) { world.Comments.Add(request.Body); }
         }
 
+        [Activity("forgejo_read_revision_context")]
+        public RevisionContext ReadRevisionContext(RevisionRequest request) =>
+            world.RevisionContextFailure is { } failure ? throw failure : world.RevisionContext;
+
         [Activity("forgejo_create_issue")]
         public IssueInfo CreateIssue(CreateIssueRequest request)
         {
@@ -236,8 +255,11 @@ public sealed class FakeWorld
         }
 
         [Activity("workspace_prepare")]
-        public WorkspaceInfo Prepare(WorkspaceRequest request) =>
-            world.Prepare?.Invoke(request) ?? new WorkspaceInfo(request.Name, $"/work/{request.Name}", request.Branch, "main", "abcdef1234567890");
+        public WorkspaceInfo Prepare(WorkspaceRequest request)
+        {
+            lock (world.gate) { world.PrepareRequests.Add(request); }
+            return world.Prepare?.Invoke(request) ?? new WorkspaceInfo(request.Name, $"/work/{request.Name}", request.Branch, "main", "abcdef1234567890");
+        }
 
         [Activity("workspace_cleanup")]
         public void Cleanup(string name)
@@ -343,7 +365,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -373,6 +395,22 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
 
     public Task<WorkflowHandle<BugWorkflow, FeatureResult>> StartBugAsync(FeatureRequest request) =>
         Client.StartWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+
+    public static RevisionRequest Revision(string trigger = RevisionRequest.ByReview, string instruction = "Please fix these", string author = "bob")
+    {
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+        return new RevisionRequest("acme", repo, 7, trigger, instruction, author);
+    }
+
+    public Task<WorkflowHandle<PullRequestRevisionWorkflow, FeatureResult>> StartRevisionAsync(RevisionRequest request) =>
+        Client.StartWorkflowAsync((PullRequestRevisionWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+
+    public async Task<FeatureResult> RunRevisionAsync(RevisionRequest request)
+    {
+        var handle = await StartRevisionAsync(request);
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
+    }
 
     public Task<WorkflowHandle<IncidentWorkflow, FeatureResult>> StartIncidentAsync(FeatureRequest request) =>
         Client.StartWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
@@ -513,6 +551,18 @@ public static class Answers
 
     public static string Postmortem(string verdict = "done") =>
         JsonSerializer.Serialize(new { verdict, summary = "A bad deploy caused failed checkouts; rolled back after 40 minutes." });
+
+    /// <summary>The pull request resolver's answer: one response per comment, with the given statuses (fixed, answered, declined, needs_clarification).</summary>
+    public static string Revision(string verdict = "done", params string[] statuses) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict == "done" ? "Addressed the comments." : "Cannot continue.",
+            responses = verdict == "done"
+                ? (statuses.Length == 0 ? ["fixed", "fixed", "fixed"] : statuses).Select((status, i) => new { index = i + 1, status, note = status == "fixed" ? "" : $"Reason for comment {i + 1}." }).ToArray()
+                : [],
+            notes = Array.Empty<string>(),
+        });
 
     public static string Architect(string verdict = "pass", string[]? questions = null) =>
         JsonSerializer.Serialize(new

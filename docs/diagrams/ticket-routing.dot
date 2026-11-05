@@ -14,7 +14,9 @@ digraph ticket_routing {
   comment [label="comment on a ticket\nsignal human_reply to the\nrunning workflow", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   none    [label="no running workflow\n(finished or never started)\nreply once: close and reopen to run again", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
   closed  [label="ticket closed\nsignal ticket_closed\n(the run stops)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  ignored [label="ignored\npull request events · factory's own comments\ntickets with none of the three labels", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  rev     [label="PullRequestRevisionWorkflow\nid  revision-<repo>-<pr>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  prev    [label="a review that requests changes, or\n/fix in a comment, on a pull request\n(the factory checks it is its own)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  ignored [label="ignored\nother pull request events · factory's own comments\ntickets with none of the three labels", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   reopen  [label="reopened\nstarts a new run\n(label changes alone do nothing)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   forgejo -> api [label="signed webhook"];
   api -> router [label="Temporal workflow"];
@@ -22,7 +24,8 @@ digraph ticket_routing {
   router -> reopen [style=dashed];
   reopen -> kind;
   kind -> iw; kind -> fw; kind -> bw;
-  router -> comment; router -> closed; router -> ignored;
+  router -> comment; router -> closed; router -> ignored; router -> prev;
+  prev -> rev;
   comment -> none [label="nobody listening", style=dashed];
   comment -> fw [style=dotted]; comment -> bw [style=dotted]; comment -> iw [style=dotted];
 

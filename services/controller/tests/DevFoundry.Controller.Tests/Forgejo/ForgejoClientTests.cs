@@ -187,3 +187,116 @@ public sealed class NoticeTextTests
         Assert.Contains("close and reopen", TicketComments.NoRunActive);
     }
 }
+
+public sealed class RevisionClientTests
+{
+    /// <summary>Answers each request by its path, so a test can describe a small Forgejo.</summary>
+    private sealed class Forgejo(Dictionary<string, string> responses) : HttpMessageHandler
+    {
+        public List<string> Paths { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Paths.Add(request.RequestUri!.AbsolutePath);
+            return Task.FromResult(responses.TryGetValue(request.RequestUri.AbsolutePath, out var body)
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) }
+                : new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    private static ForgejoClient Client(Forgejo handler) =>
+        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+
+    private const string Pulls = "/api/v1/repos/acme/shop/pulls/7";
+
+    [Fact]
+    public async Task A_pull_request_is_read_with_its_branch_sides_state_and_author()
+    {
+        var forgejo = new Forgejo(new()
+        {
+            [Pulls] = """{"title":"Add goodbye","body":"Closes #3","state":"open","merged":false,"user":{"login":"factory-bot"}, "head":{"ref":"factory/issue-3","sha":"abc123","repo":{"full_name":"acme/shop"}}, "base":{"ref":"main","repo":{"full_name":"acme/shop"}}}""",
+        });
+
+        var pull = await Client(forgejo).GetPullRequestAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.Equal(new PullRequestDetails(7, "Add goodbye", "Closes #3", "open", false, "factory/issue-3", "abc123", "acme/shop", "acme/shop", "main", "factory-bot"), pull);
+    }
+
+    [Fact]
+    public async Task A_pull_request_with_missing_parts_is_read_as_empty_text_not_an_error()
+    {
+        var forgejo = new Forgejo(new() { [Pulls] = """{"state":"closed","merged":true}""" });
+
+        var pull = await Client(forgejo).GetPullRequestAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.True(pull.Merged);
+        Assert.Equal("", pull.HeadRef);
+        Assert.Equal("", pull.Author);
+    }
+
+    [Fact]
+    public async Task A_pull_request_that_cannot_be_read_fails_with_a_message()
+    {
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(() => Client(new Forgejo([])).GetPullRequestAsync("acme", "shop", 7, CancellationToken.None));
+
+        Assert.Contains("pull request", error.Message);
+        Assert.True(error.NonRetryable);
+    }
+
+    [Fact]
+    public async Task The_latest_review_by_a_person_is_chosen_and_its_line_comments_are_read()
+    {
+        var forgejo = new Forgejo(new()
+        {
+            [$"{Pulls}/reviews"] = """[ {"id":3,"state":"APPROVED","body":"fine","user":{"login":"carol"}}, {"id":5,"state":"REQUEST_CHANGES","body":"older","user":{"login":"bob"}}, {"id":8,"state":"COMMENT","body":"factory said","user":{"login":"factory-bot"}}, {"id":9,"state":"REQUEST_CHANGES","body":"dismissed one","dismissed":true,"user":{"login":"dave"}}, {"id":7,"state":"REQUEST_CHANGES","body":"Please rename these.","user":{"login":"bob"}}]""",
+            [$"{Pulls}/reviews/7/comments"] = """[ {"id":21,"body":"Rename this.","path":"hello.py","line":4,"user":{"login":"bob"}}, {"id":22,"body":"On an old diff.","path":"test_hello.py","line":0,"position":9,"user":{"login":"bob"}}, {"id":23,"body":"No place.","user":{"login":"bob"}}]""",
+        });
+
+        var review = await Client(forgejo).GetLatestReviewAsync("acme", "shop", 7, "factory-bot", CancellationToken.None);
+
+        Assert.Equal(7, review!.Id);
+        Assert.Equal(("bob", "REQUEST_CHANGES", "Please rename these."), (review.Reviewer, review.State, review.Body));
+        Assert.Equal(
+            [("hello.py", 4, "Rename this."), ("test_hello.py", 9, "On an old diff."), (null, null, "No place.")],
+            review.Comments.Select(c => (c.Path, c.Line, c.Body)));
+    }
+
+    [Fact]
+    public async Task A_pull_request_with_only_approvals_or_the_bots_own_reviews_has_no_review_to_act_on()
+    {
+        var forgejo = new Forgejo(new()
+        {
+            [$"{Pulls}/reviews"] = """[{"id":3,"state":"APPROVED","body":"fine","user":{"login":"carol"}},{"id":4,"state":"COMMENT","body":"mine","user":{"login":"factory-bot"}}]""",
+        });
+
+        Assert.Null(await Client(forgejo).GetLatestReviewAsync("acme", "shop", 7, "factory-bot", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_review_whose_comments_cannot_be_read_still_gives_its_text()
+    {
+        var forgejo = new Forgejo(new() { [$"{Pulls}/reviews"] = """[{"id":7,"state":"REQUEST_CHANGES","body":"Please rename.","user":{"login":"bob"}}]""" });
+
+        var review = await Client(forgejo).GetLatestReviewAsync("acme", "shop", 7, "factory-bot", CancellationToken.None);
+
+        Assert.Equal("Please rename.", review!.Body);
+        Assert.Empty(review.Comments);
+    }
+
+    [Fact]
+    public async Task Revisions_already_made_are_counted_from_the_marker_in_the_pull_requests_comments()
+    {
+        var forgejo = new Forgejo(new()
+        {
+            ["/api/v1/repos/acme/shop/issues/7/comments"] = JsonSerializer.Serialize(new[]
+            {
+                new { body = "a person's comment" },
+                new { body = $"{EventRouter.BotMarker}\n{RevisionReply.Marker}\n**Revision pushed**" },
+                new { body = $"{EventRouter.BotMarker}\nA normal factory comment" },
+                new { body = $"{EventRouter.BotMarker}\n{RevisionReply.Marker}\n**Revision: no code change**" },
+            }),
+        });
+
+        Assert.Equal(2, await Client(forgejo).CountRevisionsAsync("acme", "shop", 7, CancellationToken.None));
+    }
+}

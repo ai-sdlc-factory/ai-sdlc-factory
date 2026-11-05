@@ -14,8 +14,6 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
   (signed alert endpoint, bounded and redacted evidence, deduplication by fingerprint, rate limit, operator-owned alert-to-repository mapping) so agents never get production access.
   See [the incident collector](design.md#not-built-yet). Needs the demo service (or another real system) first.
 - [ ] **Planner agent and workflow** (M). A `plan` ticket is split into proposed feature tickets that a person approves before they are created. First version creates only tickets without dependencies, because the factory does not react to merges yet.
-- [ ] **PR comments resolver agent and workflow** (M). A human review comment (or "request changes") on a factory pull request starts a bounded revision: the developer addresses it, the checks and reviewers run again, a new commit goes to the same branch.
-  Decisions to make: trigger (a "request changes" review or a command, not every comment), a round cap per PR, ignore merged or closed PRs, queue comments that arrive during a revision.
 - [ ] **Factory improvement loop** (M). Periodically evaluate what happened and what could be improved. Needs a durable run log first (one line per finished run, no ticket text). Then a weekly deterministic report of what repeats (rejected answers, rounds used, refused hosts, token outliers),
   and an agent that proposes prompt and config changes as a reviewed ticket, never applied automatically.
 - [ ] **Scheduled UI check** (L). A separate scheduled flow that checks the real UI, for projects that have one, and files bug tickets for what is broken or looks wrong (or becomes part of QA/UX).
@@ -26,7 +24,7 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 
 | # | Workflow | What it does | Why it fits | Effort | Done |
 | --- | --- | --- | --- | --- | --- |
-| 1 | PR revision loop | A human review comment (or "request changes") on a factory PR starts a bounded revision: the developer addresses it, the checks and reviewers run again, and a new commit goes to the same branch | It completes the loop after the PR is opened. Today a person has to fix the PR by hand | Medium | [ ] |
+| 1 | PR revision loop | A human review comment (or "request changes") on a factory PR starts a bounded revision: the developer addresses it, the checks and reviewers run again, and a new commit goes to the same branch | It completes the loop after the PR is opened. Today a person has to fix the PR by hand | Medium | [x] |
 | 2 | Review of human PRs | When a person opens a PR, the reviewer and security roles review it read-only and post findings | The roles and the diff handling already exist. Nothing is written, so it is low risk | Small | [ ] |
 | 3 | Dependency updates | A scheduled run bumps dependencies, runs the project's checks, and opens a PR with the changes and test results | Temporal schedules suit this. It is repetitive, the checks decide, and humans review | Medium | [ ] |
 | 4 | Planner | A `plan` ticket is split into proposed feature tickets that a person approves | Helps with big goals, but a wrong split costs a lot, so it needs approval | Medium | [ ] |
@@ -35,7 +33,7 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 | 7 | Release notes | A changelog draft from merged PRs | Useful but low risk and low priority | Small | [ ] |
 | 8 | Factory retrospective | A weekly report of repeated problems, from a durable run log | Needs the run log first | Medium | [ ] |
 
-Items 1 and 4 are also on your list above, and 8 is the "factory improvement loop".
+Items 4 and 8 are also on your list above (the planner and the "factory improvement loop"); item 1 is done.
 
 ## Other ideas we discussed
 
@@ -55,6 +53,7 @@ Items 1 and 4 are also on your list above, and 8 is the "factory improvement loo
 - [x] Bug workflow with the red-then-green proof.
 - [x] Incident workflow, advice only, with `/option`, `/hotfix` and `/resolved` and a draft postmortem.
 - [x] Quick mode, and notices for comments that cannot be used.
+- [x] Pull request revisions: a review that requests changes, or `/fix`, on a factory pull request becomes one new commit on the same branch.
 - [x] Run record with model, tokens and cost; work-in-progress branch for runs that stop.
 - [x] Egress allowlist with `enforce`, `audit` and `open` modes; per-role models; sandbox images for .NET, Python and Node.
 - [x] Documentation, diagrams and the documentation check.

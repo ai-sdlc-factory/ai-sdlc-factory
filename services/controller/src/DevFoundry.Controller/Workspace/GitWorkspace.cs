@@ -3,7 +3,8 @@ using Temporalio.Exceptions;
 
 namespace DevFoundry.Controller;
 
-public sealed record WorkspaceRequest(string Owner, string Repo, string Name, string Branch);
+/// <summary><see cref="ExistingBranch"/> checks out a branch that already exists on the remote (a pull request being revised) instead of starting a new one.</summary>
+public sealed record WorkspaceRequest(string Owner, string Repo, string Name, string Branch, bool ExistingBranch = false);
 
 public sealed record WorkspaceInfo(string Name, string Path, string Branch, string DefaultBranch, string HeadCommit);
 
@@ -57,11 +58,25 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         var url = remoteUrl?.Invoke(request.Owner, request.Repo)
             ?? $"{settings.ForgejoUrl.TrimEnd('/')}/{request.Owner}/{request.Repo}.git";
         await GitAsync(["clone", "--quiet", url, "."], basePath, useToken: true, cancellationToken);
-        await GitAsync(["checkout", "--quiet", "-b", request.Branch], basePath, useToken: false, cancellationToken);
+        if (request.ExistingBranch)
+        {
+            if ((await GitAsync(["rev-parse", "--verify", "--quiet", $"refs/remotes/origin/{request.Branch}"], basePath, useToken: false, cancellationToken, allowFailure: true)).Trim().Length == 0)
+            {
+                throw new ApplicationFailureException($"The branch {request.Branch} does not exist on the remote.", nonRetryable: true);
+            }
+            await GitAsync(["checkout", "--quiet", "-b", request.Branch, $"origin/{request.Branch}"], basePath, useToken: false, cancellationToken);
+        }
+        else
+        {
+            await GitAsync(["checkout", "--quiet", "-b", request.Branch], basePath, useToken: false, cancellationToken);
+        }
         await GitAsync(["config", "user.name", "Dev Foundry"], basePath, useToken: false, cancellationToken);
         await GitAsync(["config", "user.email", "factory-bot@dev-foundry.test"], basePath, useToken: false, cancellationToken);
 
         var head = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        // Where this run started, so every inspection can put the pristine clone back there: the tip of the default branch for
+        // a new ticket, the tip of the pull request's branch for a revision.
+        File.WriteAllText($"{basePath}/.git/factory-start", head);
         var defaultBranch = (await GitAsync(["rev-parse", "--abbrev-ref", "origin/HEAD"], basePath, useToken: false, cancellationToken))
             .Trim().Replace("origin/", "", StringComparison.Ordinal);
 

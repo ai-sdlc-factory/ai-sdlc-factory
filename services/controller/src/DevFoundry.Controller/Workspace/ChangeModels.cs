@@ -11,7 +11,8 @@ public sealed record FileChange(string Path, string Kind)
 /// <summary>What the agent changed in its workspace, and everything that stops those changes from being published.</summary>
 public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList<string> Violations);
 
-public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null);
+/// <summary><see cref="UpdateExistingBranch"/> pushes the commit onto the branch the checkout started from (a pull request being revised), never forcing and never choosing a new name.</summary>
+public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null, bool UpdateExistingBranch = false);
 
 public sealed record PublishResult(string CommitSha, string Branch, int FileCount);
 

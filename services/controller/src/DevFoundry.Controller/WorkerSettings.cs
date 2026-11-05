@@ -11,6 +11,8 @@ public sealed class WorkerSettings
     public string TemporalUiUrl { get; init; } = "http://localhost:8080";
     /// <summary>Access token of the factory's Forgejo bot account; empty disables ticket actions.</summary>
     public string ForgejoToken { get; init; } = "";
+    /// <summary>The bot account's login: the factory only revises pull requests this account opened. Not read from the API, which would need a wider token.</summary>
+    public string ForgejoBotLogin { get; init; } = "factory-bot";
     /// <summary>Absolute host path where per-run checkouts live; the same path inside every container.</summary>
     public string WorkspaceRoot { get; init; } = "";
     /// <summary>The factory's agent folder (read-only), used only to name the model each role is configured with.</summary>
@@ -24,6 +26,7 @@ public sealed class WorkerSettings
         ForgejoUrl = NonEmpty(configuration, "FORGEJO_URL", "http://forgejo:3000"),
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
         ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
+        ForgejoBotLogin = NonEmpty(configuration, "FORGEJO_BOT_LOGIN", "factory-bot"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
     };

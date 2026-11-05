@@ -29,6 +29,11 @@ public sealed partial class GitWorkspace
 
         ApplyChanges(work, basePath, report.Files);
         AddRunRecord(root, request.Name, basePath, request.Record);
+        if (request.UpdateExistingBranch)
+        {
+            var (updated, updatedBranch) = await CommitAndPushToExistingBranchAsync(basePath, request.Message, cancellationToken);
+            return new PublishResult(updated, updatedBranch, report.Files.Count);
+        }
         var (sha, branch) = await CommitAndPushAsync(basePath, request.Message, suffix: "", cancellationToken);
         return new PublishResult(sha, branch, report.Files.Count);
     }
@@ -117,6 +122,33 @@ public sealed partial class GitWorkspace
         if (!alreadyThere)
         {
             await GitAsync(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", $"HEAD:refs/heads/{branch}"], basePath, useToken: true, cancellationToken);
+        }
+        return (sha, branch);
+    }
+
+    /// <summary>
+    /// Commits and pushes onto the branch this checkout started from, as a normal (never forced) push. If someone pushed to the
+    /// branch in the meantime the push is refused, so a person's work is never overwritten. Safe to repeat.
+    /// </summary>
+    private async Task<(string Sha, string Branch)> CommitAndPushToExistingBranchAsync(
+        string basePath, string message, CancellationToken cancellationToken)
+    {
+        await GitAsync(["add", "--all"], basePath, useToken: false, cancellationToken);
+        if ((await GitAsync(["status", "--porcelain"], basePath, useToken: false, cancellationToken)).Trim().Length > 0)
+        {
+            await GitAsync(["-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", message], basePath, useToken: false, cancellationToken);
+        }
+        var sha = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        var branch = (await GitAsync(["rev-parse", "--abbrev-ref", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+        try
+        {
+            await GitAsync(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", $"HEAD:refs/heads/{branch}"], basePath, useToken: true, cancellationToken);
+        }
+        catch (ApplicationFailureException error) when (error.Message.Contains("rejected", StringComparison.OrdinalIgnoreCase)
+            || error.Message.Contains("non-fast-forward", StringComparison.OrdinalIgnoreCase)
+            || error.Message.Contains("fetch first", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ApplicationFailureException($"The branch {branch} changed while the revision was being made, so nothing was pushed.", nonRetryable: true);
         }
         return (sha, branch);
     }

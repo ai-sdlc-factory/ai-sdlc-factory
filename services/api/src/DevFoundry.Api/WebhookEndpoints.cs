@@ -89,6 +89,8 @@ public static class WebhookEndpoints
                 return Responses.Detail(503, "Temporal is unavailable; retry this delivery");
             }
 
+            // The event name is checked against a strict pattern above, so it is safe to log; the payload never is.
+            logger.LogInformation("Forgejo {Event} delivery {DeliveryId}: {Status}", eventName, deliveryId, started ? "accepted" : "duplicate");
             var receipt = new WebhookReceipt(started ? "accepted" : "duplicate", workflowId, deliveryId, eventName);
             return Results.Json(receipt, statusCode: started ? 202 : 200);
         }

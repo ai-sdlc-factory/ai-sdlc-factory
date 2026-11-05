@@ -8,6 +8,7 @@ public enum RoutingAction
     StartFeature,
     ReplyToFeature,
     CloseFeature,
+    RevisePullRequest,
 }
 
 public sealed record RoutingDecision(
@@ -15,13 +16,14 @@ public sealed record RoutingDecision(
     string Reason,
     FeatureRequest? Feature = null,
     HumanReply? Reply = null,
-    bool Restart = false);
+    bool Restart = false,
+    RevisionRequest? Revision = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
 /// Webhook contents are data: nothing here executes anything taken from the payload.
 /// </summary>
-public static class EventRouter
+public static partial class EventRouter
 {
     public const string FeatureLabel = "feature";
     public const string BugLabel = "bug";
@@ -35,6 +37,11 @@ public static class EventRouter
     public static RoutingDecision Decide(ForgejoEvent input)
     {
         var payload = input.Payload;
+        // A review that requests changes carries the pull request, not a ticket.
+        if (input.Event == "pull_request_review_rejected")
+        {
+            return DecideReview(payload);
+        }
         if (!TryGet(payload, "repository", out var repository)
             || AsString(Get(repository, "full_name")) is not { } fullName
             || fullName.Split('/') is not [var owner, var repo]
@@ -50,7 +57,7 @@ public static class EventRouter
         if (Get(payload, "is_pull") is { ValueKind: JsonValueKind.True }
             || Get(issue, "pull_request") is { ValueKind: JsonValueKind.Object })
         {
-            return Ignore("pull request");
+            return DecidePullRequestComment(input, owner, repo, issueNumber);
         }
 
         // An incident is never built as a feature or a bug; a feature label wins over a bug label.
@@ -106,6 +113,70 @@ public static class EventRouter
             default:
                 return Ignore($"unhandled {input.Event}/{action}");
         }
+    }
+
+    /// <summary>A line starting with <c>/fix</c> (or <c>/revise</c>) on a pull request; what follows it says what to change.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t]*/(?:fix|revise)\b(?<rest>[^\r\n]*)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline)]
+    private static partial System.Text.RegularExpressions.Regex FixCommand();
+
+    /// <summary>
+    /// A comment on a pull request does nothing, except one with the <c>/fix</c> command: that asks the factory to revise its own pull
+    /// request. Whether the pull request is the factory's is checked when the revision starts, because the comment does not say.
+    /// </summary>
+    private static RoutingDecision DecidePullRequestComment(ForgejoEvent input, string owner, string repo, int pullNumber)
+    {
+        if (input.Event is not ("issue_comment" or "pull_request_comment") || AsString(Get(input.Payload, "action")) != "created")
+        {
+            return Ignore("pull request");
+        }
+        var comment = Get(input.Payload, "comment");
+        var body = AsString(Get(comment, "body")) ?? "";
+        if (body.Contains(BotMarker, StringComparison.Ordinal))
+        {
+            return Ignore("comment written by the factory");
+        }
+        var match = FixCommand().Match(body);
+        if (!match.Success)
+        {
+            return Ignore("pull request");
+        }
+        var instruction = (match.Groups["rest"].Value + body[(match.Index + match.Length)..]).Trim();
+        var author = AsString(Get(Get(comment, "user"), "login")) ?? "";
+        return new RoutingDecision(
+            RoutingAction.RevisePullRequest, "fix command on a pull request",
+            Revision: new RevisionRequest(owner, repo, pullNumber, RevisionRequest.ByCommand, instruction, author));
+    }
+
+    /// <summary>A review that asks for changes on one of the factory's own branches starts a revision.</summary>
+    private static RoutingDecision DecideReview(JsonElement payload)
+    {
+        if (!TryGet(payload, "repository", out var repository)
+            || AsString(Get(repository, "full_name")) is not { } fullName
+            || fullName.Split('/') is not [var owner, var repo]
+            || !TryGet(payload, "pull_request", out var pull)
+            || Get(pull, "number") is not { ValueKind: JsonValueKind.Number } number
+            || !number.TryGetInt32(out var pullNumber))
+        {
+            return Ignore("not a pull request review");
+        }
+        var headRef = AsString(Get(Get(pull, "head"), "ref"));
+        if (headRef is null || !RevisionRules.FactoryBranch().IsMatch(headRef))
+        {
+            return Ignore("not a factory pull request");
+        }
+        if (AsString(Get(pull, "state")) is { } state && state != "open")
+        {
+            return Ignore("pull request is not open");
+        }
+        var content = AsString(Get(Get(payload, "review"), "content")) ?? "";
+        if (content.Contains(BotMarker, StringComparison.Ordinal))
+        {
+            return Ignore("review written by the factory");
+        }
+        var reviewer = AsString(Get(Get(payload, "sender"), "login")) ?? "";
+        return new RoutingDecision(
+            RoutingAction.RevisePullRequest, "review requested changes",
+            Revision: new RevisionRequest(owner, repo, pullNumber, RevisionRequest.ByReview, content.Trim(), reviewer));
     }
 
     private static RoutingDecision Ignore(string reason) => new(RoutingAction.Ignore, reason);

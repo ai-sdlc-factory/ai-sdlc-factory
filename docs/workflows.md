@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has three workflows, one per kind of ticket. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has three workflows, one per kind of ticket, and a fourth that revises its own pull requests after a review. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
@@ -10,6 +10,7 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | `feature` | `FeatureWorkflow` | a reviewed **pull request** | analyst, coverage, architect, developer, reviewer, security, ux, qa |
 | `bug` | `BugWorkflow` | a **pull request with a fix proven by a test** that failed before and passes after | bug-analyst, reproducer, diagnostician, developer, reviewer, security |
 | `incident` | `IncidentWorkflow` | an **assessment, likely causes and mitigation options** on the ticket; a **draft postmortem** pull request on request | incident-analyst, investigator, mitigator, postmortem-writer |
+| a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
 
 If a ticket has several of these labels, `incident` wins over `feature`, which wins over `bug`. The labels `quick`, `full` and
 `needs-architecture` change how a feature or bug run behaves ([Quick mode](#quick-mode)).
@@ -28,9 +29,10 @@ answer:
 | a **comment** by a person | sent to the running workflow (signal `human_reply`); see [Talking to the factory](#talking-to-the-factory) |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
 | comments written by the factory | ignored (they carry a hidden marker), so it never answers itself |
-| pull request events, tickets without a factory label | ignored |
+| a review that **requests changes**, or a comment with **`/fix`**, on a pull request | starts a [revision](#pull-request-revisions) of that pull request (id `revision-<owner>-<repo>-<pr>-<hash>`); if one is already running the person gets a notice. The factory checks that the pull request is its own |
+| other pull request events and comments, tickets without a factory label | ignored |
 
-The webhook must send **Issues**, **Issue Label** and **Issue Comment** events ([Setting up a project](project-setup.md#2-add-the-webhook)).
+The webhook must send **Issues**, **Issue Label** and **Issue Comment** events, and **Pull Request Review Rejected** for revisions started by a review ([Setting up a project](project-setup.md#2-add-the-webhook)). A comment on a pull request arrives as an Issue Comment event.
 
 ## Talking to the factory
 
@@ -153,6 +155,32 @@ Write these on their own line in a comment on the incident ticket:
 
 Closing the ticket ends the run; so does 7 days without a reply. Anyone who can comment on the ticket can use the commands.
 
+## Pull request revisions
+
+![Pull request revision](images/pr-revision.svg)
+
+After the factory opens a pull request, a person reviews it. If they want changes, they do not have to make them by hand:
+
+- **Submit a review that requests changes**, with an overall text and/or comments on lines, or
+- **comment `/fix`** on the pull request. Text after the command is an extra instruction (`/fix rename the helper and add a test`). `/fix` alone acts on
+  the **latest review** of the pull request (a request-changes or comment review by a person).
+
+The factory revises **only its own pull requests**: the branch must be one it created (`factory/issue-<n>`), the pull request must be authored by the bot, from the same repository, and still open.
+Anything else is left alone without a word. At most **three revisions per pull request**, **one at a time** (a second `/fix` while one is running gets a notice).
+
+| Step | Who | What the factory checks itself |
+| --- | --- | --- |
+| 1. Read | the factory | the pull request, its latest review and that review's line comments, from Forgejo. Every comment is numbered |
+| 2. Resolve | `pr-resolver` (writable, shell, package access) in a checkout of the **pull request's own branch** | **every numbered comment is answered exactly once**, as `fixed`, `answered`, `declined` (with a reason) or `needs_clarification` (with the question); and a `fixed` answer must come with changed files |
+| 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (3 rounds at most) |
+| 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. QA is not used |
+| 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**: if a person pushed to the branch meanwhile, nothing is pushed |
+| 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. A person reviews again; the factory never merges |
+
+If every comment was answered or declined and nothing needed to change, the factory pushes nothing and replies with the answers. If the rounds run out or the resolver is blocked, nothing is pushed to the pull request and the work is saved
+to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
+With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
+
 ## When a run stops: the work-in-progress branch
 
 A run that stops without a pull request would otherwise lose everything the developer wrote, because the checkout is deleted when the
@@ -199,6 +227,7 @@ visible as the repository.
 | Build rounds | 3 |
 | Retry of an unusable agent answer | 1 (the retry quotes the exact problem) |
 | Reproduction attempts (bug) | 3, with 2 question rounds each |
+| Revisions per pull request | 3, one at a time; 3 build rounds each; at most 30 comments per revision |
 | Incident looks at new information | 3 |
 | Wait for a person | 7 days |
 | One agent run | 15 minutes; the developer 30 minutes; capped by `SANDBOX_MAX_RUN_SECONDS` (30 minutes) |
@@ -220,6 +249,10 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `rejected`, `design_rejected` | the analyst (or bug/incident analyst) or the architect said it cannot or should not be done as asked |
 | `needs_design` | bug: the cause is larger than a bug fix; open a feature ticket |
 | `needs_human` | the rounds of questions were used up; a person has to decide |
+| `revision_pushed`, `revision_replied` | revision: the new commit is on the pull request, or the comments were answered with nothing to change |
+| `revision_limit` | revision: three revisions were already made on this pull request |
+| `nothing_to_do` | revision: a `/fix` with no text and no review to act on |
+| `ignored` | revision: not the factory's pull request (no comment), or the pull request is closed or merged (with a note) |
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
