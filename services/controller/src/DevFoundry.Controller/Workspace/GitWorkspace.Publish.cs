@@ -31,8 +31,8 @@ public sealed partial class GitWorkspace
         AddRunRecord(root, request.Name, basePath, request.Record);
         if (request.UpdateExistingBranch)
         {
-            var (updated, updatedBranch) = await CommitAndPushToExistingBranchAsync(basePath, request.Message, cancellationToken);
-            return new PublishResult(updated, updatedBranch, report.Files.Count);
+            var (updated, updatedBranch, rebasedOver) = await CommitAndPushToExistingBranchAsync(basePath, request.Message, cancellationToken);
+            return new PublishResult(updated, updatedBranch, report.Files.Count, rebasedOver);
         }
         var (sha, branch) = await CommitAndPushAsync(basePath, request.Message, suffix: "", cancellationToken);
         return new PublishResult(sha, branch, report.Files.Count);
@@ -130,7 +130,7 @@ public sealed partial class GitWorkspace
     /// Commits and pushes onto the branch this checkout started from, as a normal (never forced) push. If someone pushed to the
     /// branch in the meantime the push is refused, so a person's work is never overwritten. Safe to repeat.
     /// </summary>
-    private async Task<(string Sha, string Branch)> CommitAndPushToExistingBranchAsync(
+    private async Task<(string Sha, string Branch, int RebasedOver)> CommitAndPushToExistingBranchAsync(
         string basePath, string message, CancellationToken cancellationToken)
     {
         await GitAsync(["add", "--all"], basePath, useToken: false, cancellationToken);
@@ -140,18 +140,43 @@ public sealed partial class GitWorkspace
         }
         var sha = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
         var branch = (await GitAsync(["rev-parse", "--abbrev-ref", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
-        try
+        var rebasedOver = 0;
+        for (var attempt = 1; ; attempt++)
         {
-            await GitAsync(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", $"HEAD:refs/heads/{branch}"], basePath, useToken: true, cancellationToken);
+            try
+            {
+                await GitAsync(["-c", "core.hooksPath=/dev/null", "push", "--quiet", "origin", $"HEAD:refs/heads/{branch}"], basePath, useToken: true, cancellationToken);
+                return (sha, branch, rebasedOver);
+            }
+            catch (ApplicationFailureException error) when (attempt == 1 && IsRejectedPush(error))
+            {
+                // A person pushed to the branch while this ran. Their work is never overwritten: the one commit is put on top of it
+                // (once), and only if that applies without a conflict. The checks ran before, which the pull request comment says.
+                await GitAsync(["fetch", "--quiet", "origin", $"refs/heads/{branch}"], basePath, useToken: true, cancellationToken);
+                var newCommits = int.Parse((await GitAsync(["rev-list", "--count", "HEAD..FETCH_HEAD"], basePath, useToken: false, cancellationToken)).Trim());
+                try
+                {
+                    await GitAsync(["-c", "core.hooksPath=/dev/null", "rebase", "--quiet", "FETCH_HEAD"], basePath, useToken: false, cancellationToken);
+                }
+                catch (ApplicationFailureException)
+                {
+                    await GitAsync(["rebase", "--abort"], basePath, useToken: false, cancellationToken, allowFailure: true);
+                    throw new ApplicationFailureException($"The branch {branch} changed while the revision was being made and the new commits conflict with it, so nothing was pushed.", nonRetryable: true);
+                }
+                sha = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
+                rebasedOver = newCommits;
+            }
+            catch (ApplicationFailureException error) when (IsRejectedPush(error))
+            {
+                throw new ApplicationFailureException($"The branch {branch} changed again while the revision was being made, so nothing was pushed.", nonRetryable: true);
+            }
         }
-        catch (ApplicationFailureException error) when (error.Message.Contains("rejected", StringComparison.OrdinalIgnoreCase)
-            || error.Message.Contains("non-fast-forward", StringComparison.OrdinalIgnoreCase)
-            || error.Message.Contains("fetch first", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ApplicationFailureException($"The branch {branch} changed while the revision was being made, so nothing was pushed.", nonRetryable: true);
-        }
-        return (sha, branch);
     }
+
+    private static bool IsRejectedPush(ApplicationFailureException error) =>
+        error.Message.Contains("rejected", StringComparison.OrdinalIgnoreCase)
+        || error.Message.Contains("non-fast-forward", StringComparison.OrdinalIgnoreCase)
+        || error.Message.Contains("fetch first", StringComparison.OrdinalIgnoreCase);
 
     private static string StripSuffix(string name, string suffix) =>
         suffix.Length > 0 && name.EndsWith(suffix, StringComparison.Ordinal) ? name[..^suffix.Length] : name;

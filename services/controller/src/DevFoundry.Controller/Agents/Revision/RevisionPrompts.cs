@@ -10,10 +10,18 @@ public static class RevisionPrompts
 {
     public const int MaxLength = 24_000;
     private const int MaxTitle = 200;
-    // 30 comments, the pull request text and feedback together must stay under the sandbox's 32,768 character argument limit.
+    // The prompt is one argument of at most 32,768 characters. The comments and their code share a fixed budget, split evenly,
+    // so 30 comments with 30 hunks still fit next to the pull request text and the feedback.
+    private const int CommentBudget = 16_000;
     private const int MaxBody = 2000;
-    private const int MaxComment = 500;
     private const int MaxFeedback = 6000;
+
+    /// <summary>The end of a diff hunk (the lines right above the comment matter most), cut at a line boundary.</summary>
+    private static string HunkTail(string hunk)
+    {
+        var lines = hunk.Replace("\r", "").Split('\n');
+        return string.Join('\n', lines.TakeLast(12));
+    }
 
     public static string Build(
         PullRequestDetails pull, IReadOnlyList<RevisionComment> comments, IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds)
@@ -31,10 +39,19 @@ public static class RevisionPrompts
         text.AppendLine();
         text.AppendLine($"The comments to address ({comments.Count}). Answer every one of them by its number:");
         text.AppendLine("<<<COMMENTS");
+        var share = Math.Max(200, CommentBudget / Math.Max(1, comments.Count));
         foreach (var comment in comments)
         {
             text.AppendLine($"[{comment.Index}] {PromptText.Clip(comment.Author, 60)} on {PromptText.Clip(comment.Where, 200)}:");
-            text.AppendLine(PromptText.Clip(comment.Body, MaxComment));
+            text.AppendLine(PromptText.Clip(comment.Body, comment.DiffHunk is null ? share - 80 : (share - 80) * 6 / 10));
+            if (comment.DiffHunk is not null)
+            {
+                // The code the comment was written on, as it was then: the line number may have moved since.
+                text.AppendLine("Code it was written on:");
+                text.AppendLine("<<<HUNK");
+                text.AppendLine(PromptText.Clip(HunkTail(comment.DiffHunk), (share - 80) * 4 / 10));
+                text.AppendLine("HUNK>>>");
+            }
             text.AppendLine();
         }
         text.AppendLine("COMMENTS>>>");

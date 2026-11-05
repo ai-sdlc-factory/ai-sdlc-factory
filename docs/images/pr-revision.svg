@@ -144,7 +144,7 @@
 <title>reviewers</title>
 <path fill="#dbe8ff" stroke="#2b6cb0" d="M555.89,-375.54C555.89,-375.54 394.04,-375.54 394.04,-375.54 388.04,-375.54 382.04,-369.54 382.04,-363.54 382.04,-363.54 382.04,-349.02 382.04,-349.02 382.04,-343.02 388.04,-337.02 394.04,-337.02 394.04,-337.02 555.89,-337.02 555.89,-337.02 561.89,-337.02 567.89,-343.02 567.89,-349.02 567.89,-349.02 567.89,-363.54 567.89,-363.54 567.89,-369.54 561.89,-375.54 555.89,-375.54"/>
 <text text-anchor="middle" x="474.97" y="-359.33" font-family="DejaVu Sans" font-size="11.00">reviewers look at the revision</text>
-<text text-anchor="middle" x="474.97" y="-345.83" font-family="DejaVu Sans" font-size="11.00">(QA is not used)</text>
+<text text-anchor="middle" x="474.97" y="-345.83" font-family="DejaVu Sans" font-size="11.00">(QA only for larger revisions)</text>
 </g>
 <!-- checks&#45;&gt;reviewers -->
 <g id="edge10" class="edge">

@@ -244,32 +244,35 @@ public sealed class RevisionClientTests
     }
 
     [Fact]
-    public async Task The_latest_review_by_a_person_is_chosen_and_its_line_comments_are_read()
+    public async Task Every_review_waiting_is_read_with_its_comments_and_code_and_resolved_ones_are_skipped()
     {
         var forgejo = new Forgejo(new()
         {
-            [$"{Pulls}/reviews"] = """[ {"id":3,"state":"APPROVED","body":"fine","user":{"login":"carol"}}, {"id":5,"state":"REQUEST_CHANGES","body":"older","user":{"login":"bob"}}, {"id":8,"state":"COMMENT","body":"factory said","user":{"login":"factory-bot"}}, {"id":9,"state":"REQUEST_CHANGES","body":"dismissed one","dismissed":true,"user":{"login":"dave"}}, {"id":7,"state":"REQUEST_CHANGES","body":"Please rename these.","user":{"login":"bob"}}]""",
-            [$"{Pulls}/reviews/7/comments"] = """[ {"id":21,"body":"Rename this.","path":"hello.py","line":4,"user":{"login":"bob"}}, {"id":22,"body":"On an old diff.","path":"test_hello.py","line":0,"position":9,"user":{"login":"bob"}}, {"id":23,"body":"No place.","user":{"login":"bob"}}]""",
+            [$"{Pulls}/reviews"] = """[ {"id":3,"state":"APPROVED","body":"fine","user":{"login":"carol"}}, {"id":8,"state":"COMMENT","body":"factory said","user":{"login":"factory-bot"}}, {"id":9,"state":"REQUEST_CHANGES","body":"dismissed one","dismissed":true,"user":{"login":"dave"}}, {"id":7,"state":"REQUEST_CHANGES","body":"Please rename these.","user":{"login":"bob"}}, {"id":5,"state":"COMMENT","body":"","user":{"login":"bob"}}, {"id":4,"state":"COMMENT","body":"old","submitted_at":"2026-01-01T00:00:00Z","user":{"login":"bob"}}]""",
+            [$"{Pulls}/reviews/7/comments"] = """[ {"id":21,"body":"Rename this.","path":"hello.py","line":4,"diff_hunk":"@@ -1 +1 @@","commit_id":"c1","user":{"login":"bob"}}, {"id":22,"body":"On an old diff.","path":"test_hello.py","line":0,"original_position":9,"commit_id":"c2","user":{"login":"bob"}}, {"id":23,"body":"Done already.","path":"x.py","line":1,"resolver":{"login":"bob"},"user":{"login":"bob"}}]""",
+            [$"{Pulls}/reviews/5/comments"] = """[ {"id":31,"body":"Single note.","path":"a.py","line":2,"commit_id":"c3","user":{"login":"bob"}} ]""",
         });
 
-        var review = await Client(forgejo).GetLatestReviewAsync("acme", "shop", 7, "factory-bot", CancellationToken.None);
+        var reviews = await Client(forgejo).GetUnaddressedReviewsAsync("acme", "shop", 7, "factory-bot", DateTimeOffset.Parse("2026-06-01T00:00:00Z"), CancellationToken.None);
 
-        Assert.Equal(7, review!.Id);
-        Assert.Equal(("bob", "REQUEST_CHANGES", "Please rename these."), (review.Reviewer, review.State, review.Body));
+        Assert.Equal([5, 7], reviews.Select(r => r.Id));
+        var seven = reviews[1];
+        Assert.Equal(("bob", "REQUEST_CHANGES", "Please rename these."), (seven.Reviewer, seven.State, seven.Body));
         Assert.Equal(
-            [("hello.py", 4, "Rename this."), ("test_hello.py", 9, "On an old diff."), (null, null, "No place.")],
-            review.Comments.Select(c => (c.Path, c.Line, c.Body)));
+            [("hello.py", 4, "Rename this.", "c1", false), ("test_hello.py", 9, "On an old diff.", "c2", true)],
+            seven.Comments.Select(c => (c.Path, c.Line, c.Body, c.CommitId, c.OldSide)));
+        Assert.Equal("@@ -1 +1 @@", seven.Comments[0].DiffHunk);
     }
 
     [Fact]
-    public async Task A_pull_request_with_only_approvals_or_the_bots_own_reviews_has_no_review_to_act_on()
+    public async Task A_pull_request_with_only_approvals_or_the_bots_own_reviews_has_nothing_to_act_on()
     {
         var forgejo = new Forgejo(new()
         {
             [$"{Pulls}/reviews"] = """[{"id":3,"state":"APPROVED","body":"fine","user":{"login":"carol"}},{"id":4,"state":"COMMENT","body":"mine","user":{"login":"factory-bot"}}]""",
         });
 
-        Assert.Null(await Client(forgejo).GetLatestReviewAsync("acme", "shop", 7, "factory-bot", CancellationToken.None));
+        Assert.Empty(await Client(forgejo).GetUnaddressedReviewsAsync("acme", "shop", 7, "factory-bot", null, CancellationToken.None));
     }
 
     [Fact]
@@ -277,26 +280,29 @@ public sealed class RevisionClientTests
     {
         var forgejo = new Forgejo(new() { [$"{Pulls}/reviews"] = """[{"id":7,"state":"REQUEST_CHANGES","body":"Please rename.","user":{"login":"bob"}}]""" });
 
-        var review = await Client(forgejo).GetLatestReviewAsync("acme", "shop", 7, "factory-bot", CancellationToken.None);
+        var review = Assert.Single(await Client(forgejo).GetUnaddressedReviewsAsync("acme", "shop", 7, "factory-bot", null, CancellationToken.None));
 
-        Assert.Equal("Please rename.", review!.Body);
+        Assert.Equal("Please rename.", review.Body);
         Assert.Empty(review.Comments);
     }
 
     [Fact]
-    public async Task Revisions_already_made_are_counted_from_the_marker_in_the_pull_requests_comments()
+    public async Task Revisions_are_counted_and_the_last_reply_time_is_found_from_the_marker()
     {
         var forgejo = new Forgejo(new()
         {
             ["/api/v1/repos/acme/shop/issues/7/comments"] = JsonSerializer.Serialize(new[]
             {
-                new { body = "a person's comment" },
-                new { body = $"{EventRouter.BotMarker}\n{RevisionReply.Marker}\n**Revision pushed**" },
-                new { body = $"{EventRouter.BotMarker}\nA normal factory comment" },
-                new { body = $"{EventRouter.BotMarker}\n{RevisionReply.Marker}\n**Revision: no code change**" },
+                new { body = "a person's comment", created_at = "2026-05-01T00:00:00Z" },
+                new { body = $"{EventRouter.BotMarker}\n{RevisionReply.Marker}\n**Revision pushed**", created_at = "2026-05-02T00:00:00Z" },
+                new { body = $"{EventRouter.BotMarker}\nA normal factory comment", created_at = "2026-05-09T00:00:00Z" },
+                new { body = $"{EventRouter.BotMarker}\n{RevisionReply.Marker}\n**Revision: no code change**", created_at = "2026-05-03T00:00:00Z" },
             }),
         });
 
-        Assert.Equal(2, await Client(forgejo).CountRevisionsAsync("acme", "shop", 7, CancellationToken.None));
+        var history = await Client(forgejo).GetRevisionHistoryAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.Equal(2, history.Count);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-03T00:00:00Z"), history.LastAt);
     }
 }

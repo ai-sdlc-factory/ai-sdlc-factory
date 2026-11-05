@@ -133,29 +133,48 @@ public sealed class ExistingBranchTests : IDisposable
         Assert.Equal(head, RemoteHead());
     }
 
+    private void PersonPushes(string file, string text)
+    {
+        var person = Path.Combine(temp, "person" + Guid.NewGuid().ToString("N")[..6]);
+        Git(temp, "clone", "--quiet", origin, person);
+        Git(person, "checkout", "--quiet", Branch);
+        File.WriteAllText(Path.Combine(person, file), text);
+        Git(person, "add", ".");
+        Git(person, "commit", "--quiet", "-m", "a person's commit");
+        Git(person, "push", "--quiet", "origin", Branch);
+    }
+
     [Fact]
-    public async Task If_someone_pushed_to_the_branch_meanwhile_nothing_is_overwritten()
+    public async Task If_someone_pushed_to_the_branch_meanwhile_the_commit_goes_on_top_of_theirs()
     {
         var workspace = Workspace();
         var info = await Prepare(workspace);
         File.AppendAllText($"{info.Path}/feature.py", "# the factory's change\n");
+        PersonPushes("notes.txt", "a person's work\n");
+        var personsHead = RemoteHead();
 
-        // A person pushes a commit to the pull request's branch while the revision is being made.
-        var person = Path.Combine(temp, "person");
-        Git(temp, "clone", "--quiet", origin, person);
-        Git(person, "checkout", "--quiet", Branch);
-        File.WriteAllText(Path.Combine(person, "notes.txt"), "a person's work\n");
-        Git(person, "add", ".");
-        Git(person, "commit", "--quiet", "-m", "a person's commit");
-        Git(person, "push", "--quiet", "origin", Branch);
+        var published = await workspace.PublishAsync(new PublishRequest(Name, "Address review comments", UpdateExistingBranch: true), CancellationToken.None);
+
+        Assert.Equal(1, published!.RebasedOver);
+        Assert.Equal(published.CommitSha, RemoteHead());
+        Assert.Equal(personsHead, Git(origin, "rev-parse", Branch + "~1").Trim()); // theirs is the parent, never rewritten
+    }
+
+    [Fact]
+    public async Task If_the_persons_commit_conflicts_nothing_is_pushed_and_theirs_stays_the_tip()
+    {
+        var workspace = Workspace();
+        var info = await Prepare(workspace);
+        File.AppendAllText($"{info.Path}/feature.py", "# the factory's change\n");
+        PersonPushes("feature.py", "completely different\n");
         var personsHead = RemoteHead();
 
         var error = await Assert.ThrowsAsync<ApplicationFailureException>(() =>
             workspace.PublishAsync(new PublishRequest(Name, "Address review comments", UpdateExistingBranch: true), CancellationToken.None));
 
         Assert.True(error.NonRetryable);
-        Assert.Contains("changed while the revision was being made, so nothing was pushed", error.Message);
-        Assert.Equal(personsHead, RemoteHead()); // their commit is still the tip
+        Assert.Contains("conflict", error.Message);
+        Assert.Equal(personsHead, RemoteHead());
     }
 
     [Fact]

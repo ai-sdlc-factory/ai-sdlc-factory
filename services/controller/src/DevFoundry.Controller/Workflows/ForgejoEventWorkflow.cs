@@ -83,7 +83,9 @@ public sealed class ForgejoEventWorkflow
                 }
                 catch (WorkflowAlreadyStartedException)
                 {
-                    var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, TicketComments.RevisionBusy);
+                    // Not lost: the running revision is told, and starts a follow-up when it is done.
+                    var queued = await SignalAsync<PullRequestRevisionWorkflow>(revision.WorkflowId, workflow => workflow.OnMoreFeedbackAsync(revision));
+                    var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, queued ? TicketComments.RevisionQueued : TicketComments.RevisionBusy);
                     await Workflow.ExecuteActivityAsync(
                         (ForgejoActivities activities) => activities.PostNoticeOnceAsync(busy),
                         new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(30), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });

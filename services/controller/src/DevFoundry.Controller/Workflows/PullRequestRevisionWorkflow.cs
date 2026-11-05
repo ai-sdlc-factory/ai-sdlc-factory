@@ -13,8 +13,30 @@ namespace DevFoundry.Controller;
 [Workflow("PullRequestRevisionWorkflow")]
 public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
 {
+    private RevisionRequest? followUp;
+
+    /// <summary>A review or <c>/fix</c> arrived while this revision was running. It is not worked into this one (the agent already has
+    /// its comments); a follow-up revision reads it afterwards.</summary>
+    [WorkflowSignal("more_feedback")]
+    public Task OnMoreFeedbackAsync(RevisionRequest request)
+    {
+        followUp = request;
+        return Task.CompletedTask;
+    }
+
     [WorkflowRun]
     public async Task<FeatureResult> RunAsync(RevisionRequest revision)
+    {
+        var result = await RunOnceAsync(revision);
+        if (followUp is { } next && result.Status is "revision_pushed" or "revision_replied")
+        {
+            // Same workflow id, fresh history; the revision limit still applies, and what was already answered is not read again.
+            throw Workflow.CreateContinueAsNewException((PullRequestRevisionWorkflow workflow) => workflow.RunAsync(next));
+        }
+        return result;
+    }
+
+    private async Task<FeatureResult> RunOnceAsync(RevisionRequest revision)
     {
         var placeholder = revision.ToFeatureRequest($"Pull request #{revision.PullNumber}");
         RevisionContext context;
@@ -41,7 +63,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         }
 
         var pull = context.Pull;
-        var comments = RevisionComments.Collect(revision, context.Review);
+        var comments = RevisionComments.Collect(revision, context.Reviews);
         if (comments.Count == 0)
         {
             await CommentAsync(placeholder, TicketComments.RevisionNothingToDo);
@@ -51,16 +73,28 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         var request = revision.ToFeatureRequest(pull.Title);
         return await RunPipelineAsync(
             request, "pull request revision",
-            (feature, workspace, project) => StagesAsync(feature, workspace, project, pull, comments),
+            (feature, workspace, project) => StagesAsync(feature, workspace, project, pull, comments, context.Reviews),
             workspaceFor: feature => new WorkspaceRequest(feature.Owner, feature.Repo, feature.WorkflowId, pull.HeadRef, ExistingBranch: true),
             startMessage: $"I am working on the {comments.Count} review comment{(comments.Count == 1 ? "" : "s")} on this pull request.");
+    }
+
+    private static async Task BestEffortAsync(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (ActivityFailureException)
+        {
+        }
     }
 
     private static (RevisionReport? Value, string? Error) ParseReport(string text, int count) =>
         RevisionParser.TryParse(text, count, out var report, out var error) ? (report, null) : (null, error);
 
     private async Task<FeatureResult> StagesAsync(
-        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, PullRequestDetails pull, IReadOnlyList<RevisionComment> comments)
+        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, PullRequestDetails pull, IReadOnlyList<RevisionComment> comments,
+        IReadOnlyList<ReviewDetails> reviews)
     {
         // No stage here asks a person a question: a comment that cannot be acted on is answered on the pull request instead.
         commentsCanStillBeUsed = false;
@@ -140,7 +174,11 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             }
 
             await CommentAsync(request, $"Revision round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers.");
-            var review = await ReviewAsync(reviewRequest, workspace, project, criteria, null, after, results, skipQa: true);
+            // A larger revision is also checked against what the ticket asked for (the criteria in the pull request body).
+            var original = PullRequestCriteria.FromBody(pull.Body);
+            var checkOriginal = original.Count > 0 && after.Files.Count >= PullRequestCriteria.QaFromChangedFiles;
+            var review = await ReviewAsync(reviewRequest, workspace, project, criteria, null, after, results,
+                skipQa: !checkOriginal, qaCriteria: checkOriginal ? original : null);
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -172,7 +210,23 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             }
 
             var notes = review.Reports.SelectMany(r => r.Report.Advice.Take(3).Select(f => $"{r.Role}, {f.Severity}: {f.Message}")).Take(6).ToList();
-            await CommentAsync(request, RevisionReply.Pushed(published.CommitSha, report, comments, BuildFeedback.Summary(results), notes));
+            await CommentAsync(request, RevisionReply.Pushed(published.CommitSha, report, comments, BuildFeedback.Summary(results), notes, published.RebasedOver));
+
+            // Both are courtesies: if either fails the push still stands.
+            var replies = RevisionReply.ThreadReplies(report, comments, published.CommitSha);
+            if (replies.Count > 0)
+            {
+                await BestEffortAsync(() => Workflow.ExecuteActivityAsync(
+                    (ForgejoActivities activities) => activities.ReplyToCommentsAsync(new CommentRepliesInput(request.Owner, request.Repo, pull.Number, replies)),
+                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(2), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } }));
+            }
+            var reviewers = RevisionComments.Reviewers(reviews);
+            if (reviewers.Count > 0)
+            {
+                await BestEffortAsync(() => Workflow.ExecuteActivityAsync(
+                    (ForgejoActivities activities) => activities.RequestReviewersAsync(new ReviewRequestInput(request.Owner, request.Repo, pull.Number, reviewers)),
+                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } }));
+            }
             return new FeatureResult("revision_pushed", WorkBranch: published.Branch);
         }
 

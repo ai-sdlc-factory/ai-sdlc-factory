@@ -6,7 +6,7 @@ using static DevFoundry.Controller.JsonFields;
 namespace DevFoundry.Controller;
 
 /// <summary>One thing a person asked for, numbered so the agent can answer each one: a line comment, a review's overall text, or the text after <c>/fix</c>.</summary>
-public sealed record RevisionComment(int Index, string Author, string? Path, int? Line, string Body)
+public sealed record RevisionComment(int Index, string Author, string? Path, int? Line, string Body, string? DiffHunk = null, string? CommitId = null, bool OldSide = false)
 {
     public string Where => Path is null ? "general" : Line is null ? Path : $"{Path}:{Line}";
 }
@@ -111,22 +111,23 @@ public static class RevisionParser
 public static class RevisionComments
 {
     /// <summary>
-    /// The comments to act on, numbered from 1: what was written after <c>/fix</c> (if anything), the review's overall text, then its comments
-    /// on lines. Over the limit, the rest is left out and the agent is not told about it, because it could not answer what it never saw.
+    /// The comments to act on, numbered from 1: what was written after <c>/fix</c> (if anything), then for every review still waiting
+    /// (oldest first) its overall text and its comments on lines. Over the limit, the rest is left out and the agent is not told about
+    /// it, because it could not answer what it never saw.
     /// </summary>
-    public static IReadOnlyList<RevisionComment> Collect(RevisionRequest request, ReviewDetails? review)
+    public static IReadOnlyList<RevisionComment> Collect(RevisionRequest request, IReadOnlyList<ReviewDetails> reviews)
     {
         var list = new List<RevisionComment>();
-        void Add(string author, string? path, int? line, string? body)
+        void Add(string author, string? path, int? line, string? body, string? hunk = null, string? commit = null, bool oldSide = false)
         {
             if (!string.IsNullOrWhiteSpace(body) && list.Count < RevisionRules.MaxComments)
             {
-                list.Add(new RevisionComment(list.Count + 1, author, path, line, body.Trim()));
+                list.Add(new RevisionComment(list.Count + 1, author, path, line, body.Trim(), hunk, commit, oldSide));
             }
         }
 
         Add(request.Author, null, null, request.Instruction);
-        if (review is not null)
+        foreach (var review in reviews)
         {
             // A review's overall text that is the same as the trigger's (the review event carries it) is not listed twice.
             if (!string.Equals(review.Body?.Trim(), request.Instruction?.Trim(), StringComparison.Ordinal))
@@ -135,9 +136,13 @@ public static class RevisionComments
             }
             foreach (var comment in review.Comments)
             {
-                Add(comment.Author, string.IsNullOrWhiteSpace(comment.Path) ? null : comment.Path, comment.Line, comment.Body);
+                Add(comment.Author, string.IsNullOrWhiteSpace(comment.Path) ? null : comment.Path, comment.Line, comment.Body, comment.DiffHunk, comment.CommitId, comment.OldSide);
             }
         }
         return list;
     }
+
+    /// <summary>The people whose reviews were acted on, so they can be asked to look again.</summary>
+    public static IReadOnlyList<string> Reviewers(IReadOnlyList<ReviewDetails> reviews) =>
+        reviews.Select(r => r.Reviewer).Where(login => login.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 }

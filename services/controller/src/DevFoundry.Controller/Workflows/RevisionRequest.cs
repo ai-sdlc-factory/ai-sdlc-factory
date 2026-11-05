@@ -50,7 +50,7 @@ public static partial class RevisionRules
         {
             return new RevisionRefusal("revision_limit", TicketComments.RevisionLimit(MaxRevisionsPerPullRequest));
         }
-        if (string.IsNullOrWhiteSpace(request.Instruction) && context.Review is null)
+        if (string.IsNullOrWhiteSpace(request.Instruction) && context.Reviews.Count == 0)
         {
             return new RevisionRefusal("nothing_to_do", TicketComments.RevisionNothingToDo);
         }

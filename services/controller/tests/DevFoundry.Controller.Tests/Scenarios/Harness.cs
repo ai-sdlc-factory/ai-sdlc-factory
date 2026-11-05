@@ -81,6 +81,8 @@ public sealed class FakeWorld
     public List<string> EvidenceNetworks { get; } = [];
     public List<string> Problems { get; } = [];
     public List<string> Notices { get; } = [];
+    public List<ReviewRequestInput> ReviewRequests { get; } = [];
+    public List<CommentRepliesInput> ThreadReplies { get; } = [];
 
     /// <summary>What Forgejo says about the pull request being revised; the default is a pull request the factory opened with two line comments.</summary>
     public RevisionContext RevisionContext { get; set; } = FactoryPullRequest();
@@ -92,10 +94,10 @@ public sealed class FakeWorld
 
     public static RevisionContext FactoryPullRequest(
         string headRef = "factory/issue-7", string author = "factory-bot", string state = "open", bool merged = false,
-        string headRepo = "acme/shop", int prior = 0, ReviewDetails? review = null, bool noReview = false) =>
-        new(new PullRequestDetails(7, "Add goodbye", "Closes #3", state, merged, headRef, "abc123", headRepo, "acme/shop", "main", author),
-            "factory-bot", noReview ? null : review ?? new ReviewDetails(11, "bob", "REQUEST_CHANGES", "Please fix these",
-            [new ReviewComment(1, "bob", "hello.py", 4, "Rename this function."), new ReviewComment(2, "bob", "test_hello.py", 9, "This test does not assert the text.")]), prior);
+        string headRepo = "acme/shop", int prior = 0, ReviewDetails? review = null, bool noReview = false, string body = "Closes #3") =>
+        new(new PullRequestDetails(7, "Add goodbye", body, state, merged, headRef, "abc123", headRepo, "acme/shop", "main", author),
+            "factory-bot", noReview ? [] : [review ?? new ReviewDetails(11, "bob", "REQUEST_CHANGES", "Please fix these",
+            [new ReviewComment(1, "bob", "hello.py", 4, "Rename this function.", "@@ -1,3 +1,3 @@\n def hello():", "c1"), new ReviewComment(2, "bob", "test_hello.py", 9, "This test does not assert the text.", null, "c1")])], prior);
 
     /// <summary>Tickets the workflow opened, and an error to throw instead (as when the label is missing).</summary>
     public List<CreateIssueRequest> CreatedIssues { get; } = [];
@@ -213,6 +215,20 @@ public sealed class FakeWorld
         [Activity("forgejo_read_revision_context")]
         public RevisionContext ReadRevisionContext(RevisionRequest request) =>
             world.RevisionContextFailure is { } failure ? throw failure : world.RevisionContext;
+
+        [Activity("forgejo_request_reviewers")]
+        public bool RequestReviewers(ReviewRequestInput request)
+        {
+            lock (world.gate) { world.ReviewRequests.Add(request); }
+            return true;
+        }
+
+        [Activity("forgejo_reply_to_comments")]
+        public int ReplyToComments(CommentRepliesInput request)
+        {
+            lock (world.gate) { world.ThreadReplies.Add(request); }
+            return request.Replies.Count;
+        }
 
         [Activity("forgejo_create_issue")]
         public IssueInfo CreateIssue(CreateIssueRequest request)

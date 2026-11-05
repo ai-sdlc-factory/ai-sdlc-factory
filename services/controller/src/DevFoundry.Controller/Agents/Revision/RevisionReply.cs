@@ -8,7 +8,7 @@ public static class RevisionReply
     /// <summary>Hidden marker on every revision reply; the number of them on a pull request is the number of revisions made.</summary>
     public const string Marker = "<!-- dev-foundry:revision -->";
 
-    public static string Pushed(string commit, RevisionReport report, IReadOnlyList<RevisionComment> comments, string checks, IReadOnlyList<string> reviewNotes)
+    public static string Pushed(string commit, RevisionReport report, IReadOnlyList<RevisionComment> comments, string checks, IReadOnlyList<string> reviewNotes, int rebasedOver = 0)
     {
         var text = new StringBuilder();
         text.AppendLine(Marker);
@@ -18,6 +18,11 @@ public static class RevisionReply
         AppendTable(text, report, comments);
         text.AppendLine();
         text.AppendLine($"Checks: {TicketComments.Inert(checks)}.");
+        if (rebasedOver > 0)
+        {
+            text.AppendLine();
+            text.AppendLine($"**The branch had {rebasedOver} new commit{(rebasedOver == 1 ? "" : "s")} from a person while I worked.** I put my commit on top of {(rebasedOver == 1 ? "it" : "them")}. The checks ran before that, so please look at the result.");
+        }
         foreach (var note in reviewNotes)
         {
             text.AppendLine($"- {TicketComments.Inert(note)}");
@@ -25,6 +30,35 @@ public static class RevisionReply
         text.AppendLine();
         text.Append("A person should look at the new commit and review again. I do not merge.");
         return text.ToString();
+    }
+
+    /// <summary>
+    /// What to say in a comment's own conversation: the outcome in a sentence. Only line comments get one; the summary comment on the pull
+    /// request covers the rest. Model text is made inert.
+    /// </summary>
+    public static IReadOnlyList<CommentReply> ThreadReplies(RevisionReport report, IReadOnlyList<RevisionComment> comments, string? commit)
+    {
+        var replies = new List<CommentReply>();
+        foreach (var response in report.Responses)
+        {
+            var comment = comments.FirstOrDefault(c => c.Index == response.Index);
+            if (comment is null || comment.Path is null || comment.Line is null || comment.CommitId is null)
+            {
+                continue;
+            }
+            var note = TicketComments.Inert(response.Note);
+            var short8 = commit is null ? "" : commit.Length > 8 ? commit[..8] : commit;
+            var text = response.Status switch
+            {
+                RevisionResponse.Fixed => commit is null ? "Fixed." : $"Fixed in `{short8}`." + (note.Length > 0 ? $" {note}" : ""),
+                RevisionResponse.Answered => note,
+                RevisionResponse.Declined => $"Not changed: {note}",
+                _ => $"I need to know: {note}",
+            };
+            replies.Add(new CommentReply(comment.Path, comment.Line.Value, comment.OldSide, comment.CommitId,
+                text + (response.Status == RevisionResponse.Fixed ? "\n\nPlease mark this conversation resolved if it looks right; I cannot." : "")));
+        }
+        return replies;
     }
 
     public static string Replied(RevisionReport report, IReadOnlyList<RevisionComment> comments)

@@ -36,6 +36,14 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         Assert.Contains("**Revision pushed: `c0ffee`**", reply);
         Assert.Contains("| 2 | `hello.py:4` Rename this function. | answered: Reason for comment 2. |", reply);
         Assert.Contains("A person should look at the new commit", reply);
+
+        // Line comments get an answer in their own conversation; the reviewer is asked to look again.
+        var threads = Assert.Single(world.ThreadReplies);
+        Assert.Equal(2, threads.Replies.Count);
+        Assert.Equal("c1", threads.Replies[0].CommitId);
+        Assert.Contains("Reason for comment 2.", threads.Replies[0].Body);
+        Assert.Contains("Fixed in `c0ffee`", threads.Replies[1].Body);
+        Assert.Equal(["bob"], Assert.Single(world.ReviewRequests).Reviewers);
         Assert.Equal([request.WorkflowId], world.CleanedUp);
     }
 
@@ -297,15 +305,21 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task A_second_fix_while_a_revision_is_running_gets_a_notice_and_does_not_start_another()
+    public async Task A_second_fix_while_a_revision_is_running_is_queued_and_run_as_a_follow_up()
     {
         var started = new ManualResetEventSlim();
         var release = new ManualResetEventSlim();
-        var world = Reviewing(Answers.Revision("done", "fixed", "fixed", "fixed", "fixed"));
+        var four = Answers.Revision("done", "fixed", "fixed", "fixed", "fixed");
+        var world = Reviewing(four, four).Agent("reviewer", Say(Answers.Review()), Say(Answers.Review()));
+        var first = true;
         world.Prepare = request =>
         {
-            started.Set();
-            release.Wait(TimeSpan.FromSeconds(30));
+            if (first)
+            {
+                first = false;
+                started.Set();
+                release.Wait(TimeSpan.FromSeconds(30));
+            }
             return new WorkspaceInfo(request.Name, $"/work/{request.Name}", request.Branch, "main", "abcdef1234567890");
         };
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
@@ -317,12 +331,12 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
             await Route(context, PullComment(repo, "/fix second"));
             await WaitUntilAsync(() => world.Snapshot(world.Notices).Count == 1);
             release.Set();
-            await WaitUntilAsync(() => world.Snapshot(world.Publishes).Count == 1);
+            await WaitUntilAsync(() => world.Snapshot(world.Publishes).Count == 2);
             return 0;
         });
 
-        Assert.Equal(TicketComments.RevisionBusy, Assert.Single(world.Notices));
-        Assert.Single(world.Calls("pr-resolver")); // only the first revision ran
+        Assert.Equal(TicketComments.RevisionQueued, Assert.Single(world.Notices));
+        Assert.Equal(2, world.Calls("pr-resolver").Count()); // the second runs after the first, not beside it
     }
 
     [SkippableFact]
@@ -362,5 +376,20 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         Assert.Empty(world.AgentCalls);
         Assert.Empty(world.PrepareRequests);
         Assert.Empty(world.Notices);
+    }
+
+    [SkippableFact]
+    public async Task A_large_revision_is_checked_against_the_criteria_in_the_pull_request_body()
+    {
+        var world = Reviewing().Agent("qa", Say(Answers.Qa("met", "met")));
+        world.RevisionContext = FakeWorld.FactoryPullRequest(body: "Closes #3\n\n## Acceptance criteria\n- Says goodbye\n- Has a test");
+        var files = Enumerable.Range(1, 3).Select(i => new FileChange($"f{i}.py", "modified")).ToList();
+        world.Changes(new ChangeReport(files, []), new ChangeReport(files, []));
+
+        var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
+
+        Assert.Equal("revision_pushed", result.Status);
+        Assert.Equal(["pr-resolver", "reviewer", "qa"], Roles(world));
+        Assert.Contains("Says goodbye", world.Calls("qa").Single().Prompt);
     }
 }

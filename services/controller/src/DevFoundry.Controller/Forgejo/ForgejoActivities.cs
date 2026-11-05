@@ -6,6 +6,10 @@ public sealed record CommentRequest(string Owner, string Repo, int IssueNumber, 
 
 public sealed record CreateIssueRequest(string Owner, string Repo, string Title, string Body, IReadOnlyList<string> Labels);
 
+public sealed record ReviewRequestInput(string Owner, string Repo, int PullNumber, IReadOnlyList<string> Reviewers);
+
+public sealed record CommentRepliesInput(string Owner, string Repo, int PullNumber, IReadOnlyList<CommentReply> Replies);
+
 public sealed record PullRequestRequest(string Owner, string Repo, string Head, string Base, string Title, string Body);
 
 public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings settings)
@@ -35,10 +39,20 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
         var token = ActivityExecutionContext.Current.CancellationToken;
         var bot = settings.ForgejoBotLogin;
         var pull = await forgejo.GetPullRequestAsync(request.Owner, request.Repo, request.PullNumber, token);
-        var review = await forgejo.GetLatestReviewAsync(request.Owner, request.Repo, request.PullNumber, bot, token);
-        var prior = await forgejo.CountRevisionsAsync(request.Owner, request.Repo, request.PullNumber, token);
-        return new RevisionContext(pull, bot, review, prior);
+        var history = await forgejo.GetRevisionHistoryAsync(request.Owner, request.Repo, request.PullNumber, token);
+        var reviews = await forgejo.GetUnaddressedReviewsAsync(request.Owner, request.Repo, request.PullNumber, bot, history.LastAt, token);
+        return new RevisionContext(pull, bot, reviews, history.Count);
     }
+
+    /// <summary>Asks the reviewers to look again after a revision was pushed. Never fails the run.</summary>
+    [Activity("forgejo_request_reviewers")]
+    public Task<bool> RequestReviewersAsync(ReviewRequestInput request) =>
+        forgejo.RequestReviewAsync(request.Owner, request.Repo, request.PullNumber, request.Reviewers, ActivityExecutionContext.Current.CancellationToken);
+
+    /// <summary>Replies to the line comments that were addressed, in their own conversations. Never fails the run.</summary>
+    [Activity("forgejo_reply_to_comments")]
+    public Task<int> ReplyToCommentsAsync(CommentRepliesInput request) =>
+        forgejo.ReplyToCommentsAsync(request.Owner, request.Repo, request.PullNumber, request.Replies, ActivityExecutionContext.Current.CancellationToken);
 
     [Activity("forgejo_create_pull_request")]
     public Task<PullRequestInfo> CreatePullRequestAsync(PullRequestRequest request) =>

@@ -232,7 +232,8 @@ public abstract partial class FactoryWorkflowBase
     /// </summary>
     protected async Task<ReviewOutcome> ReviewAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
-        ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false)
+        ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false,
+        IReadOnlyList<CriterionCoverage>? qaCriteria = null)
     {
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
@@ -284,7 +285,7 @@ public abstract partial class FactoryWorkflowBase
             return new ReviewOutcome(null, ReviewFeedback.From(reports, null), reports, null, uxNote);
         }
 
-        var criteria = remaining.Select(criterion => criterion.Criterion).ToList();
+        var criteria = (qaCriteria ?? remaining).Select(criterion => criterion.Criterion).ToList();
         var qaOutcome = await RunAgentAsync<QaReport>(
             "qa", project.Image, workspace,
             problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem, checks),

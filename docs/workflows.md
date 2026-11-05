@@ -163,21 +163,22 @@ After the factory opens a pull request, a person reviews it. If they want change
 
 - **Submit a review that requests changes**, with an overall text and/or comments on lines, or
 - **comment `/fix`** on the pull request. Text after the command is an extra instruction (`/fix rename the helper and add a test`). `/fix` alone acts on
-  the **latest review** of the pull request (a request-changes or comment review by a person).
+  **every review still waiting** (request-changes or comment reviews by people, including each "Add single comment", since Forgejo makes every single comment its own review).
+  Dismissed reviews, conversations a person marked resolved, and reviews older than the factory's last reply are skipped.
 
 The factory revises **only its own pull requests**: the branch must be one it created (`factory/issue-<n>`), the pull request must be authored by the bot, from the same repository, and still open.
-Anything else is left alone without a word. At most **three revisions per pull request**, **one at a time** (a second `/fix` while one is running gets a notice).
+Anything else is left alone without a word. At most **three revisions per pull request**, **one at a time**. A review or `/fix` that arrives while one is running is not lost: the factory says it is queued, and when the running revision has pushed or replied it starts a follow-up that reads what came in meanwhile.
 
 | Step | Who | What the factory checks itself |
 | --- | --- | --- |
-| 1. Read | the factory | the pull request, its latest review and that review's line comments, from Forgejo. Every comment is numbered |
+| 1. Read | the factory | the pull request, every review still waiting and its line comments **with the code each was written on**, from Forgejo. Every comment is numbered |
 | 2. Resolve | `pr-resolver` (writable, shell, package access) in a checkout of the **pull request's own branch** | **every numbered comment is answered exactly once**, as `fixed`, `answered`, `declined` (with a reason) or `needs_clarification` (with the question); and a `fixed` answer must come with changed files |
 | 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (3 rounds at most) |
-| 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. QA is not used |
-| 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**: if a person pushed to the branch meanwhile, nothing is pushed |
-| 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. A person reviews again; the factory never merges |
+| 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. A revision that changes **3 or more files** is also checked by QA against the acceptance criteria in the pull request body |
+| 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**. If a person pushed to the branch meanwhile, the commit is put on top of theirs once (and the reply says so); if that conflicts, nothing is pushed |
+| 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. Each line comment also gets a short answer in its own conversation, and the reviewers are asked to review again. A person reviews again; the factory never merges |
 
-If every comment was answered or declined and nothing needed to change, the factory pushes nothing and replies with the answers. If the rounds run out or the resolver is blocked, nothing is pushed to the pull request and the work is saved
+The factory cannot mark conversations resolved (Forgejo has no API for it); the replies ask the reviewer to do it. If every comment was answered or declined and nothing needed to change, the factory pushes nothing and replies with the answers. If the rounds run out or the resolver is blocked, nothing is pushed to the pull request and the work is saved
 to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
 With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
 

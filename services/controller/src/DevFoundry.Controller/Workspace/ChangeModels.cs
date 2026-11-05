@@ -14,7 +14,7 @@ public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList
 /// <summary><see cref="UpdateExistingBranch"/> pushes the commit onto the branch the checkout started from (a pull request being revised), never forcing and never choosing a new name.</summary>
 public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null, bool UpdateExistingBranch = false);
 
-public sealed record PublishResult(string CommitSha, string Branch, int FileCount);
+public sealed record PublishResult(string CommitSha, string Branch, int FileCount, int RebasedOver = 0);
 
 public sealed record RescueRequest(string Name, string Message, RunRecordSpec? Record = null);
 

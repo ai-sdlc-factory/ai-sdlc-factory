@@ -109,7 +109,7 @@ Reference points from real runs: a small feature in the full process used about 
 | --- | --- |
 | No automatic cleanup of old checkouts and `-wip` branches | see above |
 | No token or spending limits | recorded, not enforced |
-| Pull request revisions answer in one comment | a reply to each review comment in its own thread is not built; only the factory's own pull requests are revised |
+| Pull request revisions | only the factory's own pull requests are revised; the factory cannot resolve conversations (no API), and anyone who can comment on the pull request can start a revision |
 | Incident tickets are written by people | a collector that files them from monitoring waits until there is a production system |
 | Unknown keys in `.factory/project.json` are ignored silently | check spelling against the [reference](project-setup.md#reference) |
 | Forgejo only | the router reads Forgejo's webhook format |

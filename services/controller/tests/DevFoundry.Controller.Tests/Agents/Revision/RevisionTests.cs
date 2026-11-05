@@ -102,7 +102,7 @@ public sealed class RevisionCommentsTests
     {
         var review = new ReviewDetails(1, "carol", "REQUEST_CHANGES", "Overall: needs work", [new ReviewComment(5, "carol", "a.py", 3, "Rename x."), new ReviewComment(6, "carol", "b.py", null, "Add a test.")]);
 
-        var comments = RevisionComments.Collect(Request("Also fix the typo"), review);
+        var comments = RevisionComments.Collect(Request("Also fix the typo"), [review]);
 
         Assert.Equal([1, 2, 3, 4], comments.Select(c => c.Index));
         Assert.Equal(["Also fix the typo", "Overall: needs work", "Rename x.", "Add a test."], comments.Select(c => c.Body));
@@ -115,7 +115,7 @@ public sealed class RevisionCommentsTests
     {
         var review = new ReviewDetails(1, "bob", "REQUEST_CHANGES", "Please fix these", [new ReviewComment(5, "bob", "a.py", 3, "Rename x.")]);
 
-        var comments = RevisionComments.Collect(Request("Please fix these", RevisionRequest.ByReview), review);
+        var comments = RevisionComments.Collect(Request("Please fix these", RevisionRequest.ByReview), [review]);
 
         Assert.Equal(["Please fix these", "Rename x."], comments.Select(c => c.Body));
     }
@@ -125,7 +125,7 @@ public sealed class RevisionCommentsTests
     {
         var review = new ReviewDetails(1, "carol", "COMMENT", "  ", [new ReviewComment(5, "carol", "a.py", 3, "")]);
 
-        Assert.Empty(RevisionComments.Collect(Request(""), review));
+        Assert.Empty(RevisionComments.Collect(Request(""), [review]));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class RevisionCommentsTests
     {
         var review = new ReviewDetails(1, "carol", "COMMENT", "", Enumerable.Range(1, 45).Select(i => new ReviewComment(i, "carol", "a.py", i, $"comment {i}")).ToList());
 
-        var comments = RevisionComments.Collect(Request(""), review);
+        var comments = RevisionComments.Collect(Request(""), [review]);
 
         Assert.Equal(RevisionRules.MaxComments, comments.Count);
         Assert.Equal("comment 30", comments[^1].Body);
@@ -142,7 +142,7 @@ public sealed class RevisionCommentsTests
     [Fact]
     public void Without_a_review_only_the_instruction_counts()
     {
-        var comments = RevisionComments.Collect(Request("Use a constant"), null);
+        var comments = RevisionComments.Collect(Request("Use a constant"), []);
 
         Assert.Equal("Use a constant", Assert.Single(comments).Body);
     }
@@ -347,5 +347,63 @@ public sealed class RevisionReplyTests
         var text = RevisionReply.Replied(Report(new(1, "needs_clarification", "Which name do you want?"), new(2, "fixed", "")), [First, Second]);
 
         Assert.Contains("needs clarification: Which name do you want?", text);
+    }
+
+    [Fact]
+    public void Comments_of_several_reviews_are_all_taken_oldest_first_with_their_code()
+    {
+        var first = new ReviewDetails(1, "carol", "COMMENT", "", [new ReviewComment(5, "carol", "a.py", 3, "Rename x.", "@@ -1 +1 @@\n-x\n+y", "c1")]);
+        var second = new ReviewDetails(2, "dave", "REQUEST_CHANGES", "", [new ReviewComment(6, "dave", "b.py", 8, "Add a test.", null, "c2", true)]);
+
+        var comments = RevisionComments.Collect(new RevisionRequest("acme", "shop", 7, RevisionRequest.ByCommand, "", "bob"), [first, second]);
+
+        Assert.Equal(["Rename x.", "Add a test."], comments.Select(c => c.Body));
+        Assert.Equal(("@@ -1 +1 @@\n-x\n+y", "c1", false), (comments[0].DiffHunk, comments[0].CommitId, comments[0].OldSide));
+        Assert.True(comments[1].OldSide);
+        Assert.Equal(["carol", "dave"], RevisionComments.Reviewers([first, second, first]));
+    }
+
+    [Fact]
+    public void Thirty_comments_with_long_code_still_fit_in_one_prompt()
+    {
+        var hunk = string.Join('\n', Enumerable.Range(0, 40).Select(i => new string('x', 200)));
+        var comments = Enumerable.Range(1, 30).Select(i => new RevisionComment(i, "carol", "a.py", i, new string('b', 3000), hunk, "c1")).ToList();
+        var pull = new PullRequestDetails(7, "Add goodbye", "Closes #3", "open", false, "factory/issue-7", "abc", "a/b", "a/b", "main", "factory-bot");
+
+        var prompt = RevisionPrompts.Build(pull, comments, [], new string('f', 20000), 1, 3);
+
+        Assert.True(prompt.Length < 30_000, $"{prompt.Length}");
+        Assert.Contains("<<<HUNK", prompt);
+    }
+
+    [Fact]
+    public void Criteria_are_read_from_the_pull_request_body()
+    {
+        var body = "Closes #3\n\n## Acceptance criteria\n- Says goodbye\n- Test covers it\n\n## Other\n- not a criterion";
+
+        var criteria = PullRequestCriteria.FromBody(body);
+
+        Assert.Equal(["Says goodbye", "Test covers it"], criteria.Select(c => c.Criterion));
+        Assert.Empty(PullRequestCriteria.FromBody("no section here"));
+    }
+
+    [Fact]
+    public void Thread_replies_are_made_only_for_line_comments_with_their_commit()
+    {
+        var comments = new List<RevisionComment>
+        {
+            new(1, "bob", null, null, "General."),
+            new(2, "bob", "a.py", 4, "Rename.", "@@", "c1"),
+            new(3, "bob", "b.py", 9, "Why?", "@@", "c2", true),
+        };
+        var report = new RevisionReport("done", "s", [new(1, "answered", "ok"), new(2, "fixed", "renamed"), new(3, "answered", "Because.")], []);
+
+        var replies = RevisionReply.ThreadReplies(report, comments, "0123456789abcdef");
+
+        Assert.Equal(2, replies.Count);
+        Assert.Contains("`01234567`", replies[0].Body);
+        Assert.Equal(("a.py", 4, false, "c1"), (replies[0].Path, replies[0].Line, replies[0].OldSide, replies[0].CommitId));
+        Assert.StartsWith("Because.", replies[1].Body);
+        Assert.True(replies[1].OldSide);
     }
 }

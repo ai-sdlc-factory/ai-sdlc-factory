@@ -113,10 +113,12 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
     }
 
     /// <summary>
-    /// The most recent review of a pull request that is worth acting on (changes requested, or comments) and was not written by the bot,
-    /// with the comments attached to its lines. Null when there is none.
+    /// Every review of a pull request that is still waiting to be acted on: by a person (not the bot), not dismissed, asking for changes or
+    /// commenting (an approval is not a request), and submitted after the factory's last revision. Comments in conversations a person has
+    /// already marked resolved are left out, and a review with nothing left to act on is dropped. Oldest first.
     /// </summary>
-    public async Task<ReviewDetails?> GetLatestReviewAsync(string owner, string repo, int number, string botLogin, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ReviewDetails>> GetUnaddressedReviewsAsync(
+        string owner, string repo, int number, string botLogin, DateTimeOffset? since, CancellationToken cancellationToken)
     {
         RequireToken();
         var path = $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}/reviews";
@@ -129,58 +131,169 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
         using var reviews = await JsonDocument.ParseAsync(await listed.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
         if (reviews.RootElement.ValueKind != JsonValueKind.Array)
         {
-            return null;
+            return [];
         }
 
-        static string Text(JsonElement element, string name) => element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        static string Text(JsonElement element, string name) =>
+            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
         static string Login(JsonElement element) => element.TryGetProperty("user", out var u) && u.ValueKind == JsonValueKind.Object ? Text(u, "login") : "";
+        static DateTimeOffset? When(JsonElement element, string name) =>
+            DateTimeOffset.TryParse(Text(element, name), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var at) ? at : null;
+
         var chosen = reviews.RootElement.EnumerateArray()
             .Where(review => review.TryGetProperty("id", out _)
                 && Text(review, "state") is "REQUEST_CHANGES" or "COMMENT"
                 && !(review.TryGetProperty("dismissed", out var dismissed) && dismissed.ValueKind == JsonValueKind.True)
-                && !string.Equals(Login(review), botLogin, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(review => review.GetProperty("id").GetInt64())
-            .Select(review => (JsonElement?)review)
-            .FirstOrDefault();
-        if (chosen is not { } found)
-        {
-            return null;
-        }
+                && !string.Equals(Login(review), botLogin, StringComparison.OrdinalIgnoreCase)
+                && (since is null || When(review, "submitted_at") is not { } submitted || submitted > since))
+            .OrderBy(review => review.GetProperty("id").GetInt64())
+            .Select(review => review.Clone())
+            .ToList();
 
-        var id = found.GetProperty("id").GetInt64();
-        using var commentsRequest = Authorized(HttpMethod.Get, $"{path}/{id}/comments");
-        using var commentsResponse = await http.SendAsync(commentsRequest, cancellationToken);
-        var comments = new List<ReviewComment>();
-        if (commentsResponse.IsSuccessStatusCode)
+        var result = new List<ReviewDetails>();
+        foreach (var review in chosen)
         {
-            using var document = await JsonDocument.ParseAsync(await commentsResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            var id = review.GetProperty("id").GetInt64();
+            var comments = new List<ReviewComment>();
+            using var commentsRequest = Authorized(HttpMethod.Get, $"{path}/{id}/comments");
+            using var commentsResponse = await http.SendAsync(commentsRequest, cancellationToken);
+            if (commentsResponse.IsSuccessStatusCode)
             {
-                foreach (var comment in document.RootElement.EnumerateArray())
+                using var document = await JsonDocument.ParseAsync(await commentsResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+                if (document.RootElement.ValueKind == JsonValueKind.Array)
                 {
-                    int? line = null;
-                    foreach (var name in new[] { "line", "position" })
+                    foreach (var comment in document.RootElement.EnumerateArray())
                     {
-                        if (comment.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var lineNumber) && lineNumber > 0)
+                        // A conversation a person marked resolved is finished business.
+                        if (comment.TryGetProperty("resolver", out var resolver) && resolver.ValueKind == JsonValueKind.Object)
                         {
-                            line = lineNumber;
-                            break;
+                            continue;
                         }
+                        int? line = null;
+                        var oldSide = false;
+                        foreach (var (name, old) in new[] { ("line", false), ("position", false), ("original_position", true) })
+                        {
+                            if (comment.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var lineNumber) && lineNumber > 0)
+                            {
+                                line = lineNumber;
+                                oldSide = old;
+                                break;
+                            }
+                        }
+                        comments.Add(new ReviewComment(
+                            comment.TryGetProperty("id", out var commentId) && commentId.ValueKind == JsonValueKind.Number ? commentId.GetInt64() : 0,
+                            Login(comment), Text(comment, "path") is { Length: > 0 } filePath ? filePath : null, line, Text(comment, "body"),
+                            Text(comment, "diff_hunk") is { Length: > 0 } hunk ? hunk : null,
+                            Text(comment, "commit_id") is { Length: > 0 } commit ? commit : null, oldSide));
                     }
-                    comments.Add(new ReviewComment(
-                        comment.TryGetProperty("id", out var commentId) && commentId.ValueKind == JsonValueKind.Number ? commentId.GetInt64() : 0,
-                        Login(comment), Text(comment, "path") is { Length: > 0 } filePath ? filePath : null, line, Text(comment, "body")));
+                }
+            }
+
+            var body = Text(review, "body");
+            if (comments.Count == 0 && string.IsNullOrWhiteSpace(body))
+            {
+                continue; // nothing left to act on
+            }
+            result.Add(new ReviewDetails(id, Login(review), Text(review, "state"), body, comments));
+        }
+        return result;
+    }
+
+    /// <summary>How many revisions the factory has already made on a pull request, and when it last replied: its replies carry a hidden marker.</summary>
+    public async Task<RevisionHistory> GetRevisionHistoryAsync(string owner, string repo, int number, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/issues/{number}/comments");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("comment list", response.StatusCode, response.ReasonPhrase);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        var count = 0;
+        DateTimeOffset? last = null;
+        if (document.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var comment in document.RootElement.EnumerateArray())
+            {
+                var body = comment.TryGetProperty("body", out var b) && b.ValueKind == JsonValueKind.String ? b.GetString() ?? "" : "";
+                if (!body.Contains(RevisionReply.Marker, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                count++;
+                if (comment.TryGetProperty("created_at", out var created) && created.ValueKind == JsonValueKind.String
+                    && DateTimeOffset.TryParse(created.GetString(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var at)
+                    && (last is null || at > last))
+                {
+                    last = at;
                 }
             }
         }
-        return new ReviewDetails(id, Login(found), Text(found, "state"), Text(found, "body"), comments);
+        return new RevisionHistory(count, last);
     }
 
-    /// <summary>How many revisions the factory has already made on a pull request: its replies carry a hidden marker.</summary>
-    public async Task<int> CountRevisionsAsync(string owner, string repo, int number, CancellationToken cancellationToken)
+    /// <summary>
+    /// Asks the people who reviewed to look again, so Forgejo notifies them. Best effort: a refusal (the reviewer cannot be requested,
+    /// or the token may not) is not an error, and the answer says whether it worked.
+    /// </summary>
+    public async Task<bool> RequestReviewAsync(string owner, string repo, int number, IReadOnlyList<string> reviewers, CancellationToken cancellationToken)
     {
-        var bodies = await RecentCommentBodiesAsync(owner, repo, number, 1000, cancellationToken);
-        return bodies.Count(body => body.Contains(RevisionReply.Marker, StringComparison.Ordinal));
+        RequireToken();
+        if (reviewers.Count == 0)
+        {
+            return false;
+        }
+        using var request = Authorized(HttpMethod.Post, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}/requested_reviewers");
+        request.Content = JsonContent.Create(new { reviewers });
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return true;
+        }
+        if ((int)response.StatusCode >= 500)
+        {
+            throw Failure("review request", response.StatusCode, response.ReasonPhrase);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Replies to line comments by posting comments on the same lines (and commits), which Forgejo shows in the same conversation.
+    /// Forgejo's API has no thread reply and no way to mark a conversation resolved, so this is the closest it allows. Best effort:
+    /// returns how many replies were posted.
+    /// </summary>
+    public async Task<int> ReplyToCommentsAsync(string owner, string repo, int number, IReadOnlyList<CommentReply> replies, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var posted = 0;
+        foreach (var group in replies.GroupBy(reply => reply.CommitId))
+        {
+            using var request = Authorized(HttpMethod.Post, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}/reviews");
+            request.Content = JsonContent.Create(new
+            {
+                @event = "COMMENT",
+                body = "",
+                commit_id = group.Key,
+                comments = group.Select(reply => new
+                {
+                    path = reply.Path,
+                    body = reply.Body,
+                    new_position = reply.OldSide ? 0 : reply.Line,
+                    old_position = reply.OldSide ? reply.Line : 0,
+                }).ToArray(),
+            });
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                posted += group.Count();
+            }
+            else if ((int)response.StatusCode >= 500)
+            {
+                throw Failure("reply", response.StatusCode, response.ReasonPhrase);
+            }
+        }
+        return posted;
     }
 
     /// <summary>The bodies of a ticket's latest comments, oldest first.</summary>

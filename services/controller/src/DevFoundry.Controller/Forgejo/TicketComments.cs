@@ -231,7 +231,10 @@ public static class TicketComments
         "I found nothing to act on. Write what to change after `/fix`, or submit a review that requests changes and has comments, then ask again with `/fix`.";
 
     public const string RevisionBusy =
-        "A revision of this pull request is already running. When it has finished, ask again with `/fix` and what to change.";
+        "A revision of this pull request is already running and could not be told about this. When it has finished, ask again with `/fix` and what to change.";
+
+    public const string RevisionQueued =
+        "A revision of this pull request is running. I noted this and will look at it as a follow-up when that one is done.";
 
     /// <summary>Hidden marker on a notice about a comment that could not be used, so the same notice is not repeated.</summary>
     public const string NoticeMarker = "<!-- dev-foundry:notice -->";
