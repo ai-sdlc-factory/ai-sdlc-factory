@@ -13,7 +13,17 @@ namespace DevFoundry.Controller;
 public abstract partial class FactoryWorkflowBase
 {
     protected static readonly TimeSpan WaitForHuman = TimeSpan.FromDays(7);
-    protected const int MaxClarificationRounds = 4;
+    /// <summary>How many rounds of questions to a person a stage may use; the project's <c>limits.clarification_rounds</c> or the default.</summary>
+    protected int maxClarificationRounds = FactoryDefaults.Standard.ClarificationRounds;
+
+    /// <summary>
+    /// How many times a stage may run when it may need to ask a person: one run more than the rounds of questions allowed, because the
+    /// last run must answer without asking. A stage's own number of runs is a ceiling that this can only lower.
+    /// </summary>
+    protected int Rounds(int stageRuns) => Math.Min(stageRuns, maxClarificationRounds + 1);
+
+    /// <summary>How many revisions one pull request may get; checked once the project's settings are read.</summary>
+    protected int maxRevisionsPerPullRequest = FactoryDefaults.Standard.RevisionsPerPullRequest;
     protected const int MaxDesignRounds = 3;
     protected const int MaxAgentAttempts = 2;
 
@@ -83,6 +93,20 @@ public abstract partial class FactoryWorkflowBase
             {
                 await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == FeatureIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
                 return new FeatureResult("needs_config");
+            }
+
+            var defaults = await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.GetDefaultsAsync(),
+                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+            var limits = (project.Limits ?? new ProjectLimits()).Resolve(defaults);
+            maxBuildRounds = limits.BuildRounds;
+            maxClarificationRounds = limits.ClarificationRounds;
+            maxRevisionsPerPullRequest = limits.RevisionsPerPullRequest;
+            if (project.ProtectedPaths is { Count: > 0 } extraProtected)
+            {
+                await Workflow.ExecuteActivityAsync(
+                    (WorkspaceActivities activities) => activities.SetProtectedPathsAsync(new ProtectedPathsRequest(request.WorkflowId, extraProtected)),
+                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
             }
 
             if (project.Record)

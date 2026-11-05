@@ -30,8 +30,8 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
     private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project)
     {
         var analysis = await ConverseAsync<BugAnalysis>(
-            request, workspace, project.Image, "bug-analyst", MaxClarificationRounds,
-            (round, answers, problem) => BugPrompts.Analyst(request, answers, problem, round, MaxClarificationRounds),
+            request, workspace, project.Image, "bug-analyst", maxClarificationRounds + 1,
+            (round, answers, problem) => BugPrompts.Analyst(request, answers, problem, round, maxClarificationRounds + 1),
             text => BugParser.TryParseAnalysis(text, out var value, out var error) ? (value, null) : (null, error),
             BugComments.Analysis,
             value => value.Verdict switch { BugAnalysis.Pass => Next.Done, BugAnalysis.Reject => Next.Stop, _ => Next.Ask },
@@ -54,9 +54,9 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
         if (quickReason is null)
         {
             var diagnosed = await ConverseAsync<Diagnosis>(
-                request, workspace, project.Image, "diagnostician", MaxDesignRounds,
+                request, workspace, project.Image, "diagnostician", Rounds(MaxDesignRounds),
                 (round, answers, problem) => BugPrompts.Diagnostician(
-                    request, understood, red.Reproduction, red.ExitCode, red.Output, answers, problem, round, MaxDesignRounds),
+                    request, understood, red.Reproduction, red.ExitCode, red.Output, answers, problem, round, Rounds(MaxDesignRounds)),
                 text => BugParser.TryParseDiagnosis(text, out var value, out var error) ? (value, null) : (null, error),
                 BugComments.Diagnosis,
                 value => value.Verdict switch { Diagnosis.Pass => Next.Done, Diagnosis.TooLarge => Next.Stop, _ => Next.Ask },

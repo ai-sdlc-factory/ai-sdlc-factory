@@ -362,6 +362,36 @@ public sealed class WorkspaceChangesTests : IDisposable
         Assert.Contains("protected", error.Message);
         Assert.Empty(Git(origin, "branch", "--list", "factory/issue-1").Trim());
     }
+
+    [Fact]
+    public async Task Paths_a_project_protects_are_refused_like_the_built_in_ones()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        workspace.SetProtectedPaths("feature-acme-shop-1", ["db/migrations/**", "*.lock"]);
+        Directory.CreateDirectory($"{info.Path}/db/migrations");
+        File.WriteAllText($"{info.Path}/db/migrations/001.sql", "x");
+        File.WriteAllText($"{info.Path}/deps.lock", "x");
+        File.WriteAllText($"{info.Path}/ok.py", "x");
+
+        var report = await workspace.DetectChangesAsync("feature-acme-shop-1", CancellationToken.None);
+
+        Assert.Contains(report.Violations, v => v.Contains("db/migrations/001.sql") && v.Contains("protected"));
+        Assert.Contains(report.Violations, v => v.Contains("deps.lock") && v.Contains("protected"));
+        Assert.DoesNotContain(report.Violations, v => v.Contains("ok.py"));
+    }
+
+    [Fact]
+    public async Task Without_project_paths_the_same_files_are_fine()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        File.WriteAllText($"{info.Path}/deps.lock", "x");
+
+        var report = await workspace.DetectChangesAsync("feature-acme-shop-1", CancellationToken.None);
+
+        Assert.Empty(report.Violations);
+    }
 }
 
 public sealed class RescueTests : IDisposable

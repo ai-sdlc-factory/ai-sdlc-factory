@@ -198,10 +198,11 @@ public sealed class RevisionRulesTests
     }
 
     [Theory]
-    [InlineData(2, false)]
-    [InlineData(3, true)]
+    [InlineData(3, false)]
+    [InlineData(9, false)]
     [InlineData(10, true)]
-    public void The_third_revision_is_the_last(int prior, bool refused)
+    [InlineData(12, true)]
+    public void Nothing_can_have_more_revisions_than_the_highest_limit_a_project_may_set(int prior, bool refused)
     {
         var refusal = RevisionRules.Refuse(Request(), FakeWorld.FactoryPullRequest(prior: prior));
 
@@ -209,7 +210,7 @@ public sealed class RevisionRulesTests
         if (refusal is not null)
         {
             Assert.Equal("revision_limit", refusal.Status);
-            Assert.Contains("already made 3 revisions", refusal.Message);
+            Assert.Contains("already made 10 revisions", refusal.Message);
         }
     }
 

@@ -8,6 +8,18 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     public Task<WorkspaceInfo> PrepareAsync(WorkspaceRequest request) =>
         workspace.PrepareAsync(request, ActivityExecutionContext.Current.CancellationToken);
 
+    /// <summary>The factory's default limits, read through an activity so a run keeps the values it started with even if the worker is restarted with others.</summary>
+    [Activity("factory_defaults")]
+    public Task<FactoryDefaults> GetDefaultsAsync() => Task.FromResult(settings.Defaults);
+
+    /// <summary>Records the extra protected paths a project asked for, where the trusted checkout can see them and an agent cannot.</summary>
+    [Activity("workspace_set_protected_paths")]
+    public Task SetProtectedPathsAsync(ProtectedPathsRequest request)
+    {
+        workspace.SetProtectedPaths(request.Name, request.Patterns);
+        return Task.CompletedTask;
+    }
+
     [Activity("workspace_cleanup")]
     public Task CleanupAsync(string name) => workspace.CleanupAsync(name);
 

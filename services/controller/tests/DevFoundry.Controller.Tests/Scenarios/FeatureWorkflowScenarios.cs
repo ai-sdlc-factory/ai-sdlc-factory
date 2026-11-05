@@ -415,6 +415,46 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_project_can_allow_fewer_build_rounds()
+    {
+        var world = ToBuild()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()))
+            .Check("python -m pytest -q", FakeWorld.Fails("still red"), FakeWorld.Fails("still red"));
+        world.ProjectConfig = world.ProjectConfig!.Replace("\"image\"", "\"limits\":{\"build_rounds\":1},\"image\"");
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("build_failed", result.Status);
+        Assert.Single(world.Calls("developer"));
+        Assert.Contains(world.Comments, c => c.Contains("in 1 rounds"));
+    }
+
+    [SkippableFact]
+    public async Task The_factorys_default_applies_when_the_project_sets_nothing()
+    {
+        var world = ToBuild()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()))
+            .Check("python -m pytest -q", FakeWorld.Fails("still red"), FakeWorld.Fails("still red"));
+        world.Defaults = new FactoryDefaults(2, 3, 3);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("build_failed", result.Status);
+        Assert.Equal(2, world.Calls("developer").Count());
+    }
+
+    [SkippableFact]
+    public async Task A_projects_extra_protected_paths_are_handed_to_the_workspace()
+    {
+        var world = ToBuild().Agent("developer", Say(Answers.Developer()));
+        world.ProjectConfig = world.ProjectConfig!.Replace("\"image\"", "\"protected_paths\":[\"db/**\"],\"image\"");
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal(["db/**"], Assert.Single(world.ProtectedPathRequests).Patterns);
+    }
+
+    [SkippableFact]
     public async Task Three_failed_rounds_publish_nothing_and_say_so()
     {
         var failing = Enumerable.Repeat(FakeWorld.Fails("still red"), 3).ToArray();

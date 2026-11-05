@@ -14,8 +14,8 @@ public abstract partial class FactoryWorkflowBase
     /// </summary>
     protected Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace, string image) =>
         ConverseAsync(
-            request, workspace, image, "analyst", MaxClarificationRounds,
-            (round, answers, problem) => AnalystPrompt.Build(request, answers, problem, round, MaxClarificationRounds),
+            request, workspace, image, "analyst", maxClarificationRounds + 1,
+            (round, answers, problem) => AnalystPrompt.Build(request, answers, problem, round, maxClarificationRounds + 1),
             ParseAnalyst,
             TicketComments.Analysis,
             verdict => verdict.Verdict switch
@@ -33,9 +33,9 @@ public abstract partial class FactoryWorkflowBase
     protected Task<StageResult<ArchitectDesign>> DesignAsync(
         FeatureRequest request, WorkspaceInfo workspace, string image, CoverageReport coverage, TriageDecision triage) =>
         ConverseAsync(
-            request, workspace, image, "architect", MaxDesignRounds,
+            request, workspace, image, "architect", Rounds(MaxDesignRounds),
             (round, answers, problem) => ArchitectPrompt.Build(
-                request, coverage.Remaining.ToList(), triage.Reasons, answers, problem, round, MaxDesignRounds),
+                request, coverage.Remaining.ToList(), triage.Reasons, answers, problem, round, Rounds(MaxDesignRounds)),
             ParseDesign,
             TicketComments.Design,
             design => design.Verdict switch

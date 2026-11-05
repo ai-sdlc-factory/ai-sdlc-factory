@@ -33,7 +33,7 @@ shows what the router decided.
 | A run says the image does not exist | Build it: `docker compose --profile images build sandbox-image-<name>`. |
 | A run seems stuck | It is probably **waiting for you**: the last comment asks a question (up to 7 days). Otherwise check `docker compose logs controller sandbox-launcher` and the workflow in the Temporal UI. |
 | Nothing happens when two tickets run together | Only 2 sandboxes run at once; the others queue (`SANDBOX_MAX_CONCURRENT`). |
-| `/fix` or a review did nothing on a pull request | The pull request must be the factory's own (branch `factory/issue-<n>`, authored by the bot, same repository, open) and have fewer than 3 revisions. A review that requests changes needs the webhook's **Pull Request Review Rejected** event; `/fix` needs only Issue Comment. `docker compose logs api` shows each delivery's event name. |
+| `/fix` or a review did nothing on a pull request | The pull request must be the factory's own (branch `factory/issue-<n>`, authored by the bot, same repository, open) and have fewer revisions than the limit (3 by default, see [limits](project-setup.md#limits)). A review that requests changes needs the webhook's **Pull Request Review Rejected** event; `/fix` needs only Issue Comment. `docker compose logs api` shows each delivery's event name. |
 | A reopened ticket did not restart | A `reopened` event starts a new run; check the webhook delivered it. Re-labelling or editing a ticket that already had a run does nothing. |
 | The controller was restarted while runs were active | Runs are durable in Temporal and continue; a sandbox that was mid-run is removed at the launcher's next start and the activity is retried or fails with a comment. |
 | A network error in the launcher at start | One of the three internal sandbox networks is missing or clashes with yours (`SANDBOX_NET_BASE`). The launcher refuses to run without them. |
@@ -96,6 +96,11 @@ docker compose up -d
 With a ChatGPT login there is no per-token price: usage counts against your plan, and OpenCode reports `cost` as 0 (the field is kept, so an API key would show real figures). The run record lists tokens per role and step.
 Reference points from real runs: a small feature in the full process used about 52,000 tokens (about 28,000 without cache reads), and the same kind of ticket in quick mode about 28,000. There are **no limits or budgets yet**; the design for them (a per-ticket budget first) is in
 [Design](design.md#not-built-yet).
+
+### Spending less
+
+The main knobs, from the biggest effect down: `limits.build_rounds` (each failed round is another developer run, the checks and the reviews), `mode: "quick"` (skips the coverage check, design review and QA), and `limits.clarification_rounds`. Set them per project in
+[`.factory/project.json`](project-setup.md#more-examples), or for all projects with the `FACTORY_DEFAULT_*` settings in [Configuration](configuration.md). The run record's usage table shows which roles used the tokens, so you can see what a change would save.
 
 ## Keeping the documentation correct
 

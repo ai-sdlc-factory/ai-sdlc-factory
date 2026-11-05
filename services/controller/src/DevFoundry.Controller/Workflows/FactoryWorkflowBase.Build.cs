@@ -6,7 +6,8 @@ namespace DevFoundry.Controller;
 
 public abstract partial class FactoryWorkflowBase
 {
-    protected const int MaxBuildRounds = 3;
+    /// <summary>How many times the developer may try; the project's <c>limits.build_rounds</c>, or the factory's default. Set once the project's settings are read.</summary>
+    protected int maxBuildRounds = FactoryDefaults.Standard.BuildRounds;
     protected const int DeveloperTimeoutSeconds = 1800;
 
     protected static (DeveloperReport? Value, string? Error) ParseDeveloper(string text) =>
@@ -30,7 +31,7 @@ public abstract partial class FactoryWorkflowBase
         string? uxNote = null;
         var passedRound = 0;
 
-        for (var round = 1; round <= MaxBuildRounds && report is null; round++)
+        for (var round = 1; round <= maxBuildRounds && report is null; round++)
         {
             if (ticketClosed)
             {
@@ -40,7 +41,7 @@ public abstract partial class FactoryWorkflowBase
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<DeveloperReport>(
                 "developer", project.Image, workspace,
-                problem => DeveloperPrompt.Build(request, remaining, design, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds, bug, project.Rules),
+                problem => DeveloperPrompt.Build(request, remaining, design, project.Gates, Combine(feedbackForRound, problem), round, maxBuildRounds, bug, project.Rules),
                 ParseDeveloper, writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (ticketClosed)
             {
@@ -139,7 +140,7 @@ public abstract partial class FactoryWorkflowBase
         if (report is null)
         {
             await CommentAsync(request,
-                $"I could not get the work through the checks and the review in {MaxBuildRounds} rounds, so nothing was published. " +
+                $"I could not get the work through the checks and the review in {maxBuildRounds} rounds, so nothing was published. " +
                 $"Last problem: {TicketComments.Inert(Short(feedback ?? "unknown"))} A person needs to take over.");
             return new FeatureResult("build_failed", triage.NeedsArchitect);
         }

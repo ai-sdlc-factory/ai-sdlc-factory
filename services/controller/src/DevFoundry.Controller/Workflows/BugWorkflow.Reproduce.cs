@@ -21,9 +21,9 @@ public sealed partial class BugWorkflow
         {
             var feedbackForAttempt = feedback;
             var written = await ConverseAsync<Reproduction>(
-                request, workspace, project.Image, "reproducer", MaxReproductionRounds,
+                request, workspace, project.Image, "reproducer", Rounds(MaxReproductionRounds),
                 (round, answers, problem) => BugPrompts.Reproducer(
-                    request, analysis, answers, Combine(feedbackForAttempt, problem), round, MaxReproductionRounds, project.Gates),
+                    request, analysis, answers, Combine(feedbackForAttempt, problem), round, Rounds(MaxReproductionRounds), project.Gates),
                 text => BugParser.TryParseReproduction(text, out var value, out var error) ? (value, null) : (null, error),
                 BugComments.Reproduction,
                 value => value.Verdict == Reproduction.Reproduced ? Next.Done : Next.Ask,

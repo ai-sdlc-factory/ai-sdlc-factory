@@ -33,6 +33,23 @@ public sealed partial class GitWorkspace
 
     private sealed record Inspection(List<Entry> Entries, List<string> Global, int ListedCount, long TotalBytes);
 
+    private const string ProtectedFile = ".git/factory-protected";
+
+    /// <summary>Remembers a project's extra protected paths in the trusted checkout (inside <c>.git</c>, which no agent can reach), one pattern per line.</summary>
+    public void SetProtectedPaths(string name, IReadOnlyList<string> patterns)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        var basePath = BasePath(root, name);
+        if (Directory.Exists($"{basePath}/.git"))
+        {
+            File.WriteAllLines($"{basePath}/{ProtectedFile}", patterns.Where(Globs.IsValidPattern));
+        }
+    }
+
+    private static List<string> ReadProtectedPaths(string basePath) =>
+        File.Exists($"{basePath}/{ProtectedFile}") ? File.ReadAllLines($"{basePath}/{ProtectedFile}").Where(Globs.IsValidPattern).ToList() : [];
+
     private async Task<Inspection> InspectAsync(string name, CancellationToken cancellationToken)
     {
         var root = RequireRoot();
@@ -59,6 +76,8 @@ public sealed partial class GitWorkspace
         long total = 0;
         var knownSecrets = string.IsNullOrWhiteSpace(settings.ForgejoToken) ? [] : new[] { settings.ForgejoToken };
 
+        var extraProtected = ReadProtectedPaths(basePath);
+
         foreach (var raw in status.Split('\0', StringSplitOptions.RemoveEmptyEntries))
         {
             if (raw.Length < 4)
@@ -74,7 +93,7 @@ public sealed partial class GitWorkspace
                 entries.Add(new Entry(Printable(path), kind, false, "unusable path", [$"unusable path in the changes: {Printable(path)}"]));
                 continue;
             }
-            if (ProtectedPaths.IsProtected(path))
+            if (ProtectedPaths.IsProtected(path, extraProtected))
             {
                 entries.Add(new Entry(path, kind, false, "protected file", [$"{path} is a protected file that only a person may change"]));
                 continue;

@@ -18,6 +18,9 @@ public sealed class WorkerSettings
     /// <summary>The factory's agent folder (read-only), used only to name the model each role is configured with.</summary>
     public string AgentsDirectory { get; init; } = "";
 
+    /// <summary>What a project gets when its <c>limits</c> do not say (the <c>FACTORY_DEFAULT_*</c> settings).</summary>
+    public FactoryDefaults Defaults { get; init; } = FactoryDefaults.Standard;
+
     public static WorkerSettings FromConfiguration(IConfiguration configuration) => new()
     {
         TemporalAddress = NonEmpty(configuration, "TEMPORAL_ADDRESS", "localhost:7233"),
@@ -29,7 +32,26 @@ public sealed class WorkerSettings
         ForgejoBotLogin = NonEmpty(configuration, "FORGEJO_BOT_LOGIN", "factory-bot"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
+        Defaults = new FactoryDefaults(
+            Number(configuration, "FACTORY_DEFAULT_BUILD_ROUNDS", FactoryDefaults.Standard.BuildRounds, LimitRanges.BuildRoundsOk, $"{LimitRanges.MinBuildRounds} to {LimitRanges.MaxBuildRounds}"),
+            Number(configuration, "FACTORY_DEFAULT_CLARIFICATION_ROUNDS", FactoryDefaults.Standard.ClarificationRounds, LimitRanges.ClarificationRoundsOk, $"{LimitRanges.MinClarificationRounds} to {LimitRanges.MaxClarificationRounds}"),
+            Number(configuration, "FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST", FactoryDefaults.Standard.RevisionsPerPullRequest, LimitRanges.RevisionsOk, $"{LimitRanges.MinRevisions} to {LimitRanges.MaxRevisions}")),
     };
+
+    /// <summary>A default that is not a whole number in range stops the worker at start with a message, instead of changing behaviour quietly.</summary>
+    private static int Number(IConfiguration configuration, string key, int fallback, Func<int, bool> inRange, string range)
+    {
+        var text = configuration[key];
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return fallback;
+        }
+        if (!int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value) || !inRange(value))
+        {
+            throw new InvalidOperationException($"{key} must be a whole number from {range}, but it is \"{text}\".");
+        }
+        return value;
+    }
 
     private static string NonEmpty(IConfiguration configuration, string key, string fallback)
     {

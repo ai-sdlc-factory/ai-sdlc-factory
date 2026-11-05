@@ -33,8 +33,19 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | Key | What | Default |
 | --- | --- | --- |
 | `FORGEJO_BOT_LOGIN` | the bot account's username. The factory revises only pull requests this account opened, and compares the author with it (the token's own scopes do not allow asking Forgejo) | `factory-bot` |
+| `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
+| `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
+| `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
 | `FORGEJO_BOT_TOKEN` | the factory bot's access token (scopes `write:issue`, `write:repository`). Only the controller receives it. Empty disables all ticket actions | empty |
 | `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
+
+**Example: tune the defaults for every project at once** (in `infra/.env`, then `docker compose up -d --force-recreate controller`). A project's own `limits` in `.factory/project.json` still win, within the same ranges:
+
+```bash
+FACTORY_DEFAULT_BUILD_ROUNDS=2            # spend fewer tokens: two tries, then stop
+FACTORY_DEFAULT_CLARIFICATION_ROUNDS=1    # ask a person at most once per stage
+FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST=5
+```
 
 ### Optional
 
@@ -84,6 +95,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `FORGEJO_URL` | `http://forgejo:3000` | where the controller reaches Forgejo (over the `forge` network) |
 | `FORGEJO_BOT_TOKEN` | empty | the bot's token |
 | `FORGEJO_BOT_LOGIN` | `factory-bot` | the bot's username, used to recognise the factory's own pull requests |
+| `FACTORY_DEFAULT_BUILD_ROUNDS`, `FACTORY_DEFAULT_CLARIFICATION_ROUNDS`, `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | `3`, `3`, `3` (set by Compose) | defaults for a project's `limits`; a value outside its range stops the controller at start with a message |
 | `FACTORY_WORKSPACE_ROOT` | none (required) | where checkouts live |
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |
 | `TEMPORAL_UI_URL` | `http://localhost:8080` | base of the trace link in comments |

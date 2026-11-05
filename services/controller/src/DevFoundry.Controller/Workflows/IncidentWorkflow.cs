@@ -42,8 +42,8 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
     private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project)
     {
         var assessed = await ConverseAsync<IncidentAssessment>(
-            request, workspace, project.Image, "incident-analyst", MaxClarificationRounds,
-            (round, answers, problem) => IncidentPrompts.Assessor(request, answers, problem, round, MaxClarificationRounds),
+            request, workspace, project.Image, "incident-analyst", maxClarificationRounds + 1,
+            (round, answers, problem) => IncidentPrompts.Assessor(request, answers, problem, round, maxClarificationRounds + 1),
             text => IncidentParser.TryParseAssessment(text, out var value, out var error) ? (value, null) : (null, error),
             IncidentComments.Assessment,
             value => value.Verdict switch { IncidentAssessment.Pass => Next.Done, IncidentAssessment.Reject => Next.Stop, _ => Next.Ask },
@@ -72,8 +72,8 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
             investigation = investigated.Verdict!;
 
             var proposed = await ConverseAsync<Mitigation>(
-                request, workspace, project.Image, "mitigator", MaxDesignRounds,
-                (round, answers, problem) => IncidentPrompts.Mitigator(request, assessment, investigation, more, answers, problem, round, MaxDesignRounds),
+                request, workspace, project.Image, "mitigator", Rounds(MaxDesignRounds),
+                (round, answers, problem) => IncidentPrompts.Mitigator(request, assessment, investigation, more, answers, problem, round, Rounds(MaxDesignRounds)),
                 text => IncidentParser.TryParseMitigation(text, out var value, out var error) ? (value, null) : (null, error),
                 IncidentComments.Options,
                 value => value.Verdict == Mitigation.Pass ? Next.Done : Next.Ask,
@@ -161,8 +161,8 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment, IReadOnlyList<string> more)
     {
         var found = await ConverseAsync<Investigation>(
-            request, workspace, project.Image, "investigator", MaxDesignRounds,
-            (round, answers, problem) => IncidentPrompts.Investigator(request, assessment, more, answers, problem, round, MaxDesignRounds),
+            request, workspace, project.Image, "investigator", Rounds(MaxDesignRounds),
+            (round, answers, problem) => IncidentPrompts.Investigator(request, assessment, more, answers, problem, round, Rounds(MaxDesignRounds)),
             text => IncidentParser.TryParseInvestigation(text, out var value, out var error) ? (value, null) : (null, error),
             // Posted below, after the factory has checked what the investigator cited; only questions are posted early.
             value => value.Verdict == Investigation.Pass ? "" : IncidentComments.Investigation(value),

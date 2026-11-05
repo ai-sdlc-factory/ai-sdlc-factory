@@ -73,7 +73,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         var request = revision.ToFeatureRequest(pull.Title);
         return await RunPipelineAsync(
             request, "pull request revision",
-            (feature, workspace, project) => StagesAsync(feature, workspace, project, pull, comments, context.Reviews),
+            (feature, workspace, project) => StagesAsync(feature, workspace, project, pull, comments, context.Reviews, context.PriorRevisions),
             workspaceFor: feature => new WorkspaceRequest(feature.Owner, feature.Repo, feature.WorkflowId, pull.HeadRef, ExistingBranch: true),
             startMessage: $"I am working on the {comments.Count} review comment{(comments.Count == 1 ? "" : "s")} on this pull request.");
     }
@@ -94,8 +94,14 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
 
     private async Task<FeatureResult> StagesAsync(
         FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, PullRequestDetails pull, IReadOnlyList<RevisionComment> comments,
-        IReadOnlyList<ReviewDetails> reviews)
+        IReadOnlyList<ReviewDetails> reviews, int priorRevisions)
     {
+        if (priorRevisions >= maxRevisionsPerPullRequest)
+        {
+            await CommentAsync(request, TicketComments.RevisionLimit(maxRevisionsPerPullRequest));
+            return new FeatureResult("revision_limit");
+        }
+
         // No stage here asks a person a question: a comment that cannot be acted on is answered on the pull request instead.
         commentsCanStillBeUsed = false;
 
@@ -110,12 +116,12 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             .ToList();
 
         string? feedback = null;
-        for (var round = 1; round <= MaxBuildRounds; round++)
+        for (var round = 1; round <= maxBuildRounds; round++)
         {
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<RevisionReport>(
                 "pr-resolver", project.Image, workspace,
-                problem => RevisionPrompts.Build(pull, comments, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds, project.Rules),
+                problem => RevisionPrompts.Build(pull, comments, project.Gates, Combine(feedbackForRound, problem), round, maxBuildRounds, project.Rules),
                 text => ParseReport(text, comments.Count), writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (outcome.NotSignedIn)
             {
@@ -232,7 +238,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         }
 
         await CommentAsync(request,
-            $"I could not get the changes through the checks and the review in {MaxBuildRounds} rounds, so nothing was pushed to this pull request. " +
+            $"I could not get the changes through the checks and the review in {maxBuildRounds} rounds, so nothing was pushed to this pull request. " +
             $"Last problem: {TicketComments.Inert(Short(feedback ?? "unknown"))} A person needs to take over.");
         return new FeatureResult("build_failed");
     }

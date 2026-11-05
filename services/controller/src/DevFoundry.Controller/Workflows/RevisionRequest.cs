@@ -23,7 +23,8 @@ public sealed record RevisionRefusal(string Status, string? Message);
 
 public static partial class RevisionRules
 {
-    public const int MaxRevisionsPerPullRequest = 3;
+    /// <summary>A pre-check before the project's own limit is known (it needs the checkout): nothing can have more revisions than this.</summary>
+    public const int MaxRevisionsPerPullRequest = LimitRanges.MaxRevisions;
     public const int MaxComments = 30;
 
     /// <summary>The branches the factory creates for tickets: <c>factory/issue-12</c>, or <c>factory/issue-12-2</c> when the name was taken.</summary>

@@ -82,6 +82,8 @@ public sealed class FakeWorld
     public List<string> Problems { get; } = [];
     public List<string> Notices { get; } = [];
     public List<ReviewRequestInput> ReviewRequests { get; } = [];
+    public List<ProtectedPathsRequest> ProtectedPathRequests { get; } = [];
+    public FactoryDefaults Defaults { get; set; } = FactoryDefaults.Standard;
 
     /// <summary>What Forgejo says about the pull request being revised; the default is a pull request the factory opened with two line comments.</summary>
     public RevisionContext RevisionContext { get; set; } = FactoryPullRequest();
@@ -273,6 +275,15 @@ public sealed class FakeWorld
         public void Cleanup(string name)
         {
             lock (world.gate) { world.CleanedUp.Add(name); }
+        }
+
+        [Activity("factory_defaults")]
+        public FactoryDefaults GetDefaults() => world.Defaults;
+
+        [Activity("workspace_set_protected_paths")]
+        public void SetProtectedPaths(ProtectedPathsRequest request)
+        {
+            lock (world.gate) { world.ProtectedPathRequests.Add(request); }
         }
 
         [Activity("workspace_read_project_config")]

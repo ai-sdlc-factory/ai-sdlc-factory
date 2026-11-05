@@ -78,6 +78,8 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 | `reviewers` | no | `["reviewer"]` | Which review roles run: `reviewer` (code quality), `security`. Each at most once. QA is separate and always runs in the full process |
 | `ui` | no | none | Declares a user interface so the `ux` reviewer can run, [below](#ui) |
 | `rules` | no | none | Your own mechanical rules, checked on the lines a change adds: up to 20, [below](#rules) |
+| `limits` | no | the factory's defaults | How many tries and questions a run may use, [below](#limits) |
+| `protected_paths` | no | none | Extra files the agents may never change, [below](#protected-paths) |
 | `record` | no | `false` | `true` commits a [run record](workflows.md#the-run-record) (prompts, answers, check output, tokens) to `.factory/runs/` on the pull request branch |
 | `mode` | no | `"full"` | `"quick"` makes [quick mode](workflows.md#quick-mode) the project's default. Anything other than `"full"` or `"quick"` is refused |
 
@@ -160,6 +162,52 @@ registries reachable and nothing else.
 }
 ```
 
+### More examples
+
+**A cheap, fully automatic project** (a small internal tool): few tries, never asks a person, and the quick process by default.
+
+```json
+{
+  "image": "python",
+  "mode": "quick",
+  "limits": { "build_rounds": 2, "clarification_rounds": 0, "revisions_per_pull_request": 2 },
+  "gates": [
+    { "name": "test", "command": ["python", "-m", "pytest", "-q"] }
+  ]
+}
+```
+
+**A careful project** (customer-facing, with a database): more tries, security review, a run record, and files that only a person may change.
+
+```json
+{
+  "image": "dotnet",
+  "record": true,
+  "reviewers": ["reviewer", "security"],
+  "limits": { "build_rounds": 4, "revisions_per_pull_request": 5 },
+  "protected_paths": ["db/migrations/**", "deploy/**", "*.lock", "Directory.Packages.props"],
+  "rules": [
+    { "id": "no-binaryformatter", "files": "**/*.cs", "forbid": "BinaryFormatter", "message": "Use System.Text.Json." },
+    { "id": "no-console", "files": "src/**/*.cs", "forbid": "Console\\.Write", "message": "Use ILogger.", "severity": "warn" }
+  ],
+  "gates": [
+    { "name": "build", "command": ["dotnet", "build", "--nologo", "-v", "q"] },
+    { "name": "test", "command": ["dotnet", "test", "--nologo", "-v", "q"], "timeout_seconds": 900 },
+    { "name": "audit", "command": ["dotnet", "list", "package", "--vulnerable"] }
+  ]
+}
+```
+
+What these settings do in a run:
+
+| Setting | In the first example | In the second |
+| --- | --- | --- |
+| `build_rounds` | after 2 failed tries the run stops with `build_failed` and saves the work to a `-wip` branch | 4 tries before it gives up |
+| `clarification_rounds: 0` | an unclear ticket is built on stated assumptions, with no question on the ticket | the default (3 rounds of questions) |
+| `revisions_per_pull_request` | after 2 revisions the factory asks a person to take over | 5 |
+| `protected_paths` | none | a change touching `db/migrations/` is rejected with "protected file that only a person may change"; the developer is told and must find another way, or ends with `build_blocked` |
+| `rules` | none | `BinaryFormatter` in an added line sends the change back; `Console.Write` is only a warning shown to the reviewers |
+
 ### Rules
 
 A rule says "a change may not add a line like this in these files". The controller checks it on the diff, so unlike a sentence in `AGENTS.md` it cannot be talked around. Only **added** lines count: old code is not blamed.
@@ -189,6 +237,32 @@ Rules apply to features, bug fixes and [pull request revisions](workflows.md#pul
 - Credentials in code are already caught by the factory's built-in secret scan, so no rule is needed for them.
 
 Dependency problems are better caught by a tool than a pattern: add an audit as a gate, for example `{ "name": "audit", "command": ["pip-audit"] }`, `["npm", "audit", "--omit=dev"]` or `["dotnet", "list", "package", "--vulnerable"]`. Note that a gate runs with package registries reachable and nothing else.
+
+### Limits
+
+`limits` sets how much effort a run may spend on this project. Every key is optional; a missing key means the factory's default, which the operator sets in `infra/.env` ([`FACTORY_DEFAULT_*`](configuration.md)). A value outside its range, a value that is not a whole number, or a misspelled key makes the file unusable, so a typo cannot silently do nothing.
+
+| Key | Range | Factory default | Meaning |
+| --- | --- | --- | --- |
+| `build_rounds` | 1 to 5 | `3` | How many times the developer (or the pull request resolver) may try before the run gives up with `build_failed`. Each round is a developer run plus the checks and the reviews, so this is the main token knob |
+| `clarification_rounds` | 0 to 4 | `3` | How many rounds of questions to a person a stage may use. `0` means the factory never asks: every stage decides with reasonable assumptions and states them |
+| `revisions_per_pull_request` | 1 to 10 | `3` | How many [revisions](workflows.md#pull-request-revisions) one pull request may get before a person has to take over |
+
+```json
+"limits": { "build_rounds": 2, "clarification_rounds": 0 }
+```
+
+A project cannot go beyond these ranges: the ceilings belong to the factory.
+
+### Protected paths
+
+`protected_paths` adds files the agents may never change, on top of the built-in list (`.factory/`, `.github/`, `.forgejo/`, `.gitea/`, `.git/` and the CI pipeline files). A change that touches one is rejected the same way, and the developer is told so. Use it for what only a person should edit: database migrations, lock files, deployment configuration.
+
+```json
+"protected_paths": ["db/migrations/**", "deploy/**", "*.lock"]
+```
+
+Up to 20 patterns, with the same syntax as the `ui` paths below (`*` within a folder, `**` across folders, a pattern without a slash matches the file name anywhere), compared without regard to case. A project can only **add** protection; it cannot remove any. A pattern that matches too much, such as `**`, makes every change fail, so keep them specific.
 
 ### UI
 

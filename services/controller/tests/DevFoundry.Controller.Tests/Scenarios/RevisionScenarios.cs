@@ -213,8 +213,9 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
 
         Assert.Equal("revision_limit", result.Status);
-        Assert.Contains("already made 3 revisions", Assert.Single(world.Comments));
+        Assert.Contains("already made 3 revisions", world.Comments.Last());
         Assert.Empty(world.AgentCalls);
+        Assert.Empty(world.Publishes);
     }
 
     [SkippableFact]
@@ -428,5 +429,31 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         Assert.Equal("revision_pushed", result.Status);
         Assert.Single(world.Calls("pr-resolver"));
         Assert.Contains("only warn", world.Calls("reviewer").Single().Prompt);
+    }
+
+    [SkippableFact]
+    public async Task A_project_can_set_its_own_revision_limit()
+    {
+        var world = Reviewing();
+        world.ProjectConfig = world.ProjectConfig!.Replace("\"image\"", "\"limits\":{\"revisions_per_pull_request\":1},\"image\"");
+        world.RevisionContext = FakeWorld.FactoryPullRequest(prior: 1);
+
+        var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
+
+        Assert.Equal("revision_limit", result.Status);
+        Assert.Contains("already made 1 revision", world.Comments.Last());
+        Assert.Empty(world.AgentCalls);
+    }
+
+    [SkippableFact]
+    public async Task A_higher_project_limit_allows_a_fourth_revision()
+    {
+        var world = Reviewing();
+        world.ProjectConfig = world.ProjectConfig!.Replace("\"image\"", "\"limits\":{\"revisions_per_pull_request\":5},\"image\"");
+        world.RevisionContext = FakeWorld.FactoryPullRequest(prior: 3);
+
+        var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
+
+        Assert.Equal("revision_pushed", result.Status);
     }
 }

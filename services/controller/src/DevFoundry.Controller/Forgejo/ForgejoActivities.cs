@@ -48,9 +48,6 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
     public Task<bool> RequestReviewersAsync(ReviewRequestInput request) =>
         forgejo.RequestReviewAsync(request.Owner, request.Repo, request.PullNumber, request.Reviewers, ActivityExecutionContext.Current.CancellationToken);
 
-    /// <summary>Replies to the line comments that were addressed, in their own conversations. Never fails the run.</summary>
-
-
     [Activity("forgejo_create_pull_request")]
     public Task<PullRequestInfo> CreatePullRequestAsync(PullRequestRequest request) =>
         forgejo.CreatePullRequestAsync(

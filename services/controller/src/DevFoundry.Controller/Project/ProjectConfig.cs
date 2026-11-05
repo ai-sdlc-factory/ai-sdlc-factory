@@ -12,7 +12,8 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// input: it can only pick among options the factory already offers (an image alias the launcher
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
-public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false, IReadOnlyList<ProjectRule>? Rules = null);
+public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false, IReadOnlyList<ProjectRule>? Rules = null,
+    ProjectLimits? Limits = null, IReadOnlyList<string>? ProtectedPaths = null);
 
 public static partial class ProjectConfigParser
 {
@@ -77,6 +78,73 @@ public static partial class ProjectConfigParser
             return false;
         }
         threshold = new UiThreshold(fileCount, lineCount);
+        return true;
+    }
+
+    public const int MaxProtectedPaths = 20;
+
+    private static bool TryReadLimits(JsonElement value, out ProjectLimits limits, out string error)
+    {
+        limits = new ProjectLimits();
+        error = "";
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            error = "\"limits\" must be an object, for example {\"build_rounds\": 2}";
+            return false;
+        }
+        int? buildRounds = null, clarificationRounds = null, revisions = null;
+        foreach (var property in value.EnumerateObject())
+        {
+            var (name, ok, low, high) = property.Name switch
+            {
+                "build_rounds" => ("build_rounds", true, LimitRanges.MinBuildRounds, LimitRanges.MaxBuildRounds),
+                "clarification_rounds" => ("clarification_rounds", true, LimitRanges.MinClarificationRounds, LimitRanges.MaxClarificationRounds),
+                "revisions_per_pull_request" => ("revisions_per_pull_request", true, LimitRanges.MinRevisions, LimitRanges.MaxRevisions),
+                _ => (property.Name, false, 0, 0),
+            };
+            if (!ok)
+            {
+                error = $"\"limits\" has no setting \"{property.Name}\"; the settings are build_rounds, clarification_rounds and revisions_per_pull_request";
+                return false;
+            }
+            if (property.Value.ValueKind != JsonValueKind.Number || !property.Value.TryGetInt32(out var number) || number < low || number > high)
+            {
+                error = $"\"limits.{name}\" must be a whole number from {low} to {high}";
+                return false;
+            }
+            switch (name)
+            {
+                case "build_rounds": buildRounds = number; break;
+                case "clarification_rounds": clarificationRounds = number; break;
+                default: revisions = number; break;
+            }
+        }
+        limits = new ProjectLimits(buildRounds, clarificationRounds, revisions);
+        return true;
+    }
+
+    private static bool TryReadProtectedPaths(JsonElement value, out List<string> paths, out string error)
+    {
+        paths = [];
+        error = "";
+        if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > MaxProtectedPaths)
+        {
+            error = $"\"protected_paths\" must be an array of at most {MaxProtectedPaths} patterns, such as [\"db/migrations/**\", \"*.lock\"]";
+            return false;
+        }
+        foreach (var entry in value.EnumerateArray())
+        {
+            var pattern = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
+            if (pattern is null || !Globs.IsValidPattern(pattern))
+            {
+                error = $"protected path \"{(entry.ValueKind == JsonValueKind.String ? entry.GetString() : entry.ToString())}\" is not a pattern like db/migrations/** or *.lock (letters, digits and . _ - @ + / * ?, no leading / and no ..)";
+                return false;
+            }
+            if (!paths.Contains(pattern))
+            {
+                paths.Add(pattern);
+            }
+        }
         return true;
     }
 
@@ -275,7 +343,21 @@ public static partial class ProjectConfigParser
             {
                 return false;
             }
-            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules);
+            ProjectLimits? limits = null;
+            if (root.TryGetProperty("limits", out var limitsValue))
+            {
+                if (!TryReadLimits(limitsValue, out var readLimits, out error))
+                {
+                    return false;
+                }
+                limits = readLimits;
+            }
+            var protectedPaths = new List<string>();
+            if (root.TryGetProperty("protected_paths", out var protectedValue) && !TryReadProtectedPaths(protectedValue, out protectedPaths, out error))
+            {
+                return false;
+            }
+            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules, limits, protectedPaths);
             return true;
         }
     }

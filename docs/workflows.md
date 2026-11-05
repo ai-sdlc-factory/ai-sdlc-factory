@@ -60,7 +60,7 @@ it decides with stated assumptions.
    `factory/issue-<n>`, and reads `.factory/project.json`. Without a usable file the run stops with `needs_config` and an example
    in the comment.
 2. **Analyst** (read-only). Decides whether the request is clear enough to build and lists testable acceptance criteria and complexity
-   facts. `pass` continues; `needs_clarification` asks on the ticket (4 rounds at most); `reject` stops. An answer that does not match
+   facts. `pass` continues; `needs_clarification` asks on the ticket (up to 3 rounds of questions by default; see [limits](project-setup.md#limits)); `reject` stops. An answer that does not match
    the required JSON shape gets one retry that quotes the exact problem; after that a person is asked to look.
 3. **Coverage check** (read-only, then a deterministic check). Judges each criterion against the existing code as `covered`, `partial`
    or `missing`, citing up to three files. The factory checks that the files exist; a claim without an existing file is weakened
@@ -70,8 +70,8 @@ it decides with stated assumptions.
    estimates more than 5 files, more than one project is affected, a public API changes, the data model changes, or a new dependency is needed.
    The comment lists the reasons.
 5. **Architect** (read-only, only when triage asked). Returns an approach, the components that change (safe paths and what changes), risks
-   and guidance. `needs_decision` asks the ticket (3 rounds); `reject` stops with `design_rejected`.
-6. **Build loop** (up to 3 rounds), described next.
+   and guidance. `needs_decision` asks the ticket (up to 3 rounds, fewer if the project lowers `clarification_rounds`); `reject` stops with `design_rejected`.
+6. **Build loop** (up to 3 rounds by default, `limits.build_rounds` in the project), described next.
 7. **Publish** (code). Repeats the checks, copies only the verified files onto the pristine clone, commits, pushes `factory/issue-<n>` and opens
    the pull request (`Closes #<n>`). The PR text has the criteria, the design, the check results and the reviewers' notes.
 
@@ -91,7 +91,7 @@ Each round:
    (an answer where the two disagree is refused). Minor findings and nits are listed in the pull request.
 5. **QA** (read-only). Judges every remaining criterion as `met` or `not_met`; a `met` criterion must cite files and the factory checks they
    exist. Skipped in quick mode and in bug runs.
-6. Anything that fails goes back to the developer as feedback and uses one of the three rounds. When everything passes, the run publishes.
+6. Anything that fails goes back to the developer as feedback and uses one of the rounds. When everything passes, the run publishes.
 
 A review or QA answer that stays unusable after the retry stops the run (`review_failed`): **nothing is published unreviewed**.
 
@@ -168,13 +168,13 @@ After the factory opens a pull request, a person reviews it. If they want change
   Dismissed reviews, conversations a person marked resolved, and reviews older than the factory's last reply are skipped.
 
 The factory revises **only its own pull requests**: the branch must be one it created (`factory/issue-<n>`), the pull request must be authored by the bot, from the same repository, and still open.
-Anything else is left alone without a word. At most **three revisions per pull request**, **one at a time**. A review or `/fix` that arrives while one is running is not lost: the factory says it is queued, and when the running revision has pushed or replied it starts a follow-up that reads what came in meanwhile.
+Anything else is left alone without a word. At most **three revisions per pull request** by default (`limits.revisions_per_pull_request`), **one at a time**. A review or `/fix` that arrives while one is running is not lost: the factory says it is queued, and when the running revision has pushed or replied it starts a follow-up that reads what came in meanwhile.
 
 | Step | Who | What the factory checks itself |
 | --- | --- | --- |
 | 1. Read | the factory | the pull request, every review still waiting and its line comments **with the code each was written on**, from Forgejo. Every comment is numbered |
 | 2. Resolve | `pr-resolver` (writable, shell, package access) in a checkout of the **pull request's own branch** | **every numbered comment is answered exactly once**, as `fixed`, `answered`, `declined` (with a reason) or `needs_clarification` (with the question); and a `fixed` answer must come with changed files |
-| 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (3 rounds at most) |
+| 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (`limits.build_rounds`, 3 by default) |
 | 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. A revision that changes **3 or more files** is also checked by QA against the acceptance criteria in the pull request body |
 | 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**. If a person pushed to the branch meanwhile, the commit is put on top of theirs once (and the reply says so); if that conflicts, nothing is pushed |
 | 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. The reviewers are asked to review again. A person reviews again; the factory never merges |
@@ -225,7 +225,7 @@ visible as the repository.
 
 | What | Value |
 | --- | --- |
-| Questions to people per stage | the analysts (feature, bug, incident): 4 rounds; architect, diagnostician, investigator and mitigator: 3; reproducer: 2 per attempt. The last round forbids questions |
+| Questions to people per stage | the analysts (feature, bug, incident): 4 runs, which is 3 rounds of questions; architect, diagnostician, investigator and mitigator: 3; reproducer: 2 per attempt. The last round forbids questions |
 | Build rounds | 3 |
 | Retry of an unusable agent answer | 1 (the retry quotes the exact problem) |
 | Reproduction attempts (bug) | 3, with 2 question rounds each |
@@ -252,14 +252,14 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `needs_design` | bug: the cause is larger than a bug fix; open a feature ticket |
 | `needs_human` | the rounds of questions were used up; a person has to decide |
 | `revision_pushed`, `revision_replied` | revision: the new commit is on the pull request, or the comments were answered with nothing to change |
-| `revision_limit` | revision: three revisions were already made on this pull request |
+| `revision_limit` | revision: the project's limit of revisions (3 by default) was already reached on this pull request |
 | `nothing_to_do` | revision: a `/fix` with no text and no review to act on |
 | `ignored` | revision: not the factory's pull request (no comment), or the pull request is closed or merged (with a note) |
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
 | `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |
-| `build_failed` | three rounds did not get through the checks and review (work saved to a `-wip` branch) |
+| `build_failed` | the build rounds (3 by default) did not get through the checks and review (work saved to a `-wip` branch) |
 | `build_blocked` | the developer said it cannot continue (for example the ticket needs a protected file changed) (saved) |
 | `review_failed` | a review or QA answer stayed unusable; nothing was published (saved) |
 | `publish_failed` | publishing or opening the pull request failed (saved, or the branch is named in the comment) |
