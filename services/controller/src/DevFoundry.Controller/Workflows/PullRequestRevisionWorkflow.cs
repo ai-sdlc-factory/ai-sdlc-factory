@@ -115,7 +115,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<RevisionReport>(
                 "pr-resolver", project.Image, workspace,
-                problem => RevisionPrompts.Build(pull, comments, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds),
+                problem => RevisionPrompts.Build(pull, comments, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds, project.Rules),
                 text => ParseReport(text, comments.Count), writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (outcome.NotSignedIn)
             {

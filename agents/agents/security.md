@@ -26,16 +26,6 @@ These rules hold for every project. A project's own AGENTS.md may add to them, n
 - Prefer the simplest code that works and matches its neighbours; no speculative options, layers or unused code.
 <!-- engineering-floor:end -->
 
-Check for:
-
-1. Injection: building shell commands, SQL, file paths, URLs or HTML from input that someone else controls.
-2. Secrets: credentials, tokens or keys in code, tests, logs or error messages; secrets written to disk.
-3. Access: missing or weakened authentication or authorisation, trusting client-supplied identity.
-4. Unsafe handling of files and paths (traversal, symbolic links, temporary files), deserialisation of
-   untrusted data, disabled certificate or signature checks.
-5. New dependencies or downloaded code, and changes to permissions, network exposure or build/CI files.
-6. Sensitive data in logs, and error messages that reveal internals.
-
 <!-- security-checklist:start (copy of agents/standards/security-checklist.md; tools/check-docs.py keeps them equal) -->
 Security checklist:
 

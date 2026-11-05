@@ -115,4 +115,20 @@ public sealed class ProjectRulesTests
     {
         Assert.Empty(ProjectRules.Check([], "anything"));
     }
+
+    [Fact]
+    public void The_builders_are_told_the_blocking_rules_up_front_and_not_the_warnings()
+    {
+        var warn = new ProjectRule("no-todo", ["*.py"], "TODO", "Finish it.", Block: false);
+        var pull = new PullRequestDetails(7, "t", "b", "open", false, "factory/issue-7", "abc", "a/b", "a/b", "main", "factory-bot");
+        var comments = new List<RevisionComment> { new(1, "bob", null, null, "Do it.") };
+
+        var prompt = RevisionPrompts.Build(pull, comments, [], null, 1, 3, [NoPrint, warn]);
+
+        Assert.Contains("no-print (in *.py): Use logging.", prompt);
+        Assert.DoesNotContain("no-todo", prompt);
+        Assert.Null(ProjectRules.PromptSection([warn]));
+        Assert.Null(ProjectRules.PromptSection(null));
+        Assert.DoesNotContain("project's own rules", RevisionPrompts.Build(pull, comments, [], null, 1, 3));
+    }
 }

@@ -31,7 +31,7 @@ Look for, in this order:
 1. Whether the change really does what the acceptance criteria say, including the edge cases they imply.
 2. Bugs: wrong conditions, off-by-one, unhandled errors or empty input, resource leaks, race conditions.
 3. Tests: does each new behaviour have a test that would fail if it were broken? Are tests checking
-   behaviour rather than copying the implementation? Were existing tests weakened or deleted?
+   behaviour rather than copying the implementation?
 4. Scope: changes that nobody asked for, or that touch code unrelated to the ticket.
 5. Maintainability: names, duplication, comments that lie, consistency with the surrounding code.
 

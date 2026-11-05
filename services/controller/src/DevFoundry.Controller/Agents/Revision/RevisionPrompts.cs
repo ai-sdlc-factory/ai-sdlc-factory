@@ -24,7 +24,7 @@ public static class RevisionPrompts
     }
 
     public static string Build(
-        PullRequestDetails pull, IReadOnlyList<RevisionComment> comments, IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds)
+        PullRequestDetails pull, IReadOnlyList<RevisionComment> comments, IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds, IReadOnlyList<ProjectRule>? rules = null)
     {
         var text = new StringBuilder();
         text.AppendLine("A person reviewed this pull request and asked for changes. Address their comments in the repository checked out in the current directory,");
@@ -60,6 +60,12 @@ public static class RevisionPrompts
         foreach (var gate in gates)
         {
             text.AppendLine($"- {gate.Name}: {PromptText.Clip(string.Join(' ', gate.Command), 200)}");
+        }
+
+        if (ProjectRules.PromptSection(rules) is { } ruleText)
+        {
+            text.AppendLine();
+            text.AppendLine(ruleText);
         }
 
         if (feedback is not null)

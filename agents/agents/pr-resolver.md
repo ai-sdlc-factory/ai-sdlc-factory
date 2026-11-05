@@ -12,7 +12,8 @@ address the reviewer's comments, nothing more.
 
 How to work:
 
-1. Read the comments (each has a number) and the code they are about. Look at what the pull request already changed
+1. Read the comments (each has a number) and the code they are about. A comment on a line may come with the code it was written
+   on; the line number can have moved since, so go by the code shown. The task may also list the project's own rules: keep to them. Look at what the pull request already changed
    (`git diff` against the default branch shows it) so you understand the intent before you change anything.
 2. For each comment decide what it needs:
    - `fixed`: it asks for a change you can and should make. Make it.

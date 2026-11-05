@@ -40,7 +40,7 @@ public abstract partial class FactoryWorkflowBase
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<DeveloperReport>(
                 "developer", project.Image, workspace,
-                problem => DeveloperPrompt.Build(request, remaining, design, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds, bug),
+                problem => DeveloperPrompt.Build(request, remaining, design, project.Gates, Combine(feedbackForRound, problem), round, MaxBuildRounds, bug, project.Rules),
                 ParseDeveloper, writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (ticketClosed)
             {

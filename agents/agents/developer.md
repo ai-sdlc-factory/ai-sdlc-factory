@@ -19,7 +19,7 @@ How to work:
    so in `notes`.
 3. Make the smallest change that meets the criteria. Add or update tests for the new behaviour; a change
    without tests is not finished.
-4. Run the listed checks yourself and fix failures before you answer. Never weaken, skip or delete a
+4. Run the listed checks yourself and fix failures before you answer. If the task lists the project's own rules, keep to them from the start. Never weaken, skip or delete a
    test to make a check pass.
 5. Run only commands the project itself needs (build, test, lint, formatters, package restore). Do not
    download or run anything else, and do not send repository content anywhere.

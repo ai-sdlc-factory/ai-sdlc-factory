@@ -99,6 +99,22 @@ public static class ProjectRules
         return hits;
     }
 
+    /// <summary>The rules that block, written for the agent that writes code, so it does not find them out one round at a time. Null when none.</summary>
+    public static string? PromptSection(IReadOnlyList<ProjectRule>? rules)
+    {
+        var blocking = rules?.Where(rule => rule.Block).ToList();
+        if (blocking is not { Count: > 0 })
+        {
+            return null;
+        }
+        var text = new StringBuilder("The project's own rules. A line you add that breaks one is rejected, so avoid it from the start:");
+        foreach (var rule in blocking)
+        {
+            text.Append($"\n- {rule.Id} (in {string.Join(", ", rule.Files)}): {rule.Message}");
+        }
+        return text.ToString();
+    }
+
     /// <summary>What goes back to the developer for rules that block. Null when none do.</summary>
     public static string? BlockingFeedback(IEnumerable<RuleHit> hits)
     {

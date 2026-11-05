@@ -17,7 +17,7 @@ public static class DeveloperPrompt
 
     public static string Build(
         FeatureRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
-        IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds, BugBrief? bug = null)
+        IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds, BugBrief? bug = null, IReadOnlyList<ProjectRule>? rules = null)
     {
         var text = new StringBuilder();
         text.AppendLine(bug is null
@@ -59,6 +59,12 @@ public static class DeveloperPrompt
         foreach (var gate in gates)
         {
             text.AppendLine($"- {gate.Name}: {Clip(string.Join(' ', gate.Command), 200)}");
+        }
+
+        if (ProjectRules.PromptSection(rules) is { } ruleText)
+        {
+            text.AppendLine();
+            text.AppendLine(ruleText);
         }
 
         if (feedback is not null)
