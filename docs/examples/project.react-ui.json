@@ -1,0 +1,18 @@
+{
+  "image": "node",
+  "reviewers": ["reviewer", "security"],
+  "ui": {
+    "paths": ["src/pages/**", "src/components/**", "src/theme.ts", "*.css"],
+    "medium": { "files": 3, "lines": 40 },
+    "large": { "files": 8, "lines": 200 }
+  },
+  "protected_paths": ["src/api/generated/**", "package-lock.json", "vite.config.ts"],
+  "rules": [
+    { "id": "no-raw-fetch", "files": ["src/pages/**", "src/components/**"], "forbid": "\\bfetch\\(", "message": "Call the backend through the client in src/api." },
+    { "id": "no-inner-html", "files": ["src/**/*.tsx"], "forbid": "dangerouslySetInnerHTML", "message": "Do not inject HTML; render elements." },
+    { "id": "no-any", "files": ["src/**/*.ts", "src/**/*.tsx"], "forbid": ":\\s*any\\b", "message": "Use unknown and narrow it.", "severity": "warn" }
+  ],
+  "gates": [
+    { "name": "check", "command": ["sh", "-c", "npm ci --no-audit --no-fund && npm run lint && npm run typecheck && npm test --silent"], "timeout_seconds": 600 }
+  ]
+}

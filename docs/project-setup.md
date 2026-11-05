@@ -283,7 +283,7 @@ Patterns: `*` matches within one folder, `**` across folders, `?` one character.
 A short `AGENTS.md` in the repository root is read by OpenCode, so the agents know your conventions. It helps most for the **developer** (and the architect): in a
 test, a developer that was told "tests go in `check_x.py`, plain asserts, no pytest" wrote exactly that, though the ticket never said so.
 
-Suggested outline (short headings, a few lines each; the agents read the whole file on every run, so every line costs tokens):
+Ready-made examples for a .NET and a React project are in [docs/examples](examples/README.md). Suggested outline (short headings, a few lines each; the agents read the whole file on every run, so every line costs tokens):
 
 ```markdown
 # <Project name>

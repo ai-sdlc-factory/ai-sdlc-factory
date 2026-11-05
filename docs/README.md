@@ -11,6 +11,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | --- | --- |
 | **run the factory** for the first time | [Getting started](getting-started.md) |
 | **connect a repository** and understand `.factory/project.json` (what is required, what is optional) | [Setting up a project](project-setup.md) |
+| copy a ready-made **`AGENTS.md` and `project.json`** for a .NET or React project | [Examples](examples/README.md) |
 | understand **what happens to a ticket or a review**, step by step, with diagrams | [Workflows](workflows.md) |
 | understand **how it is built** and why it is safe to run | [Architecture](architecture.md) and [Design and decisions](design.md) |
 | look up a **setting**, a port, a default | [Configuration reference](configuration.md) |
