@@ -14,7 +14,8 @@ FROM build AS test
 # A Temporal dev server for the workflow scenario tests (a static binary, the version the stack already uses).
 COPY --from=temporalio/admin-tools:1.32.1 /usr/local/bin/temporal /usr/local/bin/temporal
 RUN dotnet build services/controller/tests/DevFoundry.Controller.Tests -c Release --no-restore
-CMD ["dotnet", "test", "services/controller/tests/DevFoundry.Controller.Tests", "-c", "Release", "--no-build"]
+# TEST_FILTER (for example "Category!=Scenario" for the fast tests only) is passed to dotnet test when set.
+CMD ["sh", "-c", "dotnet test services/controller/tests/DevFoundry.Controller.Tests -c Release --no-build ${TEST_FILTER:+--filter \"$TEST_FILTER\"}"]
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 ENV DOTNET_EnableDiagnostics=0 HOME=/tmp

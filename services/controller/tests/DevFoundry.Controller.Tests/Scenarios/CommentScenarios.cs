@@ -4,6 +4,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>What happens to human comments that no stage can use: the person is told, and the run is not disturbed.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class CommentScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);

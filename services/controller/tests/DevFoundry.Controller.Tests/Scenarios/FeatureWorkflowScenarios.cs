@@ -8,6 +8,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 /// These cover every branch a live run cannot be made to take on demand.
 /// </summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);
@@ -570,6 +571,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
 
 /// <summary>Which network each kind of sandbox run is given.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class NetworkScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);

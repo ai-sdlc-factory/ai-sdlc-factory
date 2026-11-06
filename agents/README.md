@@ -76,7 +76,7 @@ Edit the Markdown file and commit it. Changes apply to the next run; running san
 
 ## The engineering floor
 
-[`engineering-floor.md`](engineering-floor.md) is a short list of rules that hold for every project (no secrets in code, input checked where it enters, tests with behaviour changes, errors not swallowed, access checks kept, scope kept to the ticket, simple code). The `reviewer` and `security` roles carry a copy of it
+[`standards/engineering-floor.md`](standards/engineering-floor.md) is a short list of rules that hold for every project (no secrets in code, input checked where it enters, tests with behaviour changes, errors not swallowed, access checks kept, scope kept to the ticket, simple code). The `reviewer` and `security` roles carry a copy of it
 between `engineering-floor` markers, and `python3 tools/check-docs.py` fails if a copy differs from the file, so edit the file and paste it into both roles. A project's `AGENTS.md` can add rules, never relax these. Project-specific, testable rules belong in the project's
 [`rules`](../docs/project-setup.md#rules) instead.
 

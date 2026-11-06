@@ -2,6 +2,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>Reviewers and QA between the automated checks and the pull request.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class ReviewScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);
@@ -207,6 +208,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
 
 /// <summary>The UX review: only when the project has a UI, the change touches it, and the UI change is medium or large.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class UxReviewScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);
@@ -385,6 +387,7 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
 
 /// <summary>A run that cannot finish keeps its work on a branch, says so on the ticket, and never goes quiet.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class StoppedRunScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);

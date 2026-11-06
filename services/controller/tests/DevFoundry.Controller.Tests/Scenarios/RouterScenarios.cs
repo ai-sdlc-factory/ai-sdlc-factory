@@ -4,6 +4,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>The routing workflow driving feature runs: restarts, duplicates and comments reaching a waiting run.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class RouterScenarios(TemporalFixture fixture)
 {
     private static ForgejoEvent Event(string name, string action, string repo, string? comment = null, string state = "open", string label = "feature")

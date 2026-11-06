@@ -2,6 +2,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>The bug workflow: reproduce with a test the factory has seen fail, diagnose, fix, prove it with the same test.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class BugScenarios(TemporalFixture fixture)
 {
     private const string TestCommand = "python -m pytest -q test_hello.py";

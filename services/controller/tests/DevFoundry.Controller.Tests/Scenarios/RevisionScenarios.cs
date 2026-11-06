@@ -4,6 +4,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>A person reviews a pull request the factory opened: the resolver addresses the comments on its branch, the checks run again, and one commit is pushed.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class RevisionScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);

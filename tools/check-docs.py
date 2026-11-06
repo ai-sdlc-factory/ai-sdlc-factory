@@ -143,7 +143,7 @@ def check_roles() -> None:
 def check_embedded_copies() -> None:
     """A shared text (the engineering floor, the security checklist) is copied into role files; the copies must equal the source."""
     copies = [
-        ("engineering-floor", "agents/engineering-floor.md", ("reviewer", "security")),
+        ("engineering-floor", "agents/standards/engineering-floor.md", ("reviewer", "security")),
         ("security-checklist", "agents/standards/security-checklist.md", ("security",)),
     ]
     count = 0
@@ -175,8 +175,8 @@ def check_statuses_and_labels() -> None:
             fail(f"result status {status} is not in docs/workflows.md")
 
     labels = set(re.findall(r'(?:FeatureLabel|BugLabel|IncidentLabel|QuickLabel|FullLabel|ForceLabel) = "([a-z-]+)"', "".join(
-        read(p) for p in [ROOT / "services/controller/src/DevFoundry.Controller/Workflows/EventRouter.cs",
-                          ROOT / "services/controller/src/DevFoundry.Controller/Workflows/WorkMode.cs",
+        read(p) for p in [ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Routing/EventRouter.cs",
+                          ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Routing/WorkMode.cs",
                           ROOT / "services/controller/src/DevFoundry.Controller/Agents/Coverage/Triage.cs"])))
     checked["labels"] = len(labels)
     for label in sorted(labels):

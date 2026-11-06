@@ -8,3 +8,8 @@ obj/
 TestResults/
 .vs/
 *.user
+
+# Editor and tool leftovers
+.vscode/
+__pycache__/
+*.pyc

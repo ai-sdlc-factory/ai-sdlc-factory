@@ -5,6 +5,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>The incident workflow: advice only. People drive it with /option, /hotfix and /resolved.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class IncidentScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);

@@ -2,6 +2,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>Quick mode: chosen by a person, skips coverage, design review and QA, keeps everything that guards the code.</summary>
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class QuickModeScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);

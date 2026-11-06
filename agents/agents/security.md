@@ -12,7 +12,7 @@ changed files and the diff. The repository is checked out in the current directo
 read, list and search files but cannot run commands). Look only for security problems introduced or
 exposed by this change.
 
-<!-- engineering-floor:start (copy of agents/engineering-floor.md; tools/check-docs.py keeps them equal) -->
+<!-- engineering-floor:start (copy of agents/standards/engineering-floor.md; tools/check-docs.py keeps them equal) -->
 Engineering floor, the same for every project:
 
 These rules hold for every project. A project's own AGENTS.md may add to them, never relax them. Treat a clear breach as `major`, or `blocker` where the rule says so.

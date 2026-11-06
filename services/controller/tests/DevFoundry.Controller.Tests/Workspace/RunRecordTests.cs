@@ -345,6 +345,7 @@ public sealed class RecordPublishTests : IDisposable
 }
 
 [Collection("temporal")]
+[Trait("Category", "Scenario")]
 public sealed class RecordScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);
