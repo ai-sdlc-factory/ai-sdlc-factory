@@ -9,7 +9,6 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - `libs/DevFoundry.Contracts`: types shared between services
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
 - `sandboxes/`, `egress/`, `infra/`: images, allowlist profiles, Compose stack
-- `integrations/`: the roles and flows packaged for other harnesses (copies, see below)
 - `docs/`: documentation with diagrams (`docs/diagrams/*.dot` render to `docs/images/*.svg`)
 
 ## Commands (from the repository root)
@@ -26,7 +25,6 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - **A new environment variable** must be documented in `docs/configuration.md`.
 - **A new agent role** needs a file in `agents/agents/`, a row in `docs/configuration.md`, and a prompt builder and parser in `Agents/`. Put its limits in the role file next to its answer shape.
 - **Shared role texts** (`agents/standards/engineering-floor.md`, `security-checklist.md`) are copied into role files between markers. Edit the source, paste it into the roles, and let `check-docs.py` confirm they match.
-- **`integrations/`** holds copies of the role files. Update them when a role changes.
 - **Tests:** workflow scenarios live in `Scenarios/` and use scripted agents with fake activities (`Harness.cs`). Tag any new test that needs the Temporal dev server with `[Trait("Category", "Scenario")]` and the `temporal` collection.
 - **Temporal determinism:** workflow code must not read the clock, environment or files directly. Read them in an activity, so a replayed run sees the same value.
 - Never commit `infra/.env` or anything with credentials.
