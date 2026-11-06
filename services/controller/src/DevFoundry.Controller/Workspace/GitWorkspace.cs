@@ -58,6 +58,13 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         var url = remoteUrl?.Invoke(request.Owner, request.Repo)
             ?? $"{settings.ForgejoUrl.TrimEnd('/')}/{request.Owner}/{request.Repo}.git";
         await GitAsync(["clone", "--quiet", url, "."], basePath, useToken: true, cancellationToken);
+        if ((await GitAsync(["rev-parse", "--verify", "--quiet", "HEAD"], basePath, useToken: false, cancellationToken, allowFailure: true)).Trim().Length == 0)
+        {
+            // A brand-new repository has nothing to branch from, and no .factory/project.json to read. Retrying cannot help.
+            throw new ApplicationFailureException(
+                $"The repository {request.Owner}/{request.Repo} is empty: it has no commits yet. Make a first commit on its default branch (a README and a .factory/project.json), then close and reopen the ticket.",
+                nonRetryable: true);
+        }
         if (request.ExistingBranch)
         {
             if ((await GitAsync(["rev-parse", "--verify", "--quiet", $"refs/remotes/origin/{request.Branch}"], basePath, useToken: false, cancellationToken, allowFailure: true)).Trim().Length == 0)

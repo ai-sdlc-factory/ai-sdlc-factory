@@ -61,6 +61,23 @@ public sealed class WorkspaceChangesTests : IDisposable
     private async Task<WorkspaceInfo> Prepared(GitWorkspace workspace, string name = "feature-acme-shop-1") =>
         await workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", name, "factory/issue-1"), CancellationToken.None);
 
+    [Fact]
+    public async Task An_empty_repository_is_refused_with_a_message_that_says_what_to_do()
+    {
+        var empty = Path.Combine(temp, "empty.git");
+        Directory.CreateDirectory(empty);
+        Git(empty, "init", "--quiet", "--bare", "--initial-branch=main");
+        var workspace = new GitWorkspace(new WorkerSettings { WorkspaceRoot = root }, (_, _) => empty);
+
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(() =>
+            workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", "feature-acme-shop-9", "factory/issue-9"), CancellationToken.None));
+
+        Assert.True(error.NonRetryable);
+        Assert.Contains("is empty", error.Message);
+        Assert.Contains(".factory/project.json", error.Message);
+        Assert.False(Directory.Exists($"{root}/feature-acme-shop-9") && Directory.GetFileSystemEntries($"{root}/feature-acme-shop-9").Length > 0);
+    }
+
     // ---- preparation -------------------------------------------------------------------------------------
 
     [Fact]
