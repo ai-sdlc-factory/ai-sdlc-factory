@@ -57,12 +57,6 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
         Note("factory", $"Assessed as {assessment.Severity}: {assessment.Summary}");
 
         var more = new List<string>();
-        var refreshes = 0;
-        var chosen = 0;
-        var hotfix = 0;
-        Investigation? investigation = null;
-        Mitigation? mitigation = null;
-
         while (true)
         {
             var investigated = await InvestigateAsync(work, assessment, more);
@@ -70,7 +64,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
             {
                 return investigationStop;
             }
-            investigation = investigated.Verdict!;
+            var investigation = investigated.Verdict!;
 
             var proposed = await ConverseAsync<Mitigation>(
                 request, workspace, project.Image, "mitigator", Rounds(MaxDesignRounds),
@@ -83,73 +77,90 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
             {
                 return proposalStop;
             }
-            mitigation = proposed.Verdict!;
+            var mitigation = proposed.Verdict!;
             Note("factory", $"Proposed {mitigation.Options.Count} option(s); recommended option {mitigation.Recommended}.");
 
-            // From here on people decide. Only the loop below reads their comments, so a comment is never lost.
-            while (true)
+            // A result ends the run; none means a person gave new information, so look again.
+            if (await AnswerPeopleAsync(work, assessment, investigation, mitigation, more) is { } done)
             {
-                var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
-                if (ticketClosed)
-                {
-                    return new WorkResult(Statuses.Closed);
-                }
-                if (!answered)
-                {
-                    await CommentAsync(request, "No reply for 7 days, so I am stopping. Close and reopen the ticket to start again.");
-                    return new WorkResult(Statuses.TimedOut);
-                }
+                return done;
+            }
+        }
+    }
 
-                var comments = replies.ToList();
-                replies.Clear();
-                var newInformation = false;
-                var resolved = false;
-                foreach (var reply in comments)
-                {
-                    var commands = IncidentCommands.Parse(reply.Body);
-                    if (commands.Count == 0)
-                    {
-                        more.Add(reply.Body);
-                        newInformation = true;
-                        continue;
-                    }
-                    foreach (var command in commands)
-                    {
-                        switch (command)
-                        {
-                            case IncidentCommand.Option option when option.Number >= 1 && option.Number <= mitigation.Options.Count:
-                                chosen = option.Number;
-                                Note("factory", $"Checklist given for option {chosen}.");
-                                await CommentAsync(request, IncidentComments.Runbook(chosen, mitigation.Options[chosen - 1]));
-                                break;
-                            case IncidentCommand.Option option:
-                                await CommentAsync(request, IncidentComments.NoSuchOption(option.Number, mitigation.Options.Count));
-                                break;
-                            case IncidentCommand.Hotfix:
-                                hotfix = await OpenHotfixAsync(request, assessment, investigation, hotfix);
-                                break;
-                            case IncidentCommand.Resolved:
-                                resolved = true;
-                                break;
-                        }
-                    }
-                }
+    private int refreshes;
+    private int hotfixTicket;
 
-                if (resolved)
+    /// <summary>
+    /// From here on people decide. Only this loop reads their comments, so a comment is never lost. Commands are answered
+    /// at once (<c>/option N</c>, <c>/hotfix</c>); <c>/resolved</c> ends the run with a postmortem; any other comment is
+    /// new information, added to <paramref name="more"/>, and returns null so the caller investigates again.
+    /// </summary>
+    private async Task<WorkResult?> AnswerPeopleAsync(
+        WorkContext work, IncidentAssessment assessment, Investigation investigation, Mitigation mitigation, List<string> more)
+    {
+        var request = work.Request;
+        while (true)
+        {
+            var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
+            if (ticketClosed)
+            {
+                return new WorkResult(Statuses.Closed);
+            }
+            if (!answered)
+            {
+                await CommentAsync(request, "No reply for 7 days, so I am stopping. Close and reopen the ticket to start again.");
+                return new WorkResult(Statuses.TimedOut);
+            }
+
+            var comments = replies.ToList();
+            replies.Clear();
+            var newInformation = false;
+            var resolved = false;
+            foreach (var reply in comments)
+            {
+                var commands = IncidentCommands.Parse(reply.Body);
+                if (commands.Count == 0)
                 {
-                    Note("factory", "Marked as resolved by a person.");
-                    return await PostmortemAsync(work, assessment, investigation, mitigation);
+                    more.Add(reply.Body);
+                    newInformation = true;
+                    continue;
                 }
-                if (newInformation)
+                foreach (var command in commands)
                 {
-                    if (++refreshes > MaxRefreshes)
+                    switch (command)
                     {
-                        await CommentAsync(request, IncidentComments.NothingToRefresh);
-                        continue;
+                        case IncidentCommand.Option option when option.Number >= 1 && option.Number <= mitigation.Options.Count:
+                            Note("factory", $"Checklist given for option {option.Number}.");
+                            await CommentAsync(request, IncidentComments.Runbook(option.Number, mitigation.Options[option.Number - 1]));
+                            break;
+                        case IncidentCommand.Option option:
+                            await CommentAsync(request, IncidentComments.NoSuchOption(option.Number, mitigation.Options.Count));
+                            break;
+                        case IncidentCommand.Hotfix:
+                            hotfixTicket = await OpenHotfixAsync(request, assessment, investigation, hotfixTicket);
+                            break;
+                        case IncidentCommand.Resolved:
+                            resolved = true;
+                            break;
                     }
-                    Note("factory", "New information received; looking again.");
-                    break;
                 }
+            }
+
+            if (resolved)
+            {
+                Note("factory", "Marked as resolved by a person.");
+                return await PostmortemAsync(work, assessment, investigation, mitigation);
+            }
+            if (newInformation)
+            {
+                if (++refreshes > MaxRefreshes)
+                {
+                    await CommentAsync(request, IncidentComments.NothingToRefresh);
+                    continue;
+                }
+                Note("factory", "New information received; looking again.");
+                return null;
             }
         }
     }
