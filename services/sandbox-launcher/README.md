@@ -94,13 +94,15 @@ Images are built outside the launcher:
 ```bash
 cd infra
 docker compose --profile images build sandbox-image-dotnet
+# combined images for projects that need more than one toolchain
+docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full
 ```
 
 [`sandboxes/dotnet/`](../../sandboxes/dotnet/Dockerfile) holds the .NET image (SDK, git, ripgrep and the
 pinned OpenCode binary) [`sandboxes/python/`](../../sandboxes/python/Dockerfile) the Python 3.12 one
 (plus pytest and ruff), and [`sandboxes/node/`](../../sandboxes/node/Dockerfile) the Node.js 22 LTS one (npm,
 and corepack for pnpm/yarn; projects install their own dependencies through the egress proxy, and
-`node --test` needs nothing extra). All three use the shared entrypoint in `sandboxes/common/`, which creates `HOME` and the XDG directories in the container's tmpfs (the .NET CLI fails if they are missing), prepares OpenCode's settings and login, and then runs the command.
+`node --test` needs nothing extra). The combined images [`dotnet-node/`](../../sandboxes/dotnet-node/Dockerfile) (.NET SDK + Node.js), [`python-node/`](../../sandboxes/python-node/Dockerfile) (Python + Node.js) and [`full/`](../../sandboxes/full/Dockerfile) (.NET + Python + Node.js) add Node.js by copying it from the official `node:22-bookworm-slim` image. All of them use the shared entrypoint in `sandboxes/common/`, which creates `HOME` and the XDG directories in the container's tmpfs (the .NET CLI fails if they are missing), prepares OpenCode's settings and login, and then runs the command.
 Add another language by adding `sandboxes/<name>/Dockerfile`, a build entry for it (profile `images`) in `infra/compose.yaml`, and one `alias=image` pair to `SANDBOX_IMAGES`; projects then pick it with `"image": "<alias>"`.
 The image must contain git, the OpenCode binary, the language's tooling and `/usr/local/bin/factory-entry`; look at the existing Dockerfiles.
 

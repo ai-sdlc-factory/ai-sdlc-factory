@@ -81,7 +81,7 @@ public static class ReviewPrompt
     }
 
     public static IReadOnlyList<string> Describe(IEnumerable<Gate> gates) =>
-        gates.Select(gate => $"{gate.Name}: {string.Join(' ', gate.Command)}").ToList();
+        gates.Select(gate => $"{gate.Name}: {gate.Display}").ToList();
 
     public static string ClipDiff(string diff)
     {

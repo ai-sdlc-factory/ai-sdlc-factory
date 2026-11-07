@@ -198,13 +198,13 @@ public abstract partial class FactoryWorkflowBase
     protected async Task<GateResult> RunGateAsync(string image, WorkspaceInfo workspace, Gate gate)
     {
         var started = Workflow.UtcNow;
-        var commandText = string.Join(' ', gate.Command);
+        var commandText = gate.Display;
         try
         {
             var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                 SandboxNames.ActivityName,
                 // The project's own checks may restore packages, but they never get the model login or the model provider.
-                [new SandboxRunRequest(image, workspace.Name, WorkspaceWritable: true, gate.Command, gate.TimeoutSeconds, Network: SandboxNetworks.Packages, Role: "gate")],
+                [new SandboxRunRequest(image, workspace.Name, WorkspaceWritable: true, gate.SandboxCommand, gate.TimeoutSeconds, Network: SandboxNetworks.Packages, Role: "gate")],
                 new ActivityOptions
                 {
                     TaskQueue = SandboxNames.DefaultTaskQueue,

@@ -59,7 +59,7 @@ public static class RevisionPrompts
         text.AppendLine("What the factory runs after you finish, so run these yourself first and keep them passing:");
         foreach (var gate in gates)
         {
-            text.AppendLine($"- {gate.Name}: {PromptText.Clip(string.Join(' ', gate.Command), 200)}");
+            text.AppendLine($"- {gate.Name}: {PromptText.Clip(gate.Display, 200)}");
         }
 
         if (ProjectRules.PromptSection(rules) is { } ruleText)

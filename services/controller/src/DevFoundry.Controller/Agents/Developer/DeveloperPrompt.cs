@@ -58,7 +58,7 @@ public static class DeveloperPrompt
         text.AppendLine("After you finish, the factory runs these checks. Run them yourself first and make them pass:");
         foreach (var gate in gates)
         {
-            text.AppendLine($"- {gate.Name}: {Clip(string.Join(' ', gate.Command), 200)}");
+            text.AppendLine($"- {gate.Name}: {Clip(gate.Display, 200)}");
         }
 
         if (ProjectRules.PromptSection(rules) is { } ruleText)

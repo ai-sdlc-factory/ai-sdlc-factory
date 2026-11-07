@@ -95,7 +95,7 @@ The [egress guide](../egress/README.md) describes the network rules in detail; [
 | [`services/controller`](../services/controller) | workflows, agent prompts and parsers, workspace and Forgejo handling |
 | [`services/sandbox-launcher`](../services/sandbox-launcher) | container policy and the Docker client |
 | [`services/egress-proxy`](../services/egress-proxy) | the CONNECT proxy and allowlist policy |
-| [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`) and their shared entrypoint |
+| [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`egress/`](../egress) | the allowlist (`profiles.json`) |
 | [`infra/`](../infra) | Docker Compose and environment settings |

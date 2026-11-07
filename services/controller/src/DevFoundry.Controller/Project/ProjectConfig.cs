@@ -5,7 +5,19 @@ using System.Text.RegularExpressions;
 namespace DevFoundry.Controller;
 
 /// <summary>One automated check a change must pass: a command run in the sandbox, without model access.</summary>
-public sealed record Gate(string Name, IReadOnlyList<string> Command, int TimeoutSeconds);
+public sealed record Gate(string Name, IReadOnlyList<string> Command, int TimeoutSeconds, string? WorkingDirectory = null)
+{
+    /// <summary>The command as people and agents read it, with the folder it runs in when it is not the repository root.</summary>
+    public string Display => WorkingDirectory is null ? string.Join(' ', Command) : $"(in {WorkingDirectory}) {string.Join(' ', Command)}";
+
+    /// <summary>
+    /// What the sandbox is asked to run. A gate in a subfolder is wrapped in a tiny shell that changes into it first and then
+    /// replaces itself with the command, so the command still runs without a shell of its own and its exit code is the gate's.
+    /// </summary>
+    public IReadOnlyList<string> SandboxCommand => WorkingDirectory is null
+        ? Command
+        : ["sh", "-c", "cd \"$1\" && shift && exec \"$@\"", "gate", WorkingDirectory, .. Command];
+}
 
 /// <summary>
 /// What a repository tells the factory about itself, from <c>.factory/project.json</c>. It is untrusted
@@ -221,6 +233,9 @@ public static partial class ProjectConfigParser
     [GeneratedRegex(@"\A[a-z][a-z0-9_-]{0,29}\z")]
     private static partial Regex GateName();
 
+    [GeneratedRegex(@"\A[A-Za-z0-9._@+/-]{1,100}\z")]
+    private static partial Regex GateDirectory();
+
     public static bool TryParse(string? json, [NotNullWhen(true)] out ProjectConfig? config, out string error)
     {
         config = null;
@@ -290,7 +305,17 @@ public static partial class ProjectConfigParser
                     error = $"gate \"{name}\": \"timeout_seconds\" must be between 10 and 1800";
                     return false;
                 }
-                gates.Add(new Gate(name, command, timeout));
+                string? workingDirectory = null;
+                if (item.TryGetProperty("cwd", out var cwdValue))
+                {
+                    workingDirectory = cwdValue.ValueKind == JsonValueKind.String ? cwdValue.GetString()?.TrimEnd('/') : null;
+                    if (workingDirectory is null || !GateDirectory().IsMatch(workingDirectory) || workingDirectory.Contains("..") || workingDirectory.StartsWith('/'))
+                    {
+                        error = $"gate \"{name}\": \"cwd\" must be a folder inside the repository, such as \"frontend\" (letters, digits and . _ - @ + /, no leading / and no ..)";
+                        return false;
+                    }
+                }
+                gates.Add(new Gate(name, command, timeout, workingDirectory));
             }
             var reviewers = new List<string> { "reviewer" };
             if (root.TryGetProperty("reviewers", out var reviewersValue))

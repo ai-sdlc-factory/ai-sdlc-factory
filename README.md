@@ -45,7 +45,7 @@ Start at the [documentation index](docs/README.md).
 - [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and Forgejo handling.
   [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach.
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.
-- [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`).
+- [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`).
 - [`egress/`](egress/README.md): the internet allowlist for the sandboxes.
 - [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services.
 - [`tests/integration/`](tests/integration/README.md): the deployed pipeline test. [`tools/check-docs.py`](tools/check-docs.py): the documentation check.

@@ -70,11 +70,12 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 
 | Key | Required | Default | Meaning and limits |
 | --- | --- | --- | --- |
-| `image` | **yes** | | The sandbox image alias: `dotnet`, `python` or `node` (the aliases your factory offers; the operator can add more in `SANDBOX_IMAGES`). Lower-case letters, digits and `-`, starting with a letter, at most 31 characters |
+| `image` | **yes** | | The sandbox image alias: [`dotnet`, `python`, `node`, `dotnet-node`, `python-node` or `full`](#choosing-an-image) (the aliases your factory offers; the operator can add more in `SANDBOX_IMAGES`). Lower-case letters, digits and `-`, starting with a letter, at most 31 characters |
 | `gates` | **yes** | | The project's own checks, **1 to 8**, run in order after every build round. Each is an object, below |
 | `gates[].name` | **yes** | | Unique within the file; lower case, letters, digits, `-` and `_`, starting with a letter, at most 30 characters |
 | `gates[].command` | **yes** | | The command as an **argument list**, 1 to 32 strings of at most 500 characters. There is no shell: use `["sh", "-c", "..."]` when you need one |
 | `gates[].timeout_seconds` | no | `600` | 10 to 1800 |
+| `gates[].cwd` | no | the repository root | A folder inside the repository to run the command in, such as `frontend`. Letters, digits and `. _ - @ + /`, no leading `/` and no `..`. A folder that does not exist fails the gate |
 | `reviewers` | no | `["reviewer"]` | Which review roles run: `reviewer` (code quality), `security`. Each at most once. QA is separate and always runs in the full process |
 | `ui` | no | none | Declares a user interface so the `ux` reviewer can run, [below](#ui) |
 | `rules` | no | none | Your own mechanical rules, checked on the lines a change adds: up to 20, [below](#rules) |
@@ -207,6 +208,34 @@ What these settings do in a run:
 | `revisions_per_pull_request` | after 2 revisions the factory asks a person to take over | 5 |
 | `protected_paths` | none | a change touching `db/migrations/` is rejected with "protected file that only a person may change"; the developer is told and must find another way, or ends with `build_blocked` |
 | `rules` | none | `BinaryFormatter` in an added line sends the change back; `Console.Write` is only a warning shown to the reviewers |
+
+### Choosing an image
+
+A project names **one** image, and every agent run and every gate for the ticket runs in it. Choose the one that has every toolchain the project's checks need.
+
+| Alias | Toolchains | Use it for |
+| --- | --- | --- |
+| `dotnet` | .NET SDK | a .NET project with no JavaScript to build or test |
+| `python` | Python 3.12, pytest, ruff | a Python project |
+| `node` | Node.js 22 LTS, npm, corepack | a JavaScript/TypeScript project |
+| `dotnet-node` | .NET SDK + Node.js 22 | a .NET API with a React or other JS front end |
+| `python-node` | Python 3.12, pytest, ruff + Node.js 22 | a Python API with a JS front end |
+| `full` | .NET SDK + Python 3 + Node.js 22 | anything that needs all three. Large; prefer a smaller image |
+
+In a combined image any gate can call any of its tools. You do not need a different image per gate; use `cwd` to run a gate in a subfolder:
+
+```json
+{
+  "image": "dotnet-node",
+  "gates": [
+    { "name": "api-build", "command": ["dotnet", "build", "--nologo", "-v", "q"] },
+    { "name": "api-test", "command": ["dotnet", "test", "--nologo", "-v", "q"], "timeout_seconds": 900 },
+    { "name": "web-test", "command": ["sh", "-c", "npm ci --no-audit --no-fund && npm test --silent"], "cwd": "frontend", "timeout_seconds": 600 }
+  ]
+}
+```
+
+The combined images must be built once, like the others (`docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full`). The sandbox has **no Docker and no database or cache server**, in every image: tests that need a live service (Redis, a database server) cannot run there, so write them against in-memory fakes. The agents are told this.
 
 ### Rules
 

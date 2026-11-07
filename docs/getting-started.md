@@ -62,6 +62,8 @@ The agents run in images for each language your projects use. Build them once (t
 
 ```bash
 docker compose --profile images build sandbox-image-dotnet sandbox-image-python sandbox-image-node
+# only if a project needs two toolchains (for example a .NET API with a React front end)
+docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full
 ```
 
 Build only the ones you need; a project that asks for an image that does not exist fails its first agent run with a clear message.

@@ -18,6 +18,10 @@ the reasons triage asked for a design. The repository is checked out in the curr
    with what changes. Use paths relative to the repository root.
 4. Name the real risks (compatibility, migration, performance, security) and what the builder must do
    about them. Do not invent risks to fill the list.
+   The builder works in a sandbox with the project's toolchain and package registries only: no Docker, no Testcontainers, no database
+   or cache server, no other network access. Design tests with in-memory fakes or test doubles. A test against a live service may be added
+   only as optional, skipping itself when the service is absent, and must never be a requirement. Do not make a generated artifact (a
+   lockfile, a migration) a hard requirement unless the project's tools can produce it here; otherwise say how a person generates it.
 5. Give the builder concrete guidance: constraints to respect, tests that must exist, things not to touch.
 
 Be decisive. Ask a question only when different answers would lead to materially different designs

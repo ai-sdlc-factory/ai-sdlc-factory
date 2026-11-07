@@ -65,7 +65,7 @@ public static class BugPrompts
         text.AppendLine("The project's own checks (your test will be part of them, so follow the project's test style):");
         foreach (var gate in gates)
         {
-            text.AppendLine($"- {gate.Name}: {PromptText.Clip(string.Join(' ', gate.Command), 200)}");
+            text.AppendLine($"- {gate.Name}: {PromptText.Clip(gate.Display, 200)}");
         }
         Replies(text, replies);
         if (feedback is not null)
