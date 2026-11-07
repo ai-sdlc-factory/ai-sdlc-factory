@@ -27,6 +27,11 @@ public static partial class RepoImagePolicy
     [GeneratedRegex(@"^\s*#\s*(syntax|escape|check)\s*=", RegexOptions.IgnoreCase)]
     private static partial Regex ParserDirective();
 
+    /// <summary>
+    /// Checks a repository's Dockerfile and context against the rules in the type's description, in the order a reader would: the text,
+    /// the first instruction, the rest of the instructions, then the context files. The first problem found stops it, with a message the
+    /// repository's owner can act on.
+    /// </summary>
     public static ValidatedBuild Validate(SandboxBuildRequest request, IReadOnlyCollection<string> allowedBaseImages)
     {
         var text = request.Dockerfile ?? "";
@@ -35,6 +40,21 @@ public static partial class RepoImagePolicy
             throw Reject($"the Dockerfile must be 1 byte to {MaxDockerfileBytes / 1024} KB of text.");
         }
 
+        var instructions = ReadInstructions(text);
+        var baseImage = CheckBaseImage(instructions[0], allowedBaseImages);
+        foreach (var instruction in instructions.Skip(1))
+        {
+            CheckInstruction(instruction);
+        }
+        return new ValidatedBuild(text, baseImage, ReadContext(request.Files));
+    }
+
+    /// <summary>
+    /// The instructions of a Dockerfile, one string each: comments and blank lines dropped, a line ending in a backslash joined to the next.
+    /// A parser directive (<c># syntax=</c>) is refused, because it can pull in a different builder.
+    /// </summary>
+    private static List<string> ReadInstructions(string text)
+    {
         var instructions = new List<string>();
         var current = new StringBuilder();
         foreach (var raw in text.Replace("\r", "").Split('\n'))
@@ -65,42 +85,53 @@ public static partial class RepoImagePolicy
         {
             throw Reject($"the Dockerfile must have 1 to {MaxInstructions} instructions.");
         }
+        return instructions;
+    }
 
-        var first = instructions[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    /// <summary>The first instruction must be exactly <c>FROM &lt;image&gt;</c> with one of the factory's images; returns that image.</summary>
+    private static string CheckBaseImage(string firstInstruction, IReadOnlyCollection<string> allowedBaseImages)
+    {
+        var first = firstInstruction.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (!first[0].Equals("FROM", StringComparison.OrdinalIgnoreCase) || first.Length != 2 || !allowedBaseImages.Contains(first[1]))
         {
             throw Reject($"the first instruction must be exactly 'FROM <image>' with one of the factory's images: {string.Join(", ", allowedBaseImages.Order())}.");
         }
+        return first[1];
+    }
 
-        foreach (var instruction in instructions.Skip(1))
+    /// <summary>Every instruction after FROM must be on the short list, and may not reach outside the context or ask for extra privileges.</summary>
+    private static void CheckInstruction(string instruction)
+    {
+        var parts = instruction.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var keyword = parts[0].ToUpperInvariant();
+        if (!AllowedInstructions.Contains(keyword))
         {
-            var parts = instruction.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var keyword = parts[0].ToUpperInvariant();
-            if (!AllowedInstructions.Contains(keyword))
+            throw Reject($"the instruction {keyword} is not allowed (allowed: {string.Join(", ", AllowedInstructions)}; one FROM, first).");
+        }
+        var flags = parts.Skip(1).TakeWhile(part => part.StartsWith("--", StringComparison.Ordinal)).Select(part => part.ToLowerInvariant()).ToList();
+        if (keyword is "COPY" or "ADD")
+        {
+            if (flags.Any(flag => !flag.StartsWith("--chown=", StringComparison.Ordinal) && !flag.StartsWith("--chmod=", StringComparison.Ordinal)))
             {
-                throw Reject($"the instruction {keyword} is not allowed (allowed: {string.Join(", ", AllowedInstructions)}; one FROM, first).");
+                throw Reject($"{keyword} may only use the flags --chown and --chmod (not --from).");
             }
-            var flags = parts.Skip(1).TakeWhile(part => part.StartsWith("--", StringComparison.Ordinal)).Select(part => part.ToLowerInvariant()).ToList();
-            if (keyword is "COPY" or "ADD")
+            if (keyword == "ADD" && parts.Skip(1).Any(part => part.Contains("://", StringComparison.Ordinal) || part.StartsWith("git@", StringComparison.Ordinal)))
             {
-                if (flags.Any(flag => !flag.StartsWith("--chown=", StringComparison.Ordinal) && !flag.StartsWith("--chmod=", StringComparison.Ordinal)))
-                {
-                    throw Reject($"{keyword} may only use the flags --chown and --chmod (not --from).");
-                }
-                if (keyword == "ADD" && parts.Skip(1).Any(part => part.Contains("://", StringComparison.Ordinal) || part.StartsWith("git@", StringComparison.Ordinal)))
-                {
-                    throw Reject("ADD may not fetch a URL; use RUN with the tool you trust, or COPY a file from .factory/docker/.");
-                }
-            }
-            else if (keyword == "RUN" && flags.Count > 0)
-            {
-                throw Reject("RUN may not use flags such as --mount, --network or --security.");
+                throw Reject("ADD may not fetch a URL; use RUN with the tool you trust, or COPY a file from .factory/docker/.");
             }
         }
+        else if (keyword == "RUN" && flags.Count > 0)
+        {
+            throw Reject("RUN may not use flags such as --mount, --network or --security.");
+        }
+    }
 
+    /// <summary>The context files (path to base64 content): plain relative paths, valid base64, within the file and size limits, sorted by path.</summary>
+    private static List<(string Path, byte[] Content)> ReadContext(IReadOnlyDictionary<string, string>? encodedFiles)
+    {
         var files = new List<(string Path, byte[] Content)>();
         long total = 0;
-        foreach (var (path, encoded) in request.Files ?? new Dictionary<string, string>())
+        foreach (var (path, encoded) in encodedFiles ?? new Dictionary<string, string>())
         {
             if (!FilePath().IsMatch(path) || path.StartsWith('/') || path.EndsWith('/') || path.Split('/').Any(segment => segment is "" or "." or "..")
                 || path.Equals("Dockerfile", StringComparison.Ordinal))
@@ -123,8 +154,7 @@ public static partial class RepoImagePolicy
         {
             throw Reject($"the build context may have at most {MaxFiles} files and {MaxContextBytes / 1024} KB.");
         }
-
-        return new ValidatedBuild(text, first[1], files.OrderBy(file => file.Path, StringComparer.Ordinal).ToList());
+        return files.OrderBy(file => file.Path, StringComparer.Ordinal).ToList();
     }
 
     /// <summary>Twelve hex characters that change when the base image, the Dockerfile or any context file changes.</summary>
