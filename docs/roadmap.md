@@ -35,11 +35,27 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 
 Items 4 and 8 are also on your list above (the planner and the "factory improvement loop"); item 1 is done.
 
+## Next up (from building `/retry`, the failure classes and `/qa`)
+
+Small gaps found while building and testing these. None is started.
+
+- [ ] **Who may start things** (S). Anyone who can comment can start `/qa`, `/fix` and `/retry`, and each spends tokens. Check write access to the repository first (the `permissions.push` Forgejo already reports for the bot's own repositories is not enough: it must be the commenter's).
+- [ ] **A durable usage log** (S to M). Token use is now in every workflow result (`usage`) and in the QA report, but there is no total across tickets, days or repositories. Append one line per finished run (workflow id, kind, repository, tokens) on the host; it is also the base for the budget item below and for the improvement loop.
+- [ ] **QA: tell the tester what the pull request changed** (S). Give it the list of changed files (Forgejo `pulls/<n>/files`) and the diff, not only the title and criteria.
+- [ ] **QA: notice a UI-only change with no `ui` suite before spending a tester run** (S). Compare the changed files with the project's `ui` paths and say so on the ticket. The same comment should also show the scope line and the token use, which the "blocked" comment lacks today.
+- [ ] **QA: keep the tests that expose a real bug** (S). A failing run saves its tests to a `-wip` branch, so the developer fixing the findings never sees the test. Show it the failing output in `/fix qa`, or push the tests in a separate commit.
+- [ ] **QA: services for the application** (M). The sandbox has no database or cache server, so a QA run needs an application that works with SQLite or in-memory fakes. Sidecar containers on an isolated network would need an image allowlist like the repository-image policy.
+- [ ] **QA: screenshots for the UX review** (S to find out). Today it reads page text and accessibility snapshots. Find out whether OpenCode with the ChatGPT login accepts an image as input.
+- [ ] **`verify` in the templates** (S). The starter projects have every feature on except this one; the API and UI templates need a small e2e folder that works.
+- [ ] **`/retry` that resumes** (M). It starts the run again from the beginning. Resuming from the last good stage needs stage results saved between runs. Infrastructure failures are deliberately not retried by themselves, because a second try can spend tokens twice.
+- [ ] **Rename the feature workflow's `qa` role to `acceptance`** (S). It reads the diff against the acceptance criteria and never runs the application, which the `/qa` workflow now does; two things called QA confuse people.
+- [ ] **Review the same way twice** (S). Revisions of a pull request do not give the next round's reviewers the earlier findings to check, which the build loop does.
+
 ## Other ideas we discussed
 
 - [x] **Browser image and end-to-end spike** (done: the `browser` image runs Chromium in the locked-down sandbox, see [QA run](workflows.md#qa-run); whether OpenCode can take a screenshot as input is still open, so the UX review reads page text and accessibility snapshots). Original item (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
   and whether OpenCode can take a screenshot as input. Prerequisite for the scheduled UI check and for UI bugs that can be reproduced with a test.
-- [ ] **Token and spending limits** (M). A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps from a host-side usage log, and recognition of the provider's usage-limit errors so a run stops cleanly.
+- [ ] **Token and spending limits** (M). The per-run total is stored now (see "A durable usage log" above). A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps from a host-side usage log, and recognition of the provider's usage-limit errors so a run stops cleanly.
 - [ ] **Warn on unknown keys in `.factory/project.json`** (S). Today a misspelled optional key is silently ignored.
 - [ ] **Startup check of each role's model** (S). Fail early when a role names a model the login cannot use.
 - [ ] **Models and reasoning per role** (S). Try `variant` (low for the roles the controller checks mechanically, high for developer, architect and reviewers) and compare tokens and quality from the run records.
@@ -47,6 +63,10 @@ Items 4 and 8 are also on your list above (the planner and the "factory improvem
 - [ ] **Marketing visuals** (S). Two non-technical images for slides and marketing: the ticket-to-reviewed-code flow, and a simplified architecture. A first draft of the flow image had card text running to the bottom edge and an overflowing label, and the drafts are gone, so they need to be redone before review.
 
 ## Done
+
+- [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
+- [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.
+- [x] `/qa` workflow: end-to-end API and UI tests of a finished pull request (`/qa`, `/qa full`, `/qa <note>`, `/fix qa`), the `browser` sandbox image, and the token use of every run stored in its result.
 
 - [x] Janitor: removes checkouts of finished runs, lists (and optionally deletes) old work-in-progress branches, and removes old unused repository images.
 - [x] Feature workflow: analyst, coverage check, triage, architect, developer, project checks, reviewers, UX review, QA, pull request.
