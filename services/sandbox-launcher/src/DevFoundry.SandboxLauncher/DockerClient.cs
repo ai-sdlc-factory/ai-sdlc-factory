@@ -1,49 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DevFoundry.SandboxLauncher;
-
-public sealed class DockerException(HttpStatusCode status, string message)
-    : Exception($"Docker returned {(int)status}: {message}")
-{
-    public HttpStatusCode Status { get; } = status;
-}
-
-/// <summary>The few Docker operations the launcher uses; faked in unit tests.</summary>
-public interface IDockerClient
-{
-    Task PingAsync(CancellationToken cancellationToken);
-    Task<bool> NetworkExistsAsync(string name, CancellationToken cancellationToken);
-    Task EnsureNetworkAsync(string name, CancellationToken cancellationToken);
-    Task<bool> VolumeExistsAsync(string name, CancellationToken cancellationToken);
-    Task<string> CreateAsync(CreateContainerBody body, CancellationToken cancellationToken);
-    Task StartAsync(string id, CancellationToken cancellationToken);
-    Task<long> WaitAsync(string id, CancellationToken cancellationToken);
-    Task KillAsync(string id, CancellationToken cancellationToken);
-    Task<DockerLogs> LogsAsync(string id, int maxBytes, CancellationToken cancellationToken);
-    Task RemoveAsync(string id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<string>> ListSandboxIdsAsync(CancellationToken cancellationToken);
-    Task<DockerImage?> InspectImageAsync(string name, CancellationToken cancellationToken);
-    Task BuildImageAsync(Stream context, string tag, DockerBuildLimits limits, IReadOnlyDictionary<string, string> labels, Action<string> onLine, CancellationToken cancellationToken);
-    Task RemoveImageAsync(string name, CancellationToken cancellationToken);
-    Task<IReadOnlyList<DockerImageListing>> ListRepoImagesAsync(CancellationToken cancellationToken);
-
-    /// <summary>Removes the image unless a container uses it (not forced). False means it is in use.</summary>
-    Task<bool> RemoveUnusedImageAsync(string name, CancellationToken cancellationToken);
-}
-
-public sealed record DockerImageListing(string Tag, DateTimeOffset Created);
-
-public sealed record DockerImage(string Id, long Size, IReadOnlyDictionary<string, string> Labels);
-
-/// <summary>What one image build may use.</summary>
-public sealed record DockerBuildLimits(long MemoryBytes, double Cpus);
-
-public sealed record DockerLogs(string Stdout, string Stderr, bool Truncated);
 
 /// <summary>Minimal Docker Engine API client over the unix socket; no third-party dependency.</summary>
 public sealed class DockerClient : IDockerClient
@@ -321,97 +282,4 @@ public sealed class DockerClient : IDockerClient
     private sealed record CreateResponse(string Id);
     private sealed record WaitResponse(long StatusCode);
     private sealed record ListItem(string Id);
-}
-
-/// <summary>
-/// Docker multiplexes stdout and stderr into one stream of frames: an 8-byte header (stream id,
-/// three zero bytes, big-endian length) followed by the payload.
-/// </summary>
-public static class LogDemuxer
-{
-    /// <summary>
-    /// Reads the frames and keeps the last <paramref name="maxBytesPerStream"/> bytes of each stream:
-    /// for a long-running command the end (the result, the error) matters more than the start.
-    /// </summary>
-    public static async Task<DockerLogs> ReadAsync(Stream stream, int maxBytesPerStream, CancellationToken cancellationToken)
-    {
-        var stdout = new TailBuffer(maxBytesPerStream);
-        var stderr = new TailBuffer(maxBytesPerStream);
-        var header = new byte[8];
-        var buffer = new byte[8192];
-
-        while (await ReadExactAsync(stream, header, cancellationToken))
-        {
-            var length = (header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7];
-            var target = header[0] == 2 ? stderr : stdout;
-            while (length > 0)
-            {
-                var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, length)), cancellationToken);
-                if (read == 0)
-                {
-                    break;
-                }
-                length -= read;
-                target.Append(buffer, read);
-            }
-        }
-        return new DockerLogs(stdout.Text(), stderr.Text(), stdout.Truncated || stderr.Truncated);
-    }
-
-    private static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer, CancellationToken cancellationToken)
-    {
-        var offset = 0;
-        while (offset < buffer.Length)
-        {
-            var read = await stream.ReadAsync(buffer.AsMemory(offset), cancellationToken);
-            if (read == 0)
-            {
-                return false;
-            }
-            offset += read;
-        }
-        return true;
-    }
-
-    private sealed class TailBuffer(int capacity)
-    {
-        private readonly byte[] data = new byte[capacity];
-        private int start;
-        private int count;
-
-        public bool Truncated { get; private set; }
-
-        public void Append(byte[] source, int length)
-        {
-            if (capacity == 0)
-            {
-                Truncated |= length > 0;
-                return;
-            }
-            for (var i = 0; i < length; i++)
-            {
-                if (count == capacity)
-                {
-                    data[start] = source[i];
-                    start = (start + 1) % capacity;
-                    Truncated = true;
-                }
-                else
-                {
-                    data[(start + count) % capacity] = source[i];
-                    count++;
-                }
-            }
-        }
-
-        public string Text()
-        {
-            var ordered = new byte[count];
-            for (var i = 0; i < count; i++)
-            {
-                ordered[i] = data[(start + i) % capacity];
-            }
-            return Encoding.UTF8.GetString(ordered);
-        }
-    }
 }
