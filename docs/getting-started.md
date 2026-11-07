@@ -139,6 +139,10 @@ docker compose up -d --build controller      # rebuild and restart one service a
 `docker compose down` removes the containers and keeps the data; `docker compose down --volumes` deletes **everything**, including Forgejo's
 repositories, the databases and the OpenCode login.
 
+## Optional: watch a demo production
+
+Once the factory works, [`demo/`](../demo/README.md) runs the weather application from its repository's default branch with monitoring around it. Alerts become tickets, and the factory's incident workflow starts on them. `cd demo && ./setup.sh` prepares everything; alerts are only logged until you ask for real tickets (`./setup.sh --create-tickets`, which spends model tokens).
+
 ## If something does not work
 
 | Symptom | Likely cause and fix |

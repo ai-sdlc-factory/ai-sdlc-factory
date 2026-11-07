@@ -13,6 +13,8 @@ incident advice) in isolated sandboxes, and the factory hands you a **reviewed p
 | `bug` | a pull request with a fix **proven by a test that failed before and passes after**; the factory runs that proof itself |
 | `incident` | an assessment, ranked likely causes (every cited file and commit is verified) and mitigation options, driven by `/option`, `/hotfix` and `/resolved`; a draft postmortem on request. It never touches production |
 
+On top of the labels, people steer with comments on a ticket or pull request: `/fix` (revise the pull request), `/retry` (run a ticket again), `/qa` (test the running application, with `/qa full` and `/fix qa`), and `/option`, `/hotfix` and `/resolved` on incidents. A [demo "production"](demo/README.md) with Prometheus, Grafana and Loki shows the incident side: an alert opens a ticket by itself and the factory starts on it.
+
 Everything is deterministic where it matters: agents only advise with one validated JSON verdict, and code decides every next step. Each agent runs in a throwaway container with no route to the
 internet except an allowlisting proxy. See [Architecture](docs/architecture.md) and [Workflows](docs/workflows.md).
 
@@ -36,6 +38,7 @@ Start at the [documentation index](docs/README.md).
 | [Operations](docs/operations.md) | Watching runs, troubleshooting, cleaning up, backups, security notes |
 | [Design and decisions](docs/design.md) | Why it is built this way, findings from running it, what is not built yet |
 | [Infrastructure](infra/README.md) | Compose services, local addresses, the bot account |
+| [Demo and monitoring](demo/README.md) | A demo production for the weather app with Prometheus, Alertmanager, Grafana and Loki, where alerts open tickets |
 | [Agents](agents/README.md) | The role files, permissions and models |
 | [OpenCode login](docs/opencode-login.md) | Signing the agents in with a ChatGPT account |
 
@@ -44,6 +47,7 @@ Start at the [documentation index](docs/README.md).
 - [`infra/`](infra/README.md): Docker Compose and environment settings.
 - [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and Forgejo handling.
   [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach.
+- [`services/alert-intake/`](services/alert-intake/README.md): turns monitoring alerts into tickets. [`demo/`](demo/README.md): a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose.
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.
 - [`templates/`](templates/README.md): working starter projects (.NET, Python, React, .NET + React) to copy, with every feature switched on.
 - [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).

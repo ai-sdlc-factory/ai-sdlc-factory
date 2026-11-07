@@ -91,3 +91,14 @@ The rules are in `prometheus/rules/weather.yml` and `loki/rules/fake/weather.yml
 - **It is not the factory's sandbox.** The application runs here with normal networking. The factory's agents never get access to it; they see only what a ticket says.
 - **The frontend's API address is built in** (`http://localhost:5080`), so the application is reachable from your browser on this machine only.
 - **Configuration** (ports, repository, branch) is in `demo/.env`; `.env.example` lists the keys. The alert intake's settings are in [the configuration reference](../docs/configuration.md#alert-intake).
+
+## If something does not work
+
+| Symptom | Likely cause and fix |
+| --- | --- |
+| `setup.sh` stops with "error getting credentials" while pulling images | Docker's credential helper failed under many parallel pulls (seen under WSL2). Pull the images one at a time (`docker pull prom/alertmanager:v0.28.1`, and so on for the images in `compose.yaml`), then run `./setup.sh` again |
+| "The Docker network dev-foundry_forge does not exist" | the factory is not running: `cd ../infra && docker compose up -d` |
+| an alert fires but no ticket appears | the intake is in dry run (the Overview says so; `./status.sh` too), or the alert matches no route in `alert-intake/mapping.json`, or the hourly limit is reached: `docker compose logs alert-intake` says which |
+| the intake log shows "unauthorized" or Prometheus shows `AlertIntakeRefusingNotifications` | Alertmanager and the intake do not share the token: run `./setup.sh` again (it rewrites `secrets/intake-token` from `.env`) and `docker compose up -d alertmanager alert-intake` |
+| a panel on a dashboard is empty | give it a minute after a restart; then check Prometheus → Status → Targets: every target must be up |
+| `deploy.sh` says a version does not answer | it rolled back by itself; look at `docker compose logs weather-api` for the failed version |

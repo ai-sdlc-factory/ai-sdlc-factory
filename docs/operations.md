@@ -127,7 +127,7 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 | The janitor never deletes pull request branches or sandbox images that are still in use | by design; see [Cleaning up](#cleaning-up) |
 | No token or spending limits | recorded, not enforced |
 | Pull request revisions | only the factory's own pull requests are revised; the factory cannot resolve conversations (no API), and anyone who can comment on the pull request can start a revision |
-| Incident tickets are written by people | a collector that files them from monitoring waits until there is a production system |
+| Incident tickets come from people, or from the alert intake | the intake only watches the [demo environment](../demo/README.md); watching a real system needs its alerts routed in the intake's `mapping.json`. It opens a ticket only when `ALERT_INTAKE_DRY_RUN` is `false`, and the factory's incident workflow then spends tokens on every one |
 | Unknown keys in `.factory/project.json` are ignored silently | check spelling against the [reference](project-setup.md#reference) |
 | Forgejo only | the router reads Forgejo's webhook format |
 | One controller instance | the workspace folder is local to it; a second controller would need a shared or per-worker workspace |

@@ -95,6 +95,8 @@ The [egress guide](../egress/README.md) describes the network rules in detail; [
 | [`services/controller`](../services/controller) | workflows, agent prompts and parsers, workspace and Forgejo handling |
 | [`services/sandbox-launcher`](../services/sandbox-launcher) | container policy and the Docker client |
 | [`services/egress-proxy`](../services/egress-proxy) | the CONNECT proxy and allowlist policy |
+| [`services/alert-intake`](../services/alert-intake) | turns monitoring alerts into tickets (not part of the factory's Compose stack; the demo runs it) |
+| [`demo/`](../demo) | a demo production with Prometheus, Alertmanager, Grafana and Loki, and the scripts around it |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`egress/`](../egress) | the allowlist (`profiles.json`) |
