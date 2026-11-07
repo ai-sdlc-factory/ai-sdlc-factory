@@ -115,7 +115,7 @@ public static class RevisionComments
     /// (oldest first) its overall text and its comments on lines. Over the limit, the rest is left out and the agent is not told about
     /// it, because it could not answer what it never saw.
     /// </summary>
-    public static IReadOnlyList<RevisionComment> Collect(RevisionRequest request, IReadOnlyList<ReviewDetails> reviews)
+    public static IReadOnlyList<RevisionComment> Collect(RevisionRequest request, IReadOnlyList<ReviewDetails> reviews, IReadOnlyList<string>? qaFindings = null)
     {
         var list = new List<RevisionComment>();
         void Add(string author, string? path, int? line, string? body, string? hunk = null)
@@ -126,7 +126,18 @@ public static class RevisionComments
             }
         }
 
-        Add(request.Author, null, null, request.Instruction);
+        if (QaReportFormat.IsQaFix(request.Instruction))
+        {
+            // `/fix qa`: each finding of the latest QA report is one thing to act on, named as the QA run's.
+            foreach (var finding in qaFindings ?? [])
+            {
+                Add("qa", null, null, finding);
+            }
+        }
+        else
+        {
+            Add(request.Author, null, null, request.Instruction);
+        }
         foreach (var review in reviews)
         {
             // A review's overall text that is the same as the trigger's (the review event carries it) is not listed twice.

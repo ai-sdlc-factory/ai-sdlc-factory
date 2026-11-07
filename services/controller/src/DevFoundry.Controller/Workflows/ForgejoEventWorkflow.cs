@@ -41,6 +41,7 @@ public sealed class ForgejoEventWorkflow
             RoutingAction.StartFeature => StartTicketWorkflowAsync(decision),
             RoutingAction.RevisePullRequest => RevisePullRequestAsync(decision.Revision!),
             RoutingAction.RetryFeature => RetryTicketAsync(decision),
+            RoutingAction.RunQa => StartQaAsync(decision.Qa!),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
@@ -92,6 +93,29 @@ public sealed class ForgejoEventWorkflow
             (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                 new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.RetryWhileRunning)),
             ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+    }
+
+    /// <summary>`/qa`: starts a QA run; a second one for the same ticket or pull request while one is running gets a notice.</summary>
+    private static async Task StartQaAsync(QaRequest qa)
+    {
+        try
+        {
+            await Workflow.StartChildWorkflowAsync(
+                (QaWorkflow workflow) => workflow.RunAsync(qa),
+                new ChildWorkflowOptions
+                {
+                    Id = qa.WorkflowId,
+                    ParentClosePolicy = ParentClosePolicy.Abandon,
+                    IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                });
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaBusy)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
     }
 
     private static async Task RevisePullRequestAsync(RevisionRequest revision)

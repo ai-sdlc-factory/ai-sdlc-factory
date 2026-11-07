@@ -16,6 +16,9 @@ digraph ticket_routing {
   closed  [label="ticket closed\nsignal ticket_closed\n(the run stops)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   rev     [label="PullRequestRevisionWorkflow\nid  revision-<repo>-<pr>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
   prev    [label="a review that requests changes, or\n/fix in a comment, on a pull request\n(the factory checks it is its own)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  qa      [label="QaWorkflow\nid  qa-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  qacmd   [label="/qa  /qa full  /qa api|ui  /qa <note>\non a feature or bug ticket,\nor on the factory's pull request", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  retry   [label="/retry on an open ticket\nstarts the run again, like reopening\n(a notice if one is still running)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   ignored [label="ignored\nother pull request events · factory's own comments\ntickets with none of the three labels", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   reopen  [label="reopened\nstarts a new run\n(label changes alone do nothing)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   forgejo -> api [label="signed webhook"];
@@ -24,8 +27,10 @@ digraph ticket_routing {
   router -> reopen [style=dashed];
   reopen -> kind;
   kind -> iw; kind -> fw; kind -> bw;
-  router -> comment; router -> closed; router -> ignored; router -> prev;
+  router -> comment; router -> closed; router -> ignored; router -> prev; router -> qacmd; router -> retry;
   prev -> rev;
+  qacmd -> qa;
+  retry -> kind [style=dashed];
   comment -> none [label="nobody listening", style=dashed];
   comment -> fw [style=dotted]; comment -> bw [style=dotted]; comment -> iw [style=dotted];
 

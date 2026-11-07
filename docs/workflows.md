@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has three workflows, one per kind of ticket, and a fourth that revises its own pull requests after a review. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has three workflows, one per kind of ticket, a fourth that revises its own pull requests after a review, and a fifth that tests a finished change from the outside on request. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
@@ -11,6 +11,7 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | `bug` | `BugWorkflow` | a **pull request with a fix proven by a test** that failed before and passes after | bug-analyst, reproducer, diagnostician, developer, reviewer, security |
 | `incident` | `IncidentWorkflow` | an **assessment, likely causes and mitigation options** on the ticket; a **draft postmortem** pull request on request | incident-analyst, investigator, mitigator, postmortem-writer |
 | a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
+| **`/qa`** on a ticket or on a factory pull request | `QaWorkflow` | a **QA report** on the ticket; end-to-end API and UI tests added to the pull request when they pass | e2e-tester, ux |
 
 If a ticket has several of these labels, `incident` wins over `feature`, which wins over `bug`. The labels `quick`, `full` and
 `needs-architecture` change how a feature or bug run behaves ([Quick mode](#quick-mode)).
@@ -28,6 +29,7 @@ answer:
 | the same event again for a ticket that already had a run | ignored. Comment **`/retry`** (or close and reopen the ticket) to run it again; a new run starts from the beginning and reads the whole ticket again |
 | a **comment** by a person | sent to the running workflow (signal `human_reply`); see [Talking to the factory](#talking-to-the-factory) |
 | a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
+| a comment with a line starting **`/qa`** (`/qa [full] [api|ui] [note]`), on a feature or bug ticket or on a factory pull request | starts a [QA run](#qa-run) (id `qa-<owner>-<repo>-<number>-<hash>`); a second one for the same number while one runs gets a notice |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
 | comments written by the factory | ignored (they carry a hidden marker), so it never answers itself |
 | a review that **requests changes**, or a comment with **`/fix`**, on a pull request | starts a [revision](#pull-request-revisions) of that pull request (id `revision-<owner>-<repo>-<pr>-<hash>`); if one is already running the person gets a notice. The factory checks that the pull request is its own |
@@ -186,6 +188,48 @@ The factory cannot mark conversations resolved or reply inside a comment's conve
 to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
 With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
 
+## QA run
+
+![QA run](images/qa-workflow.svg)
+
+A deeper test of a change that is already finished, started by a person with a comment on the ticket or on the factory's pull request. The command is a line starting with `/qa`:
+
+| You write | What happens |
+| --- | --- |
+| `/qa` | the tester covers **this pull request's change**: each acceptance criterion, and the edges around it. It is told not to spend effort elsewhere |
+| `/qa full` | the **whole application and the change**: the criteria first, then the other main flows and endpoints, so the tests also work as a regression suite |
+| `/qa api`, `/qa ui`, `/qa full ui` | run only that suite (the words can come in either order, `full` and the suite first) |
+| `/qa <your note>` | the note, and any lines below it, are given to the tester to take into account, for example `/qa focus on the 404 cases` or `/qa full api check what happens with an empty city id`. Up to 1,500 characters; it is data from a person, not instructions that change the tester's role |
+
+The report names the scope and repeats your note.
+  The project must have [`verify`](project-setup.md#end-to-end-checks-verify) settings; without them the ticket
+gets an answer that says how to add them.
+
+| Step | Who | What is checked |
+| --- | --- | --- |
+| 1 | code | the pull request exists, is open, is the factory's own (branch `factory/issue-<n>`, author the bot, same repository) and the project has the suite asked for |
+| 2 | `e2e-tester` (reads, edits, runs commands, like the developer) | starts the application as `verify.start` says, tries it from the outside, and writes API and/or UI tests under `verify.tests` (the same sandbox settings as the developer: model and package registries, nothing else) |
+| 3 | code | only files under the tests folder changed; no deletions, no secrets, no protected files. Anything else goes back to the tester |
+| 4 | **the factory** | runs each suite itself in a fresh sandbox **without the model login**: starts the application, waits for `verify.ready`, runs the suite, stops the application. Pass and fail are facts; the tester's word is not used |
+| 5 | `e2e-tester` again, up to 3 attempts | after a failing run it sees the output and says for each failing test whether it is an `application_bug` (keep the test) or a `test_problem` (fix it). If all it names are application bugs, the loop stops |
+| 6 | `ux` | when a `ui` suite ran, reads the page text and accessibility snapshots the tests left in `<tests>/evidence/` (removed before anything is pushed) and the repository's UI code |
+| 7 | code | if **every** suite passed, the tests are pushed to the pull request as **one commit**; otherwise they are saved to a work-in-progress branch and **not** added, so a wrong test never reaches the pull request |
+| 8 | code | posts the report on the ticket |
+
+The report lists each suite's result, the scenarios, where the tests went, the UX review, the numbered **findings to fix**, and the tokens the agents of the run used. A finding is
+the tester's own observation or a failing test; a failing test is a fact, but it can still be a wrong test, so a person decides.
+
+Comment **`/fix qa`** on the pull request to have the [revision flow](#pull-request-revisions) address the findings of the latest QA report (each finding is one comment to act on).
+The tests folder is a protected path in every other run, so the developer cannot weaken the tests that judge its work; only the QA run writes there.
+
+If the application does not start, the report says so as a blocking finding and the other suites are not tried. A sandbox that fails for the factory's own reasons ends the run with
+`infrastructure_failed` ([When the factory itself fails](#when-the-factory-itself-fails)), and `/retry` is not needed: comment `/qa` again.
+
+**Run record.** With `"record": true` the tester's and the UX reviewer's steps (what they were told and answered, with their tokens) and each suite's output are recorded, and committed under `.factory/runs/qa-<number>-<run>/` together with the tests commit (or the `-wip` branch). A QA run that ends without either (blocked, not configured, the app never started) commits no record.
+
+**Tokens.** Every workflow now keeps the total token use of its agents in the workflow result (`usage`, visible in Temporal whatever the project's `record` setting); the QA report also
+shows it, and with `record: true` the per-step numbers are in the run record.
+
 ## When the factory itself fails
 
 Some failures say nothing about the ticket or the agent's work: a sandbox stopped reporting progress (heartbeat timeout), the launcher did not pick the run up, or Docker refused to start a container. The controller tells these apart from the rest (`InfrastructureFailure`): a timeout of a sandbox activity, or a `Docker` error from the launcher. A rejected request (unknown image, bad command) or a missing login is not one of them, because running it again changes nothing.
@@ -269,6 +313,11 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
+| `qa_reported` | qa: the report is on the ticket (the tests that passed are on the pull request, or saved to a `-wip` branch) |
+| `qa_blocked` | qa: the tester could not write tests it could stand behind (the reason is on the ticket) |
+| `qa_failed` | qa: the tester's answer stayed unusable after the retry |
+| `qa_not_configured` | qa: the project has no `verify` settings, or not the suite that was asked for |
+| `qa_no_pull_request` | qa: there is no open pull request of the factory for this ticket |
 | `infrastructure_failed` | a part of the factory's own machinery failed (a sandbox stopped reporting progress, the launcher or Docker was unavailable); the ticket says so and that `/retry` runs it again (saved if code existed) |
 | `image_failed` | the repository's own `.factory/Dockerfile` could not be read or built (see [a project's own image](project-setup.md#a-projects-own-image)) |
 | `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |

@@ -210,6 +210,8 @@ public sealed class ExistingBranchTests : IDisposable
     public void The_record_of_a_revision_has_its_own_folder_named_after_the_pull_request()
     {
         Assert.Equal(".factory/runs/pr-7-0123abcd", RunRecord.DirectoryForRevision(7, "0123ABCD-ffff"));
+        Assert.Equal(".factory/runs/qa-7-0123abcd", RunRecord.DirectoryForQa(7, "0123ABCD-ffff"));
+        Assert.True(RunRecord.IsValidDirectory(RunRecord.DirectoryForQa(7, "0123ABCD-ffff")));
         Assert.True(RunRecord.IsValidDirectory(RunRecord.DirectoryForRevision(7, "0123ABCD-ffff")));
     }
 }

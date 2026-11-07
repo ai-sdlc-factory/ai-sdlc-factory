@@ -311,6 +311,30 @@ public static class TicketComments
         "No factory run is active for this ticket (it has finished, or was never started), so this comment was not used. " +
         "To run it again, comment `/retry` (or close and reopen the ticket); update the ticket text first if the requirements changed.";
 
+    /// <summary>`/qa` on a ticket with no open pull request of the factory.</summary>
+    public const string QaNoPullRequest =
+        "I could not find an open pull request made by the factory for this ticket, so there is nothing to test. `/qa` works once the pull request is open.";
+
+    public const string QaClosed = "This pull request is closed or merged, so I did not run QA on it.";
+
+    public const string QaNotConfigured =
+        "This project has no `verify` settings in `.factory/project.json`, so I do not know how to start the application or run end-to-end tests. " +
+        "Add them on the default branch (see the project setup guide), merge that into the pull request's branch, then comment `/qa` again.";
+
+    public static string QaSuiteMissing(string requested, IEnumerable<string> configured) =>
+        $"This project has no `{requested}` suite in `verify.suites`. It has: {string.Join(", ", configured.Select(name => $"`{name}`"))}.";
+
+    public static string QaBlocked(string summary) =>
+        $"**QA: the tester could not write tests it could stand behind**\n\n{Inert(summary.Length > 1500 ? summary[..1500] + "..." : summary)}";
+
+    /// <summary>`/fix qa` when no QA report with findings can be found.</summary>
+    public const string QaNothingToFix =
+        "I could not find a QA report with findings to fix on this ticket or pull request. Run `/qa` first, or say what to change after `/fix`.";
+
+    /// <summary>`/qa` while a QA run for the same ticket or pull request is still going.</summary>
+    public const string QaBusy =
+        "A QA run is already going for this one. Its report will be posted here when it is done.";
+
     /// <summary>`/retry` on a ticket whose run is still going.</summary>
     public const string RetryWhileRunning =
         "A factory run is still active for this ticket, so `/retry` was not needed. It works once the run has finished.";

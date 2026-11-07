@@ -37,7 +37,7 @@ Items 4 and 8 are also on your list above (the planner and the "factory improvem
 
 ## Other ideas we discussed
 
-- [ ] **Browser image and end-to-end spike** (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
+- [x] **Browser image and end-to-end spike** (done: the `browser` image runs Chromium in the locked-down sandbox, see [QA run](workflows.md#qa-run); whether OpenCode can take a screenshot as input is still open, so the UX review reads page text and accessibility snapshots). Original item (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
   and whether OpenCode can take a screenshot as input. Prerequisite for the scheduled UI check and for UI bugs that can be reproduced with a test.
 - [ ] **Token and spending limits** (M). A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps from a host-side usage log, and recognition of the provider's usage-limit errors so a run stops cleanly.
 - [ ] **Warn on unknown keys in `.factory/project.json`** (S). Today a misspelled optional key is silently ignored.

@@ -1,0 +1,270 @@
+using Temporalio.Exceptions;
+
+namespace DevFoundry.Controller.Tests.Scenarios;
+
+/// <summary>The /qa run: a tester agent writes end-to-end tests, the factory runs the suites itself, and the report goes on the ticket.</summary>
+[Collection("temporal")]
+[Trait("Category", "Scenario")]
+public sealed class QaScenarios(TemporalFixture fixture)
+{
+    private const string ApiConfig =
+        """{"image":"node","gates":[{"name":"test","command":["npm","test"]}],"verify":{"tests":"e2e","suites":[{"name":"api","command":["npm","run","e2e:api"]}]}}""";
+
+    private const string BothConfig =
+        """{"image":"node","gates":[{"name":"test","command":["npm","test"]}],"verify":{"tests":"e2e","suites":[{"name":"api","command":["npm","run","e2e:api"]},{"name":"ui","command":["npm","run","e2e:ui"]}]}}""";
+
+    private static string Say(string text) => text;
+
+    private static AgentReply Reply(string text) => AgentReply.Says(text);
+
+    private static ChangeReport Tests(params string[] paths) =>
+        new(paths.Select(path => new FileChange(path, FileChange.Added)).ToList(), []);
+
+    // The tests the tester wrote are seen twice: when its attempt is checked, and again before they are pushed (what the suites left behind).
+    private static FakeWorld Api(string config = ApiConfig) => new FakeWorld { ProjectConfig = config }.Changes(Tests("e2e/api/goodbye.test"), Tests("e2e/api/goodbye.test"));
+
+    private static string Report(FakeWorld world) => Assert.Single(world.Comments, c => c.Contains(QaReportFormat.Marker));
+
+    [SkippableFact]
+    public async Task Passing_tests_are_pushed_onto_the_pull_request_and_the_report_says_what_was_used()
+    {
+        var world = Api().Agent("e2e-tester", Reply(Answers.Tester()));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.Equal(175, result.Usage!.Total); // what the scripted step reported; kept in Temporal for every run
+        Assert.Equal(100, result.Usage.Input);
+        var prepare = Assert.Single(world.PrepareRequests);
+        Assert.True(prepare.ExistingBranch);
+        Assert.Equal("factory/issue-7", prepare.Branch);
+        var call = Assert.Single(world.Calls("e2e-tester"));
+        Assert.True(call.Writable);
+        Assert.Equal(SandboxNetworks.Developer, call.Network);
+        Assert.Contains("goodbye() returns the text.", call.Prompt);
+        Assert.Contains("npm run e2e:api", call.Prompt);
+        Assert.Equal(["npm run e2e:api"], world.Snapshot(world.CheckCalls).Where(c => c.StartsWith("npm run e2e")).ToList());
+        var publish = Assert.Single(world.Publishes);
+        Assert.True(publish.UpdateExistingBranch);
+        Assert.StartsWith("Add end-to-end tests for #7", publish.Message);
+        Assert.Empty(world.Rescues);
+        var report = Report(world);
+        Assert.Contains("no problems found", report);
+        Assert.Contains("api: passed, 1 scenario", report);
+        Assert.Contains("were added to the pull request in one commit", report);
+        Assert.Contains("Tokens used by the agents of this run: 175 (input 100, output 20, reasoning 5, cache read 50) in 1 model step.", report);
+        Assert.DoesNotContain(QaReportFormat.FindingsHeading, report);
+        Assert.Empty(world.Problems);
+    }
+
+    [SkippableFact]
+    public async Task The_scope_and_the_note_reach_the_tester_and_are_named_in_the_report()
+    {
+        var world = Api().Agent("e2e-tester", Reply(Answers.Tester()));
+        var request = ScenarioContext.Qa() with { Mode = QaRequest.Full, Note = "look at the empty city id" };
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(request));
+
+        Assert.Equal("qa_reported", result.Status);
+        var prompt = Assert.Single(world.Calls("e2e-tester")).Prompt;
+        Assert.Contains("Scope: the whole application and this pull request's change", prompt);
+        Assert.Contains("look at the empty city id", prompt);
+        var report = Report(world);
+        Assert.Contains("**Scope:** the whole application and this pull request's change.", report);
+        Assert.Contains("**Your note:** look at the empty city id", report);
+    }
+
+    [SkippableFact]
+    public async Task A_failing_suite_goes_back_to_the_tester_and_a_real_bug_is_reported_with_the_tests_saved_not_pushed()
+    {
+        const string bug = """[{"test":"goodbye returns the text","verdict":"application_bug","explanation":"The endpoint returns Hello."}]""";
+        var world = Api()
+            .Agent("e2e-tester", Reply(Answers.Tester()), Reply(Answers.Tester(assessments: bug)))
+            .Changes(Tests("e2e/api/goodbye.test"))
+            .Check("npm run e2e:api", FakeWorld.Fails("expected Goodbye but got Hello"), FakeWorld.Fails("expected Goodbye but got Hello"));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.Equal(2, world.Calls("e2e-tester").Count());
+        Assert.Contains("expected Goodbye but got Hello", world.Calls("e2e-tester").ElementAt(1).Prompt);
+        Assert.Contains("application_bug", world.Calls("e2e-tester").ElementAt(1).Prompt);
+        Assert.Empty(world.Publishes); // a failing test never reaches the pull request
+        Assert.Single(world.Rescues);
+        var report = Report(world);
+        Assert.Contains("1 finding", report);
+        Assert.Contains("api: failed (exit code 1)", report);
+        Assert.Contains("were **not** added to the pull request", report);
+        Assert.Contains(QaReportFormat.FindingsHeading, report);
+        Assert.Equal(
+            ["[major] Test goodbye returns the text fails because of the application: The endpoint returns Hello."],
+            QaReportFormat.ExtractFindings(report));
+        Assert.Contains("`/fix qa`", report);
+    }
+
+    [SkippableFact]
+    public async Task Files_the_suites_write_outside_the_tests_folder_keep_the_tests_off_the_pull_request()
+    {
+        var world = new FakeWorld { ProjectConfig = ApiConfig }.Agent("e2e-tester", Reply(Answers.Tester()))
+            .Changes(Tests("e2e/api/goodbye.test"), new ChangeReport([new FileChange("e2e/api/goodbye.test", FileChange.Added), new FileChange("test-results/trace.zip", FileChange.Added)], []));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.Empty(world.Publishes);
+        Assert.Single(world.Rescues);
+        var report = Report(world);
+        Assert.Contains("were **not** added to the pull request", report);
+        Assert.Contains("wrote files outside e2e/ (test-results/trace.zip)", report);
+        Assert.Contains("api: passed", report);
+    }
+
+    [SkippableFact]
+    public async Task A_wrong_test_is_fixed_by_the_tester_and_then_passes()
+    {
+        const string wrong = """[{"test":"goodbye returns the text","verdict":"test_problem","explanation":"Wrong selector, fixed."}]""";
+        var world = Api()
+            .Agent("e2e-tester", Reply(Answers.Tester()), Reply(Answers.Tester(assessments: wrong)))
+            .Changes(Tests("e2e/api/goodbye.test"))
+            .Check("npm run e2e:api", FakeWorld.Fails("selector not found"), FakeWorld.Passes());
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.Single(world.Publishes);
+        Assert.Empty(world.Rescues);
+        Assert.Contains("no problems found", Report(world));
+    }
+
+    [SkippableFact]
+    public async Task Changes_outside_the_tests_folder_are_sent_back_and_never_run()
+    {
+        var world = new FakeWorld { ProjectConfig = ApiConfig }
+            .Agent("e2e-tester", Reply(Answers.Tester()), Reply(Answers.Tester()))
+            .Changes(new ChangeReport([new FileChange("e2e/api/goodbye.test", FileChange.Added), new FileChange("src/app.js", FileChange.Modified)], []), Tests("e2e/api/goodbye.test"), Tests("e2e/api/goodbye.test"));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.Contains("You changed files outside e2e/: src/app.js", world.Calls("e2e-tester").ElementAt(1).Prompt);
+        Assert.Contains(world.Comments, c => c.Contains("QA attempt 1: the tester's changes were not accepted"));
+        Assert.Single(world.Snapshot(world.CheckCalls).Where(c => c.StartsWith("npm run e2e")).ToList()); // only the accepted attempt ran
+        Assert.Single(world.Publishes);
+    }
+
+    [SkippableFact]
+    public async Task A_tester_that_cannot_write_tests_says_so_and_nothing_is_run()
+    {
+        var world = Api().Agent("e2e-tester", Reply(Answers.Tester("blocked")));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_blocked", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("could not write tests") && c.Contains("does not run here"));
+        Assert.Empty(world.Publishes);
+        Assert.DoesNotContain(world.Snapshot(world.CheckCalls), c => c.StartsWith("npm run e2e"));
+    }
+
+    [SkippableFact]
+    public async Task A_project_without_verify_settings_is_told_how_to_add_them()
+    {
+        var world = new FakeWorld();
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_not_configured", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("no `verify` settings"));
+        Assert.Empty(world.AgentCalls);
+    }
+
+    [SkippableFact]
+    public async Task Asking_for_a_suite_the_project_does_not_have_names_the_ones_it_has()
+    {
+        var world = Api();
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa("ui")));
+
+        Assert.Equal("qa_not_configured", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("no `ui` suite") && c.Contains("`api`"));
+        Assert.Empty(world.AgentCalls);
+    }
+
+    [SkippableFact]
+    public async Task A_ticket_with_no_open_pull_request_of_the_factory_gets_an_answer()
+    {
+        var world = Api();
+        world.QaContext = new QaContext(null, "factory-bot");
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_no_pull_request", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("could not find an open pull request"));
+        Assert.Empty(world.PrepareRequests);
+    }
+
+    [SkippableFact]
+    public async Task A_pull_request_that_is_not_the_factorys_is_left_alone_without_a_word()
+    {
+        var world = Api();
+        world.QaContext = new QaContext(FakeWorld.FactoryPullRequest(author: "alice").Pull, "factory-bot");
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa(onPullRequest: true)));
+
+        Assert.Equal("ignored", result.Status);
+        Assert.Empty(world.Comments);
+        Assert.Empty(world.PrepareRequests);
+    }
+
+    [SkippableFact]
+    public async Task A_sandbox_that_fails_for_the_factorys_own_reasons_ends_the_run_with_a_way_to_retry()
+    {
+        var world = Api().Agent("e2e-tester", Reply(Answers.Tester()))
+            .CheckThrows("npm run e2e:api", new ApplicationFailureException("starting the sandbox failed: docker is down", errorType: "Docker", nonRetryable: true));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("infrastructure_failed", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("could not run because of the factory itself") && c.Contains("/retry"));
+        Assert.Empty(world.Publishes);
+        Assert.DoesNotContain(world.Comments, c => c.Contains(QaReportFormat.Marker));
+    }
+
+    [SkippableFact]
+    public async Task The_ui_suite_leaves_evidence_for_a_ux_review_which_is_part_of_the_report_and_is_never_pushed()
+    {
+        ProjectConfigParser.TryParse(BothConfig, out var project, out _);
+        var verify = project!.Verify!;
+        var world = new FakeWorld { ProjectConfig = BothConfig }
+            .Changes(Tests("e2e/api/goodbye.test", "e2e/ui/goodbye.spec"), Tests("e2e/api/goodbye.test", "e2e/ui/goodbye.spec"), Tests("e2e/api/goodbye.test", "e2e/ui/goodbye.spec"))
+            .Agent("e2e-tester", Reply(Answers.Tester(suite: "ui")))
+            .Agent("ux", Reply(Answers.Review(("major", "The button has no label."))))
+            .Check(string.Join(' ', VerifyScript.ReadEvidence(verify)), new SandboxRunResult(0, false, "=== e2e/evidence/home.txt\nheading: Weather\nbutton: (no label)\n", "", false));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        var ux = Assert.Single(world.Calls("ux"));
+        Assert.False(ux.Writable);
+        Assert.Equal(SandboxNetworks.Model, ux.Network);
+        Assert.Contains("button: (no label)", ux.Prompt);
+        Assert.Contains("<<<EVIDENCE", ux.Prompt);
+        Assert.Contains(world.Snapshot(world.CheckCalls), c => c == "rm -rf -- e2e/evidence"); // removed before anything is pushed
+        var report = Report(world);
+        Assert.Contains("UX review: changes needed", report);
+        Assert.Contains("[major] UX", report);
+        Assert.Contains("The button has no label.", QaReportFormat.ExtractFindings(report).Single());
+    }
+
+    [SkippableFact]
+    public async Task The_tests_folder_is_protected_for_a_feature_run_but_not_for_the_qa_run()
+    {
+        var feature = new FakeWorld { ProjectConfig = ApiConfig }.Agent("analyst", Reply(Answers.Analyst("reject")));
+        await feature.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        var qa = Api().Agent("e2e-tester", Reply(Answers.Tester("blocked")));
+        await qa.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal(["e2e/**"], Assert.Single(feature.ProtectedPathRequests).Patterns);
+        Assert.Empty(qa.ProtectedPathRequests);
+    }
+}

@@ -107,4 +107,19 @@ public static class Statuses
 
     /// <summary>nobody answered for 7 days.</summary>
     public const string TimedOut = "timed_out";
+
+    /// <summary>qa: the tester could not write tests it could stand behind (the reason is on the ticket).</summary>
+    public const string QaBlocked = "qa_blocked";
+
+    /// <summary>qa: the tester's answer could not be used, even after one retry.</summary>
+    public const string QaFailed = "qa_failed";
+
+    /// <summary>qa: the project has no <c>verify</c> settings, or not the suite that was asked for.</summary>
+    public const string QaNotConfigured = "qa_not_configured";
+
+    /// <summary>qa: there is no open pull request of the factory for this ticket.</summary>
+    public const string QaNoPullRequest = "qa_no_pull_request";
+
+    /// <summary>qa: the report is on the ticket (the tests that passed are on the pull request, or saved to a -wip branch).</summary>
+    public const string QaReported = "qa_reported";
 }

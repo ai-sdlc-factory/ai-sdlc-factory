@@ -63,7 +63,7 @@ public abstract partial class FactoryWorkflowBase
     {
         await CommentAsync(request,
             $"The project's sandbox image could not be used, so I stopped: {TicketComments.Inert(Short(reason))}\n\n" +
-            $"Fix `.factory/Dockerfile` on the default branch, then {(request.Kind == WorkIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
+            $"Fix `.factory/Dockerfile` on the default branch, then {AskAgain(request)}");
         return new WorkResult(Statuses.ImageFailed);
     }
 }

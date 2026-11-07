@@ -29,6 +29,7 @@ public static class WorkIds
     public const string Bug = "bug";
     public const string Incident = "incident";
     public const string Revision = "revision";
+    public const string Qa = "qa";
 
     private const int MaxReadable = 80;
 

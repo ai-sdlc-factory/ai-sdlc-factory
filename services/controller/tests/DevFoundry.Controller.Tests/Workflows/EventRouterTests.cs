@@ -151,6 +151,62 @@ public sealed class EventRouterTests
         Assert.Equal(RoutingAction.Ignore, own.Action);
     }
 
+    [Theory]
+    [InlineData("/qa", null, "focused", null)]
+    [InlineData("  /QA  ", null, "focused", null)]
+    [InlineData("/qa api", "api", "focused", null)]
+    [InlineData("/qa UI", "ui", "focused", null)]
+    [InlineData("Ready for testing.\n/qa ui", "ui", "focused", null)]
+    [InlineData("/qa full", null, "full", null)]
+    [InlineData("/qa full api", "api", "full", null)]
+    [InlineData("/qa api full", "api", "full", null)]
+    [InlineData("/qa focus on the 404 cases", null, "focused", "focus on the 404 cases")]
+    [InlineData("/qa api look at validation\nand the empty city", "api", "focused", "look at validation\nand the empty city")]
+    [InlineData("/qa full check the redis fallback too", null, "full", "check the redis fallback too")]
+    [InlineData("/qa full full", null, "full", "full")]
+    public void Qa_on_a_feature_ticket_starts_a_qa_run_for_that_ticket(string body, string? suite, string mode, string? note)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment(body) })));
+
+        Assert.Equal(RoutingAction.RunQa, decision.Action);
+        Assert.Equal(new QaRequest("acme", "shop", 7, false, suite, "bob", mode, note), decision.Qa);
+    }
+
+    [Theory]
+    [InlineData("please /qa")]
+    [InlineData("/qapi")]
+    [InlineData("/qa-later")]
+    public void Anything_but_a_qa_command_at_the_start_of_a_line_is_an_ordinary_comment(string body)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment(body) })));
+        Assert.Equal(RoutingAction.ReplyToFeature, decision.Action);
+    }
+
+    [Fact]
+    public void A_very_long_note_is_cut()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment("/qa " + new string('x', 5000)) })));
+
+        Assert.Equal(QaCommand.MaxNote, decision.Qa!.Note!.Length);
+    }
+
+    [Fact]
+    public void Qa_is_for_feature_and_bug_tickets_only_and_never_from_the_factorys_own_comments()
+    {
+        var bug = EventRouter.Decide(Event("issue_comment", Ticket("created", ["bug"], more: new { comment = Comment("/qa") })));
+        var incident = EventRouter.Decide(Event("issue_comment", Ticket("created", ["incident"], more: new { comment = Comment("/qa") })));
+        var question = EventRouter.Decide(Event("issue_comment", Ticket("created", ["question"], more: new { comment = Comment("/qa") })));
+        var own = EventRouter.Decide(Event("issue_comment", Ticket("created", more: new { comment = Comment($"{EventRouter.BotMarker}\n/qa", "factory-bot") })));
+
+        Assert.Equal(RoutingAction.RunQa, bug.Action);
+        Assert.Equal(RoutingAction.Ignore, incident.Action);
+        Assert.Equal(RoutingAction.Ignore, question.Action);
+        Assert.Equal(RoutingAction.Ignore, own.Action);
+    }
+
     [Fact]
     public void The_factorys_own_comments_are_ignored()
     {
@@ -242,6 +298,28 @@ public sealed class EventRouterTests
 
     private static string PullComment(string body, string eventUser = "bob") =>
         Ticket("created", [], more: new { comment = new { body, user = new { login = eventUser } }, is_pull = true }).Replace("\"pull_request\":null", "\"pull_request\":{\"merged\":false}");
+
+    [Theory]
+    [InlineData("/qa", null, "focused", null)]
+    [InlineData("/qa api", "api", "focused", null)]
+    [InlineData("Looks done.\n/qa ui", "ui", "focused", null)]
+    [InlineData("/qa full ui the settings page", "ui", "full", "the settings page")]
+    public void Qa_on_a_pull_request_starts_a_qa_run_for_that_pull_request(string body, string? suite, string mode, string? note)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment(body)));
+
+        Assert.Equal(RoutingAction.RunQa, decision.Action);
+        Assert.Equal(new QaRequest("acme", "shop", 7, true, suite, "bob", mode, note), decision.Qa);
+    }
+
+    [Fact]
+    public void Fix_qa_on_a_pull_request_is_a_revision_whose_instruction_is_qa()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment("/fix qa")));
+
+        Assert.Equal(RoutingAction.RevisePullRequest, decision.Action);
+        Assert.Equal("qa", decision.Revision!.Instruction);
+    }
 
     [Theory]
     [InlineData("issue_comment")]

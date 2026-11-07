@@ -124,7 +124,7 @@ def check_settings() -> None:
 
 def check_project_keys() -> None:
     guide = read(ROOT / "docs/project-setup.md")
-    source = read(ROOT / "services/controller/src/DevFoundry.Controller/Project/ProjectConfig.cs")
+    source = "\n".join(read(path) for path in sorted((ROOT / "services/controller/src/DevFoundry.Controller/Project").glob("*.cs")))
     project_keys = sorted(set(re.findall(r'TryGetProperty\("([a-z_]+)"', source)))
     checked["project.json keys"] = len(project_keys)
     for key in project_keys:

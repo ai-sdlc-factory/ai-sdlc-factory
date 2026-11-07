@@ -11,6 +11,7 @@ public sealed class JanitorRulesTests
     [InlineData("bug-acme-shop-2-abc", true)]
     [InlineData("incident-acme-shop-3-abc", true)]
     [InlineData("revision-acme-shop-4-abc", true)]
+    [InlineData("qa-acme-shop-4-abc", true)]
     [InlineData("my-own-folder", false)]
     [InlineData("backup", false)]
     [InlineData("features", false)]

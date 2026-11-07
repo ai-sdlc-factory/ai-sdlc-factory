@@ -10,6 +10,7 @@ public enum RoutingAction
     CloseFeature,
     RevisePullRequest,
     RetryFeature,
+    RunQa,
 }
 
 public sealed record RoutingDecision(
@@ -18,7 +19,8 @@ public sealed record RoutingDecision(
     WorkRequest? Feature = null,
     HumanReply? Reply = null,
     bool Restart = false,
-    RevisionRequest? Revision = null);
+    RevisionRequest? Revision = null,
+    QaRequest? Qa = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
@@ -107,6 +109,14 @@ public static partial class EventRouter
                 {
                     return Ignore("comment written by the factory");
                 }
+                if (QaCommand.Parse(body) is { } qa)
+                {
+                    // Only the factory's feature and bug tickets have a pull request to test.
+                    return kind is WorkIds.Feature or WorkIds.Bug
+                        ? new RoutingDecision(RoutingAction.RunQa, "qa command on a ticket",
+                            Qa: new QaRequest(owner, repo, issueNumber, false, qa.Suite, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", qa.Mode, qa.Note))
+                        : Ignore("qa needs a feature or bug ticket");
+                }
                 // `/retry` starts the ticket's run again, like closing and reopening it, without touching the ticket.
                 if (RetryCommand().IsMatch(body))
                 {
@@ -157,6 +167,11 @@ public static partial class EventRouter
         if (body.Contains(BotMarker, StringComparison.Ordinal))
         {
             return Ignore("comment written by the factory");
+        }
+        if (QaCommand.Parse(body) is { } qa)
+        {
+            return new RoutingDecision(RoutingAction.RunQa, "qa command on a pull request",
+                Qa: new QaRequest(owner, repo, pullNumber, true, qa.Suite, AsString(Get(Get(comment, "user"), "login")) ?? "", qa.Mode, qa.Note));
         }
         var match = FixCommand().Match(body);
         if (!match.Success)

@@ -87,7 +87,7 @@ public abstract partial class FactoryWorkflowBase
                 ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
             if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
             {
-                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == WorkIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
+                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {AskAgain(request)}");
                 return new WorkResult(Statuses.NeedsConfig);
             }
 
@@ -98,7 +98,13 @@ public abstract partial class FactoryWorkflowBase
             maxBuildRounds = limits.BuildRounds;
             maxClarificationRounds = limits.ClarificationRounds;
             maxRevisionsPerPullRequest = limits.RevisionsPerPullRequest;
-            if (project.ProtectedPaths is { Count: > 0 } extraProtected)
+            var extraProtected = (project.ProtectedPaths ?? []).ToList();
+            if (project.Verify is { } verify && request.Kind != WorkIds.Qa)
+            {
+                // The end-to-end tests are written by the /qa run only; the developer must not be able to weaken what judges its work.
+                extraProtected.Add(verify.ProtectedPattern);
+            }
+            if (extraProtected.Count > 0)
             {
                 await Workflow.ExecuteActivityAsync(
                     (WorkspaceActivities activities) => activities.SetProtectedPathsAsync(new ProtectedPathsRequest(request.WorkflowId, extraProtected)),
@@ -114,9 +120,13 @@ public abstract partial class FactoryWorkflowBase
 
             if (project.Record)
             {
-                recordDirectory = request.Kind == WorkIds.Revision
-                    ? RunRecord.DirectoryForRevision(request.IssueNumber, Workflow.Info.RunId ?? "run")
-                    : RunRecord.DirectoryFor(request.IssueNumber, Workflow.Info.RunId ?? "run");
+                var runId = Workflow.Info.RunId ?? "run";
+                recordDirectory = request.Kind switch
+                {
+                    WorkIds.Revision => RunRecord.DirectoryForRevision(request.IssueNumber, runId),
+                    WorkIds.Qa => RunRecord.DirectoryForQa(request.IssueNumber, runId),
+                    _ => RunRecord.DirectoryFor(request.IssueNumber, runId),
+                };
             }
 
             WorkResult result;
@@ -133,7 +143,8 @@ public abstract partial class FactoryWorkflowBase
                 result = new WorkResult(infrastructure ? Statuses.InfrastructureFailed : Statuses.Error);
             }
             await NoteUnusedCommentsAsync(request, result);
-            return await SaveUnfinishedWorkAsync(request, result);
+            result = await SaveUnfinishedWorkAsync(request, result);
+            return result with { Usage = TotalUsage };
         }
         finally
         {
@@ -205,6 +216,14 @@ public abstract partial class FactoryWorkflowBase
         return rescue.Saved ? result with { WorkBranch = rescue.Branch } : result;
     }
 
+    /// <summary>How a person starts this kind of run again, for the messages that say "fix it, then ...".</summary>
+    protected static string AskAgain(WorkRequest request) => request.Kind switch
+    {
+        WorkIds.Revision => "ask again with `/fix`.",
+        WorkIds.Qa => "comment `/qa` again.",
+        _ => "close and reopen this ticket.",
+    };
+
     protected const string NoConfigMessage =
         "This repository has no `.factory/project.json`, so I do not know which sandbox image or checks to use. " +
         "Add one on the default branch, for example:\n\n```json\n" +
@@ -215,7 +234,7 @@ public abstract partial class FactoryWorkflowBase
     /// The network each agent role gets: the developer may also fetch packages, every other agent can reach only
     /// the model provider. Which hosts a profile allows is decided in egress/profiles.json, not here.
     /// </summary>
-    public static string NetworkFor(string role) => role is "developer" or "reproducer" or "pr-resolver" ? SandboxNetworks.Developer : SandboxNetworks.Model;
+    public static string NetworkFor(string role) => role is "developer" or "reproducer" or "pr-resolver" or "e2e-tester" ? SandboxNetworks.Developer : SandboxNetworks.Model;
 
     protected const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";

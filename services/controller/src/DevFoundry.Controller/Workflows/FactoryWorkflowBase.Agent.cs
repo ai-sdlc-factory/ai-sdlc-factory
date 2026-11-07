@@ -7,6 +7,11 @@ namespace DevFoundry.Controller;
 public abstract partial class FactoryWorkflowBase
 {
     /// <param name="Infrastructure">The run failed because of the factory's own machinery (see <see cref="InfrastructureFailure"/>), so asking again may work.</param>
+    private readonly List<TokenUsage> usages = [];
+
+    /// <summary>Everything the agents of this run have used so far, or null if none has run (or none reported).</summary>
+    protected TokenUsage? TotalUsage => usages.Count == 0 ? null : TokenUsage.Sum(usages);
+
     protected sealed record AgentOutcome<T>(T? Value, bool NotSignedIn, string? Problem, bool Infrastructure = false) where T : class
     {
         /// <summary>The problem as it goes on the ticket; an infrastructure failure also says that <c>/retry</c> is the way forward.</summary>
@@ -59,6 +64,10 @@ public abstract partial class FactoryWorkflowBase
             }
 
             var spent = OpenCodeEvents.Usage(result.Stdout, result.OutputTruncated);
+            if (spent is not null)
+            {
+                usages.Add(spent);
+            }
             if (result.ExitCode == 78)
             {
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "not signed in", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = "OpenCode is not signed in" });

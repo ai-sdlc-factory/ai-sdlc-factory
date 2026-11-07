@@ -112,7 +112,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SANDBOX_IMAGES` | six images (`dotnet`, `python`, `node`, `dotnet-node`, `python-node`, `full`), set in Compose | the allowlist of image aliases: `alias=image;alias=image`. **Add a language by adding a pair** (and a `sandboxes/<name>/Dockerfile`) |
+| `SANDBOX_IMAGES` | seven images (`dotnet`, `python`, `node`, `dotnet-node`, `python-node`, `full`, `browser`), set in Compose | the allowlist of image aliases: `alias=image;alias=image`. **Add a language by adding a pair** (and a `sandboxes/<name>/Dockerfile`) |
 | `SANDBOX_NETWORKS`, `SANDBOX_PROXIES` | set in Compose | which internal network and proxy address each egress profile uses; both must list the same profiles |
 | `SANDBOX_EGRESS_MODE` | `enforce` (from `SANDBOX_EGRESS`) | `enforce`, `audit` or `open` |
 | `SANDBOX_OPEN_NETWORK` | `dev-foundry_sandbox-open` | the ordinary network used in `open` mode |
@@ -176,13 +176,14 @@ Which roles can do what:
 | --- | --- | --- | --- | --- | --- |
 | `analyst`, `coverage`, `architect` | feature | yes | no | no | `model` |
 | `developer` | feature, bug | yes | yes | yes | `developer` (model + package registries) |
-| `reviewer`, `security`, `ux`, `qa` | feature, bug (QA: feature) | yes (given the diff) | no | no | `model` |
+| `reviewer`, `security`, `ux`, `qa` | feature, bug (QA: feature; `ux` also reads the evidence of a `/qa` run) | yes (given the diff) | no | no | `model` |
 | `bug-analyst`, `diagnostician` | bug | yes | no | no | `model` |
 | `reproducer` | bug | yes | yes (tests only, checked) | yes | `developer` |
 | `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
 | `investigator` | incident | yes (and git history) | no | yes (read-only workspace) | `model` |
 | `postmortem-writer` | incident | yes | yes (one new file, checked) | no | `model` |
+| `e2e-tester` | qa (`/qa`) | yes | yes (files under the project's `verify.tests` folder only, checked) | yes | `developer` |
 
 The project's checks run with the `packages` profile (registries only, no model), and the factory's own small helper commands (does this file exist, a commit exists, a file hash) run with no network.
 Roles are chosen in code, never by a repository or an agent.

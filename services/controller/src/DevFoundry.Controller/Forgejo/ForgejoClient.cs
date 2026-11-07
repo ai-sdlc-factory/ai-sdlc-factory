@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
 using static DevFoundry.Controller.ForgejoJson;
 
@@ -351,6 +352,25 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// The number of the open pull request the factory made for a ticket: its branch is <c>factory/issue-N</c> (or <c>factory/issue-N-2</c>
+    /// when the name was taken). With several, the newest. Null when there is none.
+    /// </summary>
+    public async Task<int?> FindFactoryPullRequestAsync(string owner, string repo, int ticket, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var branch = new Regex($@"\Afactory/issue-{ticket}(?:-\d+)?\z");
+        int? found = null;
+        await foreach (var pull in PagedAsync($"{RepoPath(owner, repo)}/pulls?state=open", "pull request list", null, cancellationToken))
+        {
+            if (branch.IsMatch(Text(Child(pull, "head"), "ref")) && pull.TryGetProperty("number", out var number) && number.TryGetInt32(out var value))
+            {
+                found = Math.Max(found ?? 0, value);
+            }
+        }
+        return found;
     }
 
     private static string RepoPath(string owner, string repo) => $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}";

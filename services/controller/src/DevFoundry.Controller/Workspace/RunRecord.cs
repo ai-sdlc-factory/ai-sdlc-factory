@@ -54,6 +54,10 @@ public static partial class RunRecord
     public static string DirectoryFor(int issueNumber, string runId) =>
         $"{Root}/issue-{issueNumber}-{new string(runId.Where(char.IsAsciiLetterOrDigit).Take(8).ToArray()).ToLowerInvariant()}";
 
+    /// <summary>The directory of a QA run's record: the ticket or pull request it was asked on, plus the start of the run's id.</summary>
+    public static string DirectoryForQa(int number, string runId) =>
+        $"{Root}/qa-{number}-{new string(runId.Where(char.IsAsciiLetterOrDigit).Take(8).ToArray()).ToLowerInvariant()}";
+
     /// <summary>The directory of a pull request revision's record: the pull request plus the start of the run's id.</summary>
     public static string DirectoryForRevision(int pullNumber, string runId) =>
         $"{Root}/pr-{pullNumber}-{new string(runId.Where(char.IsAsciiLetterOrDigit).Take(8).ToArray()).ToLowerInvariant()}";

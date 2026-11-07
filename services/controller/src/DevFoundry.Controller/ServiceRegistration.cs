@@ -19,7 +19,8 @@ public static class ServiceRegistration
             .AddWorkflow<FeatureWorkflow>()
             .AddWorkflow<BugWorkflow>()
             .AddWorkflow<IncidentWorkflow>()
-            .AddWorkflow<PullRequestRevisionWorkflow>();
+            .AddWorkflow<PullRequestRevisionWorkflow>()
+            .AddWorkflow<QaWorkflow>();
 
         // The hosted worker keeps its client to itself, so the janitor gets one of its own (it connects when first used).
         services.AddTemporalClient(settings.TemporalAddress, settings.TemporalNamespace);

@@ -82,6 +82,7 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 | `limits` | no | the factory's defaults | How many tries and questions a run may use, [below](#limits) |
 | `protected_paths` | no | none | Extra files the agents may never change, [below](#protected-paths) |
 | `record` | no | `false` | `true` commits a [run record](workflows.md#the-run-record) (prompts, answers, check output, tokens) to `.factory/runs/` on the pull request branch |
+| `verify` | no | none | How to start the application and run end-to-end tests for a [`/qa` run](workflows.md#qa-run), [below](#end-to-end-checks-verify) |
 | `mode` | no | `"full"` | `"quick"` makes [quick mode](workflows.md#quick-mode) the project's default. Anything other than `"full"` or `"quick"` is refused |
 
 Rules that apply to the whole file:
@@ -108,6 +109,48 @@ registries reachable and nothing else.
   Test it once: run your checks on a clean clone and look at `git status`. The [templates](../templates/README.md) all pass that test. Do **not** put the lockfile alone in `protected_paths`: see [Protected paths](#protected-paths).
 - **One concern per gate** (`test`, `lint`, `build`), so a failure names the cause. The end of a failing gate's output is sent back to the developer.
 - **Quick enough** for the timeout; slow suites need a larger `timeout_seconds` (at most 1800).
+
+### End-to-end checks (`verify`)
+
+The `verify` key tells the factory how to try a **finished** change for real. It is used only by the [`/qa` run](workflows.md#qa-run), never by a normal ticket, so adding it
+changes nothing until somebody comments `/qa` on a ticket or pull request.
+
+```json
+"verify": {
+  "image": "browser",
+  "start": ["dotnet", "run", "--project", "src/Api", "--urls", "http://127.0.0.1:5080"],
+  "ready": "http://127.0.0.1:5080/health",
+  "startup_timeout_seconds": 90,
+  "tests": "e2e",
+  "suites": [
+    { "name": "api", "command": ["dotnet", "test", "e2e/Api.Tests"], "timeout_seconds": 600 },
+    { "name": "ui", "command": ["npx", "playwright", "test"], "cwd": "e2e/ui", "timeout_seconds": 900 }
+  ]
+}
+```
+
+| Key | Required | Default | Meaning and limits |
+| --- | --- | --- | --- |
+| `tests` | **yes** | | The folder for the end-to-end tests, such as `e2e`. Letters, digits and `_ - @ + /`, no leading `/` or `.` and no `..`. It is a **protected path** for every run except `/qa`: the developer cannot change it |
+| `suites` | **yes** | | 1 or 2 suites. Each is a command like a [gate](#reference) (`name`, `command`, `timeout_seconds`, `cwd`), and the `name` must be `api` or `ui` |
+| `start` | no | none | The command that starts the application, as an argument list (like a gate's `command`). Leave it out when the tests start the application themselves (for example Playwright's `webServer`) |
+| `start_cwd` | no | the repository root | The folder to start the application in |
+| `ready` | with `start` | | A local address that answers once the application is up, such as `http://127.0.0.1:5080/health`. Only `http://127.0.0.1:<port>` and `http://localhost:<port>` are allowed, because the application and the tests share one sandbox. Any answer below 500 counts as ready |
+| `startup_timeout_seconds` | no | `60` | 5 to 600. How long to wait for `ready` |
+| `image` | no | the project's `image` | A sandbox image for the tester and the suites, such as `browser` (Chromium and Playwright) for a `ui` suite |
+
+How a suite runs: the factory starts `start` in the background, polls `ready`, runs the suite's command, and stops the application, all inside one sandbox **without the model
+login**, with package registries reachable (so `npm ci` or `dotnet restore` work) and nothing else. If the application stops or does not answer in time, the report says so; if
+the suite's exit code is not 0, it failed.
+
+For a `ui` suite:
+- Use the `browser` image (`verify.image`). Chromium runs inside the same locked-down sandbox as everything else (read-only root, no capabilities); Playwright starts it without its
+  own sandbox, which is its default. Use **`@playwright/test` version 1.52**, the version installed in the image, or the browser will not be found.
+- Have the tests write what the page looks like as plain text (visible text, headings, the accessibility tree: `page.locator('body').ariaSnapshot()`) to files under `<tests>/evidence/`.
+  The `ux` reviewer reads those; it cannot see screenshots. The folder is removed before anything is pushed.
+- Use only the local address. The sandbox has no internet.
+
+The sandbox has **no database or cache server** (see [choosing an image](#choosing-an-image)): the application must run against SQLite or in-memory fakes for a `/qa` run.
 
 ### Examples
 
@@ -224,6 +267,7 @@ A project names **one** image, and every agent run and every gate for the ticket
 | `dotnet-node` | .NET SDK + Node.js 22 | a .NET API with a React or other JS front end |
 | `python-node` | Python 3.12, pytest, ruff + Node.js 22 | a Python API with a JS front end |
 | `full` | .NET SDK + Python 3 + Node.js 22 | anything that needs all three. Large; prefer a smaller image |
+| `browser` | `full` + Chromium and Playwright 1.52 | the `ui` suite of [`verify`](#end-to-end-checks-verify); set it as `verify.image`, not as the project's `image` |
 
 In a combined image any gate can call any of its tools. You do not need a different image per gate; use `cwd` to run a gate in a subfolder:
 

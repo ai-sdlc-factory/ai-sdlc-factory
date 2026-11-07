@@ -103,6 +103,9 @@ public sealed class FakeWorld
     /// <summary>When set, reading the pull request fails with this (as when Forgejo refuses the token).</summary>
     public Exception? RevisionContextFailure { get; set; }
 
+    /// <summary>What Forgejo says about the pull request a /qa run is for; the default is a pull request the factory opened for ticket 7.</summary>
+    public QaContext QaContext { get; set; } = new(FactoryPullRequest(body: "## Acceptance criteria\n- goodbye() returns the text.\n- bye selects it.\n").Pull, "factory-bot");
+
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
     public static RevisionContext FactoryPullRequest(
@@ -235,6 +238,9 @@ public sealed class FakeWorld
         [Activity("forgejo_read_revision_context")]
         public RevisionContext ReadRevisionContext(RevisionRequest request) =>
             world.RevisionContextFailure is { } failure ? throw failure : world.RevisionContext;
+
+        [Activity("forgejo_read_qa_context")]
+        public QaContext ReadQaContext(QaRequest request) => world.QaContext;
 
         [Activity("forgejo_request_reviewers")]
         public bool RequestReviewers(ReviewRequestInput request)
@@ -418,7 +424,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -453,6 +459,19 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     {
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
         return new RevisionRequest("acme", repo, 7, trigger, instruction, author);
+    }
+
+    public static QaRequest Qa(string? suite = null, bool onPullRequest = false)
+    {
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+        return new QaRequest("acme", repo, 7, onPullRequest, suite, "bob");
+    }
+
+    public async Task<WorkResult> RunQaAsync(QaRequest request)
+    {
+        var handle = await Client.StartWorkflowAsync((QaWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     public Task<WorkflowHandle<PullRequestRevisionWorkflow, WorkResult>> StartRevisionAsync(RevisionRequest request) =>
@@ -652,6 +671,11 @@ public static class Answers
                 note = status == "met" ? "" : "no test checks this",
             }).ToArray(),
         });
+
+    public static string Tester(string verdict = "tests_written", string suite = "api", string findings = "[]", string assessments = "[]") =>
+        verdict == "blocked"
+            ? "{\"verdict\":\"blocked\",\"summary\":\"The application does not run here.\"}"
+            : "{\"verdict\":\"tests_written\",\"summary\":\"Tried the greeting endpoint.\",\"scenarios\":[{\"name\":\"goodbye returns the text\",\"suite\":\"" + suite + "\",\"covers\":[1]}],\"files\":[\"e2e/api/goodbye.test\"],\"findings\":" + findings + ",\"assessments\":" + assessments + "}";
 
     public static string Developer(string verdict = "done", string[]? notes = null) =>
         JsonSerializer.Serialize(new

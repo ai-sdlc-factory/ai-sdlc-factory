@@ -27,6 +27,10 @@ public static partial class RevisionRules
     public const int MaxRevisionsPerPullRequest = LimitRanges.MaxRevisions;
     public const int MaxComments = 30;
 
+    /// <summary>The ticket a factory branch was made for: <c>factory/issue-12</c> and <c>factory/issue-12-2</c> are both ticket 12.</summary>
+    public static int? TicketOfBranch(string branch) =>
+        Regex.Match(branch, @"\Afactory/issue-(\d+)(?:-\d+)?\z") is { Success: true } match && int.TryParse(match.Groups[1].Value, out var number) ? number : null;
+
     /// <summary>The branches the factory creates for tickets: <c>factory/issue-12</c>, or <c>factory/issue-12-2</c> when the name was taken.</summary>
     [GeneratedRegex(@"\Afactory/issue-\d+(?:-\d+)?\z")]
     public static partial Regex FactoryBranch();

@@ -96,6 +96,7 @@ cd infra
 docker compose --profile images build sandbox-image-dotnet
 # combined images for projects that need more than one toolchain
 docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full
+# only for end-to-end UI tests (/qa): docker compose --profile images build sandbox-image-browser (after sandbox-image-full)
 ```
 
 [`sandboxes/dotnet/`](../../sandboxes/dotnet/Dockerfile) holds the .NET image (SDK, git, ripgrep and the

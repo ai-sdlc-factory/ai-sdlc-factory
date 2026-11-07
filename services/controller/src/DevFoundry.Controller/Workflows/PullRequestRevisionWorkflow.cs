@@ -63,9 +63,14 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         }
 
         var pull = context.Pull;
-        var comments = RevisionComments.Collect(revision, context.Reviews);
+        var comments = RevisionComments.Collect(revision, context.Reviews, context.QaFindings);
         if (comments.Count == 0)
         {
+            if (QaReportFormat.IsQaFix(revision.Instruction))
+            {
+                await CommentAsync(placeholder, TicketComments.QaNothingToFix);
+                return new WorkResult(Statuses.NothingToDo);
+            }
             await CommentAsync(placeholder, TicketComments.RevisionNothingToDo);
             return new WorkResult(Statuses.NothingToDo);
         }
