@@ -13,9 +13,9 @@ public sealed partial class BugWorkflow
     /// changed and that the test really fails on the unchanged code. A test that passes, or a command that cannot run,
     /// goes back to the reproducer with the reason, a bounded number of times.
     /// </summary>
-    private async Task<StageResult<ConfirmedReproduction>> ReproduceAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, BugAnalysis analysis)
+    private async Task<StageResult<ConfirmedReproduction>> ReproduceAsync(WorkContext work, BugAnalysis analysis)
     {
+        var (request, workspace, project) = work;
         string? feedback = null;
         for (var attempt = 1; attempt <= MaxReproductionAttempts; attempt++)
         {

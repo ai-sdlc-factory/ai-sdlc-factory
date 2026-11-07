@@ -27,8 +27,9 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
     /// The stages after intake, in order: analyst, coverage check, triage. Each either stops the
     /// workflow with a status or hands its result to the next one.
     /// </summary>
-    private async Task<WorkResult> StagesAsync(WorkRequest request, WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<WorkResult> StagesAsync(WorkContext work)
     {
+        var (request, workspace, project) = work;
         var analysis = await AnalyseAsync(request, workspace, project.Image);
         if (analysis.Stop is { } stop)
         {
@@ -90,6 +91,6 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
 
         // From here no stage asks a question, so a new comment can no longer change the outcome.
         commentsCanStillBeUsed = false;
-        return await BuildAsync(request, workspace, project, coverageReport.Remaining.ToList(), approved, triage, quickReason);
+        return await BuildAsync(work, coverageReport.Remaining.ToList(), approved, triage, quickReason);
     }
 }

@@ -59,7 +59,7 @@ public abstract partial class FactoryWorkflowBase
     /// <paramref name="stages"/>, report comments nobody read, save unfinished work, and always remove the checkout.
     /// </summary>
     protected async Task<WorkResult> RunPipelineAsync(
-        WorkRequest request, string kind, Func<WorkRequest, WorkspaceInfo, ProjectConfig, Task<WorkResult>> stages,
+        WorkRequest request, string kind, Func<WorkContext, Task<WorkResult>> stages,
         Func<WorkRequest, WorkspaceRequest>? workspaceFor = null, string? startMessage = null)
     {
         current = request;
@@ -122,7 +122,7 @@ public abstract partial class FactoryWorkflowBase
             WorkResult result;
             try
             {
-                result = await stages(request, workspace, project);
+                result = await stages(new WorkContext(request, workspace, project));
             }
             catch (ActivityFailureException error)
             {

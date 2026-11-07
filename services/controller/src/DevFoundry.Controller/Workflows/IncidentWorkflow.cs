@@ -39,8 +39,9 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
     private void Note(string who, string text) =>
         timeline.Add($"{Workflow.UtcNow:HH:mm} UTC {(string.IsNullOrWhiteSpace(who) ? "someone" : who)}: {PromptText.Clip(text, 300).Replace('\n', ' ')}");
 
-    private async Task<WorkResult> StagesAsync(WorkRequest request, WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<WorkResult> StagesAsync(WorkContext work)
     {
+        var (request, workspace, project) = work;
         var assessed = await ConverseAsync<IncidentAssessment>(
             request, workspace, project.Image, "incident-analyst", maxClarificationRounds + 1,
             (round, answers, problem) => IncidentPrompts.Assessor(request, answers, problem, round, maxClarificationRounds + 1),
@@ -64,7 +65,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
 
         while (true)
         {
-            var investigated = await InvestigateAsync(request, workspace, project, assessment, more);
+            var investigated = await InvestigateAsync(work, assessment, more);
             if (investigated.Stop is { } investigationStop)
             {
                 return investigationStop;
@@ -137,7 +138,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
                 if (resolved)
                 {
                     Note("factory", "Marked as resolved by a person.");
-                    return await PostmortemAsync(request, workspace, project, assessment, investigation, mitigation);
+                    return await PostmortemAsync(work, assessment, investigation, mitigation);
                 }
                 if (newInformation)
                 {
@@ -157,9 +158,9 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
     /// The investigator names hypotheses; the factory then checks the files and commits they cite and drops what it cannot
     /// find. A hypothesis with nothing left to point at is shown as a guess (low confidence).
     /// </summary>
-    private async Task<StageResult<Investigation>> InvestigateAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment, IReadOnlyList<string> more)
+    private async Task<StageResult<Investigation>> InvestigateAsync(WorkContext work, IncidentAssessment assessment, IReadOnlyList<string> more)
     {
+        var (request, workspace, project) = work;
         var found = await ConverseAsync<Investigation>(
             request, workspace, project.Image, "investigator", Rounds(MaxDesignRounds),
             (round, answers, problem) => IncidentPrompts.Investigator(request, assessment, more, answers, problem, round, Rounds(MaxDesignRounds)),

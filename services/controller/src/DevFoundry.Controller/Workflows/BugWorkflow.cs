@@ -27,8 +27,9 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
     [WorkflowRun]
     public Task<WorkResult> RunAsync(WorkRequest request) => RunPipelineAsync(request, "bug", StagesAsync);
 
-    private async Task<WorkResult> StagesAsync(WorkRequest request, WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<WorkResult> StagesAsync(WorkContext work)
     {
+        var (request, workspace, project) = work;
         var analysis = await ConverseAsync<BugAnalysis>(
             request, workspace, project.Image, "bug-analyst", maxClarificationRounds + 1,
             (round, answers, problem) => BugPrompts.Analyst(request, answers, problem, round, maxClarificationRounds + 1),
@@ -42,7 +43,7 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
         }
         var understood = analysis.Verdict!;
 
-        var reproduction = await ReproduceAsync(request, workspace, project, understood);
+        var reproduction = await ReproduceAsync(work, understood);
         if (reproduction.Stop is { } notReproduced)
         {
             return notReproduced;
@@ -85,6 +86,6 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
         ];
 
         commentsCanStillBeUsed = false;
-        return await BuildAsync(request, workspace, project, criteria, null, new TriageDecision(false, []), bug: brief);
+        return await BuildAsync(work, criteria, null, new TriageDecision(false, []), bug: brief);
     }
 }

@@ -73,7 +73,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         var request = revision.ToWorkRequest(pull.Title);
         return await RunPipelineAsync(
             request, "pull request revision",
-            (feature, workspace, project) => StagesAsync(feature, workspace, project, pull, comments, context.Reviews, context.PriorRevisions),
+            work => StagesAsync(work, pull, comments, context.Reviews, context.PriorRevisions),
             workspaceFor: feature => new WorkspaceRequest(feature.Owner, feature.Repo, feature.WorkflowId, pull.HeadRef, ExistingBranch: true),
             startMessage: $"I am working on the {comments.Count} review comment{(comments.Count == 1 ? "" : "s")} on this pull request.");
     }
@@ -93,9 +93,9 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         RevisionParser.TryParse(text, count, out var report, out var error) ? (report, null) : (null, error);
 
     private async Task<WorkResult> StagesAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, PullRequestDetails pull, IReadOnlyList<RevisionComment> comments,
-        IReadOnlyList<ReviewDetails> reviews, int priorRevisions)
+        WorkContext work, PullRequestDetails pull, IReadOnlyList<RevisionComment> comments, IReadOnlyList<ReviewDetails> reviews, int priorRevisions)
     {
+        var (request, workspace, project) = work;
         if (priorRevisions >= maxRevisionsPerPullRequest)
         {
             await CommentAsync(request, TicketComments.RevisionLimit(maxRevisionsPerPullRequest));
@@ -191,8 +191,9 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             // A larger revision is also checked against what the ticket asked for (the criteria in the pull request body).
             var original = PullRequestCriteria.FromBody(pull.Body);
             var checkOriginal = original.Count > 0 && after.Files.Count >= PullRequestCriteria.QaFromChangedFiles;
-            var review = await ReviewAsync(reviewRequest, workspace, project, criteria, null, after, results,
-                skipQa: !checkOriginal, qaCriteria: checkOriginal ? original : null, ruleNotes: ruleNotes);
+            var review = await ReviewAsync(
+                work with { Request = reviewRequest }, criteria, null, after, results,
+                new ReviewOptions(SkipQa: !checkOriginal, QaCriteria: checkOriginal ? original : null, RuleNotes: ruleNotes));
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;

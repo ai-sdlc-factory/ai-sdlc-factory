@@ -20,9 +20,9 @@ public abstract partial class FactoryWorkflowBase
     /// developer as feedback, up to a fixed number of rounds.
     /// </summary>
     protected async Task<WorkResult> BuildAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project,
-        IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null, BugBrief? bug = null)
+        WorkContext work, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null, BugBrief? bug = null)
     {
+        var (request, workspace, project) = work;
         string? feedback = null;
         DeveloperReport? report = null;
         IReadOnlyList<GateResult> passed = [];
@@ -118,7 +118,7 @@ public abstract partial class FactoryWorkflowBase
 
             var skipQa = quickReason is not null || bug is not null;
             await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(skipQa ? "" : " and QA")}.");
-            var review = await ReviewAsync(request, workspace, project, remaining, design, after, results, skipQa, ruleNotes: ruleNotes);
+            var review = await ReviewAsync(work, remaining, design, after, results, new ReviewOptions(skipQa, RuleNotes: ruleNotes));
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -219,6 +219,12 @@ public abstract partial class FactoryWorkflowBase
         }
     }
 
+    /// <summary>The ways one review can differ from the usual: QA skipped, QA judging other criteria, notes for the reviewers.</summary>
+    /// <param name="SkipQa">Quick mode and bug fixes do not ask QA.</param>
+    /// <param name="QaCriteria">The criteria QA judges, when they are not the ones still to be met (a larger revision is checked against the pull request's original criteria).</param>
+    /// <param name="RuleNotes">Project rules that only warn, for the reviewers to weigh.</param>
+    protected sealed record ReviewOptions(bool SkipQa = false, IReadOnlyList<CriterionCoverage>? QaCriteria = null, string? RuleNotes = null);
+
     protected sealed record ReviewOutcome(
         WorkResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa, string? UxNote = null);
 
@@ -234,10 +240,11 @@ public abstract partial class FactoryWorkflowBase
     /// developer. A review that cannot be completed stops the run: nothing is published unreviewed.
     /// </summary>
     protected async Task<ReviewOutcome> ReviewAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
-        ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false,
-        IReadOnlyList<CriterionCoverage>? qaCriteria = null, string? ruleNotes = null)
+        WorkContext work, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, ChangeReport changes,
+        IReadOnlyList<GateResult> gates, ReviewOptions? options = null)
     {
+        var (request, workspace, project) = work;
+        var (skipQa, qaCriteria, ruleNotes) = options ?? new ReviewOptions();
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
             ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
@@ -247,8 +254,7 @@ public abstract partial class FactoryWorkflowBase
 
         foreach (var role in project.Reviewers)
         {
-            var (review, stop) = await RunReviewAsync(
-                request, workspace, project, role,
+            var (review, stop) = await RunReviewAsync(work, role,
                 problem => ReviewPrompt.Build(request, remaining, design, changes, diff, gateSummary, problem, checks: checks));
             if (stop is not null)
             {
@@ -268,8 +274,7 @@ public abstract partial class FactoryWorkflowBase
                 var uiChanges = new ChangeReport(changes.Files.Where(file => ui.Files.Contains(file.Path)).ToList(), []);
                 var uiDiff = UnifiedDiff.Only(diff, ui.Files);
                 var others = changes.Files.Count - uiChanges.Files.Count;
-                var (review, stop) = await RunReviewAsync(
-                    request, workspace, project, "ux",
+                var (review, stop) = await RunReviewAsync(work, "ux",
                     problem => ReviewPrompt.Build(request, remaining, design, uiChanges, uiDiff, gateSummary, problem, others, checks));
                 if (stop is not null)
                 {
@@ -334,8 +339,9 @@ public abstract partial class FactoryWorkflowBase
 
     /// <summary>Runs one reviewing role and posts its review. A review that cannot be completed stops the run.</summary>
     protected async Task<(ReviewReport? Review, ReviewOutcome? Stop)> RunReviewAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, string role, Func<string?, string> prompt)
+        WorkContext work, string role, Func<string?, string> prompt)
     {
+        var (request, workspace, project) = work;
         var outcome = await RunAgentAsync<ReviewReport>(role, project.Image, workspace, prompt, ParseReview);
         if (ticketClosed)
         {

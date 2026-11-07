@@ -11,9 +11,9 @@ public sealed partial class IncidentWorkflow
     /// exactly one new file, at the expected path, was written; the draft comes from the ticket's record only.
     /// </summary>
     private async Task<WorkResult> PostmortemAsync(
-        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment,
-        Investigation? investigation, Mitigation? mitigation)
+        WorkContext work, IncidentAssessment assessment, Investigation? investigation, Mitigation? mitigation)
     {
+        var (request, workspace, project) = work;
         var path = $"docs/postmortems/{Workflow.UtcNow:yyyy-MM-dd}-incident-{request.IssueNumber}.md";
         string? feedback = null;
         for (var attempt = 1; attempt <= 2; attempt++)
