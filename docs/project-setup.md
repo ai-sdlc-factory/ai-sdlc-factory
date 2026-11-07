@@ -103,6 +103,9 @@ registries reachable and nothing else.
   `["sh", "-c", "python -m venv .venv && .venv/bin/pip install -q -r requirements.txt && .venv/bin/python -m pytest -q"]`.
 - **Keep generated files out of the change.** Anything a tool writes (`.venv`, `node_modules`, `bin/`, `obj/`, caches) must be covered by `.gitignore`;
   otherwise the change is rejected as build output. The developer is told the same.
+- **A check must not write files that git would show.** Checks run after the developer has finished, so a file a check creates (or recreates) lands in the change, the reviewers flag it as unrelated, and the developer cannot remove it because the next round's check puts it back. The usual causes:
+  `npm install` without a committed lockfile (it writes `package-lock.json`: commit the lockfile and use **`npm ci`**, which writes nothing), a formatter that rewrites files (use its check mode), and tools that leave files like `*.tsbuildinfo` (add them to `.gitignore`).
+  Test it once: run your checks on a clean clone and look at `git status`. The [templates](../templates/README.md) all pass that test. Also put the lockfile in `protected_paths`, so no agent edits it.
 - **One concern per gate** (`test`, `lint`, `build`), so a failure names the cause. The end of a failing gate's output is sent back to the developer.
 - **Quick enough** for the timeout; slow suites need a larger `timeout_seconds` (at most 1800).
 

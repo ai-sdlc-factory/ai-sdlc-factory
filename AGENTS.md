@@ -17,6 +17,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - Controller, fast tests only (no Temporal dev server, under a minute): `docker run --rm -e TEST_FILTER='Category!=Scenario' t`
 - Controller, only the workflow scenarios: `docker run --rm -e TEST_FILTER='Category=Scenario' t`
 - Launcher against the real Docker daemon (needs the base image built; builds and removes a throwaway image): `docker build --target test -f services/sandbox-launcher/Dockerfile -t t . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e DEV_FOUNDRY_LIVE_DOCKER=1 -e TEST_FILTER='Category=Live' t`
+- Is this machine's clock steady? (tests time out "after 5000ms" in a few seconds when it is not): `python3 tools/check-clock.py`
 - Documentation, links, settings and copies: `python3 tools/check-docs.py`
 - Redraw diagrams after editing a `.dot` file: `sh docs/diagrams/render.sh`
 - Rebuild and restart a service: `cd infra && docker compose up -d --build <service>`
