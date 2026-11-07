@@ -9,8 +9,12 @@ namespace DevFoundry.Controller;
 /// </summary>
 internal static class ActivityPolicy
 {
-    /// <summary>How long the launcher may go without a sign of life before a sandbox run is declared dead.</summary>
-    public static readonly TimeSpan SandboxHeartbeat = TimeSpan.FromSeconds(30);
+    /// <summary>
+    /// How long the launcher may go without a sign of life before a sandbox run is declared dead. The Temporal SDK sends heartbeats
+    /// at most about every 80% of this, so a short value leaves little margin: a wall clock that steps by several seconds (seen under
+    /// WSL2) made 30 seconds time out a healthy run.
+    /// </summary>
+    public static readonly TimeSpan SandboxHeartbeat = TimeSpan.FromMinutes(2);
 
     /// <summary>
     /// An activity of the controller itself (git, files, Forgejo). <paramref name="attempts"/> bounds the tries; without it Temporal's default
