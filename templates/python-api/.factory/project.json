@@ -1,0 +1,17 @@
+{
+  "image": "python",
+  "mode": "full",
+  "record": true,
+  "reviewers": ["reviewer", "security"],
+  "limits": { "build_rounds": 3, "clarification_rounds": 3, "revisions_per_pull_request": 3 },
+  "protected_paths": ["*.lock", "requirements*.txt", "pyproject.toml"],
+  "rules": [
+    { "id": "no-unsafe-deserialisation", "files": "**/*.py", "forbid": "\\b(pickle\\.loads?|eval|exec)\\(|yaml\\.load\\(", "message": "Unsafe deserialisation or dynamic code. Use json, or yaml.safe_load." },
+    { "id": "no-shell-true", "files": "**/*.py", "forbid": "shell\\s*=\\s*True", "message": "Shell injection risk. Pass the command as a list." },
+    { "id": "no-print", "files": "greetings/**/*.py", "forbid": "\\bprint\\(", "message": "Use the logging module.", "severity": "warn" }
+  ],
+  "gates": [
+    { "name": "lint", "command": ["ruff", "check", "."], "timeout_seconds": 120 },
+    { "name": "test", "command": ["python", "-m", "pytest", "-q"], "timeout_seconds": 300 }
+  ]
+}

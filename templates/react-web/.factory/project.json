@@ -1,0 +1,25 @@
+{
+  "image": "node",
+  "mode": "full",
+  "record": true,
+  "reviewers": ["reviewer", "security"],
+  "ui": {
+    "paths": ["src/**/*.tsx", "src/**/*.css", "index.html"],
+    "medium": { "files": 3, "lines": 40 },
+    "large": { "files": 8, "lines": 200 }
+  },
+  "limits": { "build_rounds": 3, "clarification_rounds": 3, "revisions_per_pull_request": 3 },
+  "protected_paths": ["package-lock.json", "vite.config.ts", "tsconfig.json"],
+  "rules": [
+    { "id": "no-inner-html", "files": "src/**/*.tsx", "forbid": "dangerouslySetInnerHTML", "message": "Do not inject HTML; render elements." },
+    { "id": "no-eval", "files": ["src/**/*.ts", "src/**/*.tsx"], "forbid": "\\beval\\(|new Function\\(", "message": "No dynamic code." },
+    { "id": "no-any", "files": ["src/**/*.ts", "src/**/*.tsx"], "forbid": ":\\s*any\\b", "message": "Use unknown and narrow it.", "severity": "warn" },
+    { "id": "no-console", "files": ["src/**/*.ts", "src/**/*.tsx"], "forbid": "console\\.log", "message": "Remove debug output.", "severity": "warn" }
+  ],
+  "gates": [
+    { "name": "install", "command": ["npm", "ci", "--no-audit", "--no-fund"], "timeout_seconds": 600 },
+    { "name": "typecheck", "command": ["npm", "run", "typecheck"], "timeout_seconds": 300 },
+    { "name": "test", "command": ["npm", "test"], "timeout_seconds": 300 },
+    { "name": "build", "command": ["npm", "run", "build"], "timeout_seconds": 300 }
+  ]
+}

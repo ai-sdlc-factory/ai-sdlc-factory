@@ -9,6 +9,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - `libs/DevFoundry.Contracts`: types shared between services
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
 - `sandboxes/`, `egress/`, `infra/`: images, allowlist profiles, Compose stack
+- `templates/`: small working starter projects with every factory feature on (a test checks their settings with the real parser)
 - `docs/`: documentation with diagrams (`docs/diagrams/*.dot` render to `docs/images/*.svg`)
 
 ## Commands (from the repository root)

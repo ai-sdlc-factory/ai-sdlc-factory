@@ -1,0 +1,18 @@
+{
+  "image": "dotnet",
+  "mode": "full",
+  "record": true,
+  "reviewers": ["reviewer", "security"],
+  "limits": { "build_rounds": 3, "clarification_rounds": 3, "revisions_per_pull_request": 3 },
+  "protected_paths": ["**/Migrations/**", "Directory.Packages.props", "global.json", "*.lock"],
+  "rules": [
+    { "id": "no-binaryformatter", "files": "**/*.cs", "forbid": "BinaryFormatter", "message": "Unsafe deserialisation. Use System.Text.Json." },
+    { "id": "no-env-vars", "files": "src/**/*.cs", "forbid": "Environment\\.GetEnvironmentVariable", "message": "Read configuration through IConfiguration or IOptions<T>." },
+    { "id": "no-console", "files": "src/**/*.cs", "forbid": "Console\\.Write", "message": "Use ILogger.", "severity": "warn" }
+  ],
+  "gates": [
+    { "name": "build", "command": ["dotnet", "build", "--nologo", "-v", "q"], "timeout_seconds": 600 },
+    { "name": "test", "command": ["dotnet", "test", "--nologo", "-v", "q"], "timeout_seconds": 900 },
+    { "name": "audit", "command": ["dotnet", "list", "package", "--vulnerable", "--include-transitive"], "timeout_seconds": 300 }
+  ]
+}

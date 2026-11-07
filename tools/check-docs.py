@@ -11,6 +11,7 @@ What it checks:
   * every agent role file is in docs/configuration.md, and every result status the controller can return is in docs/workflows.md
   * every label the router or work mode looks at is in docs/workflows.md
 """
+import json
 import re
 import subprocess
 import sys
@@ -158,6 +159,39 @@ def check_embedded_copies() -> None:
     checked["embedded shared texts"] = count
 
 
+def check_templates() -> None:
+    """Every starter project under templates/ is listed, names an image the factory offers, and its Dockerfile example starts from one of them."""
+    compose = read(ROOT / "infra/compose.yaml")
+    pairs = re.search(r"SANDBOX_IMAGES:\s*(\S+)", compose)
+    if not pairs:
+        fail("infra/compose.yaml has no SANDBOX_IMAGES to check the templates against")
+        return
+    images = dict(pair.split("=", 1) for pair in pairs.group(1).split(";") if "=" in pair)
+    index = read(ROOT / "templates/README.md")
+    names = sorted(path.name for path in (ROOT / "templates").iterdir() if path.is_dir())
+    checked["templates"] = len(names)
+    for name in names:
+        base = ROOT / "templates" / name
+        if f"[{name}]({name}/)" not in index:
+            fail(f"templates/{name} is not listed in templates/README.md")
+        settings = base / ".factory/project.json"
+        if not settings.exists():
+            fail(f"templates/{name} has no .factory/project.json")
+            continue
+        try:
+            alias = json.loads(read(settings)).get("image")
+        except json.JSONDecodeError as error:
+            fail(f"templates/{name}/.factory/project.json is not valid JSON: {error}")
+            continue
+        if alias not in images:
+            fail(f"templates/{name}: image \"{alias}\" is not one of the factory's images ({', '.join(sorted(images))})")
+        example = base / ".factory/Dockerfile.example"
+        if example.exists():
+            instructions = [line.strip() for line in read(example).splitlines() if line.strip() and not line.strip().startswith("#")]
+            if not instructions or instructions[0].split()[:1] != ["FROM"] or instructions[0].split()[1:] not in ([image] for image in images.values()):
+                fail(f"templates/{name}/.factory/Dockerfile.example must start with FROM and one of: {', '.join(sorted(images.values()))}")
+
+
 def check_statuses_and_labels() -> None:
     workflows = read(ROOT / "docs/workflows.md")
     statuses: set[str] = set()
@@ -192,6 +226,7 @@ def main() -> int:
     check_project_keys()
     check_roles()
     check_embedded_copies()
+    check_templates()
     check_statuses_and_labels()
     if problems:
         print(f"{len(problems)} documentation problem(s):")

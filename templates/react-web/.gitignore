@@ -1,0 +1,10 @@
+# Node
+node_modules/
+dist/
+coverage/
+*.log
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

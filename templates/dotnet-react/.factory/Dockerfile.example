@@ -1,0 +1,15 @@
+# EXAMPLE of a project's own sandbox image. It does nothing under this name.
+#
+# To use it: rename this file to .factory/Dockerfile (a person does this, on the default branch) AND ask the person who runs the factory to
+# set FACTORY_ALLOW_REPO_IMAGES=true. Building runs these instructions on the factory's Docker host with internet access, so read the rules in
+# docs/project-setup.md ("A project's own image") first. The first instruction must be exactly FROM with one of the factory's own images.
+#
+# This one adds a Redis server, so integration tests can start `redis-server` as a child process instead of needing Docker or an outside service.
+FROM dev-foundry/sandbox-dotnet-node:local
+
+# Build steps run as root; the sandbox itself later runs as an unprivileged user.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends redis-server \
+    && rm -rf /var/lib/apt/lists/*
+
+LABEL purpose="integration tests start a local redis-server"

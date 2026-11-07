@@ -7,3 +7,4 @@
 .vs
 TestResults
 infra
+**/node_modules

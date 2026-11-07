@@ -1,0 +1,16 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
