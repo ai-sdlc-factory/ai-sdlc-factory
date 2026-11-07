@@ -12,7 +12,8 @@ RUN dotnet publish services/sandbox-launcher/src/DevFoundry.SandboxLauncher -c R
 
 FROM build AS test
 RUN dotnet build services/sandbox-launcher/tests/DevFoundry.SandboxLauncher.Tests -c Release --no-restore
-CMD ["dotnet", "test", "services/sandbox-launcher/tests/DevFoundry.SandboxLauncher.Tests", "-c", "Release", "--no-build"]
+# TEST_FILTER (for example "Category=Live") is passed to dotnet test when set.
+CMD ["sh", "-c", "dotnet test services/sandbox-launcher/tests/DevFoundry.SandboxLauncher.Tests -c Release --no-build ${TEST_FILTER:+--filter \"$TEST_FILTER\"}"]
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 ENV DOTNET_EnableDiagnostics=0

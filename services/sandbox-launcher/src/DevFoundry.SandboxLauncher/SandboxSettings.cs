@@ -53,6 +53,16 @@ public sealed class SandboxSettings
     public string DockerSocket { get; init; } = "/var/run/docker.sock";
 
     /// <summary>
+    /// Whether a repository may bring its own sandbox image (<c>.factory/Dockerfile</c>). Off by default: building runs the repository's
+    /// build instructions on this host's Docker, with internet access, which is the same trust as running its CI.
+    /// </summary>
+    public bool AllowRepoImages { get; init; }
+
+    /// <summary>The longest a repository image build may take, and the largest image it may produce.</summary>
+    public int MaxBuildSeconds { get; init; } = 1800;
+    public long MaxRepoImageBytes { get; init; } = 6L * 1024 * 1024 * 1024;
+
+    /// <summary>
     /// Docker volume that holds the OpenCode login. Mounted only into runs that ask for model access,
     /// so lint, build and test runs never see the credentials. Empty disables model runs.
     /// </summary>
@@ -88,6 +98,7 @@ public sealed class SandboxSettings
             DockerSocket = NonEmpty(configuration, "DOCKER_SOCKET", "/var/run/docker.sock"),
             AuthVolume = NullIfEmpty(configuration["SANDBOX_AUTH_VOLUME"]),
             AuthReadOnly = configuration.GetValue("SANDBOX_AUTH_READONLY", false),
+            AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
         };
         settings.Validate();
         return settings;
@@ -158,6 +169,17 @@ public sealed class SandboxSettings
             images[parts[0]] = parts[1];
         }
         return images;
+    }
+
+    /// <summary>A safety switch: empty means off, "true" or "false" (any case) mean what they say, and anything else stops the start rather than guess.</summary>
+    private static bool Switch(IConfiguration configuration, string key)
+    {
+        var text = configuration[key];
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+        return bool.TryParse(text.Trim(), out var value) ? value : throw new InvalidOperationException($"{key} must be true or false, but it is \"{text}\".");
     }
 
     private static string NonEmpty(IConfiguration configuration, string key, string fallback)

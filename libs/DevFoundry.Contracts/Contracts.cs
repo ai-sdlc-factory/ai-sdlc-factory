@@ -35,6 +35,27 @@ public sealed record SandboxRunResult(
     [property: JsonPropertyName("output_truncated")] bool OutputTruncated);
 
 /// <summary>
+/// Asks the launcher to build the sandbox image a repository describes in <c>.factory/Dockerfile</c>. The launcher refuses unless the
+/// operator switched repository images on, accepts only a Dockerfile that starts from one of the factory's own images and uses a short list of
+/// instructions, and builds it with a memory and time limit. The answer is an image alias for later <see cref="SandboxRunRequest"/>s.
+/// </summary>
+public sealed record SandboxBuildRequest(
+    [property: JsonPropertyName("dockerfile")] string Dockerfile,
+    [property: JsonPropertyName("files")] IReadOnlyDictionary<string, string>? Files = null,
+    [property: JsonPropertyName("timeout_seconds")] int TimeoutSeconds = 1800);
+
+/// <summary>
+/// The image a build produced (or found already built: the name depends on the content, so an unchanged Dockerfile is built once).
+/// <see cref="Image"/> is the alias to put in <see cref="SandboxRunRequest.Image"/>.
+/// </summary>
+public sealed record SandboxBuildResult(
+    [property: JsonPropertyName("image")] string Image,
+    [property: JsonPropertyName("built")] bool Built,
+    [property: JsonPropertyName("seconds")] double Seconds,
+    [property: JsonPropertyName("size_bytes")] long SizeBytes,
+    [property: JsonPropertyName("log_tail")] string LogTail);
+
+/// <summary>
 /// The network a sandbox may use. Each name is an egress profile: a list of hosts the egress proxy lets
 /// that sandbox reach (see egress/profiles.json). A run that asks for nothing gets no network at all.
 /// </summary>
@@ -57,5 +78,6 @@ public static class SandboxNetworks
 public static class SandboxNames
 {
     public const string ActivityName = "sandbox_run";
+    public const string BuildActivityName = "sandbox_build_image";
     public const string DefaultTaskQueue = "sandbox";
 }

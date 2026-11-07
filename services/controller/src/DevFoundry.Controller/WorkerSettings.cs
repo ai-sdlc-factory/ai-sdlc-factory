@@ -18,6 +18,12 @@ public sealed class WorkerSettings
     /// <summary>The factory's agent folder (read-only), used only to name the model each role is configured with.</summary>
     public string AgentsDirectory { get; init; } = "";
 
+    /// <summary>
+    /// Whether a repository may bring its own sandbox image (<c>.factory/Dockerfile</c>). Off by default. The launcher has the same switch and
+    /// refuses to build when it is off; this one decides what the workflows tell people.
+    /// </summary>
+    public bool AllowRepoImages { get; init; }
+
     /// <summary>What a project gets when its <c>limits</c> do not say (the <c>FACTORY_DEFAULT_*</c> settings).</summary>
     public FactoryDefaults Defaults { get; init; } = FactoryDefaults.Standard;
 
@@ -32,6 +38,7 @@ public sealed class WorkerSettings
         ForgejoBotLogin = NonEmpty(configuration, "FORGEJO_BOT_LOGIN", "factory-bot"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
+        AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
         Defaults = new FactoryDefaults(
             Number(configuration, "FACTORY_DEFAULT_BUILD_ROUNDS", FactoryDefaults.Standard.BuildRounds, LimitRanges.BuildRoundsOk, $"{LimitRanges.MinBuildRounds} to {LimitRanges.MaxBuildRounds}"),
             Number(configuration, "FACTORY_DEFAULT_CLARIFICATION_ROUNDS", FactoryDefaults.Standard.ClarificationRounds, LimitRanges.ClarificationRoundsOk, $"{LimitRanges.MinClarificationRounds} to {LimitRanges.MaxClarificationRounds}"),
@@ -51,6 +58,17 @@ public sealed class WorkerSettings
             throw new InvalidOperationException($"{key} must be a whole number from {range}, but it is \"{text}\".");
         }
         return value;
+    }
+
+    /// <summary>A safety switch: empty means off, "true" or "false" (any case) mean what they say, and anything else stops the start rather than guess.</summary>
+    private static bool Switch(IConfiguration configuration, string key)
+    {
+        var text = configuration[key];
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+        return bool.TryParse(text.Trim(), out var value) ? value : throw new InvalidOperationException($"{key} must be true or false, but it is \"{text}\".");
     }
 
     private static string NonEmpty(IConfiguration configuration, string key, string fallback)

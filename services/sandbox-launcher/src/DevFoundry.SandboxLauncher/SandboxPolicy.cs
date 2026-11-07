@@ -36,12 +36,18 @@ public static partial class SandboxPolicy
     [GeneratedRegex(@"\A[A-Z][A-Z0-9_]{0,63}\z")]
     private static partial Regex EnvName();
 
+    /// <param name="repoImage">Resolves an alias of an image built from a repository (<c>repo-&lt;hash&gt;</c>) to its Docker tag, or null if
+    /// repository images are off or no such image exists. The standard aliases come from the settings.</param>
     public static ValidatedRun Validate(
-        SandboxRunRequest request, SandboxSettings settings, Func<string, bool> workspaceExists)
+        SandboxRunRequest request, SandboxSettings settings, Func<string, bool> workspaceExists, Func<string, string?>? repoImage = null)
     {
         if (!settings.Images.TryGetValue(request.Image ?? "", out var image))
         {
-            throw Reject($"Unknown sandbox image alias '{request.Image}'.");
+            image = RepoImageNames.IsAlias(request.Image) ? repoImage?.Invoke(request.Image!) : null;
+            if (image is null)
+            {
+                throw Reject($"Unknown sandbox image alias '{request.Image}'.");
+            }
         }
 
         if (request.Workspace is null || !WorkspaceName().IsMatch(request.Workspace) || request.Workspace.Contains(".."))

@@ -237,6 +237,26 @@ In a combined image any gate can call any of its tools. You do not need a differ
 
 The combined images must be built once, like the others (`docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full`). The sandbox has **no Docker and no database or cache server**, in every image: tests that need a live service (Redis, a database server) cannot run there, so write them against in-memory fakes. The agents are told this.
 
+### A project's own image
+
+If none of the standard images fits (a tool the project needs, such as `redis-server` for its tests), the repository can describe its own image in **`.factory/Dockerfile`**. Like `project.json`, it is changed **only by a person**: `.factory/` is protected, and the factory reads the file from the default branch when a run starts, never from what an agent wrote.
+
+This is **off unless the operator turns it on** (`FACTORY_ALLOW_REPO_IMAGES`; see the warning in [Configuration](configuration.md)). Building an image runs the Dockerfile's instructions on the machine's Docker with internet access, so enable it only for repositories whose default branch you control. If the file exists and the switch is off, the ticket says so and the standard image from `project.json` is used.
+
+What the factory accepts (anything else stops the run with `image_failed` and the reason):
+
+| Rule | Why |
+| --- | --- |
+| The first instruction is exactly `FROM <image>` with one of the factory's own images, for example `FROM dev-foundry/sandbox-dotnet-node:local` | the image then has git, the agent and the entrypoint. No other base, no `AS`, no second `FROM` |
+| Only `RUN`, `COPY`, `ADD`, `ENV`, `ARG` and `LABEL` follow | nothing that changes how the container starts: no `ENTRYPOINT`, `CMD`, `USER`, `WORKDIR`, `VOLUME`, `HEALTHCHECK`, `SHELL` or `EXPOSE` |
+| `COPY` and `ADD` take files from the context only: no `--from`, and `ADD` may not fetch a URL | fetch with `RUN` and a tool you trust instead |
+| No `RUN --mount`, `--network` or `--security`, and no `# syntax=` line | no build frontends or extra privileges |
+| The context is `.factory/docker/` (at most 50 files and 1 MB, no symbolic links) next to a Dockerfile of at most 64 KB | repository code never gets into the build, so `COPY . .` cannot pull in secrets |
+
+It is built by the launcher with a memory and CPU limit, a time limit of 30 minutes and a size limit of 6 GB. The image is named after a hash of the Dockerfile, its context and the base image, so an unchanged file is built **once** and reused by every ticket; a change (or a rebuilt base image) builds a new one. Every agent and every gate for the ticket then runs in it. The first build can take minutes; the ticket says when it starts and when it is ready. If the build fails there is no silent fallback: the run stops with the build output, because the checks would otherwise run in an environment the project did not intend.
+
+An example that adds a Redis server for tests is in [docs/examples](examples/README.md). The `image` in `project.json` is still required; it is the one used when the Dockerfile is ignored. Old project images are not removed automatically: list them with `docker image ls dev-foundry/repo` and remove ones you no longer need with `docker image rm`.
+
 ### Rules
 
 A rule says "a change may not add a line like this in these files". The controller checks it on the diff, so unlike a sentence in `AGENTS.md` it cannot be talked around. Only **added** lines count: old code is not blamed.

@@ -1,7 +1,7 @@
 namespace DevFoundry.Controller;
 
 /// <summary>What the factory uses when a project does not say: set by the operator (see <c>FACTORY_DEFAULT_*</c>), and read through an activity so a run keeps the values it started with.</summary>
-public sealed record FactoryDefaults(int BuildRounds, int ClarificationRounds, int RevisionsPerPullRequest)
+public sealed record FactoryDefaults(int BuildRounds, int ClarificationRounds, int RevisionsPerPullRequest, bool AllowRepoImages = false)
 {
     public static readonly FactoryDefaults Standard = new(3, 3, 3);
 }

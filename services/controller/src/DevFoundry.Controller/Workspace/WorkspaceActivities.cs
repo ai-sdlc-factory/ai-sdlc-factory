@@ -10,7 +10,7 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
 
     /// <summary>The factory's default limits, read through an activity so a run keeps the values it started with even if the worker is restarted with others.</summary>
     [Activity("factory_defaults")]
-    public Task<FactoryDefaults> GetDefaultsAsync() => Task.FromResult(settings.Defaults);
+    public Task<FactoryDefaults> GetDefaultsAsync() => Task.FromResult(settings.Defaults with { AllowRepoImages = settings.AllowRepoImages });
 
     /// <summary>Records the extra protected paths a project asked for, where the trusted checkout can see them and an agent cannot.</summary>
     [Activity("workspace_set_protected_paths")]
@@ -25,6 +25,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
 
     [Activity("workspace_read_project_config")]
     public Task<string?> ReadProjectConfigAsync(string name) => Task.FromResult(workspace.ReadProjectConfig(name));
+
+    /// <summary>The repository's own sandbox image definition (<c>.factory/Dockerfile</c>), or null.</summary>
+    [Activity("workspace_read_project_image")]
+    public Task<RepoImageSource?> ReadProjectImageAsync(string name) => Task.FromResult(workspace.ReadProjectImage(name));
 
     [Activity("workspace_changes")]
     public Task<ChangeReport> DetectChangesAsync(string name) =>

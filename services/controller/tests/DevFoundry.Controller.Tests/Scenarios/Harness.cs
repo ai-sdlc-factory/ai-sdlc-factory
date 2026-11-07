@@ -83,6 +83,13 @@ public sealed class FakeWorld
     public List<string> Notices { get; } = [];
     public List<ReviewRequestInput> ReviewRequests { get; } = [];
     public List<ProtectedPathsRequest> ProtectedPathRequests { get; } = [];
+
+    /// <summary>The repository's own sandbox image definition; null means it has none.</summary>
+    public RepoImageSource? RepoImage { get; set; }
+    public Exception? RepoImageFailure { get; set; }
+    public SandboxBuildResult BuildResult { get; set; } = new("repo-0123456789ab", true, 12.3, 500L * 1024 * 1024, "");
+    public Exception? BuildFailure { get; set; }
+    public List<SandboxBuildRequest> Builds { get; } = [];
     public FactoryDefaults Defaults { get; set; } = FactoryDefaults.Standard;
 
     /// <summary>What Forgejo says about the pull request being revised; the default is a pull request the factory opened with two line comments.</summary>
@@ -277,6 +284,9 @@ public sealed class FakeWorld
             lock (world.gate) { world.CleanedUp.Add(name); }
         }
 
+        [Activity("workspace_read_project_image")]
+        public RepoImageSource? ReadProjectImage(string name) => world.RepoImageFailure is { } failure ? throw failure : world.RepoImage;
+
         [Activity("factory_defaults")]
         public FactoryDefaults GetDefaults() => world.Defaults;
 
@@ -333,6 +343,13 @@ public sealed class FakeWorld
     {
         [Activity(SandboxNames.ActivityName)]
         public SandboxRunResult Run(SandboxRunRequest request) => world.Sandbox(request);
+
+        [Activity(SandboxNames.BuildActivityName)]
+        public SandboxBuildResult Build(SandboxBuildRequest request)
+        {
+            lock (world.gate) { world.Builds.Add(request); }
+            return world.BuildFailure is { } failure ? throw failure : world.BuildResult;
+        }
     }
 
     private SandboxRunResult Sandbox(SandboxRunRequest request)

@@ -14,6 +14,12 @@ public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList
 /// <summary><see cref="UpdateExistingBranch"/> pushes the commit onto the branch the checkout started from (a pull request being revised), never forcing and never choosing a new name.</summary>
 public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null, bool UpdateExistingBranch = false);
 
+/// <summary>
+/// The sandbox image a repository describes in <c>.factory/Dockerfile</c> and the small context next to it (<c>.factory/docker/</c>, paths relative
+/// to that folder, contents base64). Read from the trusted checkout, so it is what the default branch holds, never what an agent wrote.
+/// </summary>
+public sealed record RepoImageSource(string Dockerfile, IReadOnlyDictionary<string, string> Files);
+
 public sealed record ProtectedPathsRequest(string Name, IReadOnlyList<string> Patterns);
 
 public sealed record PublishResult(string CommitSha, string Branch, int FileCount, int RebasedOver = 0);

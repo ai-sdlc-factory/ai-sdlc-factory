@@ -13,6 +13,9 @@ public sealed class SandboxRunnerTests
         public DockerLogs Logs { get; set; } = new("out", "err", false);
 
         public Task PingAsync(CancellationToken ct) => Task.CompletedTask;
+        public Task<DockerImage?> InspectImageAsync(string name, CancellationToken ct) => Task.FromResult<DockerImage?>(null);
+        public Task BuildImageAsync(Stream context, string tag, DockerBuildLimits limits, IReadOnlyDictionary<string, string> labels, Action<string> onLine, CancellationToken ct) => throw new NotSupportedException();
+        public Task RemoveImageAsync(string name, CancellationToken ct) => Task.CompletedTask;
 
         public Task<bool> NetworkExistsAsync(string name, CancellationToken ct) => Task.FromResult(true);
         public Task EnsureNetworkAsync(string name, CancellationToken ct) => Task.CompletedTask;

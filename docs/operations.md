@@ -90,6 +90,7 @@ docker compose up -d
 - **Review every pull request** like any other. The checks catch protected files, symbolic links, oversized files and common credential shapes, but they are a safety net, not a guarantee.
 - **What leaves your machine:** prompts, which contain ticket text and code excerpts, go to the model provider. Do not put secrets in tickets. Logs in incident tickets can contain personal data.
 - **Repository text is untrusted.** A hostile ticket or repository file can try to instruct an agent; roles are told to treat it as data, permissions are fixed per role, and the sandbox has no route to anything but the allowlist.
+- **Repository images are off by default.** With `FACTORY_ALLOW_REPO_IMAGES=true`, whoever can merge to a repository's default branch can run build instructions on this machine's Docker, with internet access (the egress proxy covers sandboxes while they run, not image builds). Enable it only for repositories you control. The factory limits what a Dockerfile may contain, how long and how large a build may be, and never builds one an agent wrote, but it is still the same trust as running that repository's CI. Built images pile up: `docker image ls dev-foundry/repo`.
 
 ## Cost and usage
 

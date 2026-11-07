@@ -117,6 +117,30 @@ public sealed class LimitsTests
     }
 
     [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("false", false)]
+    [InlineData("true", true)]
+    [InlineData("True", true)]
+    public void Repository_images_are_off_unless_the_operator_says_true(string? value, bool expected)
+    {
+        var settings = value is null ? Settings() : Settings(("FACTORY_ALLOW_REPO_IMAGES", value));
+
+        Assert.Equal(expected, settings.AllowRepoImages);
+    }
+
+    [Theory]
+    [InlineData("maybe")]
+    [InlineData("1")]
+    [InlineData("yes")]
+    public void A_repository_images_switch_that_is_not_true_or_false_stops_the_start(string value)
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => Settings(("FACTORY_ALLOW_REPO_IMAGES", value)));
+
+        Assert.Contains("FACTORY_ALLOW_REPO_IMAGES must be true or false", error.Message);
+    }
+
+    [Theory]
     [InlineData("FACTORY_DEFAULT_BUILD_ROUNDS", "0")]
     [InlineData("FACTORY_DEFAULT_BUILD_ROUNDS", "9")]
     [InlineData("FACTORY_DEFAULT_CLARIFICATION_ROUNDS", "5")]

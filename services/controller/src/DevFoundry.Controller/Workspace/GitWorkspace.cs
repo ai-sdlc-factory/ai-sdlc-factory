@@ -119,6 +119,52 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         return File.ReadAllText(file.FullName);
     }
 
+    public const int MaxImageContextFiles = 50;
+    public const long MaxImageContextBytes = 1024 * 1024;
+    private const long MaxDockerfileBytes = 64 * 1024;
+
+    /// <summary>
+    /// The repository's own sandbox image definition from the pristine clone, or null if it has none. Only regular files count: a symbolic link
+    /// anywhere is ignored (so it cannot point at something outside the checkout), and a context that is too big is refused.
+    /// </summary>
+    public RepoImageSource? ReadProjectImage(string name)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        var basePath = BasePath(root, name);
+        var dockerfile = new FileInfo($"{basePath}/.factory/Dockerfile");
+        if (!dockerfile.Exists || dockerfile.LinkTarget is not null)
+        {
+            return null;
+        }
+        if (dockerfile.Length > MaxDockerfileBytes)
+        {
+            throw new ApplicationFailureException("`.factory/Dockerfile` is larger than 64 KB.", nonRetryable: true);
+        }
+
+        var files = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        var directory = new DirectoryInfo($"{basePath}/.factory/docker");
+        if (directory.Exists && directory.LinkTarget is null)
+        {
+            long total = 0;
+            foreach (var file in directory.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(directory.FullName, file.FullName).Replace('\\', '/');
+                if (file.LinkTarget is not null || HasSymlinkOnPath(directory.FullName, relative))
+                {
+                    throw new ApplicationFailureException($"`.factory/docker/{relative}` is or goes through a symbolic link, which is not allowed.", nonRetryable: true);
+                }
+                total += file.Length;
+                if (files.Count >= MaxImageContextFiles || total > MaxImageContextBytes)
+                {
+                    throw new ApplicationFailureException("`.factory/docker/` has more than 50 files or more than 1 MB.", nonRetryable: true);
+                }
+                files[relative] = Convert.ToBase64String(File.ReadAllBytes(file.FullName));
+            }
+        }
+        return new RepoImageSource(File.ReadAllText(dockerfile.FullName), files);
+    }
+
     private static void RequireName(string name)
     {
         if (!WorkspaceName().IsMatch(name) || name.Contains(".."))

@@ -27,7 +27,15 @@ public interface IDockerClient
     Task<DockerLogs> LogsAsync(string id, int maxBytes, CancellationToken cancellationToken);
     Task RemoveAsync(string id, CancellationToken cancellationToken);
     Task<IReadOnlyList<string>> ListSandboxIdsAsync(CancellationToken cancellationToken);
+    Task<DockerImage?> InspectImageAsync(string name, CancellationToken cancellationToken);
+    Task BuildImageAsync(Stream context, string tag, DockerBuildLimits limits, IReadOnlyDictionary<string, string> labels, Action<string> onLine, CancellationToken cancellationToken);
+    Task RemoveImageAsync(string name, CancellationToken cancellationToken);
 }
+
+public sealed record DockerImage(string Id, long Size, IReadOnlyDictionary<string, string> Labels);
+
+/// <summary>What one image build may use.</summary>
+public sealed record DockerBuildLimits(long MemoryBytes, double Cpus);
 
 public sealed record DockerLogs(string Stdout, string Stderr, bool Truncated);
 
@@ -171,6 +179,71 @@ public sealed class DockerClient : IDockerClient
         using var response = await SendAsync(HttpMethod.Get, $"containers/json?all=true&filters={filters}", null, cancellationToken);
         var items = await response.Content.ReadFromJsonAsync<List<ListItem>>(cancellationToken) ?? [];
         return items.Select(item => item.Id).ToList();
+    }
+
+    public async Task<DockerImage?> InspectImageAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await SendAsync(HttpMethod.Get, $"images/{name}/json", null, cancellationToken);
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            var root = document.RootElement;
+            var labels = new Dictionary<string, string>();
+            if (root.TryGetProperty("Config", out var config) && config.ValueKind == JsonValueKind.Object
+                && config.TryGetProperty("Labels", out var found) && found.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var label in found.EnumerateObject())
+                {
+                    labels[label.Name] = label.Value.GetString() ?? "";
+                }
+            }
+            return new DockerImage(root.GetProperty("Id").GetString() ?? "", root.TryGetProperty("Size", out var size) ? size.GetInt64() : 0, labels);
+        }
+        catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task BuildImageAsync(
+        Stream context, string tag, DockerBuildLimits limits, IReadOnlyDictionary<string, string> labels, Action<string> onLine, CancellationToken cancellationToken)
+    {
+        // The classic builder: it only runs instructions from the context, never fetches a frontend image, and takes the memory and CPU limits.
+        var query = $"build?t={Uri.EscapeDataString(tag)}&rm=1&forcerm=1&pull=0&nocache=0"
+            + $"&memory={limits.MemoryBytes}&memswap={limits.MemoryBytes}&cpuperiod=100000&cpuquota={(long)(limits.Cpus * 100000)}"
+            + $"&labels={Uri.EscapeDataString(JsonSerializer.Serialize(labels))}";
+        var content = new StreamContent(context);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-tar");
+        using var response = await SendAsync(HttpMethod.Post, query, content, cancellationToken);
+        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(cancellationToken));
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            if (line.Length == 0)
+            {
+                continue;
+            }
+            using var message = JsonDocument.Parse(line);
+            if (message.RootElement.TryGetProperty("error", out var error))
+            {
+                throw new DockerException(HttpStatusCode.InternalServerError, error.GetString() ?? "the build failed");
+            }
+            if (message.RootElement.TryGetProperty("stream", out var stream) && stream.GetString() is { } text)
+            {
+                onLine(text);
+            }
+        }
+    }
+
+    public async Task RemoveImageAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await SendAsync(HttpMethod.Delete, $"images/{name}?force=true", null, cancellationToken);
+        }
+        catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
+        {
+            // Already removed.
+        }
     }
 
     private async Task<HttpResponseMessage> SendAsync(

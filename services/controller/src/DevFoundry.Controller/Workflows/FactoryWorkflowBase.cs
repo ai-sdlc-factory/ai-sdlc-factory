@@ -109,6 +109,13 @@ public abstract partial class FactoryWorkflowBase
                     new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
             }
 
+            var (image, imageStop) = await PrepareProjectImageAsync(request, project, defaults);
+            if (imageStop is not null)
+            {
+                return imageStop;
+            }
+            project = project with { Image = image };
+
             if (project.Record)
             {
                 recordDirectory = request.Kind == FeatureIds.Revision

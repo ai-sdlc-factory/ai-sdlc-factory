@@ -36,6 +36,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
 | `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
 | `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
+| `FACTORY_ALLOW_REPO_IMAGES` | `true` lets a repository bring its own sandbox image: a `.factory/Dockerfile` that the launcher builds once per distinct content, starting from one of the factory's own images ([the rules](project-setup.md#a-projects-own-image)). **Off by default.** Turning it on means **anyone who can merge to a repository's default branch can run build instructions on this machine's Docker, with internet access** (the egress proxy covers running sandboxes, not builds). Treat it like running that repository's CI, and enable it only for repositories you control. The controller and the launcher read the same setting | `false` |
 | `FORGEJO_BOT_TOKEN` | the factory bot's access token (scopes `write:issue`, `write:repository`). Only the controller receives it. Empty disables all ticket actions | empty |
 | `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
 
@@ -95,6 +96,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `FORGEJO_URL` | `http://forgejo:3000` | where the controller reaches Forgejo (over the `forge` network) |
 | `FORGEJO_BOT_TOKEN` | empty | the bot's token |
 | `FORGEJO_BOT_LOGIN` | `factory-bot` | the bot's username, used to recognise the factory's own pull requests |
+| `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | whether a repository's own image is mentioned and used, as above; the launcher enforces the same switch |
 | `FACTORY_DEFAULT_BUILD_ROUNDS`, `FACTORY_DEFAULT_CLARIFICATION_ROUNDS`, `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | `3`, `3`, `3` (set by Compose) | defaults for a project's `limits`; a value outside its range stops the controller at start with a message |
 | `FACTORY_WORKSPACE_ROOT` | none (required) | where checkouts live |
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |
@@ -109,6 +111,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `SANDBOX_EGRESS_MODE` | `enforce` (from `SANDBOX_EGRESS`) | `enforce`, `audit` or `open` |
 | `SANDBOX_OPEN_NETWORK` | `dev-foundry_sandbox-open` | the ordinary network used in `open` mode |
 | `SANDBOX_AUTH_VOLUME` | `dev-foundry_opencode-data` (set in Compose) | the volume holding the OpenCode login. Empty disables model runs |
+| `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | `true` lets the launcher build the image a repository describes in `.factory/Dockerfile` (memory- and time-limited, at most 6 GB). Without it every such request is refused |
 | `SANDBOX_AUTH_READONLY` | `false` | `true` forbids an agent from changing the login, at the cost of a login that stops working when its token expires |
 | `FACTORY_GLOBAL_CONFIG` | from `.env` | the agents folder mounted at `/etc/factory` |
 | `SANDBOX_UID`, `SANDBOX_GID` | `1000` | the user the sandbox runs as (from `FACTORY_UID`/`FACTORY_GID`); must not be root |

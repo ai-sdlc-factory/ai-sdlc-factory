@@ -10,6 +10,7 @@ Starting points for a repository's own files. Copy one, replace the names, folde
 | [project.dotnet.json](project.dotnet.json) | `.factory/project.json` on the default branch | the matching settings: gates, extra protected paths, rules, limits |
 | [AGENTS.react-ui.md](AGENTS.react-ui.md) | `AGENTS.md` in the repository root | a React + TypeScript web app, with accessibility and UX conventions |
 | [project.react-ui.json](project.react-ui.json) | `.factory/project.json` on the default branch | the matching settings: `ui` paths so the UX reviewer runs, rules, protected generated files |
+| [Dockerfile.dotnet-redis](Dockerfile.dotnet-redis) | `.factory/Dockerfile` on the default branch | a project's own sandbox image: a standard image plus `redis-server`. Needs `FACTORY_ALLOW_REPO_IMAGES=true`; [read the rules](../project-setup.md#a-projects-own-image) first |
 
 How the two files work together:
 

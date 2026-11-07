@@ -267,6 +267,8 @@ services:
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}
       FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST: ${FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST:-3}
+      # Whether a repository may bring its own sandbox image (.factory/Dockerfile). Off by default; read the warning in docs/configuration.md first.
+      FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
       # Only read to name the model each role is configured with in a run record.
       FACTORY_AGENTS_DIR: /etc/factory
@@ -349,6 +351,8 @@ services:
       SANDBOX_GID: ${FACTORY_GID:-1000}
       FACTORY_GLOBAL_CONFIG: ${FACTORY_GLOBAL_CONFIG:-}
       SANDBOX_AUTH_VOLUME: ${COMPOSE_PROJECT_NAME:-dev-foundry}_opencode-data
+      # The same switch as the controller's: the launcher refuses to build a repository's image unless it is true.
+      FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Read-only: the launcher only checks that a workspace exists before mounting it into a sandbox.

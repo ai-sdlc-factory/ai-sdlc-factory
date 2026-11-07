@@ -4,7 +4,7 @@ internal static class Support
 {
     public static SandboxSettings Settings(
         string? globalConfig = null, string? authVolume = "dev-foundry_opencode-data", bool authReadOnly = false,
-        EgressMode egress = EgressMode.Enforce) => new()
+        EgressMode egress = EgressMode.Enforce, bool allowRepoImages = false) => new()
     {
         WorkspaceRoot = "/work",
         Images = new Dictionary<string, string> { ["dotnet"] = "dev-foundry/sandbox-dotnet:local" },
@@ -24,6 +24,7 @@ internal static class Support
         AuthVolume = authVolume,
         AuthReadOnly = authReadOnly,
         Egress = egress,
+        AllowRepoImages = allowRepoImages,
     };
 
     public static SandboxRunRequest Request(
