@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Temporalio.Exceptions;
+using static DevFoundry.Controller.ForgejoJson;
 
 namespace DevFoundry.Controller;
 
@@ -99,11 +100,6 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         }
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
         var root = document.RootElement;
-        // A part that is missing reads as empty text, never as an error (a default element must not be asked for properties).
-        static string Text(JsonElement element, string name) =>
-            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-        static JsonElement Child(JsonElement element, string name) =>
-            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object ? v : default;
         string Repository(JsonElement side) => Text(Child(side, "repo"), "full_name");
 
         var head = Child(root, "head");
@@ -135,12 +131,6 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         {
             return [];
         }
-
-        static string Text(JsonElement element, string name) =>
-            element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-        static string Login(JsonElement element) => element.TryGetProperty("user", out var u) && u.ValueKind == JsonValueKind.Object ? Text(u, "login") : "";
-        static DateTimeOffset? When(JsonElement element, string name) =>
-            DateTimeOffset.TryParse(Text(element, name), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var at) ? at : null;
 
         var chosen = reviews.RootElement.EnumerateArray()
             .Where(review => review.TryGetProperty("id", out _)
@@ -299,33 +289,18 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
     /// <summary>
     /// Opens a pull request for a pushed branch. If one already exists for the branch (a retried attempt
     /// after the first one succeeded), that one is returned instead of failing.
-    /// </summary>
     /// <summary>Repositories the bot can push to: the only ones it makes branches in, and so the only ones the janitor looks at.</summary>
     public async Task<IReadOnlyList<(string Owner, string Repo)>> ListWritableRepositoriesAsync(CancellationToken cancellationToken)
     {
         RequireToken();
         var result = new List<(string, string)>();
-        for (var page = 1; page <= 20; page++)
+        await foreach (var repository in PagedAsync("api/v1/repos/search", "repository list", "data", cancellationToken))
         {
-            using var request = Authorized(HttpMethod.Get, $"api/v1/repos/search?limit=50&page={page}");
-            using var response = await http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            var canPush = Child(repository, "permissions") is { ValueKind: JsonValueKind.Object } permissions
+                && permissions.TryGetProperty("push", out var push) && push.ValueKind == JsonValueKind.True;
+            if (canPush && Text(repository, "full_name").Split('/') is [var owner, var repo])
             {
-                throw Failure("repository list", response.StatusCode, response.ReasonPhrase);
-            }
-            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array || data.GetArrayLength() == 0)
-            {
-                break;
-            }
-            foreach (var repository in data.EnumerateArray())
-            {
-                var push = repository.TryGetProperty("permissions", out var permissions) && permissions.ValueKind == JsonValueKind.Object
-                    && permissions.TryGetProperty("push", out var canPush) && canPush.ValueKind == JsonValueKind.True;
-                if (push && repository.TryGetProperty("full_name", out var name) && name.GetString()?.Split('/') is [var owner, var repo])
-                {
-                    result.Add((owner, repo));
-                }
+                result.Add((owner, repo));
             }
         }
         return result;
@@ -335,27 +310,11 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
     {
         RequireToken();
         var result = new List<BranchInfo>();
-        for (var page = 1; page <= 20; page++)
+        await foreach (var branch in PagedAsync($"{RepoPath(owner, repo)}/branches", "branch list", null, cancellationToken))
         {
-            using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/branches?limit=50&page={page}");
-            using var response = await http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            if (Text(branch, "name") is { Length: > 0 } name && When(Child(branch, "commit"), "timestamp") is { } at)
             {
-                throw Failure("branch list", response.StatusCode, response.ReasonPhrase);
-            }
-            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
-            {
-                break;
-            }
-            foreach (var branch in document.RootElement.EnumerateArray())
-            {
-                if (branch.TryGetProperty("name", out var name) && name.GetString() is { } text
-                    && branch.TryGetProperty("commit", out var commit) && commit.ValueKind == JsonValueKind.Object
-                    && commit.TryGetProperty("timestamp", out var stamp) && DateTimeOffset.TryParse(stamp.GetString(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var at))
-                {
-                    result.Add(new BranchInfo(text, at));
-                }
+                result.Add(new BranchInfo(name, at));
             }
         }
         return result;
@@ -384,29 +343,50 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
     {
         RequireToken();
         var result = new HashSet<string>(StringComparer.Ordinal);
-        for (var page = 1; page <= 20; page++)
+        await foreach (var pull in PagedAsync($"{RepoPath(owner, repo)}/pulls?state=open", "pull request list", null, cancellationToken))
         {
-            using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls?state=open&limit=50&page={page}");
-            using var response = await http.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            if (Text(Child(pull, "head"), "ref") is { Length: > 0 } branch)
             {
-                throw Failure("pull request list", response.StatusCode, response.ReasonPhrase);
-            }
-            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
-            {
-                break;
-            }
-            foreach (var pull in document.RootElement.EnumerateArray())
-            {
-                if (pull.TryGetProperty("head", out var head) && head.ValueKind == JsonValueKind.Object
-                    && head.TryGetProperty("ref", out var reference) && reference.GetString() is { } name)
-                {
-                    result.Add(name);
-                }
+                result.Add(branch);
             }
         }
         return result;
+    }
+
+    private static string RepoPath(string owner, string repo) => $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}";
+
+    /// <summary>
+    /// The items of a list that Forgejo hands out in pages of 50, until a page comes back empty (and never more than 20 pages, so a
+    /// misbehaving server cannot keep us here). <paramref name="listProperty"/> names the array inside an object answer; null means the answer is the array.
+    /// </summary>
+    private async IAsyncEnumerable<JsonElement> PagedAsync(
+        string path, string what, string? listProperty, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        const int MaxPages = 20;
+        var separator = path.Contains('?') ? '&' : '?';
+        for (var page = 1; page <= MaxPages; page++)
+        {
+            using var request = Authorized(HttpMethod.Get, $"{path}{separator}limit=50&page={page}");
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw Failure(what, response.StatusCode, response.ReasonPhrase);
+            }
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            var list = document.RootElement;
+            if (listProperty is not null && (list.ValueKind != JsonValueKind.Object || !list.TryGetProperty(listProperty, out list)))
+            {
+                yield break;
+            }
+            if (list.ValueKind != JsonValueKind.Array || list.GetArrayLength() == 0)
+            {
+                yield break;
+            }
+            foreach (var item in list.EnumerateArray())
+            {
+                yield return item.Clone(); // the document is disposed when this page is done
+            }
+        }
     }
 
     public async Task DeleteBranchAsync(string owner, string repo, string branch, CancellationToken cancellationToken)
