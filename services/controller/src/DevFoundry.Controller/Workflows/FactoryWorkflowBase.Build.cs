@@ -19,8 +19,8 @@ public abstract partial class FactoryWorkflowBase
     /// factory (not the agent) commits, pushes and opens the pull request. Anything else goes back to the
     /// developer as feedback, up to a fixed number of rounds.
     /// </summary>
-    protected async Task<FeatureResult> BuildAsync(
-        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project,
+    protected async Task<WorkResult> BuildAsync(
+        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project,
         IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design, TriageDecision triage, string? quickReason = null, BugBrief? bug = null)
     {
         string? feedback = null;
@@ -35,7 +35,7 @@ public abstract partial class FactoryWorkflowBase
         {
             if (ticketClosed)
             {
-                return new FeatureResult("closed");
+                return new WorkResult("closed");
             }
 
             var feedbackForRound = feedback;
@@ -45,22 +45,22 @@ public abstract partial class FactoryWorkflowBase
                 ParseDeveloper, writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (ticketClosed)
             {
-                return new FeatureResult("closed");
+                return new WorkResult("closed");
             }
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return new FeatureResult("blocked");
+                return new WorkResult("blocked");
             }
             if (outcome.Value is not { } developer)
             {
                 await CommentAsync(request, $"The build failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new FeatureResult("build_failed");
+                return new WorkResult("build_failed");
             }
             if (developer.Verdict == DeveloperReport.Blocked)
             {
                 await CommentAsync(request, "**Build: the developer is blocked**\n\n" + string.Join('\n', developer.Notes.Select(note => $"- {TicketComments.Inert(note)}")));
-                return new FeatureResult("build_blocked");
+                return new WorkResult("build_blocked");
             }
 
             var before = await DetectChangesAsync(workspace);
@@ -142,7 +142,7 @@ public abstract partial class FactoryWorkflowBase
             await CommentAsync(request,
                 $"I could not get the work through the checks and the review in {maxBuildRounds} rounds, so nothing was published. " +
                 $"Last problem: {TicketComments.Inert(Short(feedback ?? "unknown"))} A person needs to take over.");
-            return new FeatureResult("build_failed", triage.NeedsArchitect);
+            return new WorkResult("build_failed", triage.NeedsArchitect);
         }
 
         var title = PullRequestText.Title(request);
@@ -158,7 +158,7 @@ public abstract partial class FactoryWorkflowBase
             if (published is null)
             {
                 await CommentAsync(request, "The work produced no changes to publish.");
-                return new FeatureResult("no_changes", triage.NeedsArchitect);
+                return new WorkResult("no_changes", triage.NeedsArchitect);
             }
             pullRequest = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
@@ -175,14 +175,14 @@ public abstract partial class FactoryWorkflowBase
                 await CommentAsync(request,
                     $"The work passed every check and review and is on the branch `{published.Branch}` ({published.FileCount} file(s)), " +
                     $"but opening the pull request failed: {reason} Open one from that branch by hand.");
-                return new FeatureResult("publish_failed", triage.NeedsArchitect, WorkBranch: published.Branch);
+                return new WorkResult("publish_failed", triage.NeedsArchitect, WorkBranch: published.Branch);
             }
             await CommentAsync(request, $"Publishing failed and needs a person to look at it: {reason}");
-            return new FeatureResult("publish_failed", triage.NeedsArchitect);
+            return new WorkResult("publish_failed", triage.NeedsArchitect);
         }
 
         await CommentAsync(request, $"**Pull request opened:** {pullRequest.Url}\n\n{published.FileCount} file(s) on branch `{published.Branch}`. A person must review and merge it.");
-        return new FeatureResult("pr_opened", triage.NeedsArchitect, pullRequest.Url);
+        return new WorkResult("pr_opened", triage.NeedsArchitect, pullRequest.Url);
     }
 
     protected static string? Combine(string? feedback, string? unusableAnswer) =>
@@ -220,7 +220,7 @@ public abstract partial class FactoryWorkflowBase
     }
 
     protected sealed record ReviewOutcome(
-        FeatureResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa, string? UxNote = null);
+        WorkResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa, string? UxNote = null);
 
     protected static (ReviewReport? Value, string? Error) ParseReview(string text) =>
         ReviewParser.TryParse(text, out var report, out var error) ? (report, null) : (null, error);
@@ -234,7 +234,7 @@ public abstract partial class FactoryWorkflowBase
     /// developer. A review that cannot be completed stops the run: nothing is published unreviewed.
     /// </summary>
     protected async Task<ReviewOutcome> ReviewAsync(
-        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
+        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, ChangeReport changes, IReadOnlyList<GateResult> gates, bool skipQa = false,
         IReadOnlyList<CriterionCoverage>? qaCriteria = null, string? ruleNotes = null)
     {
@@ -334,7 +334,7 @@ public abstract partial class FactoryWorkflowBase
 
     /// <summary>Runs one reviewing role and posts its review. A review that cannot be completed stops the run.</summary>
     protected async Task<(ReviewReport? Review, ReviewOutcome? Stop)> RunReviewAsync(
-        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, string role, Func<string?, string> prompt)
+        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, string role, Func<string?, string> prompt)
     {
         var outcome = await RunAgentAsync<ReviewReport>(role, project.Image, workspace, prompt, ParseReview);
         if (ticketClosed)
@@ -355,5 +355,5 @@ public abstract partial class FactoryWorkflowBase
         return (review, null);
     }
 
-    protected static ReviewOutcome Stopped(string status) => new(new FeatureResult(status), null, [], null);
+    protected static ReviewOutcome Stopped(string status) => new(new WorkResult(status), null, [], null);
 }

@@ -10,8 +10,8 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);
 
-    private static FeatureRequest Incident() =>
-        ScenarioContext.Request(title: "Checkout fails", body: "500s on /checkout since 10:42. Last deploy at 10:40.", labels: ["incident"]) with { Kind = FeatureIds.Incident };
+    private static WorkRequest Incident() =>
+        ScenarioContext.Request(title: "Checkout fails", body: "500s on /checkout since 10:42. Last deploy at 10:40.", labels: ["incident"]) with { Kind = WorkIds.Incident };
 
     /// <summary>The three advice roles, answering once each; tests add more answers for repeated looks.</summary>
     private static FakeWorld Advising() => new FakeWorld()
@@ -33,7 +33,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
         }
     }
 
-    private static Task Say_(WorkflowHandle<IncidentWorkflow, FeatureResult> handle, string text, string who = "bob") =>
+    private static Task Say_(WorkflowHandle<IncidentWorkflow, WorkResult> handle, string text, string who = "bob") =>
         handle.SignalAsync(w => w.OnHumanReplyAsync(new HumanReply(who, text)));
 
     private static string PostmortemPath(int issue = 1) => $"docs/postmortems/{DateTime.UtcNow:yyyy-MM-dd}-incident-{issue}.md";

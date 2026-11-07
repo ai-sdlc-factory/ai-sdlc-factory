@@ -13,7 +13,7 @@ public abstract partial class FactoryWorkflowBase
     /// the ticket says so. Without the file, nothing changes. A broken Dockerfile stops the run instead of silently falling back, because the checks
     /// would then run in an environment the project did not intend.
     /// </summary>
-    protected async Task<(string Image, FeatureResult? Stop)> PrepareProjectImageAsync(FeatureRequest request, ProjectConfig project, FactoryDefaults defaults)
+    protected async Task<(string Image, WorkResult? Stop)> PrepareProjectImageAsync(WorkRequest request, ProjectConfig project, FactoryDefaults defaults)
     {
         RepoImageSource? source;
         try
@@ -59,11 +59,11 @@ public abstract partial class FactoryWorkflowBase
         }
     }
 
-    private async Task<FeatureResult> ImageFailedAsync(FeatureRequest request, string reason)
+    private async Task<WorkResult> ImageFailedAsync(WorkRequest request, string reason)
     {
         await CommentAsync(request,
             $"The project's sandbox image could not be used, so I stopped: {TicketComments.Inert(Short(reason))}\n\n" +
-            $"Fix `.factory/Dockerfile` on the default branch, then {(request.Kind == FeatureIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
-        return new FeatureResult("image_failed");
+            $"Fix `.factory/Dockerfile` on the default branch, then {(request.Kind == WorkIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
+        return new WorkResult("image_failed");
     }
 }

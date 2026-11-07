@@ -9,7 +9,7 @@ public static class CoveragePrompt
     private const int MaxTitle = 200;
     private const int MaxCriterion = 240;
 
-    public static string Build(FeatureRequest request, IReadOnlyList<string> criteria, string? previousProblem)
+    public static string Build(WorkRequest request, IReadOnlyList<string> criteria, string? previousProblem)
     {
         var text = new StringBuilder();
         text.AppendLine("Check which of these acceptance criteria the repository in the current directory already satisfies.");

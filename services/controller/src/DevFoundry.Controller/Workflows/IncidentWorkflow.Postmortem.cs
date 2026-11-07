@@ -10,8 +10,8 @@ public sealed partial class IncidentWorkflow
     /// Drafts a postmortem as a new document in the repository and opens a pull request for it. The factory checks that
     /// exactly one new file, at the expected path, was written; the draft comes from the ticket's record only.
     /// </summary>
-    private async Task<FeatureResult> PostmortemAsync(
-        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment,
+    private async Task<WorkResult> PostmortemAsync(
+        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment,
         Investigation? investigation, Mitigation? mitigation)
     {
         var path = $"docs/postmortems/{Workflow.UtcNow:yyyy-MM-dd}-incident-{request.IssueNumber}.md";
@@ -26,22 +26,22 @@ public sealed partial class IncidentWorkflow
                 writable: true);
             if (ticketClosed)
             {
-                return new FeatureResult("closed");
+                return new WorkResult("closed");
             }
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return new FeatureResult("blocked");
+                return new WorkResult("blocked");
             }
             if (outcome.Value is not { } draft)
             {
                 await CommentAsync(request, $"The postmortem draft failed: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new FeatureResult("postmortem_failed");
+                return new WorkResult("postmortem_failed");
             }
             if (draft.Verdict == PostmortemDraft.Blocked)
             {
                 await CommentAsync(request, $"I could not write the postmortem: {TicketComments.Inert(Short(draft.Summary))}");
-                return new FeatureResult("postmortem_failed");
+                return new WorkResult("postmortem_failed");
             }
 
             var changes = await DetectChangesAsync(workspace);
@@ -61,7 +61,7 @@ public sealed partial class IncidentWorkflow
             if (changes.Violations.Count > 0 || changes.Files.Count != 1 || changes.Files[0].Path != path || changes.Files[0].Kind != FileChange.Added)
             {
                 await CommentAsync(request, $"The postmortem draft was not accepted and nothing was published: {TicketComments.Inert(Short(feedback ?? "unknown problem"))}");
-                return new FeatureResult("postmortem_failed");
+                return new WorkResult("postmortem_failed");
             }
 
             try
@@ -81,21 +81,21 @@ public sealed partial class IncidentWorkflow
                 if (published is null)
                 {
                     await CommentAsync(request, "The postmortem produced no changes to publish.");
-                    return new FeatureResult("postmortem_failed");
+                    return new WorkResult("postmortem_failed");
                 }
                 var pullRequest = await Workflow.ExecuteActivityAsync(
                     (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                         request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, prTitle, prBody)),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
                 await CommentAsync(request, IncidentComments.PostmortemOpened(pullRequest.Url));
-                return new FeatureResult("postmortem_opened", PullRequestUrl: pullRequest.Url, WorkBranch: published.Branch);
+                return new WorkResult("postmortem_opened", PullRequestUrl: pullRequest.Url, WorkBranch: published.Branch);
             }
             catch (ActivityFailureException error)
             {
                 await CommentAsync(request, $"Publishing the postmortem failed: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
-                return new FeatureResult("postmortem_failed");
+                return new WorkResult("postmortem_failed");
             }
         }
-        return new FeatureResult("postmortem_failed");
+        return new WorkResult("postmortem_failed");
     }
 }

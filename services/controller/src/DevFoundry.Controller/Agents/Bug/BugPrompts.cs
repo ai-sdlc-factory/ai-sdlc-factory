@@ -25,7 +25,7 @@ public static class BugPrompts
     private const int MaxError = 600;
     private const int MaxOutput = 3000;
 
-    public static string Analyst(FeatureRequest request, IReadOnlyList<string> replies, string? problem, int round, int maxRounds)
+    public static string Analyst(WorkRequest request, IReadOnlyList<string> replies, string? problem, int round, int maxRounds)
     {
         var text = new StringBuilder();
         text.AppendLine("Analyse this bug report for the repository checked out in the current directory.");
@@ -43,7 +43,7 @@ public static class BugPrompts
     }
 
     public static string Reproducer(
-        FeatureRequest request, BugAnalysis analysis, IReadOnlyList<string> replies, string? feedback, int round, int maxRounds,
+        WorkRequest request, BugAnalysis analysis, IReadOnlyList<string> replies, string? feedback, int round, int maxRounds,
         IReadOnlyList<Gate> gates)
     {
         var text = new StringBuilder();
@@ -82,7 +82,7 @@ public static class BugPrompts
     }
 
     public static string Diagnostician(
-        FeatureRequest request, BugAnalysis analysis, Reproduction reproduction, long redExitCode, string redOutput,
+        WorkRequest request, BugAnalysis analysis, Reproduction reproduction, long redExitCode, string redOutput,
         IReadOnlyList<string> replies, string? problem, int round, int maxRounds)
     {
         var text = new StringBuilder();
@@ -139,7 +139,7 @@ public static class BugPrompts
 
     private const int MaxLocationsShown = 10;
 
-    private static void Ticket(StringBuilder text, FeatureRequest request)
+    private static void Ticket(StringBuilder text, WorkRequest request)
     {
         text.AppendLine();
         text.AppendLine($"Ticket #{request.IssueNumber} in {request.Owner}/{request.Repo}");

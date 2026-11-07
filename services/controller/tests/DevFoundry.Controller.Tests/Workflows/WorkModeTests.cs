@@ -95,7 +95,7 @@ public sealed class QuickModeTextTests
     [Fact]
     public void The_pull_request_says_the_stages_were_skipped_only_in_quick_mode()
     {
-        var request = new FeatureRequest("acme", "shop", 7, "Add it", "Body", "alice");
+        var request = new WorkRequest("acme", "shop", 7, "Add it", "Body", "alice");
         var report = new DeveloperReport("done", "Added it.", []);
 
         var quick = PullRequestText.Body(request, report, [], null, [], 1, quickReason: "the ticket has the \"quick\" label");

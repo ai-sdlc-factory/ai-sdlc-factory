@@ -157,7 +157,7 @@ public sealed class QaParserTests
 
 public sealed class ReviewPromptTests
 {
-    private static FeatureRequest Request() => new("acme", "shop", 7, "Add goodbye", "body", "alice");
+    private static WorkRequest Request() => new("acme", "shop", 7, "Add goodbye", "body", "alice");
     private static readonly ChangeReport Changes = new([new FileChange("hello.py", FileChange.Modified), new FileChange("test_goodbye.py", FileChange.Added)], []);
     private static CriterionCoverage Criterion(int i) => new(i, $"Criterion {i}.", CoverageStatus.Missing, [], "");
 
@@ -202,7 +202,7 @@ public sealed class ReviewPromptTests
     public void Reviewers_and_QA_are_told_which_automated_checks_exist()
     {
         var checks = ReviewPrompt.Describe([new Gate("test", ["python", "-m", "pytest", "-q"], 300), new Gate("lint", ["ruff", "check", "."], 60)]);
-        var request = new FeatureRequest("a", "b", 7, "T", "body", "alice");
+        var request = new WorkRequest("a", "b", 7, "T", "body", "alice");
         var changes = new ChangeReport([new FileChange("hello.py", FileChange.Modified)], []);
 
         var review = ReviewPrompt.Build(request, [], null, changes, "diff", "test passed", null, checks: checks);
@@ -281,7 +281,7 @@ public sealed class ReviewFeedbackAndCommentTests
     public void The_pull_request_lists_review_advice_and_QA_results()
     {
         var body = PullRequestText.Body(
-            new FeatureRequest("a", "b", 7, "T", "b", "u"), new DeveloperReport("done", "Did it.", []), [], null,
+            new WorkRequest("a", "b", 7, "T", "b", "u"), new DeveloperReport("done", "Did it.", []), [], null,
             [new GateResult("test", true, 0, false, "")], 1,
             [("reviewer", Report(new ReviewFinding("minor", "hello.py", "Shorter name?"), new ReviewFinding("major", "x.py", "blocking, would not be here")))],
             new QaReport("pass", "All good.", [new QaCriterion(1, "Prints hello.", "met", ["hello.py"], "")]));

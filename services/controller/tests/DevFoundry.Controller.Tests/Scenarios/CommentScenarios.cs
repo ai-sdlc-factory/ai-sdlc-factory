@@ -24,7 +24,7 @@ public sealed class CommentScenarios(TemporalFixture fixture)
     public async Task A_comment_during_the_build_is_answered_once_and_does_not_change_the_run()
     {
         var world = ToPullRequest();
-        WorkflowHandle<FeatureWorkflow, FeatureResult>? running = null;
+        WorkflowHandle<FeatureWorkflow, WorkResult>? running = null;
         var sent = false;
         world.BeforeAgent = role =>
         {
@@ -54,7 +54,7 @@ public sealed class CommentScenarios(TemporalFixture fixture)
     public async Task A_comment_that_no_stage_ever_read_is_reported_when_the_run_ends()
     {
         var world = ToPullRequest();
-        WorkflowHandle<FeatureWorkflow, FeatureResult>? running = null;
+        WorkflowHandle<FeatureWorkflow, WorkResult>? running = null;
         var sent = false;
         // Sent while the analyst is working; the analyst passes, no design review follows, so nobody reads it.
         world.BeforeAgent = role =>

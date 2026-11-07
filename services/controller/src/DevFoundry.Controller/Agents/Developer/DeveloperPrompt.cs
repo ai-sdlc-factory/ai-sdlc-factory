@@ -16,7 +16,7 @@ public static class DeveloperPrompt
     private const int MaxFeedback = 7000;
 
     public static string Build(
-        FeatureRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
+        WorkRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
         IReadOnlyList<Gate> gates, string? feedback, int round, int maxRounds, BugBrief? bug = null, IReadOnlyList<ProjectRule>? rules = null)
     {
         var text = new StringBuilder();

@@ -30,7 +30,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
 
     private static void NothingUnscripted(FakeWorld world) => Assert.Empty(world.Problems);
 
-    private static void CleanedUpOnce(FakeWorld world, FeatureRequest request) => Assert.Equal([request.WorkflowId], world.CleanedUp);
+    private static void CleanedUpOnce(FakeWorld world, WorkRequest request) => Assert.Equal([request.WorkflowId], world.CleanedUp);
 
     // ---- the whole way ------------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(request));
 
-        Assert.Equal(new FeatureResult("pr_opened", false, "http://forgejo/pulls/1"), result);
+        Assert.Equal(new WorkResult("pr_opened", false, "http://forgejo/pulls/1"), result);
         NothingUnscripted(world);
         CleanedUpOnce(world, request);
 

@@ -141,7 +141,7 @@ public sealed class OpenCodeEventsTests
 
 public sealed class AnalystPromptTests
 {
-    private static FeatureRequest Request(string title = "Add wishlist", string body = "As a user...") =>
+    private static WorkRequest Request(string title = "Add wishlist", string body = "As a user...") =>
         new("acme", "shop", 7, title, body, "alice");
 
     [Fact]

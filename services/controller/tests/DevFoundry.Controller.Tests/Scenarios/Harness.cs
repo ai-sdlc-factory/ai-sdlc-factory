@@ -420,16 +420,16 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     public string Queue { get; } = queue;
     public FakeWorld World { get; } = world;
 
-    public static FeatureRequest Request(string title = "Add goodbye", string body = "Add a goodbye greeting.", IReadOnlyList<string>? labels = null)
+    public static WorkRequest Request(string title = "Add goodbye", string body = "Add a goodbye greeting.", IReadOnlyList<string>? labels = null)
     {
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
-        return new FeatureRequest("acme", repo, 1, title, body, "alice", labels ?? ["feature"]);
+        return new WorkRequest("acme", repo, 1, title, body, "alice", labels ?? ["feature"]);
     }
 
-    public Task<WorkflowHandle<FeatureWorkflow, FeatureResult>> StartAsync(FeatureRequest request) =>
+    public Task<WorkflowHandle<FeatureWorkflow, WorkResult>> StartAsync(WorkRequest request) =>
         Client.StartWorkflowAsync((FeatureWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
-    public Task<WorkflowHandle<BugWorkflow, FeatureResult>> StartBugAsync(FeatureRequest request) =>
+    public Task<WorkflowHandle<BugWorkflow, WorkResult>> StartBugAsync(WorkRequest request) =>
         Client.StartWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
     public static RevisionRequest Revision(string trigger = RevisionRequest.ByReview, string instruction = "Please fix these", string author = "bob")
@@ -438,27 +438,27 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         return new RevisionRequest("acme", repo, 7, trigger, instruction, author);
     }
 
-    public Task<WorkflowHandle<PullRequestRevisionWorkflow, FeatureResult>> StartRevisionAsync(RevisionRequest request) =>
+    public Task<WorkflowHandle<PullRequestRevisionWorkflow, WorkResult>> StartRevisionAsync(RevisionRequest request) =>
         Client.StartWorkflowAsync((PullRequestRevisionWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
-    public async Task<FeatureResult> RunRevisionAsync(RevisionRequest request)
+    public async Task<WorkResult> RunRevisionAsync(RevisionRequest request)
     {
         var handle = await StartRevisionAsync(request);
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
-    public Task<WorkflowHandle<IncidentWorkflow, FeatureResult>> StartIncidentAsync(FeatureRequest request) =>
+    public Task<WorkflowHandle<IncidentWorkflow, WorkResult>> StartIncidentAsync(WorkRequest request) =>
         Client.StartWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
-    public static async Task<FeatureResult> ResultAsync(WorkflowHandle<IncidentWorkflow, FeatureResult> handle)
+    public static async Task<WorkResult> ResultAsync(WorkflowHandle<IncidentWorkflow, WorkResult> handle)
     {
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     /// <summary>Runs the ticket's workflow (feature, bug or incident, by its kind) to the end and returns its result.</summary>
-    public async Task<FeatureResult> RunToEndAsync(FeatureRequest request)
+    public async Task<WorkResult> RunToEndAsync(WorkRequest request)
     {
         if (request.IsIncident)
         {
@@ -472,14 +472,14 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         return await ResultAsync(handle);
     }
 
-    public static async Task<FeatureResult> ResultAsync(WorkflowHandle<BugWorkflow, FeatureResult> handle)
+    public static async Task<WorkResult> ResultAsync(WorkflowHandle<BugWorkflow, WorkResult> handle)
     {
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     /// <summary>The workflow result, but a stuck workflow fails the test instead of hanging it.</summary>
-    public static async Task<FeatureResult> ResultAsync(WorkflowHandle<FeatureWorkflow, FeatureResult> handle)
+    public static async Task<WorkResult> ResultAsync(WorkflowHandle<FeatureWorkflow, WorkResult> handle)
     {
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });

@@ -233,8 +233,8 @@ public sealed class IncidentCommandTests
 
 public sealed class IncidentPromptTests
 {
-    private static FeatureRequest Request(string body = "500s on /checkout since 10:42") =>
-        new("acme", "shop", 12, "Checkout fails", body, "alice", Kind: FeatureIds.Incident);
+    private static WorkRequest Request(string body = "500s on /checkout since 10:42") =>
+        new("acme", "shop", 12, "Checkout fails", body, "alice", Kind: WorkIds.Incident);
 
     private static readonly IncidentAssessment Assessment = new("pass", "Checkout fails.", "high", "30% of checkouts fail", ["10:42 errors"], ["which env"], []);
 

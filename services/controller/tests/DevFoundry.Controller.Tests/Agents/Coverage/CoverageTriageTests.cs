@@ -254,7 +254,7 @@ public sealed class CoverageCommentTests
 
 public sealed class CoveragePromptTests
 {
-    private static FeatureRequest Request() => new("acme", "shop", 7, "Add wishlist", "body", "alice");
+    private static WorkRequest Request() => new("acme", "shop", 7, "Add wishlist", "body", "alice");
 
     [Fact]
     public void Criteria_are_numbered_between_markers_and_labelled_as_data()

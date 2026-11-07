@@ -139,7 +139,7 @@ public sealed class ArchitectParserTests
 
 public sealed class ArchitectPromptAndCommentTests
 {
-    private static FeatureRequest Request() => new("acme", "shop", 7, "Add wishlist", "body", "alice");
+    private static WorkRequest Request() => new("acme", "shop", 7, "Add wishlist", "body", "alice");
 
     private static CriterionCoverage Criterion(int index, string status, string text = "Does X.", string note = "") =>
         new(index, text, status, [], note);

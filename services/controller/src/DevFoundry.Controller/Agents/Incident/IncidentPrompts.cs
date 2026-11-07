@@ -19,7 +19,7 @@ public static class IncidentPrompts
     private const int MaxTimelineLines = 60;
     private const int MaxTimelineLine = 300;
 
-    public static string Assessor(FeatureRequest request, IReadOnlyList<string> replies, string? problem, int round, int maxRounds)
+    public static string Assessor(WorkRequest request, IReadOnlyList<string> replies, string? problem, int round, int maxRounds)
     {
         var text = new StringBuilder();
         text.AppendLine("Assess this incident ticket. The repository of the affected system is checked out in the current directory (read-only).");
@@ -37,7 +37,7 @@ public static class IncidentPrompts
     }
 
     public static string Investigator(
-        FeatureRequest request, IncidentAssessment assessment, IReadOnlyList<string> moreInformation, IReadOnlyList<string> replies,
+        WorkRequest request, IncidentAssessment assessment, IReadOnlyList<string> moreInformation, IReadOnlyList<string> replies,
         string? problem, int round, int maxRounds)
     {
         var text = new StringBuilder();
@@ -59,7 +59,7 @@ public static class IncidentPrompts
     }
 
     public static string Mitigator(
-        FeatureRequest request, IncidentAssessment assessment, Investigation investigation, IReadOnlyList<string> moreInformation,
+        WorkRequest request, IncidentAssessment assessment, Investigation investigation, IReadOnlyList<string> moreInformation,
         IReadOnlyList<string> replies, string? problem, int round, int maxRounds)
     {
         var text = new StringBuilder();
@@ -96,7 +96,7 @@ public static class IncidentPrompts
     }
 
     public static string Postmortem(
-        FeatureRequest request, IncidentAssessment assessment, Investigation? investigation, Mitigation? mitigation,
+        WorkRequest request, IncidentAssessment assessment, Investigation? investigation, Mitigation? mitigation,
         IReadOnlyList<string> timeline, string path, string? feedback)
     {
         var text = new StringBuilder();
@@ -144,7 +144,7 @@ public static class IncidentPrompts
         return text.ToString();
     }
 
-    private static void Ticket(StringBuilder text, FeatureRequest request)
+    private static void Ticket(StringBuilder text, WorkRequest request)
     {
         text.AppendLine();
         text.AppendLine($"Ticket #{request.IssueNumber} in {request.Owner}/{request.Repo}");

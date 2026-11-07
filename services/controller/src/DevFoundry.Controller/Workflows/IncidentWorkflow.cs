@@ -34,12 +34,12 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
     }
 
     [WorkflowRun]
-    public Task<FeatureResult> RunAsync(FeatureRequest request) => RunPipelineAsync(request, "incident", StagesAsync);
+    public Task<WorkResult> RunAsync(WorkRequest request) => RunPipelineAsync(request, "incident", StagesAsync);
 
     private void Note(string who, string text) =>
         timeline.Add($"{Workflow.UtcNow:HH:mm} UTC {(string.IsNullOrWhiteSpace(who) ? "someone" : who)}: {PromptText.Clip(text, 300).Replace('\n', ' ')}");
 
-    private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<WorkResult> StagesAsync(WorkRequest request, WorkspaceInfo workspace, ProjectConfig project)
     {
         var assessed = await ConverseAsync<IncidentAssessment>(
             request, workspace, project.Image, "incident-analyst", maxClarificationRounds + 1,
@@ -91,12 +91,12 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
                 var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
                 if (ticketClosed)
                 {
-                    return new FeatureResult("closed");
+                    return new WorkResult("closed");
                 }
                 if (!answered)
                 {
                     await CommentAsync(request, "No reply for 7 days, so I am stopping. Close and reopen the ticket to start again.");
-                    return new FeatureResult("timed_out");
+                    return new WorkResult("timed_out");
                 }
 
                 var comments = replies.ToList();
@@ -158,7 +158,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
     /// find. A hypothesis with nothing left to point at is shown as a guess (low confidence).
     /// </summary>
     private async Task<StageResult<Investigation>> InvestigateAsync(
-        FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment, IReadOnlyList<string> more)
+        WorkRequest request, WorkspaceInfo workspace, ProjectConfig project, IncidentAssessment assessment, IReadOnlyList<string> more)
     {
         var found = await ConverseAsync<Investigation>(
             request, workspace, project.Image, "investigator", Rounds(MaxDesignRounds),
@@ -194,7 +194,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
     }
 
     /// <summary>Opens one bug ticket, at a person's request, that carries what is known so the bug workflow can start from it.</summary>
-    private async Task<int> OpenHotfixAsync(FeatureRequest request, IncidentAssessment assessment, Investigation investigation, int alreadyOpened)
+    private async Task<int> OpenHotfixAsync(WorkRequest request, IncidentAssessment assessment, Investigation investigation, int alreadyOpened)
     {
         if (alreadyOpened > 0)
         {

@@ -6,13 +6,13 @@ namespace DevFoundry.Controller;
 
 public abstract partial class FactoryWorkflowBase
 {
-    protected sealed record StageResult<T>(FeatureResult? Stop, T? Verdict) where T : class;
+    protected sealed record StageResult<T>(WorkResult? Stop, T? Verdict) where T : class;
 
     /// <summary>
     /// Analyst stage. pass → continue; reject → stop; needs_clarification → ask on the ticket, wait for
     /// a human, and run again with their answers (a bounded number of rounds).
     /// </summary>
-    protected Task<StageResult<AnalystVerdict>> AnalyseAsync(FeatureRequest request, WorkspaceInfo workspace, string image) =>
+    protected Task<StageResult<AnalystVerdict>> AnalyseAsync(WorkRequest request, WorkspaceInfo workspace, string image) =>
         ConverseAsync(
             request, workspace, image, "analyst", maxClarificationRounds + 1,
             (round, answers, problem) => AnalystPrompt.Build(request, answers, problem, round, maxClarificationRounds + 1),
@@ -31,7 +31,7 @@ public abstract partial class FactoryWorkflowBase
     /// reject → stop, needs_decision → ask on the ticket and run again with the answers.
     /// </summary>
     protected Task<StageResult<ArchitectDesign>> DesignAsync(
-        FeatureRequest request, WorkspaceInfo workspace, string image, CoverageReport coverage, TriageDecision triage) =>
+        WorkRequest request, WorkspaceInfo workspace, string image, CoverageReport coverage, TriageDecision triage) =>
         ConverseAsync(
             request, workspace, image, "architect", Rounds(MaxDesignRounds),
             (round, answers, problem) => ArchitectPrompt.Build(
@@ -54,7 +54,7 @@ public abstract partial class FactoryWorkflowBase
     /// value; <paramref name="next"/> (code) maps it to what happens. Rounds are bounded.
     /// </summary>
     protected async Task<StageResult<T>> ConverseAsync<T>(
-        FeatureRequest request, WorkspaceInfo workspace, string image, string role, int maxRounds,
+        WorkRequest request, WorkspaceInfo workspace, string image, string role, int maxRounds,
         Func<int, IReadOnlyList<string>, string?, string> prompt,
         Func<string, (T? Value, string? Error)> parse,
         Func<T, string> comment,
@@ -126,7 +126,7 @@ public abstract partial class FactoryWorkflowBase
     /// claims is checked against the workspace first, and a failed check can only weaken a claim.
     /// </summary>
     protected async Task<StageResult<CoverageReport>> CheckCoverageAsync(
-        FeatureRequest request, WorkspaceInfo workspace, string image, AnalystVerdict analysis)
+        WorkRequest request, WorkspaceInfo workspace, string image, AnalystVerdict analysis)
     {
         var outcome = await RunAgentAsync<CoverageReport>(
             "coverage", image, workspace,
@@ -187,5 +187,5 @@ public abstract partial class FactoryWorkflowBase
     protected static (ArchitectDesign? Value, string? Error) ParseDesign(string text) =>
         ArchitectParser.TryParse(text, out var design, out var error) ? (design, null) : (null, error);
 
-    protected static StageResult<T> Stop<T>(string status) where T : class => new(new FeatureResult(status), null);
+    protected static StageResult<T> Stop<T>(string status) where T : class => new(new WorkResult(status), null);
 }

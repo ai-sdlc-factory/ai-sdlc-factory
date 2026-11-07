@@ -14,7 +14,7 @@ public enum RoutingAction
 public sealed record RoutingDecision(
     RoutingAction Action,
     string Reason,
-    FeatureRequest? Feature = null,
+    WorkRequest? Feature = null,
     HumanReply? Reply = null,
     bool Restart = false,
     RevisionRequest? Revision = null);
@@ -62,9 +62,9 @@ public static partial class EventRouter
         }
 
         // An incident is never built as a feature or a bug; a feature label wins over a bug label.
-        var kind = HasLabel(issue, IncidentLabel) ? FeatureIds.Incident
-            : HasLabel(issue, FeatureLabel) ? FeatureIds.Feature
-            : HasLabel(issue, BugLabel) ? FeatureIds.Bug : null;
+        var kind = HasLabel(issue, IncidentLabel) ? WorkIds.Incident
+            : HasLabel(issue, FeatureLabel) ? WorkIds.Feature
+            : HasLabel(issue, BugLabel) ? WorkIds.Bug : null;
         var hasFeatureLabel = kind is not null;
         var action = AsString(Get(payload, "action"));
         var isOpen = AsString(Get(issue, "state")) is null or "open";
@@ -81,7 +81,7 @@ public static partial class EventRouter
                     "feature ticket",
                     // Reopening a ticket is the way to run the factory on it again.
                     Restart: action == "reopened",
-                    Feature: new FeatureRequest(
+                    Feature: new WorkRequest(
                         owner, repo, issueNumber,
                         AsString(Get(issue, "title")) ?? "",
                         AsString(Get(issue, "body")) ?? "",
@@ -92,7 +92,7 @@ public static partial class EventRouter
             case "issues" when action == "closed":
                 return hasFeatureLabel
                     ? new RoutingDecision(RoutingAction.CloseFeature, "ticket closed",
-                        Feature: new FeatureRequest(owner, repo, issueNumber, "", "", "", Kind: kind!))
+                        Feature: new WorkRequest(owner, repo, issueNumber, "", "", "", Kind: kind!))
                     : Ignore("ticket is not a feature");
 
             case "issue_comment" when action == "created":
@@ -108,7 +108,7 @@ public static partial class EventRouter
                 return new RoutingDecision(
                     RoutingAction.ReplyToFeature,
                     "human comment",
-                    Feature: new FeatureRequest(owner, repo, issueNumber, "", "", "", Kind: kind!),
+                    Feature: new WorkRequest(owner, repo, issueNumber, "", "", "", Kind: kind!),
                     Reply: new HumanReply(AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", body));
 
             default:

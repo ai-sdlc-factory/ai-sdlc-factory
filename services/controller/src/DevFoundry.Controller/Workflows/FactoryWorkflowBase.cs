@@ -32,7 +32,7 @@ public abstract partial class FactoryWorkflowBase
 
     // The ticket this run is for, and whether any later stage can still take a human comment: the analyst and the
     // architect read them, the build does not.
-    protected FeatureRequest? current;
+    protected WorkRequest? current;
     protected bool commentsCanStillBeUsed = true;
     protected bool tooLateNoticePosted;
 
@@ -58,9 +58,9 @@ public abstract partial class FactoryWorkflowBase
     /// The run every workflow shares: prepare the workspace, read the project's configuration, run the workflow's own
     /// <paramref name="stages"/>, report comments nobody read, save unfinished work, and always remove the checkout.
     /// </summary>
-    protected async Task<FeatureResult> RunPipelineAsync(
-        FeatureRequest request, string kind, Func<FeatureRequest, WorkspaceInfo, ProjectConfig, Task<FeatureResult>> stages,
-        Func<FeatureRequest, WorkspaceRequest>? workspaceFor = null, string? startMessage = null)
+    protected async Task<WorkResult> RunPipelineAsync(
+        WorkRequest request, string kind, Func<WorkRequest, WorkspaceInfo, ProjectConfig, Task<WorkResult>> stages,
+        Func<WorkRequest, WorkspaceRequest>? workspaceFor = null, string? startMessage = null)
     {
         current = request;
         await CommentAsync(request, startMessage ?? $"The factory picked up this {kind} ticket. Preparing a workspace.");
@@ -79,7 +79,7 @@ public abstract partial class FactoryWorkflowBase
             catch (ActivityFailureException error)
             {
                 await CommentAsync(request, $"Setting up the workspace failed: {Short(error.InnerException?.Message ?? error.Message)}");
-                return new FeatureResult("setup_failed");
+                return new WorkResult("setup_failed");
             }
 
             var configText = await Workflow.ExecuteActivityAsync(
@@ -87,8 +87,8 @@ public abstract partial class FactoryWorkflowBase
                 ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
             if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
             {
-                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == FeatureIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
-                return new FeatureResult("needs_config");
+                await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == WorkIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
+                return new WorkResult("needs_config");
             }
 
             var defaults = await Workflow.ExecuteActivityAsync(
@@ -114,12 +114,12 @@ public abstract partial class FactoryWorkflowBase
 
             if (project.Record)
             {
-                recordDirectory = request.Kind == FeatureIds.Revision
+                recordDirectory = request.Kind == WorkIds.Revision
                     ? RunRecord.DirectoryForRevision(request.IssueNumber, Workflow.Info.RunId ?? "run")
                     : RunRecord.DirectoryFor(request.IssueNumber, Workflow.Info.RunId ?? "run");
             }
 
-            FeatureResult result;
+            WorkResult result;
             try
             {
                 result = await stages(request, workspace, project);
@@ -128,7 +128,7 @@ public abstract partial class FactoryWorkflowBase
             {
                 // Without this the ticket would just go quiet while the run shows as failed in Temporal.
                 await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
-                result = new FeatureResult("error");
+                result = new WorkResult("error");
             }
             await NoteUnusedCommentsAsync(request, result);
             return await SaveUnfinishedWorkAsync(request, result);
@@ -150,7 +150,7 @@ public abstract partial class FactoryWorkflowBase
     /// Comments that arrived but were never read by a stage (nothing asked a question afterwards) are reported once at
     /// the end, so a person is not left wondering. A ticket a person closed needs no such reply.
     /// </summary>
-    protected async Task NoteUnusedCommentsAsync(FeatureRequest request, FeatureResult result)
+    protected async Task NoteUnusedCommentsAsync(WorkRequest request, WorkResult result)
     {
         commentsCanStillBeUsed = false;
         if (replies.Count > 0 && !ticketClosed && result.Status != "closed")
@@ -171,7 +171,7 @@ public abstract partial class FactoryWorkflowBase
     /// When a run stops without publishing, push what it had written to a work-in-progress branch and say so on the
     /// ticket, with a link to the full record of the run. Saving is best effort: it never replaces the real outcome.
     /// </summary>
-    protected async Task<FeatureResult> SaveUnfinishedWorkAsync(FeatureRequest request, FeatureResult result)
+    protected async Task<WorkResult> SaveUnfinishedWorkAsync(WorkRequest request, WorkResult result)
     {
         // Already on a branch (only the pull request failed), or nothing that could hold unsaved work.
         if (!StoppedWithWork.Contains(result.Status) || result.WorkBranch is not null)
@@ -234,7 +234,7 @@ public abstract partial class FactoryWorkflowBase
         return flat.Length > 200 ? flat[..200] + "..." : flat;
     }
 
-    protected static Task CommentAsync(FeatureRequest request, string body) =>
+    protected static Task CommentAsync(WorkRequest request, string body) =>
         Workflow.ExecuteActivityAsync(
             (ForgejoActivities activities) => activities.PostIssueCommentAsync(
                 new CommentRequest(request.Owner, request.Repo, request.IssueNumber, body)),

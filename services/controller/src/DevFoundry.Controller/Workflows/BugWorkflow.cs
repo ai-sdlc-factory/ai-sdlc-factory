@@ -25,9 +25,9 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
     }
 
     [WorkflowRun]
-    public Task<FeatureResult> RunAsync(FeatureRequest request) => RunPipelineAsync(request, "bug", StagesAsync);
+    public Task<WorkResult> RunAsync(WorkRequest request) => RunPipelineAsync(request, "bug", StagesAsync);
 
-    private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<WorkResult> StagesAsync(WorkRequest request, WorkspaceInfo workspace, ProjectConfig project)
     {
         var analysis = await ConverseAsync<BugAnalysis>(
             request, workspace, project.Image, "bug-analyst", maxClarificationRounds + 1,

@@ -9,8 +9,8 @@ public sealed class BugScenarios(TemporalFixture fixture)
 
     private static AgentReply Say(string text) => AgentReply.Says(text);
 
-    private static FeatureRequest Bug(params string[] labels) =>
-        ScenarioContext.Request(title: "repeat is broken", body: "repeat('ab', 3) returns 'abab'.", labels: ["bug", .. labels]) with { Kind = FeatureIds.Bug };
+    private static WorkRequest Bug(params string[] labels) =>
+        ScenarioContext.Request(title: "repeat is broken", body: "repeat('ab', 3) returns 'abab'.", labels: ["bug", .. labels]) with { Kind = WorkIds.Bug };
 
     /// <summary>A bug that reproduces cleanly and is fixed in one round; tests change what they need.</summary>
     private static FakeWorld Fixable() => new FakeWorld()

@@ -14,7 +14,7 @@ public static class ArchitectPrompt
     private const int MaxReplies = 4;
 
     public static string Build(
-        FeatureRequest request, IReadOnlyList<CriterionCoverage> remaining, IReadOnlyList<string> triageReasons,
+        WorkRequest request, IReadOnlyList<CriterionCoverage> remaining, IReadOnlyList<string> triageReasons,
         IReadOnlyList<string> humanAnswers, string? previousProblem, int round, int maxRounds)
     {
         var text = new StringBuilder();

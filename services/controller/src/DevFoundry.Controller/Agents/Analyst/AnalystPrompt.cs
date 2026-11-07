@@ -18,7 +18,7 @@ public static class AnalystPrompt
     private const int MaxError = 300;
 
     public static string Build(
-        FeatureRequest request, IReadOnlyList<string> humanReplies, string? previousProblem, int round, int maxRounds)
+        WorkRequest request, IReadOnlyList<string> humanReplies, string? previousProblem, int round, int maxRounds)
     {
         var text = new StringBuilder();
         text.AppendLine("Analyse this feature request for the repository checked out in the current directory.");

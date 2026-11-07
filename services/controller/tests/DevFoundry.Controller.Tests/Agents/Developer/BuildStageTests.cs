@@ -98,7 +98,7 @@ public sealed class DeveloperParserTests
 
 public sealed class DeveloperPromptTests
 {
-    private static FeatureRequest Request(string body = "Add goodbye.") => new("acme", "shop", 7, "Add goodbye", body, "alice");
+    private static WorkRequest Request(string body = "Add goodbye.") => new("acme", "shop", 7, "Add goodbye", body, "alice");
     private static readonly Gate[] Gates = [new Gate("test", ["python", "-m", "pytest", "-q"], 600)];
     private static CriterionCoverage Criterion(int i) => new(i, $"Criterion {i}.", CoverageStatus.Missing, [], "");
 
@@ -198,7 +198,7 @@ public sealed class BuildFeedbackTests
 
 public sealed class PullRequestTextTests
 {
-    private static FeatureRequest Request(string title = "Add goodbye") => new("acme", "shop", 7, title, "body", "alice");
+    private static WorkRequest Request(string title = "Add goodbye") => new("acme", "shop", 7, title, "body", "alice");
 
     [Fact]
     public void Title_is_the_ticket_title_made_safe_and_short()

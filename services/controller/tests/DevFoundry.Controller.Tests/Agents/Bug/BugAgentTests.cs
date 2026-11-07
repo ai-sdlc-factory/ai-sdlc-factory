@@ -114,8 +114,8 @@ public sealed class BugParserTests
 
 public sealed class BugPromptTests
 {
-    private static FeatureRequest Request(string body = "repeat('ab', 3) is wrong") =>
-        new("acme", "shop", 9, "repeat is broken", body, "alice", Kind: FeatureIds.Bug);
+    private static WorkRequest Request(string body = "repeat('ab', 3) is wrong") =>
+        new("acme", "shop", 9, "repeat is broken", body, "alice", Kind: WorkIds.Bug);
 
     private static readonly BugAnalysis Analysis = new("pass", "s", "'ababab'", "'abab'", ["see repeat()"], "medium", []);
 
@@ -240,7 +240,7 @@ public sealed class BugCommentTests
     [Fact]
     public void The_pull_request_for_a_bug_states_the_proof_and_gets_a_fix_title()
     {
-        var request = new FeatureRequest("acme", "shop", 9, "repeat is broken", "b", "alice", Kind: FeatureIds.Bug);
+        var request = new WorkRequest("acme", "shop", 9, "repeat is broken", "b", "alice", Kind: WorkIds.Bug);
         var bug = new BugBrief(["pytest", "-q"], ["test_hello.py"], 1, "1 failed", new Dictionary<string, string>(), "wrong multiplier", [], null, "high");
         var report = new DeveloperReport("done", "Fixed repeat().", []);
 

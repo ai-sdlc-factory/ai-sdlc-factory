@@ -12,7 +12,7 @@ public abstract partial class FactoryWorkflowBase
     protected int recordSequence;
 
     /// <summary>Where and how the record of this run is committed, or null when the project did not ask for one.</summary>
-    protected RunRecordSpec? RecordSpec(FeatureRequest request, string outcome) =>
+    protected RunRecordSpec? RecordSpec(WorkRequest request, string outcome) =>
         recordDirectory is null ? null : new RunRecordSpec(recordDirectory, $"{request.Owner}/{request.Repo}#{request.IssueNumber}: {request.Title}", outcome);
 
     /// <summary>

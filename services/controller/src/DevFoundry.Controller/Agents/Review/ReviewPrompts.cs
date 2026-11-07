@@ -11,7 +11,7 @@ public static class ReviewPrompt
     private const int MaxFilesListed = 60;
 
     public static string Build(
-        FeatureRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
+        WorkRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
         ChangeReport changes, string diff, string gateSummary, string? previousProblem, int otherFilesNotShown = 0,
         IReadOnlyList<string>? checks = null)
     {
@@ -100,7 +100,7 @@ public static class QaPrompt
     private const int MaxDiff = 9_000;
 
     public static string Build(
-        FeatureRequest request, IReadOnlyList<string> criteria, ChangeReport changes, string diff, string gateSummary, string? previousProblem,
+        WorkRequest request, IReadOnlyList<string> criteria, ChangeReport changes, string diff, string gateSummary, string? previousProblem,
         IReadOnlyList<string>? checks = null)
     {
         var text = new StringBuilder();

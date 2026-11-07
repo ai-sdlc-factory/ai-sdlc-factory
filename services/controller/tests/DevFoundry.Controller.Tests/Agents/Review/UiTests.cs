@@ -318,7 +318,7 @@ public sealed class UxPromptTests
     [Fact]
     public void The_ux_prompt_lists_only_ui_files_and_says_how_many_others_exist()
     {
-        var request = new FeatureRequest("a", "b", 7, "Add a page", "body", "u");
+        var request = new WorkRequest("a", "b", 7, "Add a page", "body", "u");
         var changes = new ChangeReport([new FileChange("web/index.html", FileChange.Added)], []);
 
         var prompt = ReviewPrompt.Build(request, [], null, changes, "diff --git a/web/index.html b/web/index.html\n+<h1>Hi</h1>", "test passed", null, otherFilesNotShown: 4);
@@ -331,7 +331,7 @@ public sealed class UxPromptTests
     [Fact]
     public void Without_other_files_the_note_is_left_out()
     {
-        var request = new FeatureRequest("a", "b", 7, "Add a page", "body", "u");
+        var request = new WorkRequest("a", "b", 7, "Add a page", "body", "u");
 
         var prompt = ReviewPrompt.Build(request, [], null, new ChangeReport([], []), "", "test passed", null);
 
@@ -342,7 +342,7 @@ public sealed class UxPromptTests
     public void The_pull_request_says_why_the_ux_review_was_skipped()
     {
         var body = PullRequestText.Body(
-            new FeatureRequest("a", "b", 7, "T", "b", "u"), new DeveloperReport("done", "Did it.", []), [], null,
+            new WorkRequest("a", "b", 7, "T", "b", "u"), new DeveloperReport("done", "Did it.", []), [], null,
             [new GateResult("test", true, 0, false, "")], 1, [], null, "the UI change is small (1 UI file(s), 12 changed line(s))");
 
         Assert.Contains("## Review", body);

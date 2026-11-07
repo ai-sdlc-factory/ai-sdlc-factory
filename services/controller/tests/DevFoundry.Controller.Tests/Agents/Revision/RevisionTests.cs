@@ -233,8 +233,8 @@ public sealed class RevisionRulesTests
         var request = Request();
 
         Assert.StartsWith("revision-acme-shop-7-", request.WorkflowId);
-        Assert.NotEqual(FeatureIds.For("acme", "shop", 7), request.WorkflowId);
-        Assert.Equal(FeatureIds.Revision, request.ToFeatureRequest("t").Kind);
+        Assert.NotEqual(WorkIds.For("acme", "shop", 7), request.WorkflowId);
+        Assert.Equal(WorkIds.Revision, request.ToWorkRequest("t").Kind);
     }
 }
 

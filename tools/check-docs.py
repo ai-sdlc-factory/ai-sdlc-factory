@@ -199,7 +199,7 @@ def check_statuses_and_labels() -> None:
         if "/obj/" in str(source):
             continue
         text = read(source)
-        statuses.update(re.findall(r'FeatureResult\("([a-z_]+)"', text))
+        statuses.update(re.findall(r'WorkResult\("([a-z_]+)"', text))
         statuses.update(re.findall(r'(?:failedStatus|rejectedStatus): "([a-z_]+)"', text))
         statuses.update(re.findall(r'Stop<[A-Za-z]+>\("([a-z_]+)"', text))
         statuses.update(re.findall(r'Stopped\("([a-z_]+)"', text))

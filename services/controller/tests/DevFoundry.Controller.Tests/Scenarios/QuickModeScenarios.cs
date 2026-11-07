@@ -15,7 +15,7 @@ public sealed class QuickModeScenarios(TemporalFixture fixture)
         .Agent("developer", Say(Answers.Developer()))
         .Agent("reviewer", Say(Answers.Review()));
 
-    private static FeatureRequest Labelled(params string[] labels) => ScenarioContext.Request(labels: ["feature", .. labels]);
+    private static WorkRequest Labelled(params string[] labels) => ScenarioContext.Request(labels: ["feature", .. labels]);
 
     private static string[] Roles(FakeWorld world) => world.Snapshot(world.AgentCalls).Select(call => call.Role).ToArray();
 

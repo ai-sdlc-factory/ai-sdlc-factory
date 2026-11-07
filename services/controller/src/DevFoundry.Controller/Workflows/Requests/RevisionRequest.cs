@@ -11,11 +11,11 @@ public sealed record RevisionRequest(string Owner, string Repo, int PullNumber, 
     public const string ByReview = "review";
     public const string ByCommand = "command";
 
-    public string WorkflowId => FeatureIds.For(Owner, Repo, PullNumber, FeatureIds.Revision);
+    public string WorkflowId => WorkIds.For(Owner, Repo, PullNumber, WorkIds.Revision);
 
     /// <summary>The same pull request as a ticket-shaped request, so the shared workflow code can comment on it and name its files.</summary>
-    public FeatureRequest ToFeatureRequest(string title) =>
-        new(Owner, Repo, PullNumber, title, Instruction, Author, Kind: FeatureIds.Revision);
+    public WorkRequest ToWorkRequest(string title) =>
+        new(Owner, Repo, PullNumber, title, Instruction, Author, Kind: WorkIds.Revision);
 }
 
 /// <summary>Why a revision does not go ahead. <see cref="Message"/> is null when it should end without a word.</summary>

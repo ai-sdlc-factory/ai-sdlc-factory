@@ -5,14 +5,14 @@ namespace DevFoundry.Controller;
 /// <summary>The title and body of the pull request the factory opens.</summary>
 public static class PullRequestText
 {
-    public static string Title(FeatureRequest request)
+    public static string Title(WorkRequest request)
     {
         var title = TicketComments.Inert(request.Title) is { Length: > 0 } clean ? (clean.Length > 120 ? clean[..120] : clean) : $"Ticket #{request.IssueNumber}";
         return request.IsBug && !title.StartsWith("fix", StringComparison.OrdinalIgnoreCase) ? $"Fix: {title}" : title;
     }
 
     public static string Body(
-        FeatureRequest request, DeveloperReport report, IReadOnlyList<CriterionCoverage> remaining,
+        WorkRequest request, DeveloperReport report, IReadOnlyList<CriterionCoverage> remaining,
         ArchitectDesign? design, IReadOnlyList<GateResult> gates, int round,
         IReadOnlyList<(string Role, ReviewReport Report)>? reviews = null, QaReport? qa = null, string? uxNote = null, string? quickReason = null, BugBrief? bug = null)
     {

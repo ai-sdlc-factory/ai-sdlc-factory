@@ -2,8 +2,6 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-public sealed record FeatureResult(string Status, bool? NeedsArchitect = null, string? PullRequestUrl = null, string? WorkBranch = null);
-
 /// <summary>
 /// One run per feature ticket, following docs/feature-factory.md: the analyst, the coverage check, triage, the
 /// architect when triage asks for it, and then the shared build (developer, automated checks, reviewers, QA, pull
@@ -23,13 +21,13 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
     }
 
     [WorkflowRun]
-    public Task<FeatureResult> RunAsync(FeatureRequest request) => RunPipelineAsync(request, "feature", StagesAsync);
+    public Task<WorkResult> RunAsync(WorkRequest request) => RunPipelineAsync(request, "feature", StagesAsync);
 
     /// <summary>
     /// The stages after intake, in order: analyst, coverage check, triage. Each either stops the
     /// workflow with a status or hands its result to the next one.
     /// </summary>
-    private async Task<FeatureResult> StagesAsync(FeatureRequest request, WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<WorkResult> StagesAsync(WorkRequest request, WorkspaceInfo workspace, ProjectConfig project)
     {
         var analysis = await AnalyseAsync(request, workspace, project.Image);
         if (analysis.Stop is { } stop)

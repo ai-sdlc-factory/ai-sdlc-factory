@@ -554,7 +554,7 @@ public sealed class StoppedRunScenarios(TemporalFixture fixture)
             _ => new FakeWorld().Agent("analyst", Say(Answers.Analyst("needs_clarification"))),
         };
 
-        FeatureResult result;
+        WorkResult result;
         if (how == "closed")
         {
             result = await world.RunAsync(fixture, async context =>

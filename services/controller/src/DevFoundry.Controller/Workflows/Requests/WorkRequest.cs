@@ -2,15 +2,15 @@
 namespace DevFoundry.Controller;
 
 /// <summary>A ticket that asks the factory to build a feature or to fix a bug (<see cref="Kind"/>).</summary>
-public sealed record FeatureRequest(
+public sealed record WorkRequest(
     string Owner, string Repo, int IssueNumber, string Title, string Body, string Author,
-    IReadOnlyList<string>? Labels = null, string Kind = FeatureIds.Feature)
+    IReadOnlyList<string>? Labels = null, string Kind = WorkIds.Feature)
 {
-    public string WorkflowId => FeatureIds.For(Owner, Repo, IssueNumber, Kind);
+    public string WorkflowId => WorkIds.For(Owner, Repo, IssueNumber, Kind);
 
-    public bool IsBug => Kind == FeatureIds.Bug;
+    public bool IsBug => Kind == WorkIds.Bug;
 
-    public bool IsIncident => Kind == FeatureIds.Incident;
+    public bool IsIncident => Kind == WorkIds.Incident;
 }
 
 /// <summary>A human comment on a ticket that has a feature workflow.</summary>
@@ -23,7 +23,7 @@ public sealed record HumanReply(string Author, string Body);
 /// so repositories whose cleaned names look alike (<c>a-b/c</c> and <c>a/b-c</c>) still get different ids, and so
 /// do very long names that had to be cut.
 /// </summary>
-public static class FeatureIds
+public static class WorkIds
 {
     public const string Feature = "feature";
     public const string Bug = "bug";
