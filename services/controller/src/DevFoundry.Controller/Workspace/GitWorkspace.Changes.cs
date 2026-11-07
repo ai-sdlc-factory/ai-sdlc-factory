@@ -87,50 +87,7 @@ public sealed partial class GitWorkspace
             var code = raw[..2];
             var path = raw[3..];
             var kind = code.Contains('D') ? FileChange.Deleted : code.Contains('?') || code.Contains('A') ? FileChange.Added : FileChange.Modified;
-
-            if (!IsPlainRelative(path))
-            {
-                entries.Add(new Entry(Printable(path), kind, false, "unusable path", [$"unusable path in the changes: {Printable(path)}"]));
-                continue;
-            }
-            if (ProtectedPaths.IsProtected(path, extraProtected))
-            {
-                entries.Add(new Entry(path, kind, false, "protected file", [$"{path} is a protected file that only a person may change"]));
-                continue;
-            }
-            var entry = new Entry(path, kind, true, "", []);
-            entries.Add(entry);
-            if (kind == FileChange.Deleted)
-            {
-                continue;
-            }
-
-            if (HasSymlinkOnPath(work, path))
-            {
-                entry.Problems.Add($"{path} is or goes through a symbolic link, which is not allowed");
-                entries[^1] = entry with { Reason = "symbolic link" };
-                continue;
-            }
-            var info = new FileInfo($"{work}/{path}");
-            if (!info.Exists)
-            {
-                entry.Problems.Add($"{path} is not a regular file");
-                entries[^1] = entry with { Reason = "not a regular file" };
-                continue;
-            }
-            total += info.Length;
-            if (info.Length > MaxFileBytes)
-            {
-                entry.Problems.Add($"{path} is {info.Length / 1024} KiB, more than the {MaxFileBytes / 1024} KiB limit per file");
-                entries[^1] = entry with { Reason = $"larger than {MaxFileBytes / 1024 / 1024} MiB" };
-                continue;
-            }
-            var secrets = SecretScan.Scan(path, File.ReadAllBytes(info.FullName), knownSecrets).ToList();
-            if (secrets.Count > 0)
-            {
-                entry.Problems.AddRange(secrets);
-                entries[^1] = entry with { Reason = "possible secret" };
-            }
+            entries.Add(InspectEntry(work, path, kind, extraProtected, knownSecrets, ref total));
         }
 
         var listed = entries.Count(entry => entry.Listed);
@@ -143,6 +100,53 @@ public sealed partial class GitWorkspace
             global.Add($"the changes add up to {total / 1024 / 1024} MiB, more than the {MaxTotalBytes / 1024 / 1024} MiB limit");
         }
         return new Inspection(entries, global, listed, total);
+    }
+
+    /// <summary>
+    /// What is wrong, if anything, with one changed path: an unusable or protected path, a link, a file that is not a regular
+    /// file, one that is too large, or one that holds a secret. Adds the size of a readable file to <paramref name="total"/>.
+    /// </summary>
+    private static Entry InspectEntry(
+        string work, string path, string kind, IReadOnlyList<string> extraProtected, string[] knownSecrets, ref long total)
+    {
+        if (!IsPlainRelative(path))
+        {
+            return new Entry(Printable(path), kind, false, "unusable path", [$"unusable path in the changes: {Printable(path)}"]);
+        }
+        if (ProtectedPaths.IsProtected(path, extraProtected))
+        {
+            return new Entry(path, kind, false, "protected file", [$"{path} is a protected file that only a person may change"]);
+        }
+        var entry = new Entry(path, kind, true, "", []);
+        if (kind == FileChange.Deleted)
+        {
+            return entry;
+        }
+
+        if (HasSymlinkOnPath(work, path))
+        {
+            entry.Problems.Add($"{path} is or goes through a symbolic link, which is not allowed");
+            return entry with { Reason = "symbolic link" };
+        }
+        var info = new FileInfo($"{work}/{path}");
+        if (!info.Exists)
+        {
+            entry.Problems.Add($"{path} is not a regular file");
+            return entry with { Reason = "not a regular file" };
+        }
+        total += info.Length;
+        if (info.Length > MaxFileBytes)
+        {
+            entry.Problems.Add($"{path} is {info.Length / 1024} KiB, more than the {MaxFileBytes / 1024} KiB limit per file");
+            return entry with { Reason = $"larger than {MaxFileBytes / 1024 / 1024} MiB" };
+        }
+        var secrets = SecretScan.Scan(path, File.ReadAllBytes(info.FullName), knownSecrets).ToList();
+        if (secrets.Count > 0)
+        {
+            entry.Problems.AddRange(secrets);
+            return entry with { Reason = "possible secret" };
+        }
+        return entry;
     }
 
     /// <summary>
