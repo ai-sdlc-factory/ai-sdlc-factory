@@ -108,6 +108,21 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |
 | `TEMPORAL_UI_URL` | `http://localhost:8080` | base of the trace link in comments |
 
+### alert-intake
+
+The service that turns monitoring alerts into tickets ([its README](../services/alert-intake/README.md)). It is not part of the factory's Compose stack: the [demo environment](../demo/README.md) runs it.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ALERT_INTAKE_TOKEN` | none (required, 16+ characters) | the bearer token Alertmanager sends with every notification |
+| `ALERT_INTAKE_DRY_RUN` | `true` | `true` writes nothing to Forgejo and only logs the ticket that would be opened |
+| `ALERT_INTAKE_MAPPING_FILE` | `/etc/alert-intake/mapping.json` | the operator's route table: which alert goes to which repository, with which labels and log queries |
+| `ALERT_INTAKE_MAX_TICKETS_PER_HOUR` | `6` | at most this many new tickets in any hour (1 to 100) |
+| `ALERT_INTAKE_MAX_BODY_BYTES` | `262144` | largest accepted notification (1,024 to 1,048,576) |
+| `ALERT_INTAKE_LOKI_URL` | empty | where Loki answers, for the log lines a route adds to its tickets; empty means no log evidence |
+| `FORGEJO_URL` | `http://forgejo:3000` | where Forgejo is (as for the controller) |
+| `FORGEJO_BOT_TOKEN` | empty | the bot's token; required unless `ALERT_INTAKE_DRY_RUN` is `true` |
+
 ### sandbox-launcher
 
 | Variable | Default | Meaning |
