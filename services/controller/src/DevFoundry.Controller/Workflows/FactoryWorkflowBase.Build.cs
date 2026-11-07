@@ -80,33 +80,13 @@ public abstract partial class FactoryWorkflowBase
                 continue;
             }
 
-            var results = new List<GateResult>();
-            foreach (var gate in project.Gates)
-            {
-                results.Add(await RunGateAsync(project.Image, workspace, gate));
-            }
-
-            // Running the checks can itself create files (build output, caches); look again before trusting the tree.
-            var after = await DetectChangesAsync(workspace);
-            feedback = BuildFeedback.FromGates(results);
-            if (feedback is null && after.Violations.Count > 0)
-            {
-                feedback = BuildFeedback.FromViolations(after.Violations);
-            }
+            var verified = await VerifyAsync(work, $"Build round {round}");
+            feedback = verified.Feedback;
             if (feedback is not null)
             {
-                await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}." +
-                    (after.Violations.Count > 0 ? $" Also rejected: {TicketComments.Inert(Short(string.Join("; ", after.Violations.Take(3))))}" : ""));
                 continue;
             }
-
-            var (ruleBlock, ruleNotes) = await CheckRulesAsync(workspace, project);
-            if (ruleBlock is not null)
-            {
-                feedback = ruleBlock;
-                await CommentAsync(request, $"Build round {round}: the project's checks passed, but {TicketComments.Inert(Short(ruleBlock))}");
-                continue;
-            }
+            var (results, after, ruleNotes) = (verified.Results, verified.After, verified.RuleNotes);
 
             // A bug fix is proven by the reproduction test: it failed before, so it must pass now.
             if (bug is not null && await CheckReproductionPassesAsync(project.Image, workspace, bug) is { } stillFailing)
@@ -320,11 +300,55 @@ public abstract partial class FactoryWorkflowBase
         return new ReviewOutcome(null, ReviewFeedback.From(reports, qa), reports, qa, uxNote);
     }
 
+    /// <summary>What running the project's checks and rules on a change found.</summary>
+    /// <param name="Feedback">What to send back to the developer, or null when everything passed.</param>
+    /// <param name="Results">How each check ended.</param>
+    /// <param name="After">The change as it is after the checks ran (a check can create files).</param>
+    /// <param name="RuleNotes">Project rules that only warn, for the reviewers to weigh.</param>
+    protected sealed record Verification(string? Feedback, IReadOnlyList<GateResult> Results, ChangeReport After, string? RuleNotes);
+
+    /// <summary>
+    /// Runs the project's checks, looks at the tree again, and applies the project's rules. This is the same for a new change and for a
+    /// revision of a pull request; <paramref name="round"/> is how the comment on the ticket names the step ("Build round 2"). When something
+    /// fails the comment is posted here and <see cref="Verification.Feedback"/> says what to send back to the developer.
+    /// </summary>
+    protected async Task<Verification> VerifyAsync(WorkContext work, string round)
+    {
+        var (request, workspace, project) = work;
+        var results = new List<GateResult>();
+        foreach (var gate in project.Gates)
+        {
+            results.Add(await RunGateAsync(project.Image, workspace, gate));
+        }
+
+        // Running the checks can itself create files (build output, caches); look again before trusting the tree.
+        var after = await DetectChangesAsync(workspace);
+        var feedback = BuildFeedback.FromGates(results);
+        if (feedback is null && after.Violations.Count > 0)
+        {
+            feedback = BuildFeedback.FromViolations(after.Violations);
+        }
+        if (feedback is not null)
+        {
+            await CommentAsync(request, $"{round}: {BuildFeedback.Summary(results)}." +
+                (after.Violations.Count > 0 ? $" Also rejected: {TicketComments.Inert(Short(string.Join("; ", after.Violations.Take(3))))}" : ""));
+            return new Verification(feedback, results, after, null);
+        }
+
+        var (ruleBlock, ruleNotes) = await CheckRulesAsync(workspace, project);
+        if (ruleBlock is not null)
+        {
+            await CommentAsync(request, $"{round}: the project's checks passed, but {TicketComments.Inert(Short(ruleBlock))}");
+            return new Verification(ruleBlock, results, after, ruleNotes);
+        }
+        return new Verification(null, results, after, ruleNotes);
+    }
+
     /// <summary>
     /// The project's own rules (<c>rules</c> in project.json) against the lines the change adds: what blocks goes back to the developer,
     /// what only warns goes to the reviewers. Nothing to do, and no extra activity, for a project without rules.
     /// </summary>
-    protected async Task<(string? Block, string? Warnings)> CheckRulesAsync(WorkspaceInfo workspace, ProjectConfig project)
+    private async Task<(string? Block, string? Warnings)> CheckRulesAsync(WorkspaceInfo workspace, ProjectConfig project)
     {
         if (project.Rules is not { Count: > 0 } rules)
         {

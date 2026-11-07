@@ -161,31 +161,13 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
                 return new WorkResult(Statuses.RevisionReplied);
             }
 
-            var results = new List<GateResult>();
-            foreach (var gate in project.Gates)
-            {
-                results.Add(await RunGateAsync(project.Image, workspace, gate));
-            }
-            var after = await DetectChangesAsync(workspace);
-            feedback = BuildFeedback.FromGates(results);
-            if (feedback is null && after.Violations.Count > 0)
-            {
-                feedback = BuildFeedback.FromViolations(after.Violations);
-            }
+            var verified = await VerifyAsync(work, $"Revision round {round}");
+            feedback = verified.Feedback;
             if (feedback is not null)
             {
-                await CommentAsync(request, $"Revision round {round}: {BuildFeedback.Summary(results)}." +
-                    (after.Violations.Count > 0 ? $" Also rejected: {TicketComments.Inert(Short(string.Join("; ", after.Violations.Take(3))))}" : ""));
                 continue;
             }
-
-            var (ruleBlock, ruleNotes) = await CheckRulesAsync(workspace, project);
-            if (ruleBlock is not null)
-            {
-                feedback = ruleBlock;
-                await CommentAsync(request, $"Revision round {round}: the project's checks passed, but {TicketComments.Inert(Short(ruleBlock))}");
-                continue;
-            }
+            var (results, after, ruleNotes) = (verified.Results, verified.After, verified.RuleNotes);
 
             await CommentAsync(request, $"Revision round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers.");
             // A larger revision is also checked against what the ticket asked for (the criteria in the pull request body).
