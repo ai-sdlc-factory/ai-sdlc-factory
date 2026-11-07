@@ -19,6 +19,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | **operate** it: watch runs, troubleshoot, clean up, back up, update | [Operations](operations.md) |
 | change an **agent**, its model or its permissions | [Agents](../agents/README.md) |
 | sign the agents in with ChatGPT | [OpenCode login](opencode-login.md) |
+| run a **demo "production"** with monitoring (Prometheus, Grafana, Loki) where alerts open tickets | [Demo and monitoring](../demo/README.md) |
 | see what is planned next | [Roadmap and ideas](roadmap.md) |
 
 ## Guides by component
@@ -30,6 +31,8 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Workflows and workspace handling | [controller](../services/controller/README.md) |
 | Starting sandboxes | [sandbox-launcher](../services/sandbox-launcher/README.md) |
 | Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../egress/README.md) |
+| Alerts to tickets | [alert-intake](../services/alert-intake/README.md) |
+| Demo production and monitoring | [demo](../demo/README.md) |
 | Deployed-pipeline test | [integration tests](../tests/integration/README.md) |
 
 ## The diagrams
@@ -46,6 +49,7 @@ Every picture is a Graphviz source in [`diagrams/`](diagrams/) with a rendered S
 | [incident-workflow](images/incident-workflow.svg) | advice, commands and the postmortem |
 | [agent-run](images/agent-run.svg) | one agent run, from request to verdict |
 | [workspace-trust](images/workspace-trust.svg) | the two copies of the checkout |
+| [monitoring](images/monitoring.svg) | the demo production, its monitoring and how an alert becomes a ticket |
 
 ## Keeping it correct
 

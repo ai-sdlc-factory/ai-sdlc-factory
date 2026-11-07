@@ -9,10 +9,8 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 
 ## Your list
 
-- [ ] **Demo service with monitoring and deployment** (L). A small real service to run, deploy and monitor, so the incident side of the factory has something real to watch. Prerequisite for the next item.
-- [ ] **Alert intake: react to monitoring alerts** (M). A place or small agent that receives monitoring alerts that need a reaction and files the ticket that starts the incident or bug workflow. Design: a separate, deterministic collector
-  (signed alert endpoint, bounded and redacted evidence, deduplication by fingerprint, rate limit, operator-owned alert-to-repository mapping) so agents never get production access.
-  See [the incident collector](design.md#not-built-yet). Needs the demo service (or another real system) first.
+- [x] **Demo service with monitoring and deployment** (done as a first version: [`demo/`](../demo/README.md)). The weather application runs from its default branch in Docker, with Prometheus, Alertmanager, Grafana and Loki, a delivery script with rollback and a script that breaks it on purpose. Still open: let a merge to the default branch start the delivery (a Forgejo Actions runner or a webhook), and blue/green switching.
+- [x] **Alert intake: react to monitoring alerts** (done as a first version: [`services/alert-intake`](../services/alert-intake/README.md)). Alertmanager notifications become one ticket per alert, with an operator-owned route table, deduplication by fingerprint, a rate limit, redacted and bounded evidence (recent log lines from Loki), and a dry run as the default. Still open: more sources than Alertmanager, closing tickets by itself when an alert resolves (today it only comments), and running it in the factory's own Compose stack.
 - [ ] **Planner agent and workflow** (M). A `plan` ticket is split into proposed feature tickets that a person approves before they are created. First version creates only tickets without dependencies, because the factory does not react to merges yet.
 - [ ] **Factory improvement loop** (M). Periodically evaluate what happened and what could be improved. Needs a durable run log first (one line per finished run, no ticket text). Then a weekly deterministic report of what repeats (rejected answers, rounds used, refused hosts, token outliers),
   and an agent that proposes prompt and config changes as a reviewed ticket, never applied automatically.

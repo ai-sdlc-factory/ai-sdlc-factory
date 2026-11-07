@@ -6,6 +6,8 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - `services/api`: receives and verifies Forgejo webhooks, starts the router workflow
 - `services/controller`: the Temporal worker. `Agents/` (prompts and answer parsers per role), `Workflows/` (the flows; `Routing/` and `Requests/` hold the router and request types), `Forgejo/`, `Workspace/` (git, change checks), `Project/` (`project.json` parsing, rules, limits)
 - `services/sandbox-launcher`, `services/egress-proxy`: run agents in disposable containers; limit what they can reach
+- `services/alert-intake`: turns monitoring alerts into Forgejo tickets (fixed rules, no AI; a dry run is the default)
+- `demo/`: a local "production" for the weather app with Prometheus, Alertmanager, Grafana and Loki, and the scripts to set it up, deliver code to it and break it on purpose
 - `libs/DevFoundry.Contracts`: types shared between services
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
 - `sandboxes/`, `egress/`, `infra/`: images, allowlist profiles, Compose stack

@@ -1,0 +1,49 @@
+digraph monitoring {
+  graph [rankdir=LR, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.4, ranksep=0.6, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
+  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  label="The demo production: from a delivered commit to a ticket the factory can act on";
+
+  subgraph cluster_app {
+    label="The application (delivered from the default branch)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
+    deploy [label="deploy.sh\nfetch · build · switch over\ncheck · roll back", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+    api    [label="weather-api\n(.NET, SQLite)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    web    [label="weather-web\n(nginx)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  }
+
+  subgraph cluster_watch {
+    label="Watching it"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
+    blackbox [label="blackbox probes\ndoes it answer, how fast?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    cadvisor [label="container-stats\nstate · restarts · memory · CPU", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    promtail [label="Promtail → Loki\nthe containers' logs", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    prom     [label="Prometheus\nmetrics and alert rules", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+    grafana  [label="Grafana\ndashboard · delivery markers", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  }
+
+  am     [label="Alertmanager\ngroups alerts, repeats every 12 h", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  intake [label="alert-intake  (fixed rules, no AI)\nroute table · dedup by fingerprint · rate limit\nredacted, bounded evidence · dry run by default", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  forgejo[label="Forgejo ticket\nlabel: incident", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  inc    [label="Incident workflow\nassessment · causes · options\n(advice only)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  person [label="A person decides\n/option · /hotfix · /resolved", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
+
+  deploy -> api; deploy -> web;
+  blackbox -> api [label="GET /api/cities", style=dashed]; blackbox -> web [label="/healthz", style=dashed];
+  cadvisor -> api [style=dashed]; promtail -> api [style=dashed];
+  blackbox -> prom; cadvisor -> prom; promtail -> prom [label="Loki rules", constraint=false];
+  prom -> grafana; deploy -> grafana [label="marker", style=dotted];
+  prom -> am [label="alert"]; promtail -> am [label="log alert", style=dashed];
+  am -> intake [label="webhook + token"];
+  intake -> forgejo [label="opens one ticket\ncomments when resolved"];
+  intake -> promtail [label="recent log lines", style=dotted, constraint=false];
+  forgejo -> inc [label="webhook"];
+  inc -> person;
+
+  subgraph cluster_legend {
+    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
+    til1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
+    til2 [label="code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
+    til3 [label="measurement taken by tooling", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
+    til4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    til1 -> til2 -> til3 -> til4 [style=invis];
+  }
+}
