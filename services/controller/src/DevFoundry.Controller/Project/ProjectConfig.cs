@@ -37,10 +37,14 @@ public static partial class ProjectConfigParser
     private const int MaxArguments = 32;
     private const int MaxArgumentLength = 500;
 
-    private static bool TryReadUi(JsonElement value, [NotNullWhen(true)] out UiConfig? ui, out string error)
+    private static bool TryReadUi(JsonElement root, out UiConfig? ui, out string error)
     {
         ui = null;
         error = "";
+        if (!root.TryGetProperty("ui", out var value))
+        {
+            return true;
+        }
         if (value.ValueKind != JsonValueKind.Object
             || !value.TryGetProperty("paths", out var pathsValue) || pathsValue.ValueKind != JsonValueKind.Array
             || pathsValue.GetArrayLength() is 0 or > 20)
@@ -95,10 +99,14 @@ public static partial class ProjectConfigParser
 
     public const int MaxProtectedPaths = 20;
 
-    private static bool TryReadLimits(JsonElement value, out ProjectLimits limits, out string error)
+    private static bool TryReadLimits(JsonElement root, out ProjectLimits? limits, out string error)
     {
-        limits = new ProjectLimits();
+        limits = null;
         error = "";
+        if (!root.TryGetProperty("limits", out var value))
+        {
+            return true;
+        }
         if (value.ValueKind != JsonValueKind.Object)
         {
             error = "\"limits\" must be an object, for example {\"build_rounds\": 2}";
@@ -135,10 +143,14 @@ public static partial class ProjectConfigParser
         return true;
     }
 
-    private static bool TryReadProtectedPaths(JsonElement value, out List<string> paths, out string error)
+    private static bool TryReadProtectedPaths(JsonElement root, out List<string> paths, out string error)
     {
         paths = [];
         error = "";
+        if (!root.TryGetProperty("protected_paths", out var value))
+        {
+            return true;
+        }
         if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > MaxProtectedPaths)
         {
             error = $"\"protected_paths\" must be an array of at most {MaxProtectedPaths} patterns, such as [\"db/migrations/**\", \"*.lock\"]";
@@ -160,10 +172,14 @@ public static partial class ProjectConfigParser
         return true;
     }
 
-    private static bool TryReadRules(JsonElement value, out List<ProjectRule> rules, out string error)
+    private static bool TryReadRules(JsonElement root, out List<ProjectRule> rules, out string error)
     {
         rules = [];
         error = "";
+        if (!root.TryGetProperty("rules", out var value))
+        {
+            return true;
+        }
         if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > ProjectRules.MaxRules)
         {
             error = $"\"rules\" must be an array of at most {ProjectRules.MaxRules} rules, each with \"id\", \"files\", \"forbid\" and \"message\"";
@@ -236,6 +252,7 @@ public static partial class ProjectConfigParser
     [GeneratedRegex(@"\A[A-Za-z0-9._@+/-]{1,100}\z")]
     private static partial Regex GateDirectory();
 
+    /// <summary>Reads <c>.factory/project.json</c>. Returns false with a message that names the problem, written for the person who edits the file.</summary>
     public static bool TryParse(string? json, [NotNullWhen(true)] out ProjectConfig? config, out string error)
     {
         config = null;
@@ -259,131 +276,167 @@ public static partial class ProjectConfigParser
                 error = "the file must contain a JSON object";
                 return false;
             }
-            var image = root.TryGetProperty("image", out var imageValue) && imageValue.ValueKind == JsonValueKind.String ? imageValue.GetString() : null;
-            if (image is null || !ImageAlias().IsMatch(image))
-            {
-                error = "\"image\" must be the name of a sandbox image, such as \"dotnet\" or \"python\"";
-                return false;
-            }
-            if (!root.TryGetProperty("gates", out var gatesValue) || gatesValue.ValueKind != JsonValueKind.Array
-                || gatesValue.GetArrayLength() is 0 or > MaxGates)
-            {
-                error = $"\"gates\" must be an array of 1 to {MaxGates} checks";
-                return false;
-            }
-
-            var gates = new List<Gate>();
-            foreach (var item in gatesValue.EnumerateArray())
-            {
-                var number = gates.Count + 1;
-                var name = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
-                if (name is null || !GateName().IsMatch(name) || gates.Any(g => g.Name == name))
-                {
-                    error = $"gate {number}: \"name\" must be unique, lower case, and use only letters, digits, - and _";
-                    return false;
-                }
-                if (!item.TryGetProperty("command", out var commandValue) || commandValue.ValueKind != JsonValueKind.Array
-                    || commandValue.GetArrayLength() is 0 or > MaxArguments)
-                {
-                    error = $"gate \"{name}\": \"command\" must be an array of 1 to {MaxArguments} strings, such as [\"python\", \"-m\", \"pytest\"]";
-                    return false;
-                }
-                var command = new List<string>();
-                foreach (var argument in commandValue.EnumerateArray())
-                {
-                    if (argument.ValueKind != JsonValueKind.String || argument.GetString() is not { Length: > 0 } text
-                        || text.Length > MaxArgumentLength || text.Contains('\0'))
-                    {
-                        error = $"gate \"{name}\": every command argument must be a non-empty string of at most {MaxArgumentLength} characters";
-                        return false;
-                    }
-                    command.Add(text);
-                }
-                var timeout = DefaultTimeoutSeconds;
-                if (item.TryGetProperty("timeout_seconds", out var t) && (t.ValueKind != JsonValueKind.Number || !t.TryGetInt32(out timeout) || timeout is < 10 or > 1800))
-                {
-                    error = $"gate \"{name}\": \"timeout_seconds\" must be between 10 and 1800";
-                    return false;
-                }
-                string? workingDirectory = null;
-                if (item.TryGetProperty("cwd", out var cwdValue))
-                {
-                    workingDirectory = cwdValue.ValueKind == JsonValueKind.String ? cwdValue.GetString()?.TrimEnd('/') : null;
-                    if (workingDirectory is null || !GateDirectory().IsMatch(workingDirectory) || workingDirectory.Contains("..") || workingDirectory.StartsWith('/'))
-                    {
-                        error = $"gate \"{name}\": \"cwd\" must be a folder inside the repository, such as \"frontend\" (letters, digits and . _ - @ + /, no leading / and no ..)";
-                        return false;
-                    }
-                }
-                gates.Add(new Gate(name, command, timeout, workingDirectory));
-            }
-            var reviewers = new List<string> { "reviewer" };
-            if (root.TryGetProperty("reviewers", out var reviewersValue))
-            {
-                reviewers.Clear();
-                if (reviewersValue.ValueKind != JsonValueKind.Array || reviewersValue.GetArrayLength() is 0 or > 4)
-                {
-                    error = $"\"reviewers\" must be an array of review roles: {string.Join(", ", KnownReviewers)}";
-                    return false;
-                }
-                foreach (var entry in reviewersValue.EnumerateArray())
-                {
-                    var role = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
-                    if (role is null || !KnownReviewers.Contains(role) || reviewers.Contains(role))
-                    {
-                        error = $"\"reviewers\" may list each of these once: {string.Join(", ", KnownReviewers)}";
-                        return false;
-                    }
-                    reviewers.Add(role);
-                }
-            }
-            UiConfig? ui = null;
-            if (root.TryGetProperty("ui", out var uiValue) && !TryReadUi(uiValue, out ui, out error))
-            {
-                return false;
-            }
-            var record = false;
-            if (root.TryGetProperty("record", out var recordValue))
-            {
-                if (recordValue.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-                {
-                    error = "\"record\" must be true or false: true keeps what each agent was told and answered in .factory/runs/ on the pull request";
-                    return false;
-                }
-                record = recordValue.GetBoolean();
-            }
-            var quickByDefault = false;
-            if (root.TryGetProperty("mode", out var modeValue))
-            {
-                var mode = modeValue.ValueKind == JsonValueKind.String ? modeValue.GetString() : null;
-                if (mode is not ("full" or "quick"))
-                {
-                    error = "\"mode\" must be \"full\" (the default) or \"quick\": quick mode skips the coverage check, the design review and QA for tickets in this project";
-                    return false;
-                }
-                quickByDefault = mode == "quick";
-            }
-            var rules = new List<ProjectRule>();
-            if (root.TryGetProperty("rules", out var rulesValue) && !TryReadRules(rulesValue, out rules, out error))
-            {
-                return false;
-            }
-            ProjectLimits? limits = null;
-            if (root.TryGetProperty("limits", out var limitsValue))
-            {
-                if (!TryReadLimits(limitsValue, out var readLimits, out error))
-                {
-                    return false;
-                }
-                limits = readLimits;
-            }
-            var protectedPaths = new List<string>();
-            if (root.TryGetProperty("protected_paths", out var protectedValue) && !TryReadProtectedPaths(protectedValue, out protectedPaths, out error))
+            // One reader per key, in the order the reference in docs/project-setup.md lists them; the first problem found is the one reported.
+            if (!TryReadImage(root, out var image, out error)
+                || !TryReadGates(root, out var gates, out error)
+                || !TryReadReviewers(root, out var reviewers, out error)
+                || !TryReadUi(root, out var ui, out error)
+                || !TryReadRecord(root, out var record, out error)
+                || !TryReadMode(root, out var quickByDefault, out error)
+                || !TryReadRules(root, out var rules, out error)
+                || !TryReadLimits(root, out var limits, out error)
+                || !TryReadProtectedPaths(root, out var protectedPaths, out error))
             {
                 return false;
             }
             config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules, limits, protectedPaths);
             return true;
         }
+    }
+
+    private static bool TryReadImage(JsonElement root, out string image, out string error)
+    {
+        image = "";
+        error = "";
+        var value = root.TryGetProperty("image", out var imageValue) && imageValue.ValueKind == JsonValueKind.String ? imageValue.GetString() : null;
+        if (value is null || !ImageAlias().IsMatch(value))
+        {
+            error = "\"image\" must be the name of a sandbox image, such as \"dotnet\" or \"python\"";
+            return false;
+        }
+        image = value;
+        return true;
+    }
+
+    private static bool TryReadGates(JsonElement root, out List<Gate> gates, out string error)
+    {
+        gates = [];
+        error = "";
+        if (!root.TryGetProperty("gates", out var gatesValue) || gatesValue.ValueKind != JsonValueKind.Array
+            || gatesValue.GetArrayLength() is 0 or > MaxGates)
+        {
+            error = $"\"gates\" must be an array of 1 to {MaxGates} checks";
+            return false;
+        }
+        foreach (var item in gatesValue.EnumerateArray())
+        {
+            if (!TryReadGate(item, gates, out var gate, out error))
+            {
+                return false;
+            }
+            gates.Add(gate);
+        }
+        return true;
+    }
+
+    /// <summary>One check. <paramref name="earlier"/> are the checks read before it, so a name can be required to be unique.</summary>
+    private static bool TryReadGate(JsonElement item, IReadOnlyList<Gate> earlier, [NotNullWhen(true)] out Gate? gate, out string error)
+    {
+        gate = null;
+        error = "";
+        var number = earlier.Count + 1;
+        var name = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
+        if (name is null || !GateName().IsMatch(name) || earlier.Any(g => g.Name == name))
+        {
+            error = $"gate {number}: \"name\" must be unique, lower case, and use only letters, digits, - and _";
+            return false;
+        }
+        if (!item.TryGetProperty("command", out var commandValue) || commandValue.ValueKind != JsonValueKind.Array
+            || commandValue.GetArrayLength() is 0 or > MaxArguments)
+        {
+            error = $"gate \"{name}\": \"command\" must be an array of 1 to {MaxArguments} strings, such as [\"python\", \"-m\", \"pytest\"]";
+            return false;
+        }
+        var command = new List<string>();
+        foreach (var argument in commandValue.EnumerateArray())
+        {
+            if (argument.ValueKind != JsonValueKind.String || argument.GetString() is not { Length: > 0 } text
+                || text.Length > MaxArgumentLength || text.Contains('\0'))
+            {
+                error = $"gate \"{name}\": every command argument must be a non-empty string of at most {MaxArgumentLength} characters";
+                return false;
+            }
+            command.Add(text);
+        }
+        var timeout = DefaultTimeoutSeconds;
+        if (item.TryGetProperty("timeout_seconds", out var t) && (t.ValueKind != JsonValueKind.Number || !t.TryGetInt32(out timeout) || timeout is < 10 or > 1800))
+        {
+            error = $"gate \"{name}\": \"timeout_seconds\" must be between 10 and 1800";
+            return false;
+        }
+        string? workingDirectory = null;
+        if (item.TryGetProperty("cwd", out var cwdValue))
+        {
+            workingDirectory = cwdValue.ValueKind == JsonValueKind.String ? cwdValue.GetString()?.TrimEnd('/') : null;
+            if (workingDirectory is null || !GateDirectory().IsMatch(workingDirectory) || workingDirectory.Contains("..") || workingDirectory.StartsWith('/'))
+            {
+                error = $"gate \"{name}\": \"cwd\" must be a folder inside the repository, such as \"frontend\" (letters, digits and . _ - @ + /, no leading / and no ..)";
+                return false;
+            }
+        }
+        gate = new Gate(name, command, timeout, workingDirectory);
+        return true;
+    }
+
+    private static bool TryReadReviewers(JsonElement root, out List<string> reviewers, out string error)
+    {
+        reviewers = ["reviewer"];
+        error = "";
+        if (!root.TryGetProperty("reviewers", out var value))
+        {
+            return true;
+        }
+        reviewers.Clear();
+        if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() is 0 or > 4)
+        {
+            error = $"\"reviewers\" must be an array of review roles: {string.Join(", ", KnownReviewers)}";
+            return false;
+        }
+        foreach (var entry in value.EnumerateArray())
+        {
+            var role = entry.ValueKind == JsonValueKind.String ? entry.GetString() : null;
+            if (role is null || !KnownReviewers.Contains(role) || reviewers.Contains(role))
+            {
+                error = $"\"reviewers\" may list each of these once: {string.Join(", ", KnownReviewers)}";
+                return false;
+            }
+            reviewers.Add(role);
+        }
+        return true;
+    }
+
+    private static bool TryReadRecord(JsonElement root, out bool record, out string error)
+    {
+        record = false;
+        error = "";
+        if (!root.TryGetProperty("record", out var value))
+        {
+            return true;
+        }
+        if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            error = "\"record\" must be true or false: true keeps what each agent was told and answered in .factory/runs/ on the pull request";
+            return false;
+        }
+        record = value.GetBoolean();
+        return true;
+    }
+
+    private static bool TryReadMode(JsonElement root, out bool quickByDefault, out string error)
+    {
+        quickByDefault = false;
+        error = "";
+        if (!root.TryGetProperty("mode", out var value))
+        {
+            return true;
+        }
+        var mode = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        if (mode is not ("full" or "quick"))
+        {
+            error = "\"mode\" must be \"full\" (the default) or \"quick\": quick mode skips the coverage check, the design review and QA for tickets in this project";
+            return false;
+        }
+        quickByDefault = mode == "quick";
+        return true;
     }
 }
