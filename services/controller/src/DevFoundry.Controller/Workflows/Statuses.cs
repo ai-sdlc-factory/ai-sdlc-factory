@@ -48,6 +48,9 @@ public static class Statuses
     /// <summary>the repository's own .factory/Dockerfile could not be read or built (see a project's own image).</summary>
     public const string ImageFailed = "image_failed";
 
+    /// <summary>a part of the factory's own machinery failed (a sandbox stopped reporting, Docker or the launcher was unavailable), not the ticket or the agent's work; saying <c>/retry</c> runs it again (saved if code existed).</summary>
+    public const string InfrastructureFailed = "infrastructure_failed";
+
     /// <summary>The investigator's answer could not be used, even after one retry.</summary>
     public const string InvestigationFailed = "investigation_failed";
 

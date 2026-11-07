@@ -6,7 +6,16 @@ namespace DevFoundry.Controller;
 
 public abstract partial class FactoryWorkflowBase
 {
-    protected sealed record AgentOutcome<T>(T? Value, bool NotSignedIn, string? Problem) where T : class;
+    /// <param name="Infrastructure">The run failed because of the factory's own machinery (see <see cref="InfrastructureFailure"/>), so asking again may work.</param>
+    protected sealed record AgentOutcome<T>(T? Value, bool NotSignedIn, string? Problem, bool Infrastructure = false) where T : class
+    {
+        /// <summary>The problem as it goes on the ticket; an infrastructure failure also says that <c>/retry</c> is the way forward.</summary>
+        public string Describe() =>
+            TicketComments.Inert(Short(Problem ?? "unknown problem")) + (Infrastructure ? TicketComments.RetryHint : "");
+
+        /// <summary>The status a run ends with when this outcome has no value: the stage's own, or the infrastructure one.</summary>
+        public string FailedStatus(string stageStatus) => Infrastructure ? Statuses.InfrastructureFailed : stageStatus;
+    }
 
     /// <summary>
     /// Runs one agent role in a read-only sandbox with model access and parses its answer. An unusable
@@ -41,11 +50,12 @@ public abstract partial class FactoryWorkflowBase
             }
             catch (ActivityFailureException error)
             {
-                var message = error.InnerException?.Message ?? error.Message;
+                var infrastructure = InfrastructureFailure.Is(error);
+                var message = infrastructure ? InfrastructureFailure.Describe(error) : error.InnerException?.Message ?? error.Message;
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = -1, Problem = message });
                 return message.Contains("not signed in", StringComparison.OrdinalIgnoreCase)
                     ? new AgentOutcome<T>(null, true, null)
-                    : new AgentOutcome<T>(null, false, message);
+                    : new AgentOutcome<T>(null, false, message, infrastructure);
             }
 
             var spent = OpenCodeEvents.Usage(result.Stdout, result.OutputTruncated);

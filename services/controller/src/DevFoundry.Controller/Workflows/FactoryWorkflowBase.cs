@@ -127,8 +127,10 @@ public abstract partial class FactoryWorkflowBase
             catch (ActivityFailureException error)
             {
                 // Without this the ticket would just go quiet while the run shows as failed in Temporal.
-                await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
-                result = new WorkResult(Statuses.Error);
+                var infrastructure = InfrastructureFailure.Is(error);
+                var reason = infrastructure ? InfrastructureFailure.Describe(error) : error.InnerException?.Message ?? error.Message;
+                await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(reason))}{(infrastructure ? TicketComments.RetryHint : "")}");
+                result = new WorkResult(infrastructure ? Statuses.InfrastructureFailed : Statuses.Error);
             }
             await NoteUnusedCommentsAsync(request, result);
             return await SaveUnfinishedWorkAsync(request, result);
@@ -162,7 +164,7 @@ public abstract partial class FactoryWorkflowBase
     }
 
     // Endings after which code may exist that nobody has seen; a run a person closed, or one that stopped before the build, has none.
-    protected static readonly HashSet<string> StoppedWithWork = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Blocked, Statuses.Error];
+    protected static readonly HashSet<string> StoppedWithWork = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Blocked, Statuses.Error, Statuses.InfrastructureFailed];
 
     // For these the ticket always gets a summary, even when there was nothing to save.
     protected static readonly HashSet<string> AlwaysExplained = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Error];

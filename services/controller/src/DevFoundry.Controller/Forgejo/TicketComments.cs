@@ -150,6 +150,7 @@ public static class TicketComments
             "review_failed" => "a review step could not be completed",
             "publish_failed" => "the finished work could not be published as a pull request",
             "blocked" => "OpenCode is not signed in",
+            "infrastructure_failed" => "part of the factory's own machinery failed",
             "error" => "an unexpected error",
             _ => status,
         };
@@ -250,10 +251,18 @@ public static class TicketComments
         $"{(count == 1 ? "it was" : "they were")} not used. To have {(count == 1 ? "it" : "them")} taken into account, add " +
         "the details to the ticket text, then close and reopen the ticket.";
 
+    /// <summary>Added to a failure caused by the factory's own machinery rather than by the ticket or the agent's work.</summary>
+    public const string RetryHint =
+        " This looks like a problem with the factory itself, not with your ticket. Comment `/retry` to run it again.";
+
     /// <summary>A comment on a feature ticket that has no running workflow.</summary>
     public const string NoRunActive =
         "No factory run is active for this ticket (it has finished, or was never started), so this comment was not used. " +
-        "To run it again, close and reopen the ticket; update the ticket text first if the requirements changed.";
+        "To run it again, comment `/retry` (or close and reopen the ticket); update the ticket text first if the requirements changed.";
+
+    /// <summary>`/retry` on a ticket whose run is still going.</summary>
+    public const string RetryWhileRunning =
+        "A factory run is still active for this ticket, so `/retry` was not needed. It works once the run has finished.";
 
     /// <summary>Posted instead of the triage comment when a ticket runs in quick mode.</summary>
     public static string QuickMode(string reason, IReadOnlyList<string> skippedDesignReasons)

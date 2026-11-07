@@ -123,6 +123,50 @@ public sealed class RouterScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task Retry_runs_the_factory_again_on_a_ticket_whose_run_has_finished()
+    {
+        var world = new FakeWorld().Agent("analyst",
+            AgentReply.Says(Answers.Analyst("reject")), AgentReply.Says(Answers.Analyst("reject")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", repo));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 1);
+
+            await Route(context, Event("issue_comment", "created", repo, comment: "/retry"));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 2);
+            return 0;
+        });
+
+        Assert.Equal(2, world.Calls("analyst").Count());
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
+
+    [SkippableFact]
+    public async Task Retry_while_a_run_is_still_active_changes_nothing_and_says_so()
+    {
+        var world = new FakeWorld().Agent("analyst",
+            AgentReply.Says(Answers.Analyst("needs_clarification")), AgentReply.Says(Answers.Analyst("reject")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", repo));
+            await world.WaitForCommentAsync(c => c.Contains("I need answers before building"));
+
+            await Route(context, Event("issue_comment", "created", repo, comment: "/retry"));
+            await Route(context, Event("issue_comment", "created", repo, comment: "Use the text Goodbye, world!"));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 1);
+            return 0;
+        });
+
+        Assert.Equal(2, world.Calls("analyst").Count()); // one run: the question, then the answer; /retry was not taken as an answer
+        Assert.DoesNotContain("/retry", world.Calls("analyst").Last().Prompt);
+        Assert.Equal(TicketComments.RetryWhileRunning, Assert.Single(world.Snapshot(world.Notices)));
+    }
+
+    [SkippableFact]
     public async Task A_comment_on_the_ticket_reaches_the_waiting_run()
     {
         var world = new FakeWorld().Agent("analyst",

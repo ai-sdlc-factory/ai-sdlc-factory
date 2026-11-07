@@ -54,8 +54,8 @@ public abstract partial class FactoryWorkflowBase
             }
             if (outcome.Value is not { } developer)
             {
-                await CommentAsync(request, $"The build failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new WorkResult(Statuses.BuildFailed);
+                await CommentAsync(request, $"The build failed and needs a person to look at it: {outcome.Describe()}");
+                return new WorkResult(outcome.FailedStatus(Statuses.BuildFailed));
             }
             if (developer.Verdict == DeveloperReport.Blocked)
             {
@@ -81,6 +81,10 @@ public abstract partial class FactoryWorkflowBase
             }
 
             var verified = await VerifyAsync(work, $"Build round {round}");
+            if (verified.Stop is { } infrastructureStop)
+            {
+                return infrastructureStop;
+            }
             feedback = verified.Feedback;
             if (feedback is not null)
             {
@@ -193,9 +197,10 @@ public abstract partial class FactoryWorkflowBase
         }
         catch (ActivityFailureException error)
         {
-            var reason = $"the check could not run: {error.InnerException?.Message ?? error.Message}";
+            var infrastructure = InfrastructureFailure.Is(error);
+            var reason = $"the check could not run: {(infrastructure ? InfrastructureFailure.Describe(error) : error.InnerException?.Message ?? error.Message)}";
             await RecordAsync(workspace, RecordStep.Gate(gate.Name, started, "could not run", commandText) with { ExitCode = -1, Problem = reason });
-            return new GateResult(gate.Name, false, -1, false, reason);
+            return new GateResult(gate.Name, false, -1, false, reason, infrastructure);
         }
     }
 
@@ -289,8 +294,8 @@ public abstract partial class FactoryWorkflowBase
         }
         if (qaOutcome.Value is not { } claimed)
         {
-            await CommentAsync(request, $"The QA check failed and needs a person to look at it: {TicketComments.Inert(Short(qaOutcome.Problem ?? "unknown problem"))} Nothing was published.");
-            return Stopped(Statuses.ReviewFailed);
+            await CommentAsync(request, $"The QA check failed and needs a person to look at it: {qaOutcome.Describe()} Nothing was published.");
+            return Stopped(qaOutcome.FailedStatus(Statuses.ReviewFailed));
         }
 
         // QA may only call a criterion met if the files it cites exist.
@@ -305,7 +310,8 @@ public abstract partial class FactoryWorkflowBase
     /// <param name="Results">How each check ended.</param>
     /// <param name="After">The change as it is after the checks ran (a check can create files).</param>
     /// <param name="RuleNotes">Project rules that only warn, for the reviewers to weigh.</param>
-    protected sealed record Verification(string? Feedback, IReadOnlyList<GateResult> Results, ChangeReport After, string? RuleNotes);
+    /// <param name="Stop">Set when a check could not run because of the factory itself: sending that to the developer would only waste a round, so the run ends.</param>
+    protected sealed record Verification(string? Feedback, IReadOnlyList<GateResult> Results, ChangeReport After, string? RuleNotes, WorkResult? Stop = null);
 
     /// <summary>
     /// Runs the project's checks, looks at the tree again, and applies the project's rules. This is the same for a new change and for a
@@ -323,6 +329,11 @@ public abstract partial class FactoryWorkflowBase
 
         // Running the checks can itself create files (build output, caches); look again before trusting the tree.
         var after = await DetectChangesAsync(workspace);
+        if (results.FirstOrDefault(result => result.Infrastructure) is { } broken)
+        {
+            await CommentAsync(request, $"{round}: {TicketComments.Inert(Short($"the check '{broken.Name}' {broken.Output}"))}{TicketComments.RetryHint}");
+            return new Verification(null, results, after, null, new WorkResult(Statuses.InfrastructureFailed));
+        }
         var feedback = BuildFeedback.FromGates(results);
         if (feedback is null && after.Violations.Count > 0)
         {
@@ -378,8 +389,8 @@ public abstract partial class FactoryWorkflowBase
         }
         if (outcome.Value is not { } review)
         {
-            await CommentAsync(request, $"The {role} review failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))} Nothing was published.");
-            return (null, Stopped(Statuses.ReviewFailed));
+            await CommentAsync(request, $"The {role} review failed and needs a person to look at it: {outcome.Describe()} Nothing was published.");
+            return (null, Stopped(outcome.FailedStatus(Statuses.ReviewFailed)));
         }
         await CommentAsync(request, TicketComments.Review(role, review));
         return (review, null);

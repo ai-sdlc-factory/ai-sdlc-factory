@@ -113,6 +113,44 @@ public sealed class EventRouterTests
         Assert.Equal(new HumanReply("bob", "Use the existing cart."), decision.Reply);
     }
 
+    [Theory]
+    [InlineData("/retry")]
+    [InlineData("  /RETRY  ")]
+    [InlineData("Docker was down.\n/retry")]
+    public void Retry_on_an_open_ticket_restarts_its_run(string body)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment(body) })));
+
+        Assert.Equal(RoutingAction.RetryFeature, decision.Action);
+        Assert.True(decision.Restart);
+        Assert.Equal(WorkIds.For("acme", "shop", 7), decision.Feature!.WorkflowId);
+        Assert.False(string.IsNullOrEmpty(decision.Feature.Title)); // the ticket's current text goes with it
+    }
+
+    [Theory]
+    [InlineData("please /retry this")]
+    [InlineData("/retry-later")]
+    [InlineData("/retryy")]
+    public void Only_a_line_that_is_just_retry_counts(string body)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment(body) })));
+        Assert.Equal(RoutingAction.ReplyToFeature, decision.Action);
+    }
+
+    [Fact]
+    public void Retry_on_a_closed_ticket_or_from_the_factory_itself_does_nothing()
+    {
+        var closed = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", state: "closed", more: new { comment = Comment("/retry") })));
+        var own = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment($"{EventRouter.BotMarker}\n/retry", "factory-bot") })));
+
+        Assert.Equal(RoutingAction.Ignore, closed.Action);
+        Assert.Equal(RoutingAction.Ignore, own.Action);
+    }
+
     [Fact]
     public void The_factorys_own_comments_are_ignored()
     {

@@ -40,6 +40,7 @@ public sealed class ForgejoEventWorkflow
         {
             RoutingAction.StartFeature => StartTicketWorkflowAsync(decision),
             RoutingAction.RevisePullRequest => RevisePullRequestAsync(decision.Revision!),
+            RoutingAction.RetryFeature => RetryTicketAsync(decision),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
@@ -47,7 +48,7 @@ public sealed class ForgejoEventWorkflow
     }
 
     /// <summary>Starts the incident, bug or feature workflow for a ticket; the workflow outlives this short routing run.</summary>
-    private static async Task StartTicketWorkflowAsync(RoutingDecision decision)
+    private static async Task<bool> StartTicketWorkflowAsync(RoutingDecision decision)
     {
         var feature = decision.Feature!;
         try
@@ -70,11 +71,27 @@ public sealed class ForgejoEventWorkflow
             {
                 await Workflow.StartChildWorkflowAsync((FeatureWorkflow workflow) => workflow.RunAsync(feature), options);
             }
+            return true;
         }
         catch (WorkflowAlreadyStartedException)
         {
             // Relabeling or editing a ticket that already has a workflow is not an error.
+            return false;
         }
+    }
+
+    /// <summary>`/retry`: starts the ticket's run again when the last one has finished; while one is running, says so once.</summary>
+    private static async Task RetryTicketAsync(RoutingDecision decision)
+    {
+        if (await StartTicketWorkflowAsync(decision))
+        {
+            return;
+        }
+        var feature = decision.Feature!;
+        await Workflow.ExecuteActivityAsync(
+            (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.RetryWhileRunning)),
+            ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
     }
 
     private static async Task RevisePullRequestAsync(RevisionRequest revision)

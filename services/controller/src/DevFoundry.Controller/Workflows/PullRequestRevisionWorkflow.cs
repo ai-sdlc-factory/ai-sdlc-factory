@@ -130,8 +130,8 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             }
             if (outcome.Value is not { } report)
             {
-                await CommentAsync(request, $"I could not address the review comments and a person needs to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new WorkResult(Statuses.BuildFailed);
+                await CommentAsync(request, $"I could not address the review comments and a person needs to look at it: {outcome.Describe()}");
+                return new WorkResult(outcome.FailedStatus(Statuses.BuildFailed));
             }
             if (report.Verdict == RevisionReport.Blocked)
             {
@@ -162,6 +162,10 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             }
 
             var verified = await VerifyAsync(work, $"Revision round {round}");
+            if (verified.Stop is { } infrastructureStop)
+            {
+                return infrastructureStop;
+            }
             feedback = verified.Feedback;
             if (feedback is not null)
             {

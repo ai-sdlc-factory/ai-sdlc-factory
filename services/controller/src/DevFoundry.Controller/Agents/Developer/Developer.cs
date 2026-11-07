@@ -69,4 +69,5 @@ public static class DeveloperParser
     }
 }
 
-public sealed record GateResult(string Name, bool Passed, long ExitCode, bool TimedOut, string Output);
+/// <param name="Infrastructure">The check could not run because of the factory's own machinery, which says nothing about the code.</param>
+public sealed record GateResult(string Name, bool Passed, long ExitCode, bool TimedOut, string Output, bool Infrastructure = false);

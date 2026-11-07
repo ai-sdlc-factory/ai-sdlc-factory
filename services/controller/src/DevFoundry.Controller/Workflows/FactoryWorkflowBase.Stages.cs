@@ -85,8 +85,8 @@ public abstract partial class FactoryWorkflowBase
             }
             if (outcome.Value is not { } value)
             {
-                await CommentAsync(request, $"{failureText} and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return Stop<T>(failedStatus);
+                await CommentAsync(request, $"{failureText} and needs a person to look at it: {outcome.Describe()}");
+                return Stop<T>(outcome.FailedStatus(failedStatus));
             }
 
             var commentText = comment(value);
@@ -143,8 +143,8 @@ public abstract partial class FactoryWorkflowBase
         }
         if (outcome.Value is not { } claimed)
         {
-            await CommentAsync(request, $"The coverage check failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-            return Stop<CoverageReport>(Statuses.CoverageFailed);
+            await CommentAsync(request, $"The coverage check failed and needs a person to look at it: {outcome.Describe()}");
+            return Stop<CoverageReport>(outcome.FailedStatus(Statuses.CoverageFailed));
         }
 
         var report = EvidenceCheck.Apply(claimed, await FindExistingFilesAsync(workspace, image, EvidenceCheck.PathsToCheck(claimed)));

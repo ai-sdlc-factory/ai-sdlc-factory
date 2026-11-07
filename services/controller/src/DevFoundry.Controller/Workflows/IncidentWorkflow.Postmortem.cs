@@ -35,8 +35,8 @@ public sealed partial class IncidentWorkflow
             }
             if (outcome.Value is not { } draft)
             {
-                await CommentAsync(request, $"The postmortem draft failed: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new WorkResult(Statuses.PostmortemFailed);
+                await CommentAsync(request, $"The postmortem draft failed: {outcome.Describe()}");
+                return new WorkResult(outcome.FailedStatus(Statuses.PostmortemFailed));
             }
             if (draft.Verdict == PostmortemDraft.Blocked)
             {

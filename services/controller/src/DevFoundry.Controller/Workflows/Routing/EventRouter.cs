@@ -9,6 +9,7 @@ public enum RoutingAction
     ReplyToFeature,
     CloseFeature,
     RevisePullRequest,
+    RetryFeature,
 }
 
 public sealed record RoutingDecision(
@@ -88,13 +89,7 @@ public static partial class EventRouter
                     "feature ticket",
                     // Reopening a ticket is the way to run the factory on it again.
                     Restart: action == "reopened",
-                    Feature: new WorkRequest(
-                        owner, repo, issueNumber,
-                        AsString(Get(issue, "title")) ?? "",
-                        AsString(Get(issue, "body")) ?? "",
-                        AsString(Get(Get(issue, "user"), "login")) ?? "",
-                        LabelNames(issue),
-                        kind!));
+                    Feature: TicketRequest(issue, owner, repo, issueNumber, kind!));
 
             case "issues" when action == "closed":
                 return hasFeatureLabel
@@ -112,6 +107,13 @@ public static partial class EventRouter
                 {
                     return Ignore("comment written by the factory");
                 }
+                // `/retry` starts the ticket's run again, like closing and reopening it, without touching the ticket.
+                if (RetryCommand().IsMatch(body))
+                {
+                    return isOpen
+                        ? new RoutingDecision(RoutingAction.RetryFeature, "retry", Restart: true, Feature: TicketRequest(issue, owner, repo, issueNumber, kind!))
+                        : Ignore("ticket is closed");
+                }
                 return new RoutingDecision(
                     RoutingAction.ReplyToFeature,
                     "human comment",
@@ -122,6 +124,19 @@ public static partial class EventRouter
                 return Ignore($"unhandled {input.Event}/{action}");
         }
     }
+
+    /// <summary>The ticket as the workflows get it: its text and labels as they are now.</summary>
+    private static WorkRequest TicketRequest(JsonElement issue, string owner, string repo, int issueNumber, string kind) =>
+        new(owner, repo, issueNumber,
+            AsString(Get(issue, "title")) ?? "",
+            AsString(Get(issue, "body")) ?? "",
+            AsString(Get(Get(issue, "user"), "login")) ?? "",
+            LabelNames(issue),
+            kind);
+
+    /// <summary>A line that is just <c>/retry</c> on a ticket: run the factory on it again.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t]*/retry[ \t]*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline)]
+    private static partial System.Text.RegularExpressions.Regex RetryCommand();
 
     /// <summary>A line starting with <c>/fix</c> (or <c>/revise</c>) on a pull request; what follows it says what to change.</summary>
     [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t]*/(?:fix|revise)\b(?<rest>[^\r\n]*)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline)]

@@ -259,6 +259,17 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         Assert.Contains(world.Comments, c => c.Contains("exited with code 1"));
     }
 
+    [SkippableFact]
+    public async Task A_sandbox_that_cannot_start_is_reported_as_a_problem_of_the_factory_with_a_way_to_retry()
+    {
+        var world = new FakeWorld().Agent("analyst", AgentReply.DockerDown);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("infrastructure_failed", result.Status);
+        Assert.Contains(world.Comments, c => c.Contains("docker is down") && c.Contains("/retry") && c.Contains("not with your ticket"));
+    }
+
     // ---- coverage -----------------------------------------------------------------------------------------
 
     [SkippableFact]
@@ -395,6 +406,20 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         Assert.Contains("protected file", calls[1].Prompt);
         Assert.Contains(world.Comments, c => c.Contains("Build round 1: the changes were rejected"));
         Assert.Equal(["python -m pytest -q"], world.CheckCalls); // only in round 2
+    }
+
+    [SkippableFact]
+    public async Task A_check_that_cannot_run_because_of_the_factory_ends_the_run_instead_of_blaming_the_developer()
+    {
+        var world = ToBuild()
+            .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()))
+            .CheckThrows("python -m pytest -q", new ApplicationFailureException("starting the sandbox failed: docker is down", errorType: "Docker", nonRetryable: true));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("infrastructure_failed", result.Status);
+        Assert.Single(world.Calls("developer")); // no second round spent on a problem the code did not cause
+        Assert.Contains(world.Comments, c => c.Contains("Build round 1") && c.Contains("docker is down") && c.Contains("/retry"));
     }
 
     [SkippableFact]

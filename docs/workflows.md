@@ -25,8 +25,9 @@ answer:
 | Forgejo event | What happens |
 | --- | --- |
 | ticket **opened**, **reopened** or **labelled**, open, with a factory label | starts that ticket's workflow. Workflow id: `<kind>-<owner>-<repo>-<number>-<hash>`; the hash of the exact owner and repository keeps similar names apart, and the same name is the ticket's workspace folder |
-| the same event again for a ticket that already had a run | ignored. **Close and reopen** the ticket to run it again; a new run starts from the beginning and reads the whole ticket again |
+| the same event again for a ticket that already had a run | ignored. Comment **`/retry`** (or close and reopen the ticket) to run it again; a new run starts from the beginning and reads the whole ticket again |
 | a **comment** by a person | sent to the running workflow (signal `human_reply`); see [Talking to the factory](#talking-to-the-factory) |
+| a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
 | comments written by the factory | ignored (they carry a hidden marker), so it never answers itself |
 | a review that **requests changes**, or a comment with **`/fix`**, on a pull request | starts a [revision](#pull-request-revisions) of that pull request (id `revision-<owner>-<repo>-<pr>-<hash>`); if one is already running the person gets a notice. The factory checks that the pull request is its own |
@@ -183,6 +184,14 @@ The factory cannot mark conversations resolved or reply inside a comment's conve
 to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
 With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
 
+## When the factory itself fails
+
+Some failures say nothing about the ticket or the agent's work: a sandbox stopped reporting progress (heartbeat timeout), the launcher did not pick the run up, or Docker refused to start a container. The controller tells these apart from the rest (`InfrastructureFailure`): a timeout of a sandbox activity, or a `Docker` error from the launcher. A rejected request (unknown image, bad command) or a missing login is not one of them, because running it again changes nothing.
+
+For these the ticket comment says it is a problem with the factory itself, not with the ticket, and the run ends with the status `infrastructure_failed`. Code written so far is saved to the work-in-progress branch like for any other stop. A check that cannot run for this reason also ends the run at once; it is not sent to the developer as feedback, which would only cost a build round and tokens.
+
+Comment **`/retry`** on the ticket to run it again. `/retry` starts the ticket's workflow from the beginning, exactly like closing and reopening it (it reads the current ticket text, so edit the ticket first if needed). It needs the ticket to be open and the earlier run to have finished; while a run is still active the person gets one notice instead. It does not resume from the last good stage.
+
 ## When a run stops: the work-in-progress branch
 
 A run that stops without a pull request would otherwise lose everything the developer wrote, because the checkout is deleted when the
@@ -258,6 +267,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
+| `infrastructure_failed` | a part of the factory's own machinery failed (a sandbox stopped reporting progress, the launcher or Docker was unavailable); the ticket says so and that `/retry` runs it again (saved if code existed) |
 | `image_failed` | the repository's own `.factory/Dockerfile` could not be read or built (see [a project's own image](project-setup.md#a-projects-own-image)) |
 | `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |
 | `build_failed` | the build rounds (3 by default) did not get through the checks and review (work saved to a `-wip` branch) |

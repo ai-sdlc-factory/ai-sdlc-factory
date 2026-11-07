@@ -42,8 +42,12 @@ public sealed class TemporalFixture : IAsyncLifetime
 public sealed class TemporalCollection : ICollectionFixture<TemporalFixture>;
 
 /// <summary>An agent's reply as the sandbox would return it.</summary>
-public sealed record AgentReply(SandboxRunResult Result)
+public sealed record AgentReply(SandboxRunResult Result, Exception? Failure = null)
 {
+    /// <summary>The sandbox activity itself fails: Docker is unavailable, the factory's machinery and not the agent.</summary>
+    public static AgentReply DockerDown { get; } = new(new SandboxRunResult(0, false, "", "", false),
+        new Temporalio.Exceptions.ApplicationFailureException("starting the sandbox failed: docker is down", errorType: "Docker", nonRetryable: true));
+
     /// <summary>The model answered with this text (as OpenCode's JSON event stream).</summary>
     public static AgentReply Says(string text) => new(new SandboxRunResult(0, false, Events(text), "", false));
 
@@ -72,6 +76,7 @@ public sealed class FakeWorld
     private readonly object gate = new();
     private readonly Dictionary<string, Queue<AgentReply>> agents = [];
     private readonly Dictionary<string, Queue<SandboxRunResult>> checks = [];
+    private readonly Dictionary<string, Exception> checkFailures = [];
     private readonly Queue<ChangeReport> changes = [];
 
     public List<string> Comments { get; } = [];
@@ -158,6 +163,13 @@ public sealed class FakeWorld
     public FakeWorld Check(string command, params SandboxRunResult[] results)
     {
         checks[command] = new Queue<SandboxRunResult>(results);
+        return this;
+    }
+
+    /// <summary>The sandbox activity for this check fails instead of returning a result.</summary>
+    public FakeWorld CheckThrows(string command, Exception failure)
+    {
+        checkFailures[command] = failure;
         return this;
     }
 
@@ -364,7 +376,8 @@ public sealed class FakeWorld
                 AgentCalls.Add(new AgentCall(role, command[^1], request.Image, request.WorkspaceWritable, request.NeedsModelAuth, request.Network));
                 if (agents.TryGetValue(role, out var queue) && queue.Count > 0)
                 {
-                    return queue.Dequeue().Result;
+                    var reply = queue.Dequeue();
+                    return reply.Failure is { } failure ? throw failure : reply.Result;
                 }
                 Problems.Add($"unscripted call of the {role} agent");
                 return new SandboxRunResult(99, false, "", "unscripted", false);
@@ -389,6 +402,10 @@ public sealed class FakeWorld
             var key = string.Join(' ', command);
             CheckCalls.Add(key);
             CheckNetworks.Add(request.Network);
+            if (checkFailures.TryGetValue(key, out var checkFailure))
+            {
+                throw checkFailure;
+            }
             return checks.TryGetValue(key, out var scripted) && scripted.Count > 0 ? scripted.Dequeue() : Passes();
         }
     }
