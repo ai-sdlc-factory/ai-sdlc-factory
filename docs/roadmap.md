@@ -40,7 +40,6 @@ Items 4 and 8 are also on your list above (the planner and the "factory improvem
 - [ ] **Browser image and end-to-end spike** (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
   and whether OpenCode can take a screenshot as input. Prerequisite for the scheduled UI check and for UI bugs that can be reproduced with a test.
 - [ ] **Token and spending limits** (M). A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps from a host-side usage log, and recognition of the provider's usage-limit errors so a run stops cleanly.
-- [ ] **Janitor for old checkouts and `-wip` branches** (S). Remove folders of runs terminated by hand, and help clean up abandoned work-in-progress branches.
 - [ ] **Warn on unknown keys in `.factory/project.json`** (S). Today a misspelled optional key is silently ignored.
 - [ ] **Startup check of each role's model** (S). Fail early when a role names a model the login cannot use.
 - [ ] **Models and reasoning per role** (S). Try `variant` (low for the roles the controller checks mechanically, high for developer, architect and reviewers) and compare tokens and quality from the run records.
@@ -49,6 +48,7 @@ Items 4 and 8 are also on your list above (the planner and the "factory improvem
 
 ## Done
 
+- [x] Janitor: removes checkouts of finished runs, lists (and optionally deletes) old work-in-progress branches, and removes old unused repository images.
 - [x] Feature workflow: analyst, coverage check, triage, architect, developer, project checks, reviewers, UX review, QA, pull request.
 - [x] Bug workflow with the red-then-green proof.
 - [x] Incident workflow, advice only, with `/option`, `/hotfix` and `/resolved` and a draft postmortem.

@@ -24,6 +24,16 @@ public sealed class WorkerSettings
     /// </summary>
     public bool AllowRepoImages { get; init; }
 
+    /// <summary>The janitor: removes checkouts of runs that are gone and reports (or, if told to, deletes) old work-in-progress branches.</summary>
+    public bool JanitorEnabled { get; init; } = true;
+    public int JanitorIntervalHours { get; init; } = 24;
+    /// <summary>A checkout whose run is no longer running is removed when it has been untouched this many days.</summary>
+    public int JanitorCheckoutDays { get; init; } = 2;
+    /// <summary>A work-in-progress branch is reported once its last commit is this many days old.</summary>
+    public int JanitorWipDays { get; init; } = 30;
+    /// <summary>Delete reported branches whose ticket is closed. Off: they are only listed in the log.</summary>
+    public bool JanitorDeleteWip { get; init; }
+
     /// <summary>What a project gets when its <c>limits</c> do not say (the <c>FACTORY_DEFAULT_*</c> settings).</summary>
     public FactoryDefaults Defaults { get; init; } = FactoryDefaults.Standard;
 
@@ -39,6 +49,11 @@ public sealed class WorkerSettings
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
+        JanitorEnabled = Switch(configuration, "FACTORY_JANITOR", fallback: true),
+        JanitorIntervalHours = Number(configuration, "FACTORY_JANITOR_INTERVAL_HOURS", 24, v => v is >= 1 and <= 168, "1 to 168"),
+        JanitorCheckoutDays = Number(configuration, "FACTORY_JANITOR_CHECKOUT_DAYS", 2, v => v is >= 1 and <= 30, "1 to 30"),
+        JanitorWipDays = Number(configuration, "FACTORY_JANITOR_WIP_DAYS", 30, v => v is >= 1 and <= 365, "1 to 365"),
+        JanitorDeleteWip = Switch(configuration, "FACTORY_JANITOR_DELETE_WIP"),
         Defaults = new FactoryDefaults(
             Number(configuration, "FACTORY_DEFAULT_BUILD_ROUNDS", FactoryDefaults.Standard.BuildRounds, LimitRanges.BuildRoundsOk, $"{LimitRanges.MinBuildRounds} to {LimitRanges.MaxBuildRounds}"),
             Number(configuration, "FACTORY_DEFAULT_CLARIFICATION_ROUNDS", FactoryDefaults.Standard.ClarificationRounds, LimitRanges.ClarificationRoundsOk, $"{LimitRanges.MinClarificationRounds} to {LimitRanges.MaxClarificationRounds}"),
@@ -61,12 +76,12 @@ public sealed class WorkerSettings
     }
 
     /// <summary>A safety switch: empty means off, "true" or "false" (any case) mean what they say, and anything else stops the start rather than guess.</summary>
-    private static bool Switch(IConfiguration configuration, string key)
+    private static bool Switch(IConfiguration configuration, string key, bool fallback = false)
     {
         var text = configuration[key];
         if (string.IsNullOrWhiteSpace(text))
         {
-            return false;
+            return fallback;
         }
         return bool.TryParse(text.Trim(), out var value) ? value : throw new InvalidOperationException($"{key} must be true or false, but it is \"{text}\".");
     }

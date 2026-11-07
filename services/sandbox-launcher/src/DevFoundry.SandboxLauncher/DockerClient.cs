@@ -30,7 +30,13 @@ public interface IDockerClient
     Task<DockerImage?> InspectImageAsync(string name, CancellationToken cancellationToken);
     Task BuildImageAsync(Stream context, string tag, DockerBuildLimits limits, IReadOnlyDictionary<string, string> labels, Action<string> onLine, CancellationToken cancellationToken);
     Task RemoveImageAsync(string name, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DockerImageListing>> ListRepoImagesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Removes the image unless a container uses it (not forced). False means it is in use.</summary>
+    Task<bool> RemoveUnusedImageAsync(string name, CancellationToken cancellationToken);
 }
+
+public sealed record DockerImageListing(string Tag, DateTimeOffset Created);
 
 public sealed record DockerImage(string Id, long Size, IReadOnlyDictionary<string, string> Labels);
 
@@ -243,6 +249,43 @@ public sealed class DockerClient : IDockerClient
         catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
         {
             // Already removed.
+        }
+    }
+
+    public async Task<IReadOnlyList<DockerImageListing>> ListRepoImagesAsync(CancellationToken cancellationToken)
+    {
+        var filters = Uri.EscapeDataString("{\"label\":[\"" + RepoImageNames.Label + "=true\"]}");
+        using var response = await SendAsync(HttpMethod.Get, $"images/json?filters={filters}", null, cancellationToken);
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        var result = new List<DockerImageListing>();
+        foreach (var image in document.RootElement.EnumerateArray())
+        {
+            if (!image.TryGetProperty("Created", out var created) || !image.TryGetProperty("RepoTags", out var tags) || tags.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+            foreach (var tag in tags.EnumerateArray().Select(t => t.GetString()).OfType<string>().Where(t => t.StartsWith(RepoImageNames.Repository + ":", StringComparison.Ordinal)))
+            {
+                result.Add(new DockerImageListing(tag, DateTimeOffset.FromUnixTimeSeconds(created.GetInt64())));
+            }
+        }
+        return result;
+    }
+
+    public async Task<bool> RemoveUnusedImageAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await SendAsync(HttpMethod.Delete, $"images/{name}?force=false", null, cancellationToken);
+            return true;
+        }
+        catch (DockerException error) when (error.Status == HttpStatusCode.NotFound)
+        {
+            return true;
+        }
+        catch (DockerException error) when (error.Status == HttpStatusCode.Conflict)
+        {
+            return false;
         }
     }
 

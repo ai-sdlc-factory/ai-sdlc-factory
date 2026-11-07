@@ -41,11 +41,19 @@ shows what the router decided.
 
 ## Cleaning up
 
-- **Checkouts** are deleted when a ticket's workflow ends, even on failure or cancellation. A run you terminated by hand in Temporal can leave its folders behind. They are in
-  `FACTORY_WORKSPACE_ROOT`: `<name>/`, `.base/<name>/` and `.records/<name>/`, where `<name>` is the workflow id. It is safe to delete a ticket's three folders when no run for it is active.
-  There is no automatic cleanup of these yet.
+A **janitor** in the controller cleans up once a day (the first pass is five minutes after the controller starts). It is on by default and cautious: it only removes things that are provably finished, and anything it cannot establish it leaves alone. Everything it does is written to the controller log: `docker compose logs controller | grep Janitor`.
+
+| What | Rule | Setting |
+| --- | --- | --- |
+| **Leftover checkouts** (`<name>/`, `.base/<name>/`, `.records/<name>/` in `FACTORY_WORKSPACE_ROOT`) | removed when the run with that id is **not running** (asked of Temporal) **and** nothing has touched the folders for 2 days. Only folders named after a run (`feature-`, `bug-`, `incident-`, `revision-`) are ever touched, never anything else in that folder. If Temporal cannot be asked, nothing is removed | `FACTORY_JANITOR_CHECKOUT_DAYS` |
+| **Old `-wip` branches** (`factory/issue-<n>-wip`) in repositories the bot can push to | **listed** in the log once their last commit is 30 days old. **Deleted** only if you set `FACTORY_JANITOR_DELETE_WIP=true` **and** their ticket is closed **and** no open pull request uses them. Pull request branches (`factory/issue-<n>`) are never touched | `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` |
+| **Repository images** (`dev-foundry/repo:*`, only while `FACTORY_ALLOW_REPO_IMAGES` is on) | removed once a day when older than 60 days and no container uses them. They are rebuilt on the next use, so the only cost is a build. The launcher does this | `FACTORY_JANITOR_IMAGE_DAYS` (0 = never) |
+
+Switch it off with `FACTORY_JANITOR=false`. The log line to look for after a pass: `Janitor: removed 3 old checkout(s); 1 old work-in-progress branch(es) found, 0 deleted; 0 problem(s)`.
+
+Still manual:
 - **Leftover sandbox containers** (labelled `dev-foundry.sandbox=true`) are removed whenever the launcher starts.
-- **Branches** the factory created (`factory/issue-<n>`, `-wip`) stay in Forgejo until you delete them. Delete a `-wip` branch once you have used or dismissed it.
+- **Pull request branches** (`factory/issue-<n>`) stay until you delete them after merging.
 - **Docker**: `docker image prune` and `docker builder prune` reclaim build layers; do not prune volumes (`docker volume prune`) unless you are sure: `opencode-data` holds the login, `forgejo-data` your repositories.
 
 ## Backups and data
@@ -113,7 +121,7 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 
 | Limitation | Notes |
 | --- | --- |
-| No automatic cleanup of old checkouts and `-wip` branches | see above |
+| The janitor never deletes pull request branches or sandbox images that are still in use | by design; see [Cleaning up](#cleaning-up) |
 | No token or spending limits | recorded, not enforced |
 | Pull request revisions | only the factory's own pull requests are revised; the factory cannot resolve conversations (no API), and anyone who can comment on the pull request can start a revision |
 | Incident tickets are written by people | a collector that files them from monitoring waits until there is a production system |

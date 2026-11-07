@@ -13,7 +13,7 @@ public sealed record WorkspaceInfo(string Name, string Path, string Branch, stri
 /// this, because only it holds the Forgejo token; the token is handed to git through the
 /// environment, so it appears in no argument list and is never written to the repository config.
 /// </summary>
-public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, string, string>? remoteUrl = null)
+public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, string, string>? remoteUrl = null) : IWorkspaceStore
 {
     private static readonly TimeSpan GitTimeout = TimeSpan.FromMinutes(3);
 
@@ -93,6 +93,9 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         return new WorkspaceInfo(request.Name, work, request.Branch, defaultBranch, head);
     }
 
+    /// <summary>The janitor's name for <see cref="CleanupAsync"/>: removes the checkout, the pristine clone and the record folder of one run.</summary>
+    public Task DeleteAsync(string name) => CleanupAsync(name);
+
     public Task CleanupAsync(string name)
     {
         var root = RequireRoot();
@@ -117,6 +120,30 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
             return null;
         }
         return File.ReadAllText(file.FullName);
+    }
+
+    /// <summary>
+    /// Every per-run folder name under the workspace root (the checkout, the pristine clone and the record folder all carry the run's name) and
+    /// when it was last touched: the newest change among the three folders and their direct entries.
+    /// </summary>
+    public IReadOnlyList<WorkspaceEntry> List()
+    {
+        var root = RequireRoot();
+        var latest = new Dictionary<string, DateTime>(StringComparer.Ordinal);
+        foreach (var parent in new[] { root, $"{root}/.base", $"{root}/.records" })
+        {
+            var directory = new DirectoryInfo(parent);
+            if (!directory.Exists)
+            {
+                continue;
+            }
+            foreach (var child in directory.EnumerateDirectories().Where(child => child.LinkTarget is null && !child.Name.StartsWith('.') && WorkspaceName().IsMatch(child.Name)))
+            {
+                var touched = child.EnumerateFileSystemInfos().Select(entry => entry.LastWriteTimeUtc).Append(child.LastWriteTimeUtc).Max();
+                latest[child.Name] = latest.TryGetValue(child.Name, out var earlier) && earlier > touched ? earlier : touched;
+            }
+        }
+        return latest.Select(pair => new WorkspaceEntry(pair.Key, new DateTimeOffset(pair.Value, TimeSpan.Zero))).OrderBy(entry => entry.Name, StringComparer.Ordinal).ToList();
     }
 
     public const int MaxImageContextFiles = 50;

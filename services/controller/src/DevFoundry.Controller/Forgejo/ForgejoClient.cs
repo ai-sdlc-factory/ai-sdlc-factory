@@ -14,7 +14,9 @@ public sealed record PullRequestInfo(int Number, string Url);
 
 public sealed record IssueInfo(int Number, string Url);
 
-public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
+public sealed record BranchInfo(string Name, DateTimeOffset LastCommit);
+
+public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJanitorForgejo
 {
     public async Task PostIssueCommentAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
@@ -298,6 +300,126 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings)
     /// Opens a pull request for a pushed branch. If one already exists for the branch (a retried attempt
     /// after the first one succeeded), that one is returned instead of failing.
     /// </summary>
+    /// <summary>Repositories the bot can push to: the only ones it makes branches in, and so the only ones the janitor looks at.</summary>
+    public async Task<IReadOnlyList<(string Owner, string Repo)>> ListWritableRepositoriesAsync(CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var result = new List<(string, string)>();
+        for (var page = 1; page <= 20; page++)
+        {
+            using var request = Authorized(HttpMethod.Get, $"api/v1/repos/search?limit=50&page={page}");
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw Failure("repository list", response.StatusCode, response.ReasonPhrase);
+            }
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array || data.GetArrayLength() == 0)
+            {
+                break;
+            }
+            foreach (var repository in data.EnumerateArray())
+            {
+                var push = repository.TryGetProperty("permissions", out var permissions) && permissions.ValueKind == JsonValueKind.Object
+                    && permissions.TryGetProperty("push", out var canPush) && canPush.ValueKind == JsonValueKind.True;
+                if (push && repository.TryGetProperty("full_name", out var name) && name.GetString()?.Split('/') is [var owner, var repo])
+                {
+                    result.Add((owner, repo));
+                }
+            }
+        }
+        return result;
+    }
+
+    public async Task<IReadOnlyList<BranchInfo>> ListBranchesAsync(string owner, string repo, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var result = new List<BranchInfo>();
+        for (var page = 1; page <= 20; page++)
+        {
+            using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/branches?limit=50&page={page}");
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw Failure("branch list", response.StatusCode, response.ReasonPhrase);
+            }
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
+            {
+                break;
+            }
+            foreach (var branch in document.RootElement.EnumerateArray())
+            {
+                if (branch.TryGetProperty("name", out var name) && name.GetString() is { } text
+                    && branch.TryGetProperty("commit", out var commit) && commit.ValueKind == JsonValueKind.Object
+                    && commit.TryGetProperty("timestamp", out var stamp) && DateTimeOffset.TryParse(stamp.GetString(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var at))
+                {
+                    result.Add(new BranchInfo(text, at));
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>True only when Forgejo says the ticket is closed. A ticket it cannot find counts as not closed, so nothing is deleted on a guess.</summary>
+    public async Task<bool> IssueIsClosedAsync(string owner, string repo, int number, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/issues/{number}");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("ticket", response.StatusCode, response.ReasonPhrase);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return document.RootElement.TryGetProperty("state", out var state) && string.Equals(state.GetString(), "closed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The branches that are the head of an open pull request.</summary>
+    public async Task<IReadOnlySet<string>> OpenPullRequestBranchesAsync(string owner, string repo, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        for (var page = 1; page <= 20; page++)
+        {
+            using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls?state=open&limit=50&page={page}");
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw Failure("pull request list", response.StatusCode, response.ReasonPhrase);
+            }
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
+            {
+                break;
+            }
+            foreach (var pull in document.RootElement.EnumerateArray())
+            {
+                if (pull.TryGetProperty("head", out var head) && head.ValueKind == JsonValueKind.Object
+                    && head.TryGetProperty("ref", out var reference) && reference.GetString() is { } name)
+                {
+                    result.Add(name);
+                }
+            }
+        }
+        return result;
+    }
+
+    public async Task DeleteBranchAsync(string owner, string repo, string branch, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Delete, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/branches/{Uri.EscapeDataString(branch)}");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.NotFound)
+        {
+            throw Failure("branch deletion", response.StatusCode, response.ReasonPhrase);
+        }
+    }
+
     public async Task<PullRequestInfo> CreatePullRequestAsync(
         string owner, string repo, string head, string baseBranch, string title, string body, CancellationToken cancellationToken)
     {

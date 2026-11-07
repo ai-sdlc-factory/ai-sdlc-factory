@@ -13,6 +13,8 @@ builder.Services
     .ConfigureOptions(options => options.MaxConcurrentActivities = settings.MaxConcurrentRuns)
     .AddScopedActivities<SandboxActivities>();
 builder.Services.AddHostedService<SandboxJanitor>();
+builder.Services.AddSingleton(sp => new RepoImageCleaner(sp.GetRequiredService<IDockerClient>(), settings, sp.GetRequiredService<ILogger<RepoImageCleaner>>()));
+builder.Services.AddHostedService<RepoImageJanitor>();
 // Registered last, so it stops first and the readiness file disappears before shutdown.
 builder.Services.AddHostedService<ReadinessFile>();
 // Give a running sandbox time to finish or be killed and removed before the process exits.

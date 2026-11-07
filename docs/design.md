@@ -64,7 +64,6 @@ These are designed or discussed, and deliberately left out until real use shows 
 | **Review of human pull requests** | Run the reviewer and security roles read-only on pull requests that people open. |
 | **Dependency updates** | A scheduled run that bumps dependencies, runs the project's checks and opens a pull request. |
 | **Factory retrospective** | A durable run log (one line per finished run, no ticket text) and a weekly deterministic report of what repeats (rejected answers, rounds used, refused hosts, outliers), with an agent proposing prompt changes as a reviewed ticket, never applied automatically. |
-| **Janitor for old checkouts** | Remove checkouts of runs terminated by hand. |
 | **Warning on unknown `project.json` keys** | Today a misspelled optional key is silently ignored. |
 | **Startup check of each role's model** | Fail early when a role names a model the login cannot use. |
 | **Language-server tools** | OpenCode's language-server downloads are off for network reasons; if wanted, bake the servers into the images. A generated repo map (ctags) could also help large repositories. |

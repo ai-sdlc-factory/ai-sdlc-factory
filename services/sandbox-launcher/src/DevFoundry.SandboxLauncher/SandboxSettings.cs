@@ -60,6 +60,12 @@ public sealed class SandboxSettings
 
     /// <summary>The longest a repository image build may take, and the largest image it may produce.</summary>
     public int MaxBuildSeconds { get; init; } = 1800;
+
+    /// <summary>
+    /// Repository images created more than this many days ago are removed once a day, if no container uses them. They are rebuilt on the next
+    /// use, so removing one costs a build, never data. 0 keeps them forever.
+    /// </summary>
+    public int JanitorImageDays { get; init; } = 60;
     public long MaxRepoImageBytes { get; init; } = 6L * 1024 * 1024 * 1024;
 
     /// <summary>
@@ -99,6 +105,7 @@ public sealed class SandboxSettings
             AuthVolume = NullIfEmpty(configuration["SANDBOX_AUTH_VOLUME"]),
             AuthReadOnly = configuration.GetValue("SANDBOX_AUTH_READONLY", false),
             AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
+            JanitorImageDays = configuration.GetValue("FACTORY_JANITOR_IMAGE_DAYS", 60),
         };
         settings.Validate();
         return settings;
@@ -106,6 +113,10 @@ public sealed class SandboxSettings
 
     public void Validate()
     {
+        if (JanitorImageDays is < 0 or > 365)
+        {
+            throw new InvalidOperationException("FACTORY_JANITOR_IMAGE_DAYS must be from 0 (keep forever) to 365.");
+        }
         if (!WorkspaceRoot.StartsWith('/') || WorkspaceRoot.Length < 2)
         {
             throw new InvalidOperationException("FACTORY_WORKSPACE_ROOT must be an absolute path.");

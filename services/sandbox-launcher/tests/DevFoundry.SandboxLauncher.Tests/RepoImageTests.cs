@@ -171,6 +171,8 @@ public sealed class RepoImageBuilderTests
             return Task.CompletedTask;
         }
 
+        public Task<IReadOnlyList<DockerImageListing>> ListRepoImagesAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<DockerImageListing>>([]);
+        public Task<bool> RemoveUnusedImageAsync(string name, CancellationToken ct) => Task.FromResult(true);
         public Task RemoveImageAsync(string name, CancellationToken ct) { RemovedImages.Add(name); Images.Remove(name); return Task.CompletedTask; }
 
         public Task PingAsync(CancellationToken ct) => Task.CompletedTask;

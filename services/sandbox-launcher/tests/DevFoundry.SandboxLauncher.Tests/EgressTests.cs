@@ -164,6 +164,8 @@ public sealed class StartupCheckTests
         public Task<DockerImage?> InspectImageAsync(string name, CancellationToken ct) => Task.FromResult<DockerImage?>(null);
         public Task BuildImageAsync(Stream context, string tag, DockerBuildLimits limits, IReadOnlyDictionary<string, string> labels, Action<string> onLine, CancellationToken ct) => throw new NotSupportedException();
         public Task RemoveImageAsync(string name, CancellationToken ct) => Task.CompletedTask;
+        public Task<IReadOnlyList<DockerImageListing>> ListRepoImagesAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<DockerImageListing>>([]);
+        public Task<bool> RemoveUnusedImageAsync(string name, CancellationToken ct) => Task.FromResult(true);
         public List<string> Created { get; } = [];
         public Task<bool> NetworkExistsAsync(string name, CancellationToken ct) => Task.FromResult(networks.Contains(name));
         public Task EnsureNetworkAsync(string name, CancellationToken ct) { Created.Add(name); return Task.CompletedTask; }
