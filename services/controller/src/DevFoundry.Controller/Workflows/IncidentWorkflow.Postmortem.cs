@@ -77,7 +77,7 @@ public sealed partial class IncidentWorkflow
                         workspace.Name,
                         $"{title} (#{request.IssueNumber})\n\nDraft postmortem written by the factory from the ticket record.",
                         RecordSpec(request, "Published as a draft postmortem pull request."))),
-                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(5), 3));
                 if (published is null)
                 {
                     await CommentAsync(request, "The postmortem produced no changes to publish.");
@@ -86,7 +86,7 @@ public sealed partial class IncidentWorkflow
                 var pullRequest = await Workflow.ExecuteActivityAsync(
                     (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                         request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, prTitle, prBody)),
-                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                    ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
                 await CommentAsync(request, IncidentComments.PostmortemOpened(pullRequest.Url));
                 return new FeatureResult("postmortem_opened", PullRequestUrl: pullRequest.Url, WorkBranch: published.Branch);
             }

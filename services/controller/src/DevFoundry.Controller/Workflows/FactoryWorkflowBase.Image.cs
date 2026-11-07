@@ -20,7 +20,7 @@ public abstract partial class FactoryWorkflowBase
         {
             source = await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.ReadProjectImageAsync(request.WorkflowId),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1), RetryPolicy = new RetryPolicy { MaximumAttempts = 1 } });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(1), 1));
         }
         catch (ActivityFailureException error)
         {
@@ -45,14 +45,8 @@ public abstract partial class FactoryWorkflowBase
             var built = await Workflow.ExecuteActivityAsync<SandboxBuildResult>(
                 SandboxNames.BuildActivityName,
                 [new SandboxBuildRequest(source.Dockerfile, source.Files)],
-                new ActivityOptions
-                {
-                    TaskQueue = SandboxNames.DefaultTaskQueue,
-                    StartToCloseTimeout = TimeSpan.FromMinutes(35),
-                    // A long RUN step prints nothing for a while; this only catches a launcher that died.
-                    HeartbeatTimeout = TimeSpan.FromMinutes(10),
-                    RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },
-                });
+                // A long RUN step prints nothing for a while, so the heartbeat limit is generous; it only catches a launcher that died.
+                ActivityPolicy.Sandbox(TimeSpan.FromMinutes(35), attempts: 1, heartbeat: TimeSpan.FromMinutes(10)));
             if (built.Built)
             {
                 await CommentAsync(request, $"The sandbox image is ready (built in {built.Seconds:0} s, {built.SizeBytes / (1024 * 1024)} MB, `{built.Image}`).");

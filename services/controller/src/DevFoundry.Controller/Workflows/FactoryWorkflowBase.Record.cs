@@ -34,7 +34,7 @@ public abstract partial class FactoryWorkflowBase
         {
             await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.RecordAsync(entry),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(1), 3));
         }
         catch (ActivityFailureException)
         {

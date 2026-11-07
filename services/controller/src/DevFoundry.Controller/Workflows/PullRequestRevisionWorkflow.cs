@@ -44,7 +44,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         {
             context = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.ReadRevisionContextAsync(revision),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(2), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
         }
         catch (ActivityFailureException error)
         {
@@ -210,7 +210,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             {
                 published = await Workflow.ExecuteActivityAsync(
                     (WorkspaceActivities activities) => activities.PublishAsync(new PublishRequest(workspace.Name, message, record, UpdateExistingBranch: true)),
-                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(5), 3));
             }
             catch (ActivityFailureException error)
             {
@@ -232,7 +232,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             {
                 await BestEffortAsync(() => Workflow.ExecuteActivityAsync(
                     (ForgejoActivities activities) => activities.RequestReviewersAsync(new ReviewRequestInput(request.Owner, request.Repo, pull.Number, reviewers)),
-                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } }));
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(1), 2)));
             }
             return new FeatureResult("revision_pushed", WorkBranch: published.Branch);
         }

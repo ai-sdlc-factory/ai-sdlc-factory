@@ -235,7 +235,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
         {
             var issue = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreateIssueAsync(create),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
             Note("factory", $"Opened bug ticket #{issue.Number}.");
             await CommentAsync(request, IncidentComments.HotfixOpened(issue.Number, issue.Url));
             return issue.Number;

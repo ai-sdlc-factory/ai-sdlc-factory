@@ -18,13 +18,7 @@ public abstract partial class FactoryWorkflowBase
             return await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                 SandboxNames.ActivityName,
                 [new SandboxRunRequest(image, workspace.Name, writable, command, timeoutSeconds, Network: network, Role: role)],
-                new ActivityOptions
-                {
-                    TaskQueue = SandboxNames.DefaultTaskQueue,
-                    StartToCloseTimeout = TimeSpan.FromSeconds(timeoutSeconds + 300),
-                    HeartbeatTimeout = TimeSpan.FromSeconds(30),
-                    RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },
-                });
+                ActivityPolicy.Sandbox(TimeSpan.FromSeconds(timeoutSeconds + 300), attempts: 1));
         }
         catch (ActivityFailureException)
         {

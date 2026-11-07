@@ -36,14 +36,8 @@ public abstract partial class FactoryWorkflowBase
                         NeedsModelAuth: true,
                         Network: NetworkFor(role),
                         Role: role)],
-                    new ActivityOptions
-                    {
-                        TaskQueue = SandboxNames.DefaultTaskQueue,
-                        StartToCloseTimeout = TimeSpan.FromSeconds(timeoutSeconds + 300),
-                        HeartbeatTimeout = TimeSpan.FromSeconds(30),
-                        // A model run can consume plan usage; the retry below is a deliberate, bounded second try.
-                        RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },
-                    });
+                    // A model run can consume plan usage; the retry further down is a deliberate, bounded second try.
+                    ActivityPolicy.Sandbox(TimeSpan.FromSeconds(timeoutSeconds + 300), attempts: 1));
             }
             catch (ActivityFailureException error)
             {

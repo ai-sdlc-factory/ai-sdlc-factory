@@ -169,13 +169,7 @@ public abstract partial class FactoryWorkflowBase
             var result = await Workflow.ExecuteActivityAsync<SandboxRunResult>(
                 SandboxNames.ActivityName,
                 [new SandboxRunRequest(image, workspace.Name, false, EvidenceCheck.Command(paths), 60, Role: "evidence")],
-                new ActivityOptions
-                {
-                    TaskQueue = SandboxNames.DefaultTaskQueue,
-                    StartToCloseTimeout = TimeSpan.FromMinutes(3),
-                    HeartbeatTimeout = TimeSpan.FromSeconds(30),
-                    RetryPolicy = new RetryPolicy { MaximumAttempts = 2 },
-                });
+                ActivityPolicy.Sandbox(TimeSpan.FromMinutes(3), attempts: 2));
             return result.ExitCode == 0 ? EvidenceCheck.ParseFound(result.Stdout) : [];
         }
         catch (ActivityFailureException)

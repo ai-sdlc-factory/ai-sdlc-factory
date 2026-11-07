@@ -88,7 +88,7 @@ public sealed class ForgejoEventWorkflow
                     var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, queued ? TicketComments.RevisionQueued : TicketComments.RevisionBusy);
                     await Workflow.ExecuteActivityAsync(
                         (ForgejoActivities activities) => activities.PostNoticeOnceAsync(busy),
-                        new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(30), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                        ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
                 }
                 break;
 
@@ -105,7 +105,7 @@ public sealed class ForgejoEventWorkflow
                     await Workflow.ExecuteActivityAsync(
                         (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                             new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActive)),
-                        new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(30), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                        ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
                 }
                 break;
 

@@ -154,7 +154,7 @@ public abstract partial class FactoryWorkflowBase
                 (WorkspaceActivities activities) => activities.PublishAsync(new PublishRequest(
                     workspace.Name, $"{title} (#{request.IssueNumber})\n\nBuilt by the factory for {request.Owner}/{request.Repo}#{request.IssueNumber}.\n\n{TicketComments.Inert(report.Summary)}",
                     RecordSpec(request, $"Published as a pull request after every check and review passed (build round {passedRound})."))),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(5), 3));
             if (published is null)
             {
                 await CommentAsync(request, "The work produced no changes to publish.");
@@ -164,7 +164,7 @@ public abstract partial class FactoryWorkflowBase
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, title,
                     PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote, quickReason, bug))),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(60), RetryPolicy = new RetryPolicy { MaximumAttempts = 3 } });
+                ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
         }
         catch (ActivityFailureException error)
         {
@@ -192,7 +192,7 @@ public abstract partial class FactoryWorkflowBase
     protected static Task<ChangeReport> DetectChangesAsync(WorkspaceInfo workspace) =>
         Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DetectChangesAsync(workspace.Name),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+            ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
 
     /// <summary>Runs one project check in the sandbox without model access. A check that cannot run counts as failed.</summary>
     protected async Task<GateResult> RunGateAsync(string image, WorkspaceInfo workspace, Gate gate)
@@ -205,13 +205,7 @@ public abstract partial class FactoryWorkflowBase
                 SandboxNames.ActivityName,
                 // The project's own checks may restore packages, but they never get the model login or the model provider.
                 [new SandboxRunRequest(image, workspace.Name, WorkspaceWritable: true, gate.SandboxCommand, gate.TimeoutSeconds, Network: SandboxNetworks.Packages, Role: "gate")],
-                new ActivityOptions
-                {
-                    TaskQueue = SandboxNames.DefaultTaskQueue,
-                    StartToCloseTimeout = TimeSpan.FromSeconds(gate.TimeoutSeconds + 300),
-                    HeartbeatTimeout = TimeSpan.FromSeconds(30),
-                    RetryPolicy = new RetryPolicy { MaximumAttempts = 1 },
-                });
+                ActivityPolicy.Sandbox(TimeSpan.FromSeconds(gate.TimeoutSeconds + 300), attempts: 1));
             var output = string.Join('\n', new[] { result.Stdout, result.Stderr }.Where(part => part.Length > 0));
             var gatePassed = result.ExitCode == 0 && !result.TimedOut;
             await RecordAsync(workspace, "gate", $"gate-{gate.Name}", $"check: {gate.Name}", 1, started, gatePassed ? "passed" : "failed", result.ExitCode, result.TimedOut, commandText, output, null);
@@ -246,7 +240,7 @@ public abstract partial class FactoryWorkflowBase
     {
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+            ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
         var gateSummary = BuildFeedback.Summary(gates) + (ruleNotes is null ? "" : "\n\n" + ruleNotes);
         var checks = ReviewPrompt.Describe(project.Gates);
         var reports = new List<(string Role, ReviewReport Report)>();
@@ -333,7 +327,7 @@ public abstract partial class FactoryWorkflowBase
         }
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
-            new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(3), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+            ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
         var hits = ProjectRules.Check(rules, diff);
         return (ProjectRules.BlockingFeedback(hits), ProjectRules.WarningNotes(hits));
     }

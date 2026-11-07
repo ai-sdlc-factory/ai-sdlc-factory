@@ -74,11 +74,7 @@ public abstract partial class FactoryWorkflowBase
             {
                 workspace = await Workflow.ExecuteActivityAsync(
                     (WorkspaceActivities activities) => activities.PrepareAsync(workspaceRequest),
-                    new ActivityOptions
-                    {
-                        StartToCloseTimeout = TimeSpan.FromMinutes(5),
-                        RetryPolicy = new RetryPolicy { MaximumAttempts = 3 },
-                    });
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(5), 3));
             }
             catch (ActivityFailureException error)
             {
@@ -88,7 +84,7 @@ public abstract partial class FactoryWorkflowBase
 
             var configText = await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.ReadProjectConfigAsync(request.WorkflowId),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
             if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
             {
                 await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == FeatureIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
@@ -97,7 +93,7 @@ public abstract partial class FactoryWorkflowBase
 
             var defaults = await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.GetDefaultsAsync(),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
             var limits = (project.Limits ?? new ProjectLimits()).Resolve(defaults);
             maxBuildRounds = limits.BuildRounds;
             maxClarificationRounds = limits.ClarificationRounds;
@@ -106,7 +102,7 @@ public abstract partial class FactoryWorkflowBase
             {
                 await Workflow.ExecuteActivityAsync(
                     (WorkspaceActivities activities) => activities.SetProtectedPathsAsync(new ProtectedPathsRequest(request.WorkflowId, extraProtected)),
-                    new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(1) });
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
             }
 
             var (image, imageStop) = await PrepareProjectImageAsync(request, project, defaults);
@@ -192,7 +188,7 @@ public abstract partial class FactoryWorkflowBase
                     $"WIP: {PullRequestText.Title(request)} (#{request.IssueNumber}), not finished\n\n" +
                     $"Saved by the factory when it stopped ({result.Status}). Not reviewed, and the checks did not all pass.",
                     RecordSpec(request, $"Stopped before finishing ({result.Status}). The work so far is on this work-in-progress branch; it was not reviewed and the checks did not all pass."))),
-                new ActivityOptions { StartToCloseTimeout = TimeSpan.FromMinutes(5), RetryPolicy = new RetryPolicy { MaximumAttempts = 2 } });
+                ActivityPolicy.Local(TimeSpan.FromMinutes(5), 2));
         }
         catch (ActivityFailureException error)
         {
@@ -242,9 +238,5 @@ public abstract partial class FactoryWorkflowBase
         Workflow.ExecuteActivityAsync(
             (ForgejoActivities activities) => activities.PostIssueCommentAsync(
                 new CommentRequest(request.Owner, request.Repo, request.IssueNumber, body)),
-            new ActivityOptions
-            {
-                StartToCloseTimeout = TimeSpan.FromSeconds(30),
-                RetryPolicy = new RetryPolicy { MaximumAttempts = 5 },
-            });
+            ActivityPolicy.Local(TimeSpan.FromSeconds(30), 5));
 }
