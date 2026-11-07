@@ -79,7 +79,7 @@ public abstract partial class FactoryWorkflowBase
             catch (ActivityFailureException error)
             {
                 await CommentAsync(request, $"Setting up the workspace failed: {Short(error.InnerException?.Message ?? error.Message)}");
-                return new WorkResult("setup_failed");
+                return new WorkResult(Statuses.SetupFailed);
             }
 
             var configText = await Workflow.ExecuteActivityAsync(
@@ -88,7 +88,7 @@ public abstract partial class FactoryWorkflowBase
             if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
             {
                 await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {(request.Kind == WorkIds.Revision ? "ask again with `/fix`." : "close and reopen this ticket.")}");
-                return new WorkResult("needs_config");
+                return new WorkResult(Statuses.NeedsConfig);
             }
 
             var defaults = await Workflow.ExecuteActivityAsync(
@@ -128,7 +128,7 @@ public abstract partial class FactoryWorkflowBase
             {
                 // Without this the ticket would just go quiet while the run shows as failed in Temporal.
                 await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
-                result = new WorkResult("error");
+                result = new WorkResult(Statuses.Error);
             }
             await NoteUnusedCommentsAsync(request, result);
             return await SaveUnfinishedWorkAsync(request, result);
@@ -153,7 +153,7 @@ public abstract partial class FactoryWorkflowBase
     protected async Task NoteUnusedCommentsAsync(WorkRequest request, WorkResult result)
     {
         commentsCanStillBeUsed = false;
-        if (replies.Count > 0 && !ticketClosed && result.Status != "closed")
+        if (replies.Count > 0 && !ticketClosed && result.Status != Statuses.Closed)
         {
             var count = replies.Count;
             replies.Clear();
@@ -162,10 +162,10 @@ public abstract partial class FactoryWorkflowBase
     }
 
     // Endings after which code may exist that nobody has seen; a run a person closed, or one that stopped before the build, has none.
-    protected static readonly HashSet<string> StoppedWithWork = ["build_failed", "build_blocked", "review_failed", "publish_failed", "blocked", "error"];
+    protected static readonly HashSet<string> StoppedWithWork = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Blocked, Statuses.Error];
 
     // For these the ticket always gets a summary, even when there was nothing to save.
-    protected static readonly HashSet<string> AlwaysExplained = ["build_failed", "build_blocked", "review_failed", "publish_failed", "error"];
+    protected static readonly HashSet<string> AlwaysExplained = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Error];
 
     /// <summary>
     /// When a run stops without publishing, push what it had written to a work-in-progress branch and say so on the

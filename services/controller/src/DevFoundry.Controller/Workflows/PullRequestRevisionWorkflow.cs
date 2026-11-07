@@ -28,7 +28,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
     public async Task<WorkResult> RunAsync(RevisionRequest revision)
     {
         var result = await RunOnceAsync(revision);
-        if (followUp is { } next && result.Status is "revision_pushed" or "revision_replied")
+        if (followUp is { } next && result.Status is Statuses.RevisionPushed or Statuses.RevisionReplied)
         {
             // Same workflow id, fresh history; the revision limit still applies, and what was already answered is not read again.
             throw Workflow.CreateContinueAsNewException((PullRequestRevisionWorkflow workflow) => workflow.RunAsync(next));
@@ -50,7 +50,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         {
             // Someone asked (a review, or /fix), so silence would look like the factory ignoring them.
             await CommentAsync(placeholder, $"I could not read this pull request, so I did nothing: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
-            return new WorkResult("error");
+            return new WorkResult(Statuses.Error);
         }
 
         if (RevisionRules.Refuse(revision, context) is { } refusal)
@@ -67,7 +67,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         if (comments.Count == 0)
         {
             await CommentAsync(placeholder, TicketComments.RevisionNothingToDo);
-            return new WorkResult("nothing_to_do");
+            return new WorkResult(Statuses.NothingToDo);
         }
 
         var request = revision.ToWorkRequest(pull.Title);
@@ -99,7 +99,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         if (priorRevisions >= maxRevisionsPerPullRequest)
         {
             await CommentAsync(request, TicketComments.RevisionLimit(maxRevisionsPerPullRequest));
-            return new WorkResult("revision_limit");
+            return new WorkResult(Statuses.RevisionLimit);
         }
 
         // No stage here asks a person a question: a comment that cannot be acted on is answered on the pull request instead.
@@ -126,18 +126,18 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return new WorkResult("blocked");
+                return new WorkResult(Statuses.Blocked);
             }
             if (outcome.Value is not { } report)
             {
                 await CommentAsync(request, $"I could not address the review comments and a person needs to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new WorkResult("build_failed");
+                return new WorkResult(Statuses.BuildFailed);
             }
             if (report.Verdict == RevisionReport.Blocked)
             {
                 await CommentAsync(request, $"**Revision: I cannot continue**\n\n{TicketComments.Inert(report.Summary)}" +
                     string.Concat(report.Notes.Select(note => $"\n- {TicketComments.Inert(note)}")));
-                return new WorkResult("build_blocked");
+                return new WorkResult(Statuses.BuildBlocked);
             }
 
             var before = await DetectChangesAsync(workspace);
@@ -158,7 +158,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
                 }
                 // Every comment was answered or declined, so there is nothing to push: the answers are the result.
                 await CommentAsync(request, RevisionReply.Replied(report, comments));
-                return new WorkResult("revision_replied");
+                return new WorkResult(Statuses.RevisionReplied);
             }
 
             var results = new List<GateResult>();
@@ -215,12 +215,12 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             catch (ActivityFailureException error)
             {
                 await CommentAsync(request, $"The changes passed every check, but pushing them failed: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))} Ask again with `/fix` once the branch is stable.");
-                return new WorkResult("publish_failed");
+                return new WorkResult(Statuses.PublishFailed);
             }
             if (published is null)
             {
                 await CommentAsync(request, "The work produced no changes to push.");
-                return new WorkResult("no_changes");
+                return new WorkResult(Statuses.NoChanges);
             }
 
             var notes = review.Reports.SelectMany(r => r.Report.Advice.Take(3).Select(f => $"{r.Role}, {f.Severity}: {f.Message}")).Take(6).ToList();
@@ -234,12 +234,12 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
                     (ForgejoActivities activities) => activities.RequestReviewersAsync(new ReviewRequestInput(request.Owner, request.Repo, pull.Number, reviewers)),
                     ActivityPolicy.Local(TimeSpan.FromMinutes(1), 2)));
             }
-            return new WorkResult("revision_pushed", WorkBranch: published.Branch);
+            return new WorkResult(Statuses.RevisionPushed, WorkBranch: published.Branch);
         }
 
         await CommentAsync(request,
             $"I could not get the changes through the checks and the review in {maxBuildRounds} rounds, so nothing was pushed to this pull request. " +
             $"Last problem: {TicketComments.Inert(Short(feedback ?? "unknown"))} A person needs to take over.");
-        return new WorkResult("build_failed");
+        return new WorkResult(Statuses.BuildFailed);
     }
 }

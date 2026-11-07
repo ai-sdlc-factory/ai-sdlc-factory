@@ -26,22 +26,22 @@ public sealed partial class IncidentWorkflow
                 writable: true);
             if (ticketClosed)
             {
-                return new WorkResult("closed");
+                return new WorkResult(Statuses.Closed);
             }
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return new WorkResult("blocked");
+                return new WorkResult(Statuses.Blocked);
             }
             if (outcome.Value is not { } draft)
             {
                 await CommentAsync(request, $"The postmortem draft failed: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new WorkResult("postmortem_failed");
+                return new WorkResult(Statuses.PostmortemFailed);
             }
             if (draft.Verdict == PostmortemDraft.Blocked)
             {
                 await CommentAsync(request, $"I could not write the postmortem: {TicketComments.Inert(Short(draft.Summary))}");
-                return new WorkResult("postmortem_failed");
+                return new WorkResult(Statuses.PostmortemFailed);
             }
 
             var changes = await DetectChangesAsync(workspace);
@@ -61,7 +61,7 @@ public sealed partial class IncidentWorkflow
             if (changes.Violations.Count > 0 || changes.Files.Count != 1 || changes.Files[0].Path != path || changes.Files[0].Kind != FileChange.Added)
             {
                 await CommentAsync(request, $"The postmortem draft was not accepted and nothing was published: {TicketComments.Inert(Short(feedback ?? "unknown problem"))}");
-                return new WorkResult("postmortem_failed");
+                return new WorkResult(Statuses.PostmortemFailed);
             }
 
             try
@@ -81,21 +81,21 @@ public sealed partial class IncidentWorkflow
                 if (published is null)
                 {
                     await CommentAsync(request, "The postmortem produced no changes to publish.");
-                    return new WorkResult("postmortem_failed");
+                    return new WorkResult(Statuses.PostmortemFailed);
                 }
                 var pullRequest = await Workflow.ExecuteActivityAsync(
                     (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                         request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, prTitle, prBody)),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
                 await CommentAsync(request, IncidentComments.PostmortemOpened(pullRequest.Url));
-                return new WorkResult("postmortem_opened", PullRequestUrl: pullRequest.Url, WorkBranch: published.Branch);
+                return new WorkResult(Statuses.PostmortemOpened, PullRequestUrl: pullRequest.Url, WorkBranch: published.Branch);
             }
             catch (ActivityFailureException error)
             {
                 await CommentAsync(request, $"Publishing the postmortem failed: {TicketComments.Inert(Short(error.InnerException?.Message ?? error.Message))}");
-                return new WorkResult("postmortem_failed");
+                return new WorkResult(Statuses.PostmortemFailed);
             }
         }
-        return new WorkResult("postmortem_failed");
+        return new WorkResult(Statuses.PostmortemFailed);
     }
 }

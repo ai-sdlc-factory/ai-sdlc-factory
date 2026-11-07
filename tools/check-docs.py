@@ -195,14 +195,7 @@ def check_templates() -> None:
 def check_statuses_and_labels() -> None:
     workflows = read(ROOT / "docs/workflows.md")
     statuses: set[str] = set()
-    for source in (ROOT / "services/controller/src").glob("**/*.cs"):
-        if "/obj/" in str(source):
-            continue
-        text = read(source)
-        statuses.update(re.findall(r'WorkResult\("([a-z_]+)"', text))
-        statuses.update(re.findall(r'(?:failedStatus|rejectedStatus): "([a-z_]+)"', text))
-        statuses.update(re.findall(r'Stop<[A-Za-z]+>\("([a-z_]+)"', text))
-        statuses.update(re.findall(r'Stopped\("([a-z_]+)"', text))
+    statuses.update(re.findall(r'const string \w+ = "([a-z_]+)";', read(ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Statuses.cs")))
     checked["statuses"] = len(statuses)
     for status in sorted(statuses):
         if f"`{status}`" not in workflows:

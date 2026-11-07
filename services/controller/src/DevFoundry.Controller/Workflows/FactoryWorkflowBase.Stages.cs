@@ -24,7 +24,7 @@ public abstract partial class FactoryWorkflowBase
                 AnalystVerdict.Reject => Next.Stop,
                 _ => Next.Ask,
             },
-            failedStatus: "analysis_failed", rejectedStatus: "rejected", failureText: "The analysis failed");
+            failedStatus: Statuses.AnalysisFailed, rejectedStatus: Statuses.Rejected, failureText: "The analysis failed");
 
     /// <summary>
     /// Architect stage, only when triage asked for it. Same shape as the analyst: pass → continue,
@@ -44,7 +44,7 @@ public abstract partial class FactoryWorkflowBase
                 ArchitectDesign.Reject => Next.Stop,
                 _ => Next.Ask,
             },
-            failedStatus: "design_failed", rejectedStatus: "design_rejected", failureText: "The design failed");
+            failedStatus: Statuses.DesignFailed, rejectedStatus: Statuses.DesignRejected, failureText: "The design failed");
 
     protected enum Next { Done, Stop, Ask }
 
@@ -70,18 +70,18 @@ public abstract partial class FactoryWorkflowBase
             DrainReplies(answers);
             if (ticketClosed)
             {
-                return Stop<T>("closed");
+                return Stop<T>(Statuses.Closed);
             }
 
             var outcome = await RunAgentAsync<T>(role, image, workspace, problem => prompt(round, answers, problem), parse, writable);
             if (ticketClosed)
             {
-                return Stop<T>("closed");
+                return Stop<T>(Statuses.Closed);
             }
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return Stop<T>("blocked");
+                return Stop<T>(Statuses.Blocked);
             }
             if (outcome.Value is not { } value)
             {
@@ -106,19 +106,19 @@ public abstract partial class FactoryWorkflowBase
                     var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
                     if (ticketClosed)
                     {
-                        return Stop<T>("closed");
+                        return Stop<T>(Statuses.Closed);
                     }
                     if (!answered)
                     {
                         await CommentAsync(request, "No answer for 7 days; stopping. Close and reopen the ticket to start again.");
-                        return Stop<T>("timed_out");
+                        return Stop<T>(Statuses.TimedOut);
                     }
                     break;
             }
         }
 
         await CommentAsync(request, $"Still open after {maxRounds} rounds of questions. A person needs to decide how to proceed.");
-        return Stop<T>("needs_human");
+        return Stop<T>(Statuses.NeedsHuman);
     }
 
     /// <summary>
@@ -134,17 +134,17 @@ public abstract partial class FactoryWorkflowBase
             text => ParseCoverage(text, analysis.AcceptanceCriteria));
         if (ticketClosed)
         {
-            return Stop<CoverageReport>("closed");
+            return Stop<CoverageReport>(Statuses.Closed);
         }
         if (outcome.NotSignedIn)
         {
             await CommentAsync(request, NotSignedInMessage);
-            return Stop<CoverageReport>("blocked");
+            return Stop<CoverageReport>(Statuses.Blocked);
         }
         if (outcome.Value is not { } claimed)
         {
             await CommentAsync(request, $"The coverage check failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-            return Stop<CoverageReport>("coverage_failed");
+            return Stop<CoverageReport>(Statuses.CoverageFailed);
         }
 
         var report = EvidenceCheck.Apply(claimed, await FindExistingFilesAsync(workspace, image, EvidenceCheck.PathsToCheck(claimed)));
@@ -152,7 +152,7 @@ public abstract partial class FactoryWorkflowBase
         if (report.Verdict == CoverageVerdicts.FullyCovered)
         {
             await CommentAsync(request, "Every criterion is already met, so there is nothing to build. If that is wrong, say what is missing on this ticket, then close and reopen it.");
-            return Stop<CoverageReport>("already_implemented");
+            return Stop<CoverageReport>(Statuses.AlreadyImplemented);
         }
         return new StageResult<CoverageReport>(null, report);
     }

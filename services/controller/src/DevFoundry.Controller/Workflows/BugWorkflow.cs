@@ -35,7 +35,7 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
             text => BugParser.TryParseAnalysis(text, out var value, out var error) ? (value, null) : (null, error),
             BugComments.Analysis,
             value => value.Verdict switch { BugAnalysis.Pass => Next.Done, BugAnalysis.Reject => Next.Stop, _ => Next.Ask },
-            failedStatus: "analysis_failed", rejectedStatus: "rejected", failureText: "The bug analysis failed");
+            failedStatus: Statuses.AnalysisFailed, rejectedStatus: Statuses.Rejected, failureText: "The bug analysis failed");
         if (analysis.Stop is { } stop)
         {
             return stop;
@@ -60,7 +60,7 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
                 text => BugParser.TryParseDiagnosis(text, out var value, out var error) ? (value, null) : (null, error),
                 BugComments.Diagnosis,
                 value => value.Verdict switch { Diagnosis.Pass => Next.Done, Diagnosis.TooLarge => Next.Stop, _ => Next.Ask },
-                failedStatus: "diagnosis_failed", rejectedStatus: "needs_design", failureText: "The diagnosis failed");
+                failedStatus: Statuses.DiagnosisFailed, rejectedStatus: Statuses.NeedsDesign, failureText: "The diagnosis failed");
             if (diagnosed.Stop is { } diagnosisStop)
             {
                 return diagnosisStop;

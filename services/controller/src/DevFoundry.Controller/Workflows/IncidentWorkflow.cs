@@ -47,7 +47,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
             text => IncidentParser.TryParseAssessment(text, out var value, out var error) ? (value, null) : (null, error),
             IncidentComments.Assessment,
             value => value.Verdict switch { IncidentAssessment.Pass => Next.Done, IncidentAssessment.Reject => Next.Stop, _ => Next.Ask },
-            failedStatus: "assessment_failed", rejectedStatus: "rejected", failureText: "The incident assessment failed");
+            failedStatus: Statuses.AssessmentFailed, rejectedStatus: Statuses.Rejected, failureText: "The incident assessment failed");
         if (assessed.Stop is { } stop)
         {
             return stop;
@@ -77,7 +77,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
                 text => IncidentParser.TryParseMitigation(text, out var value, out var error) ? (value, null) : (null, error),
                 IncidentComments.Options,
                 value => value.Verdict == Mitigation.Pass ? Next.Done : Next.Ask,
-                failedStatus: "mitigation_failed", rejectedStatus: "mitigation_failed", failureText: "The mitigation options failed");
+                failedStatus: Statuses.MitigationFailed, rejectedStatus: Statuses.MitigationFailed, failureText: "The mitigation options failed");
             if (proposed.Stop is { } proposalStop)
             {
                 return proposalStop;
@@ -91,12 +91,12 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
                 var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
                 if (ticketClosed)
                 {
-                    return new WorkResult("closed");
+                    return new WorkResult(Statuses.Closed);
                 }
                 if (!answered)
                 {
                     await CommentAsync(request, "No reply for 7 days, so I am stopping. Close and reopen the ticket to start again.");
-                    return new WorkResult("timed_out");
+                    return new WorkResult(Statuses.TimedOut);
                 }
 
                 var comments = replies.ToList();
@@ -167,7 +167,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
             // Posted below, after the factory has checked what the investigator cited; only questions are posted early.
             value => value.Verdict == Investigation.Pass ? "" : IncidentComments.Investigation(value),
             value => value.Verdict == Investigation.Pass ? Next.Done : Next.Ask,
-            failedStatus: "investigation_failed", rejectedStatus: "investigation_failed", failureText: "The investigation failed");
+            failedStatus: Statuses.InvestigationFailed, rejectedStatus: Statuses.InvestigationFailed, failureText: "The investigation failed");
         if (found.Stop is not null)
         {
             return found;

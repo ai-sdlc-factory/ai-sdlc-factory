@@ -27,7 +27,7 @@ public sealed partial class BugWorkflow
                 text => BugParser.TryParseReproduction(text, out var value, out var error) ? (value, null) : (null, error),
                 BugComments.Reproduction,
                 value => value.Verdict == Reproduction.Reproduced ? Next.Done : Next.Ask,
-                failedStatus: "reproduction_failed", rejectedStatus: "cannot_reproduce", failureText: "The reproduction failed",
+                failedStatus: Statuses.ReproductionFailed, rejectedStatus: Statuses.CannotReproduce, failureText: "The reproduction failed",
                 writable: true);
             if (written.Stop is { } stop)
             {
@@ -64,7 +64,7 @@ public sealed partial class BugWorkflow
         await CommentAsync(request,
             $"I could not produce a test that fails because of this bug in {MaxReproductionAttempts} attempts, so nothing was built. " +
             "Add exact steps, input or a stack trace to the ticket, then close and reopen it.");
-        return new StageResult<ConfirmedReproduction>(new WorkResult("cannot_reproduce"), null);
+        return new StageResult<ConfirmedReproduction>(new WorkResult(Statuses.CannotReproduce), null);
     }
 
     /// <summary>The reproducer may only add or change the test files it names; anything else is sent back.</summary>

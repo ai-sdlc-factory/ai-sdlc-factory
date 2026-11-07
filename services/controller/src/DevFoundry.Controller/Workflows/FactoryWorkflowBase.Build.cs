@@ -35,7 +35,7 @@ public abstract partial class FactoryWorkflowBase
         {
             if (ticketClosed)
             {
-                return new WorkResult("closed");
+                return new WorkResult(Statuses.Closed);
             }
 
             var feedbackForRound = feedback;
@@ -45,22 +45,22 @@ public abstract partial class FactoryWorkflowBase
                 ParseDeveloper, writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (ticketClosed)
             {
-                return new WorkResult("closed");
+                return new WorkResult(Statuses.Closed);
             }
             if (outcome.NotSignedIn)
             {
                 await CommentAsync(request, NotSignedInMessage);
-                return new WorkResult("blocked");
+                return new WorkResult(Statuses.Blocked);
             }
             if (outcome.Value is not { } developer)
             {
                 await CommentAsync(request, $"The build failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))}");
-                return new WorkResult("build_failed");
+                return new WorkResult(Statuses.BuildFailed);
             }
             if (developer.Verdict == DeveloperReport.Blocked)
             {
                 await CommentAsync(request, "**Build: the developer is blocked**\n\n" + string.Join('\n', developer.Notes.Select(note => $"- {TicketComments.Inert(note)}")));
-                return new WorkResult("build_blocked");
+                return new WorkResult(Statuses.BuildBlocked);
             }
 
             var before = await DetectChangesAsync(workspace);
@@ -142,7 +142,7 @@ public abstract partial class FactoryWorkflowBase
             await CommentAsync(request,
                 $"I could not get the work through the checks and the review in {maxBuildRounds} rounds, so nothing was published. " +
                 $"Last problem: {TicketComments.Inert(Short(feedback ?? "unknown"))} A person needs to take over.");
-            return new WorkResult("build_failed", triage.NeedsArchitect);
+            return new WorkResult(Statuses.BuildFailed, triage.NeedsArchitect);
         }
 
         var title = PullRequestText.Title(request);
@@ -158,7 +158,7 @@ public abstract partial class FactoryWorkflowBase
             if (published is null)
             {
                 await CommentAsync(request, "The work produced no changes to publish.");
-                return new WorkResult("no_changes", triage.NeedsArchitect);
+                return new WorkResult(Statuses.NoChanges, triage.NeedsArchitect);
             }
             pullRequest = await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
@@ -175,14 +175,14 @@ public abstract partial class FactoryWorkflowBase
                 await CommentAsync(request,
                     $"The work passed every check and review and is on the branch `{published.Branch}` ({published.FileCount} file(s)), " +
                     $"but opening the pull request failed: {reason} Open one from that branch by hand.");
-                return new WorkResult("publish_failed", triage.NeedsArchitect, WorkBranch: published.Branch);
+                return new WorkResult(Statuses.PublishFailed, triage.NeedsArchitect, WorkBranch: published.Branch);
             }
             await CommentAsync(request, $"Publishing failed and needs a person to look at it: {reason}");
-            return new WorkResult("publish_failed", triage.NeedsArchitect);
+            return new WorkResult(Statuses.PublishFailed, triage.NeedsArchitect);
         }
 
         await CommentAsync(request, $"**Pull request opened:** {pullRequest.Url}\n\n{published.FileCount} file(s) on branch `{published.Branch}`. A person must review and merge it.");
-        return new WorkResult("pr_opened", triage.NeedsArchitect, pullRequest.Url);
+        return new WorkResult(Statuses.PrOpened, triage.NeedsArchitect, pullRequest.Url);
     }
 
     protected static string? Combine(string? feedback, string? unusableAnswer) =>
@@ -295,17 +295,17 @@ public abstract partial class FactoryWorkflowBase
             text => ParseQa(text, criteria));
         if (ticketClosed)
         {
-            return Stopped("closed");
+            return Stopped(Statuses.Closed);
         }
         if (qaOutcome.NotSignedIn)
         {
             await CommentAsync(request, NotSignedInMessage);
-            return Stopped("blocked");
+            return Stopped(Statuses.Blocked);
         }
         if (qaOutcome.Value is not { } claimed)
         {
             await CommentAsync(request, $"The QA check failed and needs a person to look at it: {TicketComments.Inert(Short(qaOutcome.Problem ?? "unknown problem"))} Nothing was published.");
-            return Stopped("review_failed");
+            return Stopped(Statuses.ReviewFailed);
         }
 
         // QA may only call a criterion met if the files it cites exist.
@@ -339,17 +339,17 @@ public abstract partial class FactoryWorkflowBase
         var outcome = await RunAgentAsync<ReviewReport>(role, project.Image, workspace, prompt, ParseReview);
         if (ticketClosed)
         {
-            return (null, Stopped("closed"));
+            return (null, Stopped(Statuses.Closed));
         }
         if (outcome.NotSignedIn)
         {
             await CommentAsync(request, NotSignedInMessage);
-            return (null, Stopped("blocked"));
+            return (null, Stopped(Statuses.Blocked));
         }
         if (outcome.Value is not { } review)
         {
             await CommentAsync(request, $"The {role} review failed and needs a person to look at it: {TicketComments.Inert(Short(outcome.Problem ?? "unknown problem"))} Nothing was published.");
-            return (null, Stopped("review_failed"));
+            return (null, Stopped(Statuses.ReviewFailed));
         }
         await CommentAsync(request, TicketComments.Review(role, review));
         return (review, null);
