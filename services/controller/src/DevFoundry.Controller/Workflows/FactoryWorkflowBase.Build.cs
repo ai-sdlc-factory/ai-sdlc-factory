@@ -208,13 +208,13 @@ public abstract partial class FactoryWorkflowBase
                 ActivityPolicy.Sandbox(TimeSpan.FromSeconds(gate.TimeoutSeconds + 300), attempts: 1));
             var output = string.Join('\n', new[] { result.Stdout, result.Stderr }.Where(part => part.Length > 0));
             var gatePassed = result.ExitCode == 0 && !result.TimedOut;
-            await RecordAsync(workspace, "gate", $"gate-{gate.Name}", $"check: {gate.Name}", 1, started, gatePassed ? "passed" : "failed", result.ExitCode, result.TimedOut, commandText, output, null);
+            await RecordAsync(workspace, RecordStep.Gate(gate.Name, started, gatePassed ? "passed" : "failed", commandText) with { ExitCode = result.ExitCode, TimedOut = result.TimedOut, Output = output });
             return new GateResult(gate.Name, gatePassed, result.ExitCode, result.TimedOut, output);
         }
         catch (ActivityFailureException error)
         {
             var reason = $"the check could not run: {error.InnerException?.Message ?? error.Message}";
-            await RecordAsync(workspace, "gate", $"gate-{gate.Name}", $"check: {gate.Name}", 1, started, "could not run", -1, false, commandText, "", reason);
+            await RecordAsync(workspace, RecordStep.Gate(gate.Name, started, "could not run", commandText) with { ExitCode = -1, Problem = reason });
             return new GateResult(gate.Name, false, -1, false, reason);
         }
     }

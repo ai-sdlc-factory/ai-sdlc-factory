@@ -16,20 +16,37 @@ public abstract partial class FactoryWorkflowBase
         recordDirectory is null ? null : new RunRecordSpec(recordDirectory, $"{request.Owner}/{request.Repo}#{request.IssueNumber}: {request.Title}", outcome);
 
     /// <summary>
-    /// Keeps one step (what an agent was told and answered, or what a check printed) for the committed record.
-    /// A failure to record never changes how the run goes.
+    /// What to keep of one step (what an agent was told and answered, or what a check printed) for the committed record. The five
+    /// positional values say which step it was and how it ended; the rest is filled in with <c>with { ... }</c> as far as it is known.
     /// </summary>
-    protected async Task RecordAsync(
-        WorkspaceInfo workspace, string kind, string slug, string title, int attempt, DateTime started, string outcome,
-        long exitCode, bool timedOut, string input, string output, string? problem, TokenUsage? usage = null)
+    protected sealed record RecordStep(string Kind, string Slug, string Title, int Attempt, DateTime Started, string Outcome, string Input)
+    {
+        public long ExitCode { get; init; }
+        public bool TimedOut { get; init; }
+        public string Output { get; init; } = "";
+        public string? Problem { get; init; }
+        public TokenUsage? Usage { get; init; }
+
+        /// <summary>A run of an agent. <paramref name="prompt"/> is what it was told.</summary>
+        public static RecordStep Agent(string role, int attempt, DateTime started, string outcome, string prompt) =>
+            new("agent", role, role, attempt, started, outcome, prompt);
+
+        /// <summary>One of the project's checks. <paramref name="command"/> is what ran.</summary>
+        public static RecordStep Gate(string name, DateTime started, string outcome, string command) =>
+            new("gate", $"gate-{name}", $"check: {name}", 1, started, outcome, command);
+    }
+
+    /// <summary>Keeps one step for the committed record. A failure to record never changes how the run goes.</summary>
+    protected async Task RecordAsync(WorkspaceInfo workspace, RecordStep step)
     {
         if (recordDirectory is null)
         {
             return;
         }
         var entry = new RecordEntry(
-            workspace.Name, ++recordSequence, kind, slug, title, attempt, started.ToString("u"),
-            Math.Round((Workflow.UtcNow - started).TotalSeconds, 1), outcome, exitCode, timedOut, input, output, problem, Usage: usage);
+            workspace.Name, ++recordSequence, step.Kind, step.Slug, step.Title, step.Attempt, step.Started.ToString("u"),
+            Math.Round((Workflow.UtcNow - step.Started).TotalSeconds, 1), step.Outcome, step.ExitCode, step.TimedOut, step.Input, step.Output, step.Problem,
+            Usage: step.Usage);
         try
         {
             await Workflow.ExecuteActivityAsync(

@@ -50,7 +50,7 @@ public sealed partial class BugWorkflow
                 else
                 {
                     var output = CombinedOutput(result);
-                    await RecordAsync(workspace, "gate", "red-check", "check: reproduction fails", 1, Workflow.UtcNow, "failed as required", result.ExitCode, false, string.Join(' ', reproduction.TestCommand), output, null);
+                    await RecordAsync(workspace, new RecordStep("gate", "red-check", "check: reproduction fails", 1, Workflow.UtcNow, "failed as required", string.Join(' ', reproduction.TestCommand)) with { ExitCode = result.ExitCode, Output = output });
                     await CommentAsync(request, BugComments.Red(reproduction.TestCommand, result.ExitCode, output));
                     var prints = await FingerprintAsync(project.Image, workspace, reproduction.TestFiles);
                     return new StageResult<ConfirmedReproduction>(null, new ConfirmedReproduction(reproduction, result.ExitCode, output, prints));
