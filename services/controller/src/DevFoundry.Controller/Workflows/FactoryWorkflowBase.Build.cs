@@ -29,6 +29,7 @@ public abstract partial class FactoryWorkflowBase
         IReadOnlyList<(string Role, ReviewReport Report)> reviews = [];
         QaReport? qa = null;
         string? uxNote = null;
+        string? earlierFindings = null; // what the last review asked for, so the next review checks it was done
         var passedRound = 0;
 
         for (var round = 1; round <= maxBuildRounds && report is null; round++)
@@ -38,6 +39,7 @@ public abstract partial class FactoryWorkflowBase
                 return new WorkResult(Statuses.Closed);
             }
 
+            await CommentAsync(request, TicketComments.BuildRoundStarted(round, maxBuildRounds, feedback));
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<DeveloperReport>(
                 "developer", project.Image, workspace,
@@ -62,6 +64,8 @@ public abstract partial class FactoryWorkflowBase
                 await CommentAsync(request, "**Build: the developer is blocked**\n\n" + string.Join('\n', developer.Notes.Select(note => $"- {TicketComments.Inert(note)}")));
                 return new WorkResult(Statuses.BuildBlocked);
             }
+
+            await CommentAsync(request, TicketComments.DeveloperFinished(round, developer));
 
             var before = await DetectChangesAsync(workspace);
             if (before.Violations.Count > 0 || before.Files.Count == 0)
@@ -102,7 +106,7 @@ public abstract partial class FactoryWorkflowBase
 
             var skipQa = quickReason is not null || bug is not null;
             await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(skipQa ? "" : " and QA")}.");
-            var review = await ReviewAsync(work, remaining, design, after, results, new ReviewOptions(skipQa, RuleNotes: ruleNotes));
+            var review = await ReviewAsync(work, remaining, design, after, results, new ReviewOptions(skipQa, RuleNotes: ruleNotes, EarlierFindings: earlierFindings));
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -110,6 +114,7 @@ public abstract partial class FactoryWorkflowBase
             if (review.Feedback is not null)
             {
                 feedback = review.Feedback;
+                earlierFindings = review.Feedback;
                 continue;
             }
 
@@ -208,7 +213,8 @@ public abstract partial class FactoryWorkflowBase
     /// <param name="SkipQa">Quick mode and bug fixes do not ask QA.</param>
     /// <param name="QaCriteria">The criteria QA judges, when they are not the ones still to be met (a larger revision is checked against the pull request's original criteria).</param>
     /// <param name="RuleNotes">Project rules that only warn, for the reviewers to weigh.</param>
-    protected sealed record ReviewOptions(bool SkipQa = false, IReadOnlyList<CriterionCoverage>? QaCriteria = null, string? RuleNotes = null);
+    /// <param name="EarlierFindings">What an earlier round asked the developer to change, for the reviewers to check was done.</param>
+    protected sealed record ReviewOptions(bool SkipQa = false, IReadOnlyList<CriterionCoverage>? QaCriteria = null, string? RuleNotes = null, string? EarlierFindings = null);
 
     protected sealed record ReviewOutcome(
         WorkResult? Stop, string? Feedback, IReadOnlyList<(string Role, ReviewReport Report)> Reports, QaReport? Qa, string? UxNote = null);
@@ -229,7 +235,7 @@ public abstract partial class FactoryWorkflowBase
         IReadOnlyList<GateResult> gates, ReviewOptions? options = null)
     {
         var (request, workspace, project) = work;
-        var (skipQa, qaCriteria, ruleNotes) = options ?? new ReviewOptions();
+        var (skipQa, qaCriteria, ruleNotes, earlierFindings) = options ?? new ReviewOptions();
         var diff = await Workflow.ExecuteActivityAsync(
             (WorkspaceActivities activities) => activities.DiffAsync(workspace.Name),
             ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
@@ -240,7 +246,7 @@ public abstract partial class FactoryWorkflowBase
         foreach (var role in project.Reviewers)
         {
             var (review, stop) = await RunReviewAsync(work, role,
-                problem => ReviewPrompt.Build(request, remaining, design, changes, diff, gateSummary, problem, checks: checks));
+                problem => ReviewPrompt.Build(request, remaining, design, changes, diff, gateSummary, problem, checks: checks, earlierFindings: earlierFindings));
             if (stop is not null)
             {
                 return stop;
@@ -260,7 +266,7 @@ public abstract partial class FactoryWorkflowBase
                 var uiDiff = UnifiedDiff.Only(diff, ui.Files);
                 var others = changes.Files.Count - uiChanges.Files.Count;
                 var (review, stop) = await RunReviewAsync(work, "ux",
-                    problem => ReviewPrompt.Build(request, remaining, design, uiChanges, uiDiff, gateSummary, problem, others, checks));
+                    problem => ReviewPrompt.Build(request, remaining, design, uiChanges, uiDiff, gateSummary, problem, others, checks, earlierFindings));
                 if (stop is not null)
                 {
                     return stop;
@@ -281,7 +287,7 @@ public abstract partial class FactoryWorkflowBase
         var criteria = (qaCriteria ?? remaining).Select(criterion => criterion.Criterion).ToList();
         var qaOutcome = await RunAgentAsync<QaReport>(
             "qa", project.Image, workspace,
-            problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem, checks),
+            problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem, checks, earlierFindings),
             text => ParseQa(text, criteria));
         if (ticketClosed)
         {

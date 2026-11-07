@@ -251,6 +251,57 @@ public static class TicketComments
         $"{(count == 1 ? "it was" : "they were")} not used. To have {(count == 1 ? "it" : "them")} taken into account, add " +
         "the details to the ticket text, then close and reopen the ticket.";
 
+    /// <summary>
+    /// Said when a build round starts, so a long silence has a reason: what the developer is working on. After a review the findings
+    /// are listed (shortened); after a failed check the failure was already reported, so it only points back to it.
+    /// </summary>
+    public static string BuildRoundStarted(int round, int maxRounds, string? feedback)
+    {
+        if (feedback is null)
+        {
+            return $"**Build round {round} of {maxRounds}:** the developer is working on the ticket.";
+        }
+        var text = new StringBuilder();
+        if (feedback.StartsWith(ReviewFeedback.Header, StringComparison.Ordinal))
+        {
+            var findings = feedback[ReviewFeedback.Header.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            text.AppendLine($"**Build round {round} of {maxRounds}:** the developer is fixing {findings.Length} finding{(findings.Length == 1 ? "" : "s")} from the review.");
+            text.AppendLine();
+            foreach (var finding in findings.Take(6))
+            {
+                text.AppendLine($"- {Inert(finding.Length > 240 ? finding[..240] + "..." : finding)}");
+            }
+            if (findings.Length > 6)
+            {
+                text.AppendLine($"- ... and {findings.Length - 6} more");
+            }
+            return text.ToString().TrimEnd();
+        }
+        return $"**Build round {round} of {maxRounds}:** the developer is fixing the problem reported above.";
+    }
+
+    /// <summary>What the developer says it did in a round; this is its own report, not a verified fact (the checks and reviews decide).</summary>
+    public static string DeveloperFinished(int round, DeveloperReport report)
+    {
+        var text = new StringBuilder();
+        text.AppendLine($"**Build round {round}: the developer finished**");
+        text.AppendLine();
+        var summary = Inert(report.Summary);
+        text.AppendLine(summary.Length > 800 ? summary[..800] + "..." : summary);
+        foreach (var note in report.Notes.Take(5))
+        {
+            var line = Inert(note);
+            text.AppendLine($"- {(line.Length > 240 ? line[..240] + "..." : line)}");
+        }
+        if (report.Notes.Count > 5)
+        {
+            text.AppendLine($"- ... and {report.Notes.Count - 5} more");
+        }
+        text.AppendLine();
+        text.Append("The checks and the review decide whether this is right.");
+        return text.ToString();
+    }
+
     /// <summary>Added to a failure caused by the factory's own machinery rather than by the ticket or the agent's work.</summary>
     public const string RetryHint =
         " This looks like a problem with the factory itself, not with your ticket. Comment `/retry` to run it again.";

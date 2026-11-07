@@ -80,7 +80,7 @@ it decides with stated assumptions.
 
 Each round:
 
-1. The **developer** works in the **writable** workspace with a shell. It does not commit or push.
+1. The ticket gets a comment that the round started (from round 2 it lists the review findings being fixed). The **developer** works in the **writable** workspace with a shell. It does not commit or push. When it finishes, its own summary and notes are posted; they are its claim, and the steps below decide whether it is right.
 2. **Change checks** (code) read what changed: protected paths (`.factory/`, `.forgejo/`, `.github/`, `.gitea/`, CI files), symbolic links,
    file size and count (300 files, 2 MiB per file, 10 MiB total), and a secret scan. `.gitignore` decides what counts as noise.
 3. **Project checks** (the gates in `.factory/project.json`) run one by one in the sandbox, **without** model access. Failures go back to the
@@ -93,6 +93,8 @@ Each round:
 5. **QA** (read-only). Judges every remaining criterion as `met` or `not_met`; a `met` criterion must cite files and the factory checks they
    exist. Skipped in quick mode and in bug runs.
 6. Anything that fails goes back to the developer as feedback and uses one of the rounds. When everything passes, the run publishes.
+
+After a round in which a review or QA asked for changes, the next round's reviewers and QA are also given those findings (shortened to 1,500 characters) and asked to confirm that each one is really fixed, and to report any that is not as a blocking finding. They still review the whole change as usual, because a fix can bring new problems. Revisions of a pull request do not do this yet.
 
 A review or QA answer that stays unusable after the retry stops the run (`review_failed`): **nothing is published unreviewed**.
 

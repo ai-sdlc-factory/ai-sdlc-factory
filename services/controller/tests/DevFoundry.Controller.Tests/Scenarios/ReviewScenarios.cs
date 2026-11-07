@@ -142,6 +142,37 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task The_next_round_says_what_it_fixes_and_the_next_review_is_asked_to_check_it()
+    {
+        var world = ToReview(developerRounds: 2)
+            .Agent("reviewer", Say(Answers.Review(("blocker", "Check the id first."))), Say(Answers.Review()))
+            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        AssertInOrder(world.Comments,
+            "Build round 1 of 3:** the developer is working", "Build round 1: the developer finished", "Review (reviewer): changes needed",
+            "Build round 2 of 3:** the developer is fixing 1 finding from the review", "Build round 2: the developer finished", "Pull request opened");
+        Assert.DoesNotContain("EARLIER", world.Calls("reviewer").First().Prompt);
+        Assert.Contains("Check the id first.", world.Calls("reviewer").ElementAt(1).Prompt);
+        Assert.Contains("Check the id first.", world.Calls("qa").ElementAt(1).Prompt);
+        Assert.Contains("Check the id first.", world.Calls("developer").ElementAt(1).Prompt);
+    }
+
+    private static void AssertInOrder(IEnumerable<string> comments, params string[] fragments)
+    {
+        var list = comments.ToList();
+        var from = 0;
+        foreach (var fragment in fragments)
+        {
+            var index = list.FindIndex(from, c => c.Contains(fragment));
+            Assert.True(index >= 0, $"expected a comment containing \"{fragment}\" after position {from}; got:\n{string.Join("\n---\n", list)}");
+            from = index + 1;
+        }
+    }
+
+    [SkippableFact]
     public async Task An_unusable_review_stops_the_run_instead_of_publishing_unreviewed_work()
     {
         var world = ToReview().Agent("reviewer", Say("looks fine to me"), Say("really, fine"));
