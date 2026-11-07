@@ -61,6 +61,13 @@ public static partial class EventRouter
             return DecidePullRequestComment(input, owner, repo, issueNumber);
         }
 
+        return DecideTicketEvent(input, issue, owner, repo, issueNumber);
+    }
+
+    /// <summary>What a ticket event means: start the ticket's workflow, tell it the ticket closed, or hand it a person's comment.</summary>
+    private static RoutingDecision DecideTicketEvent(ForgejoEvent input, JsonElement issue, string owner, string repo, int issueNumber)
+    {
+        var payload = input.Payload;
         // An incident is never built as a feature or a bug; a feature label wins over a bug label.
         var kind = HasLabel(issue, IncidentLabel) ? WorkIds.Incident
             : HasLabel(issue, FeatureLabel) ? WorkIds.Feature
