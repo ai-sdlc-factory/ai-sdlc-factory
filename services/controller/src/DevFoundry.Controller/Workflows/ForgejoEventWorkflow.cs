@@ -33,96 +33,106 @@ public sealed class ForgejoEventWorkflow
             input.DeliveryId, input.Event, repository, AsString(action), AsString(reference));
     }
 
-    private static async Task RouteAsync(ForgejoEvent input)
+    private static Task RouteAsync(ForgejoEvent input)
     {
         var decision = EventRouter.Decide(input);
-        switch (decision.Action)
+        return decision.Action switch
         {
-            case RoutingAction.StartFeature:
-                try
-                {
-                    // Abandon: the ticket's workflow outlives this short routing run.
-                    var options = new ChildWorkflowOptions
-                    {
-                        Id = decision.Feature!.WorkflowId,
-                        ParentClosePolicy = ParentClosePolicy.Abandon,
-                        IdReusePolicy = decision.Restart ? WorkflowIdReusePolicy.AllowDuplicate : WorkflowIdReusePolicy.RejectDuplicate,
-                    };
-                    if (decision.Feature.IsIncident)
-                    {
-                        await Workflow.StartChildWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
-                    }
-                    else if (decision.Feature.IsBug)
-                    {
-                        await Workflow.StartChildWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
-                    }
-                    else
-                    {
-                        await Workflow.StartChildWorkflowAsync((FeatureWorkflow workflow) => workflow.RunAsync(decision.Feature!), options);
-                    }
-                }
-                catch (WorkflowAlreadyStartedException)
-                {
-                    // Relabeling or editing a ticket that already has a workflow is not an error.
-                }
-                break;
+            RoutingAction.StartFeature => StartTicketWorkflowAsync(decision),
+            RoutingAction.RevisePullRequest => RevisePullRequestAsync(decision.Revision!),
+            RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
+            RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
+            _ => Task.CompletedTask,
+        };
+    }
 
-            case RoutingAction.RevisePullRequest:
-                var revision = decision.Revision!;
-                try
-                {
-                    // One revision at a time per pull request; a finished one may be followed by another.
-                    await Workflow.StartChildWorkflowAsync(
-                        (PullRequestRevisionWorkflow workflow) => workflow.RunAsync(revision),
-                        new ChildWorkflowOptions
-                        {
-                            Id = revision.WorkflowId,
-                            ParentClosePolicy = ParentClosePolicy.Abandon,
-                            IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
-                        });
-                }
-                catch (WorkflowAlreadyStartedException)
-                {
-                    // Not lost: the running revision is told, and starts a follow-up when it is done.
-                    var queued = await SignalAsync<PullRequestRevisionWorkflow>(revision.WorkflowId, workflow => workflow.OnMoreFeedbackAsync(revision));
-                    var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, queued ? TicketComments.RevisionQueued : TicketComments.RevisionBusy);
-                    await Workflow.ExecuteActivityAsync(
-                        (ForgejoActivities activities) => activities.PostNoticeOnceAsync(busy),
-                        ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
-                }
-                break;
+    /// <summary>Starts the incident, bug or feature workflow for a ticket; the workflow outlives this short routing run.</summary>
+    private static async Task StartTicketWorkflowAsync(RoutingDecision decision)
+    {
+        var feature = decision.Feature!;
+        try
+        {
+            var options = new ChildWorkflowOptions
+            {
+                Id = feature.WorkflowId,
+                ParentClosePolicy = ParentClosePolicy.Abandon,
+                IdReusePolicy = decision.Restart ? WorkflowIdReusePolicy.AllowDuplicate : WorkflowIdReusePolicy.RejectDuplicate,
+            };
+            if (feature.IsIncident)
+            {
+                await Workflow.StartChildWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(feature), options);
+            }
+            else if (feature.IsBug)
+            {
+                await Workflow.StartChildWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(feature), options);
+            }
+            else
+            {
+                await Workflow.StartChildWorkflowAsync((FeatureWorkflow workflow) => workflow.RunAsync(feature), options);
+            }
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            // Relabeling or editing a ticket that already has a workflow is not an error.
+        }
+    }
 
-            case RoutingAction.ReplyToFeature:
-                var delivered = decision.Feature!.IsIncident
-                    ? await SignalAsync<IncidentWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
-                    : decision.Feature.IsBug
-                        ? await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
-                        : await SignalAsync<FeatureWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
-                if (!delivered)
+    private static async Task RevisePullRequestAsync(RevisionRequest revision)
+    {
+        try
+        {
+            // One revision at a time per pull request; a finished one may be followed by another.
+            await Workflow.StartChildWorkflowAsync(
+                (PullRequestRevisionWorkflow workflow) => workflow.RunAsync(revision),
+                new ChildWorkflowOptions
                 {
-                    // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
-                    var feature = decision.Feature!;
-                    await Workflow.ExecuteActivityAsync(
-                        (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
-                            new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActive)),
-                        ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
-                }
-                break;
+                    Id = revision.WorkflowId,
+                    ParentClosePolicy = ParentClosePolicy.Abandon,
+                    IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                });
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            // Not lost: the running revision is told, and starts a follow-up when it is done.
+            var queued = await SignalAsync<PullRequestRevisionWorkflow>(revision.WorkflowId, workflow => workflow.OnMoreFeedbackAsync(revision));
+            var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, queued ? TicketComments.RevisionQueued : TicketComments.RevisionBusy);
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(busy),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
 
-            case RoutingAction.CloseFeature:
-                if (decision.Feature!.IsIncident)
-                {
-                    await SignalAsync<IncidentWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
-                }
-                else if (decision.Feature.IsBug)
-                {
-                    await SignalAsync<BugWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
-                }
-                else
-                {
-                    await SignalAsync<FeatureWorkflow>(decision.Feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
-                }
-                break;
+    private static async Task ReplyToTicketAsync(RoutingDecision decision)
+    {
+        var feature = decision.Feature!;
+        var delivered = feature.IsIncident
+            ? await SignalAsync<IncidentWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+            : feature.IsBug
+                ? await SignalAsync<BugWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+                : await SignalAsync<FeatureWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
+        if (!delivered)
+        {
+            // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActive)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
+    private static async Task CloseTicketAsync(WorkRequest feature)
+    {
+        if (feature.IsIncident)
+        {
+            await SignalAsync<IncidentWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+        }
+        else if (feature.IsBug)
+        {
+            await SignalAsync<BugWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+        }
+        else
+        {
+            await SignalAsync<FeatureWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
         }
     }
 
