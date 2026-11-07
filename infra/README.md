@@ -76,7 +76,7 @@ the [configuration reference](../docs/configuration.md#infraenv).
 Sandboxes that call the model share the OpenCode login stored in the `opencode-data` volume (see [the launcher guide](../services/sandbox-launcher/README.md#model-access-and-the-opencode-login) and the
 [login guide](../docs/opencode-login.md)). The one-shot `opencode-data-init` service gives that volume to `FACTORY_UID`; it starts by itself before the login helper and needs no action from you.
 
-Build the sandbox images once (`dotnet`, `python` and `node`; plus `dotnet-node`, `python-node` and `full` for projects that need two toolchains), then the launcher and controller are already running:
+Build the sandbox images once (`dotnet`, `python` and `node`; plus `dotnet-node`, `python-node` and `full` for projects that need two toolchains, and `browser` for the UI suite of a `/qa` run), then the launcher and controller are already running:
 
 ```bash
 docker compose --profile images build sandbox-image-dotnet sandbox-image-python sandbox-image-node
