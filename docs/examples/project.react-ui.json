@@ -6,7 +6,7 @@
     "medium": { "files": 3, "lines": 40 },
     "large": { "files": 8, "lines": 200 }
   },
-  "protected_paths": ["src/api/generated/**", "package-lock.json", "vite.config.ts"],
+  "protected_paths": ["src/api/generated/**", "vite.config.ts"],
   "rules": [
     { "id": "no-raw-fetch", "files": ["src/pages/**", "src/components/**"], "forbid": "\\bfetch\\(", "message": "Call the backend through the client in src/api." },
     { "id": "no-inner-html", "files": ["src/**/*.tsx"], "forbid": "dangerouslySetInnerHTML", "message": "Do not inject HTML; render elements." },

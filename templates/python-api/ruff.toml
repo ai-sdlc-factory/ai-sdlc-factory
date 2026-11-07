@@ -1,0 +1,9 @@
+# Lint settings. Kept in their own file so a person can protect them (an agent must not loosen the rules to pass a check).
+line-length = 110
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+
+[lint.per-file-ignores]
+"tests/*" = ["S101"]

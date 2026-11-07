@@ -29,4 +29,4 @@ The factory runs the commands under `gates` in `.factory/project.json` (the web 
 - xUnit for the API, Vitest and Testing Library for the web. Test behaviour, not implementation details. Every change in behaviour comes with a test; a bug fix includes a test that fails without the fix.
 
 ## Do not touch
-- `**/Migrations/**`, `Directory.Packages.props`, `global.json`, `*.lock`, `frontend/package-lock.json`, `frontend/vite.config.ts`: a person changes these.
+- `**/Migrations/**`, `global.json` (the SDK version) and `frontend/vite.config.ts`: a person changes these.

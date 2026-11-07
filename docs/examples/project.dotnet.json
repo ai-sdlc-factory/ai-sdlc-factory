@@ -2,7 +2,7 @@
   "image": "dotnet",
   "reviewers": ["reviewer", "security"],
   "limits": { "build_rounds": 3, "revisions_per_pull_request": 3 },
-  "protected_paths": ["db/migrations/**", "deploy/**", "Dockerfile", "Directory.Packages.props", "**/*.g.cs"],
+  "protected_paths": ["db/migrations/**", "deploy/**", "Dockerfile", "**/*.g.cs"],
   "rules": [
     { "id": "no-binaryformatter", "files": "**/*.cs", "forbid": "BinaryFormatter", "message": "Use System.Text.Json." },
     { "id": "no-env-vars", "files": "src/**/*.cs", "forbid": "Environment\\.GetEnvironmentVariable", "message": "Read configuration through IOptions<T>." },

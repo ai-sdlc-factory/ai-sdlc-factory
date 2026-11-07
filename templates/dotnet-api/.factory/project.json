@@ -4,7 +4,7 @@
   "record": true,
   "reviewers": ["reviewer", "security"],
   "limits": { "build_rounds": 3, "clarification_rounds": 3, "revisions_per_pull_request": 3 },
-  "protected_paths": ["**/Migrations/**", "Directory.Packages.props", "global.json", "*.lock"],
+  "protected_paths": ["**/Migrations/**", "global.json"],
   "rules": [
     { "id": "no-binaryformatter", "files": "**/*.cs", "forbid": "BinaryFormatter", "message": "Unsafe deserialisation. Use System.Text.Json." },
     { "id": "no-env-vars", "files": "src/**/*.cs", "forbid": "Environment\\.GetEnvironmentVariable", "message": "Read configuration through IConfiguration or IOptions<T>." },

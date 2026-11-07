@@ -105,7 +105,7 @@ registries reachable and nothing else.
   otherwise the change is rejected as build output. The developer is told the same.
 - **A check must not write files that git would show.** Checks run after the developer has finished, so a file a check creates (or recreates) lands in the change, the reviewers flag it as unrelated, and the developer cannot remove it because the next round's check puts it back. The usual causes:
   `npm install` without a committed lockfile (it writes `package-lock.json`: commit the lockfile and use **`npm ci`**, which writes nothing), a formatter that rewrites files (use its check mode), and tools that leave files like `*.tsbuildinfo` (add them to `.gitignore`).
-  Test it once: run your checks on a clean clone and look at `git status`. The [templates](../templates/README.md) all pass that test. Also put the lockfile in `protected_paths`, so no agent edits it.
+  Test it once: run your checks on a clean clone and look at `git status`. The [templates](../templates/README.md) all pass that test. Do **not** put the lockfile alone in `protected_paths`: see [Protected paths](#protected-paths).
 - **One concern per gate** (`test`, `lint`, `build`), so a failure names the cause. The end of a failing gate's output is sent back to the developer.
 - **Quick enough** for the timeout; slow suites need a larger `timeout_seconds` (at most 1800).
 
@@ -189,7 +189,7 @@ registries reachable and nothing else.
   "record": true,
   "reviewers": ["reviewer", "security"],
   "limits": { "build_rounds": 4, "revisions_per_pull_request": 5 },
-  "protected_paths": ["db/migrations/**", "deploy/**", "*.lock", "Directory.Packages.props"],
+  "protected_paths": ["db/migrations/**", "deploy/**", "global.json"],
   "rules": [
     { "id": "no-binaryformatter", "files": "**/*.cs", "forbid": "BinaryFormatter", "message": "Use System.Text.Json." },
     { "id": "no-console", "files": "src/**/*.cs", "forbid": "Console\\.Write", "message": "Use ILogger.", "severity": "warn" }
@@ -308,13 +308,17 @@ A project cannot go beyond these ranges: the ceilings belong to the factory.
 
 ### Protected paths
 
-`protected_paths` adds files the agents may never change, on top of the built-in list (`.factory/`, `.github/`, `.forgejo/`, `.gitea/`, `.git/` and the CI pipeline files). A change that touches one is rejected the same way, and the developer is told so. Use it for what only a person should edit: database migrations, lock files, deployment configuration.
+`protected_paths` adds files the agents may never change, on top of the built-in list (`.factory/`, `.github/`, `.forgejo/`, `.gitea/`, `.git/` and the CI pipeline files). A change that touches one is rejected the same way, and the developer is told so. Use it for what only a person should edit: database migrations, deployment configuration, the SDK version, and the lint and test settings (so no agent can loosen a check to make it pass).
 
 ```json
-"protected_paths": ["db/migrations/**", "deploy/**", "*.lock"]
+"protected_paths": ["db/migrations/**", "deploy/**", "ruff.toml"]
 ```
 
 Up to 20 patterns, with the same syntax as the `ui` paths below (`*` within a folder, `**` across folders, a pattern without a slash matches the file name anywhere), compared without regard to case. A project can only **add** protection; it cannot remove any. A pattern that matches too much, such as `**`, makes every change fail, so keep them specific.
+
+**Do not protect a dependency file on its own.** A lockfile (`package-lock.json`, `poetry.lock`) changes together with its manifest (`package.json`, `pyproject.toml`) whenever a ticket needs a new package. If you protect only one, that change becomes impossible: the manifest can change but the lockfile cannot, and `npm ci` then fails because the two disagree. Choose one policy:
+- **Agents may add dependencies** (the usual choice): protect neither. Both files change in the diff, the reviewers see why, and the `npm ci` (or equivalent) check catches the two disagreeing.
+- **Agents may never add dependencies**: protect **both**, for example `["package.json", "package-lock.json"]`. A ticket that needs a package then stops, and a person adds it.
 
 ### UI
 

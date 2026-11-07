@@ -44,5 +44,5 @@ The factory runs the commands listed under `gates` in `.factory/project.json`. C
 ## Do not touch
 - `src/api/generated/**`: generated from the OpenAPI file; change the spec, not these files
 - `public/locales/**`: the translation team's tool is the source of truth; add keys only in `src/i18n`
-- `.github/**`, `vite.config.ts`, `package-lock.json` unless the ticket is about the build
+- `.github/**` and `vite.config.ts` unless the ticket is about the build
 - Do not add an npm dependency without saying why in the pull request.

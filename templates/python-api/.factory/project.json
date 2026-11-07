@@ -4,7 +4,7 @@
   "record": true,
   "reviewers": ["reviewer", "security"],
   "limits": { "build_rounds": 3, "clarification_rounds": 3, "revisions_per_pull_request": 3 },
-  "protected_paths": ["*.lock", "requirements*.txt", "pyproject.toml"],
+  "protected_paths": ["ruff.toml", "pytest.ini"],
   "rules": [
     { "id": "no-unsafe-deserialisation", "files": "**/*.py", "forbid": "\\b(pickle\\.loads?|eval|exec)\\(|yaml\\.load\\(", "message": "Unsafe deserialisation or dynamic code. Use json, or yaml.safe_load." },
     { "id": "no-shell-true", "files": "**/*.py", "forbid": "shell\\s*=\\s*True", "message": "Shell injection risk. Pass the command as a list." },

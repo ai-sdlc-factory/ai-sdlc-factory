@@ -21,7 +21,7 @@ cd frontend && npm run dev                    # http://127.0.0.1:5173 (forwards 
 | `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
 | `ui` | `frontend/src/**/*.tsx`, `*.css`, `index.html` | declares a user interface, so the **UX reviewer** runs on a UI change that is medium or large |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
-| `protected_paths` | migrations, package pins, lock files, `vite.config.ts` | files no agent may change |
+| `protected_paths` | migrations, `global.json`, `vite.config.ts` | files no agent may change. Dependencies are not protected: `package.json` and its lockfile change together, and the web checks use `npm ci`, which fails if they disagree |
 | `rules` | 4 | patterns a change may not add: three block the change, one only warns the reviewers |
 | `gates` | 2 for the API, 4 for the web | the checks that decide whether a change is acceptable. The web gates use `cwd: "frontend"` to run inside that folder |
 

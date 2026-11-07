@@ -18,7 +18,7 @@ dotnet run --project src/Greetings.Api   # http://localhost:5080/api/greetings/A
 | `record` | `true` | commits a run record (prompts, answers, check output, tokens) to `.factory/runs/` on each pull request |
 | `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
-| `protected_paths` | migrations, package pins, `global.json`, lock files | files no agent may change |
+| `protected_paths` | migrations, `global.json` | files no agent may change. Dependencies are not protected: an agent may add a package, and the reviewers see it |
 | `rules` | 3 | patterns a change may not add: two block the change, one only warns the reviewers |
 | `gates` | build, test, audit | the checks that decide whether a change is acceptable |
 

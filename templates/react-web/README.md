@@ -21,7 +21,7 @@ npm run build        # production build into dist/
 | `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
 | `ui` | `src/**/*.tsx`, `*.css`, `index.html` | declares a user interface, so the **UX reviewer** runs on a UI change that is medium (3 files or 40 lines) or large (8 files or 200 lines) |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
-| `protected_paths` | lock file, `vite.config.ts`, `tsconfig.json` | files no agent may change |
+| `protected_paths` | `vite.config.ts`, `tsconfig.json` | files no agent may change. The lockfile is not protected: a new dependency changes `package.json` and `package-lock.json` together, and the `install` check (`npm ci`) fails if they disagree |
 | `rules` | 4 | patterns a change may not add: two block the change, two only warn the reviewers |
 | `gates` | install, typecheck, test, build | the checks that decide whether a change is acceptable |
 

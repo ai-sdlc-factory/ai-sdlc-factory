@@ -34,4 +34,4 @@ The factory runs the commands under `gates` in `.factory/project.json`. There is
 - Every change in behaviour comes with a test. A bug fix includes a test that fails without the fix.
 
 ## Do not touch
-- `package-lock.json`, `vite.config.ts` and `tsconfig.json`: a person changes these.
+- `vite.config.ts` and `tsconfig.json`: a person changes these.

@@ -19,7 +19,7 @@ python -m greetings.web      # http://127.0.0.1:5080/api/greetings/Ada
 | `record` | `true` | commits a run record to `.factory/runs/` on each pull request |
 | `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
-| `protected_paths` | lock files, requirements, `pyproject.toml` | files no agent may change |
+| `protected_paths` | `ruff.toml`, `pytest.ini` | the lint and test settings, so no agent can loosen a check to make it pass. Dependencies are not protected |
 | `rules` | 3 | patterns a change may not add: two block the change, one only warns the reviewers |
 | `gates` | lint, test | the checks that decide whether a change is acceptable |
 

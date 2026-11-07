@@ -7,7 +7,7 @@ A tiny web API that greets a person by name. It exists to show how a Python proj
 - `greetings/greeting.py`: the business rule (pure functions)
 - `greetings/web.py`: the web layer, a plain WSGI application with no dependencies
 - `tests/`: pytest tests for both
-- `pyproject.toml`: project metadata, pytest and ruff settings
+- `pyproject.toml`: project metadata and dependencies. `ruff.toml` and `pytest.ini`: the lint and test settings
 
 ## Build and test
 - Lint: `ruff check .`
@@ -27,4 +27,5 @@ The factory runs the commands under `gates` in `.factory/project.json`. If this 
 - Every change in behaviour comes with a test. A bug fix includes a test that fails without the fix.
 
 ## Do not touch
-- `*.lock`, `requirements*.txt` and `pyproject.toml` (dependencies and tool settings): a person changes these.
+- `ruff.toml` and `pytest.ini` (the lint and test settings): a person changes these, so a check cannot be loosened to pass.
+- A new dependency is fine when the ticket needs it (it goes in `pyproject.toml`); say why in the pull request.

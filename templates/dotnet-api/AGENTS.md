@@ -27,5 +27,5 @@ The factory runs the commands under `gates` in `.factory/project.json`. If this 
 - A bug fix includes a test that fails without the fix.
 
 ## Do not touch
-- `**/Migrations/**`, `Directory.Packages.props`, `global.json`, `*.lock`: a person changes these.
-- Do not add a NuGet package without saying why in the pull request.
+- `**/Migrations/**` and `global.json` (the SDK version): a person changes these.
+- A new NuGet package is fine when the ticket needs it; say why in the pull request.

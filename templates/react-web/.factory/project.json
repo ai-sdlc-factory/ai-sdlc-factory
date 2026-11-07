@@ -9,7 +9,7 @@
     "large": { "files": 8, "lines": 200 }
   },
   "limits": { "build_rounds": 3, "clarification_rounds": 3, "revisions_per_pull_request": 3 },
-  "protected_paths": ["package-lock.json", "vite.config.ts", "tsconfig.json"],
+  "protected_paths": ["vite.config.ts", "tsconfig.json"],
   "rules": [
     { "id": "no-inner-html", "files": "src/**/*.tsx", "forbid": "dangerouslySetInnerHTML", "message": "Do not inject HTML; render elements." },
     { "id": "no-eval", "files": ["src/**/*.ts", "src/**/*.tsx"], "forbid": "\\beval\\(|new Function\\(", "message": "No dynamic code." },

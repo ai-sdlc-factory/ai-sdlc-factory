@@ -45,6 +45,6 @@ The factory runs the commands listed under `gates` in `.factory/project.json`; i
 
 ## Do not touch
 - `db/migrations/**` and `Migrations/` folders: a person creates migrations.
-- `deploy/**`, `.github/**`, `Dockerfile`, `Directory.Packages.props`: infrastructure and dependency versions.
+- `deploy/**`, `.github/**`, `Dockerfile`: infrastructure.
 - Generated files: `**/*.g.cs`, `web/admin/src/api/generated/**`.
 - Do not add a NuGet or npm dependency without saying why in the pull request.
