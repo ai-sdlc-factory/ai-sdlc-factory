@@ -126,6 +126,18 @@ public static class Statuses
     /// <summary>qa: there is no open pull request of the factory for this ticket.</summary>
     public const string QaNoPullRequest = "qa_no_pull_request";
 
+    /// <summary>update: the branch already has everything the base branch has, so nothing was merged.</summary>
+    public const string UpToDate = "up_to_date";
+
+    /// <summary>update: the base branch was merged into the pull request's branch and the merge commit was pushed.</summary>
+    public const string UpdatePushed = "update_pushed";
+
+    /// <summary>update: the factory cannot do this merge (a protected file or too many files are in conflict, git could not merge, or the resolver said it cannot continue); a person has to merge by hand.</summary>
+    public const string UpdateBlocked = "update_blocked";
+
+    /// <summary>update: there is no open pull request of the factory for this ticket.</summary>
+    public const string UpdateNoPullRequest = "update_no_pull_request";
+
     /// <summary>qa: the report is on the ticket (the tests that passed are on the pull request, or saved to a -wip branch).</summary>
     public const string QaReported = "qa_reported";
 }

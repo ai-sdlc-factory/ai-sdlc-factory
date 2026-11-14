@@ -42,6 +42,7 @@ public sealed class ForgejoEventWorkflow
             RoutingAction.RevisePullRequest => RevisePullRequestAsync(decision.Revision!),
             RoutingAction.RetryFeature => RetryTicketAsync(decision),
             RoutingAction.RunQa => StartQaAsync(decision.Qa!),
+            RoutingAction.UpdatePullRequest => StartUpdateAsync(decision.Update!),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
@@ -118,6 +119,29 @@ public sealed class ForgejoEventWorkflow
             await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaBusy)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
+    /// <summary>`/update`: merges the base branch into the pull request's branch; a second one for the same ticket or pull request while one is running gets a notice.</summary>
+    private static async Task StartUpdateAsync(UpdateRequest update)
+    {
+        try
+        {
+            await Workflow.StartChildWorkflowAsync(
+                (PullRequestUpdateWorkflow workflow) => workflow.RunAsync(update),
+                new ChildWorkflowOptions
+                {
+                    Id = update.WorkflowId,
+                    ParentClosePolicy = ParentClosePolicy.Abandon,
+                    IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                });
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(update.Owner, update.Repo, update.Number, TicketComments.UpdateBusy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
     }

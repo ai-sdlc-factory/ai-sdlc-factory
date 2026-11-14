@@ -54,4 +54,17 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     [Activity("workspace_publish")]
     public Task<PublishResult?> PublishAsync(PublishRequest request) =>
         workspace.PublishAsync(request, ActivityExecutionContext.Current.CancellationToken);
+
+    /// <summary>Merges the base branch into the pull request's branch in the trusted clone and gives the agent's copy the result (an <c>/update</c>).</summary>
+    [Activity("workspace_merge_base")]
+    public Task<MergeResult> MergeBaseAsync(MergeBaseRequest request) =>
+        workspace.MergeBaseAsync(request, ActivityExecutionContext.Current.CancellationToken);
+
+    /// <summary>The conflicted files that still hold conflict markers.</summary>
+    [Activity("workspace_conflict_markers")]
+    public Task<IReadOnlyList<string>> FindConflictMarkersAsync(string name) => workspace.FindConflictMarkersAsync(name);
+
+    [Activity("workspace_publish_merge")]
+    public Task<PublishResult> PublishMergeAsync(PublishMergeRequest request) =>
+        workspace.PublishMergeAsync(request, ActivityExecutionContext.Current.CancellationToken);
 }

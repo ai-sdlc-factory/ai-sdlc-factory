@@ -24,6 +24,30 @@ public sealed record ProtectedPathsRequest(string Name, IReadOnlyList<string> Pa
 
 public sealed record PublishResult(string CommitSha, string Branch, int FileCount, int RebasedOver = 0);
 
+/// <summary>Merge the remote <see cref="BaseBranch"/> into the branch the checkout started from (an <c>/update</c>).</summary>
+public sealed record MergeBaseRequest(string Name, string BaseBranch);
+
+/// <summary>One file the merge could not combine by itself, and why (for the resolver, and for the comment on the pull request).</summary>
+public sealed record ConflictedFile(string Path, string Kind);
+
+/// <summary>What merging the base branch did. <see cref="Conflicts"/> is empty unless the outcome is <see cref="Conflicted"/>.</summary>
+/// <param name="BaseCommit">The tip of the base branch that was merged.</param>
+/// <param name="FilesBrought">How many files the merge changed compared with the pull request's branch.</param>
+public sealed record MergeResult(string Outcome, string BaseCommit, IReadOnlyList<ConflictedFile> Conflicts, int FilesBrought = 0)
+{
+    /// <summary>The branch already has everything the base branch has; nothing to do.</summary>
+    public const string UpToDate = "up_to_date";
+
+    /// <summary>The merge went through without conflicts; the checkout holds the merged tree.</summary>
+    public const string Merged = "merged";
+
+    /// <summary>The merge stopped at conflicts; the checkout holds the files with conflict markers in them.</summary>
+    public const string Conflicted = "conflicted";
+}
+
+/// <summary>Publish the merge of the base branch (and whatever the resolver changed on top of it) as one merge commit with both parents, never forcing.</summary>
+public sealed record PublishMergeRequest(string Name, string Message, RunRecordSpec? Record = null);
+
 public sealed record RescueRequest(string Name, string Message, RunRecordSpec? Record = null);
 
 /// <summary>

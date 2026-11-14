@@ -22,5 +22,8 @@ public sealed record RevisionContext(PullRequestDetails Pull, string BotLogin, I
 /// <summary>What a QA run needs to know before it touches the branch: the factory's pull request for the ticket (null when there is none), and the bot's login.</summary>
 public sealed record QaContext(PullRequestDetails? Pull, string BotLogin);
 
+/// <summary>What an <c>/update</c> needs to know before it touches the branch: the factory's pull request for the ticket (null when there is none), and the bot's login.</summary>
+public sealed record UpdateContext(PullRequestDetails? Pull, string BotLogin);
+
 /// <summary>How many revisions the factory has made on a pull request, and when the last reply was posted.</summary>
 public sealed record RevisionHistory(int Count, DateTimeOffset? LastAt);

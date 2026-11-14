@@ -106,6 +106,32 @@ public sealed class FakeWorld
     /// <summary>What Forgejo says about the pull request a /qa run is for; the default is a pull request the factory opened for ticket 7.</summary>
     public QaContext QaContext { get; set; } = new(FactoryPullRequest(body: "## Acceptance criteria\n- goodbye() returns the text.\n- bye selects it.\n").Pull, "factory-bot");
 
+    /// <summary>What Forgejo says about the pull request an /update is for; the default is a pull request the factory opened for ticket 7, based on main.</summary>
+    public UpdateContext UpdateContext { get; set; } = new(FactoryPullRequest().Pull, "factory-bot");
+
+    /// <summary>What merging the base branch does: by default it goes through without conflicts and brings three files.</summary>
+    public MergeResult Merge { get; set; } = new(MergeResult.Merged, "b4a5e6f7c8d90123", [], 3);
+
+    /// <summary>When set, merging fails with this (as when git cannot merge).</summary>
+    public Exception? MergeFailure { get; set; }
+
+    /// <summary>When set, pushing the merge fails with this.</summary>
+    public Exception? PublishMergeFailure { get; set; }
+
+    public List<MergeBaseRequest> MergeRequests { get; } = [];
+    public List<PublishMergeRequest> MergePublishes { get; } = [];
+    private readonly Queue<IReadOnlyList<string>> markerChecks = [];
+
+    /// <summary>The files that still hold conflict markers at each check; once the list runs out, none do.</summary>
+    public FakeWorld Markers(params string[][] lists)
+    {
+        foreach (var list in lists)
+        {
+            markerChecks.Enqueue(list);
+        }
+        return this;
+    }
+
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
     public static RevisionContext FactoryPullRequest(
@@ -241,6 +267,33 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_qa_context")]
         public QaContext ReadQaContext(QaRequest request) => world.QaContext;
+
+        [Activity("forgejo_read_update_context")]
+        public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
+
+        [Activity("workspace_merge_base")]
+        public MergeResult MergeBase(MergeBaseRequest request)
+        {
+            lock (world.gate) { world.MergeRequests.Add(request); }
+            return world.MergeFailure is { } failure ? throw failure : world.Merge;
+        }
+
+        [Activity("workspace_conflict_markers")]
+        public IReadOnlyList<string> ConflictMarkers(string name)
+        {
+            lock (world.gate) { return world.markerChecks.Count > 0 ? world.markerChecks.Dequeue() : []; }
+        }
+
+        [Activity("workspace_publish_merge")]
+        public PublishResult PublishMerge(PublishMergeRequest request)
+        {
+            lock (world.gate) { world.MergePublishes.Add(request); }
+            if (world.PublishMergeFailure is { } failure)
+            {
+                throw failure;
+            }
+            return new PublishResult("deadbeef12345678", "factory/issue-7", 1);
+        }
 
         [Activity("forgejo_request_reviewers")]
         public bool RequestReviewers(ReviewRequestInput request)
@@ -424,7 +477,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -459,6 +512,19 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     {
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
         return new RevisionRequest("acme", repo, 7, trigger, instruction, author);
+    }
+
+    public static UpdateRequest Update(bool onPullRequest = true)
+    {
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+        return new UpdateRequest("acme", repo, 7, onPullRequest, "bob");
+    }
+
+    public async Task<WorkResult> RunUpdateAsync(UpdateRequest request)
+    {
+        var handle = await Client.StartWorkflowAsync((PullRequestUpdateWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     public static QaRequest Qa(string? suite = null, bool onPullRequest = false)
@@ -664,6 +730,16 @@ public static class Answers
             responses = verdict == "done"
                 ? (statuses.Length == 0 ? ["fixed", "fixed", "fixed"] : statuses).Select((status, i) => new { index = i + 1, status, note = status == "fixed" ? "" : $"Reason for comment {i + 1}." }).ToArray()
                 : [],
+            notes = Array.Empty<string>(),
+        });
+
+    /// <summary>The merge resolver's answer: one resolution for each of the given conflicted files.</summary>
+    public static string Merge(string verdict = "done", params string[] paths) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict == "done" ? "Resolved the merge." : "Cannot continue.",
+            resolutions = verdict == "done" ? paths.Select(path => new { path, how = "combined", note = $"Kept both changes in {path}." }).ToArray() : [],
             notes = Array.Empty<string>(),
         });
 

@@ -195,6 +195,7 @@ Which roles can do what:
 | `bug-analyst`, `diagnostician` | bug | yes | no | no | `model` |
 | `reproducer` | bug | yes | yes (tests only, checked) | yes | `developer` |
 | `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |
+| `merge-resolver` | pull request update (`/update`) | yes (and git history) | yes (checked like the developer's changes; no protected files, no conflict marker left) | yes | `developer` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
 | `planner` | plan | yes | no | no | `model` |
 | `investigator` | incident | yes (and git history) | no | yes (read-only workspace) | `model` |

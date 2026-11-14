@@ -46,6 +46,7 @@ Every picture is a Graphviz source in [`diagrams/`](diagrams/) with a rendered S
 | [feature-workflow](images/feature-workflow.svg) | a feature ticket to a pull request |
 | [bug-workflow](images/bug-workflow.svg) | the red-then-green bug fix |
 | [pr-revision](images/pr-revision.svg) | a review becomes one new commit on the same branch |
+| [pr-update](images/pr-update.svg) | `/update` merges the base branch into a pull request |
 | [incident-workflow](images/incident-workflow.svg) | advice, commands and the postmortem |
 | [agent-run](images/agent-run.svg) | one agent run, from request to verdict |
 | [workspace-trust](images/workspace-trust.svg) | the two copies of the checkout |

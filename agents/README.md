@@ -29,6 +29,7 @@ The workflow chooses the role and runs `opencode run --agent <role>`. Every role
 | `reproducer` | bug | one failing test, test files only | yes (checked) | yes |
 | `diagnostician` | bug | the root cause and whether the fix is small enough | no | no |
 | `pr-resolver` | pull request revision | addresses a reviewer's comments on the factory's own pull request, one answer per comment | yes (checked) | yes |
+| `merge-resolver` | pull request update | resolves the conflicts of the base branch merged into the factory's own pull request, one answer per conflicted file, and fixes what the merge broke | yes (checked) | yes |
 | `planner` | plan | splits a large request into feature tickets for a person to approve | no | no |
 | `incident-analyst` | incident | severity, impact, timeline, what is missing | no | no |
 | `investigator` | incident | likely causes from the code and git history | no | yes (read-only workspace, for `git`) |

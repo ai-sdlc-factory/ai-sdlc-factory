@@ -335,6 +335,16 @@ public static class TicketComments
     public const string QaBusy =
         "A QA run is already going for this one. Its report will be posted here when it is done.";
 
+    /// <summary>`/update` on a ticket with no open pull request of the factory.</summary>
+    public const string UpdateNoPullRequest =
+        "I could not find an open pull request made by the factory for this ticket, so there is nothing to update. `/update` works once the pull request is open.";
+
+    public const string UpdateClosed = "This pull request is closed or merged, so I did not update it.";
+
+    /// <summary>`/update` while an update for the same ticket or pull request is still going.</summary>
+    public const string UpdateBusy =
+        "An update of this pull request is already going. What it did will be posted here when it is done; comment `/update` again after that if the branch is still behind.";
+
     /// <summary>`/retry` on a ticket whose run is still going.</summary>
     public const string RetryWhileRunning =
         "A factory run is still active for this ticket, so `/retry` was not needed. It works once the run has finished.";

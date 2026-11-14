@@ -358,6 +358,52 @@ public sealed class EventRouterTests
     public void Any_other_comment_on_a_pull_request_does_nothing(string body) =>
         Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
 
+    [Theory]
+    [InlineData("/update")]
+    [InlineData("  /UPDATE  ")]
+    [InlineData("Behind main again.\n/update\nthanks")]
+    [InlineData("/update\r\n")]
+    public void Update_on_a_pull_request_starts_an_update_of_that_pull_request(string body)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment(body)));
+
+        Assert.Equal(RoutingAction.UpdatePullRequest, decision.Action);
+        Assert.Equal(new UpdateRequest("acme", "shop", 7, true, "bob"), decision.Update);
+    }
+
+    [Theory]
+    [InlineData("/update now please")]
+    [InlineData("/updates")]
+    [InlineData("please /update")]
+    [InlineData("update")]
+    public void Anything_but_the_command_alone_on_a_line_is_not_an_update(string body) =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
+
+    [Fact]
+    public void An_update_command_written_by_the_factory_is_ignored() =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment($"{EventRouter.BotMarker}\n/update"))).Action);
+
+    [Theory]
+    [InlineData("feature")]
+    [InlineData("bug")]
+    public void Update_on_a_feature_or_bug_ticket_asks_for_its_pull_request_to_be_updated(string label)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", [label], more: new { comment = Comment("/update") })));
+
+        Assert.Equal(RoutingAction.UpdatePullRequest, decision.Action);
+        Assert.Equal(new UpdateRequest("acme", "shop", 7, false, "bob"), decision.Update);
+    }
+
+    [Theory]
+    [InlineData("incident")]
+    [InlineData("plan")]
+    public void Update_on_an_incident_or_plan_ticket_does_nothing(string label) =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", Ticket("created", [label], more: new { comment = Comment("/update") }))).Action);
+
+    [Fact]
+    public void Update_on_a_ticket_without_a_label_does_nothing() =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", Ticket("created", [], more: new { comment = Comment("/update") }))).Action);
+
     [Fact]
     public void A_fix_command_written_by_the_factory_is_ignored() =>
         Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment($"{EventRouter.BotMarker}\n/fix this"))).Action);

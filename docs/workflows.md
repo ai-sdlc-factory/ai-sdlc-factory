@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, and a sixth that tests a finished change from the outside on request. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, a sixth that tests a finished change from the outside on request, and a seventh that brings a pull request up to date with its base branch. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
@@ -12,6 +12,7 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | `plan` | `PlanWorkflow` | **proposed feature tickets** on the ticket, created only when a person approves | planner |
 | `incident` | `IncidentWorkflow` | an **assessment, likely causes and mitigation options** on the ticket; a **draft postmortem** pull request on request | incident-analyst, investigator, mitigator, postmortem-writer |
 | a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
+| **`/update`** on a ticket or on a factory pull request | `PullRequestUpdateWorkflow` | the **base branch merged into the pull request's branch** as one merge commit, conflicts resolved and checked | merge-resolver, reviewer, security |
 | **`/qa`** on a ticket or on a factory pull request | `QaWorkflow` | a **QA report** on the ticket; end-to-end API and UI tests added to the pull request when they pass | e2e-tester, ux |
 
 If a ticket has several of these labels, `incident` wins over `plan`, which wins over `feature`, which wins over `bug`. The labels `quick`, `full` and
@@ -31,6 +32,7 @@ answer:
 | a **comment** by a person | sent to the running workflow (signal `human_reply`); see [Talking to the factory](#talking-to-the-factory) |
 | a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
 | a comment with a line starting **`/qa`** (`/qa [full] [api|ui] [note]`), on a feature or bug ticket or on a factory pull request | starts a [QA run](#qa-run) (id `qa-<owner>-<repo>-<number>-<hash>`); a second one for the same number while one runs gets a notice |
+| a comment that is just **`/update`**, on a feature or bug ticket or on a factory pull request | starts an [update](#updating-a-pull-request) of the pull request (id `update-<owner>-<repo>-<number>-<hash>`, where the number is the one the comment is on); a second one for the same number while one runs gets a notice |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
 | comments written by the factory | ignored (they carry a hidden marker), so it never answers itself |
 | a review that **requests changes**, or a comment with **`/fix`**, on a pull request | starts a [revision](#pull-request-revisions) of that pull request (id `revision-<owner>-<repo>-<pr>-<hash>`); if one is already running the person gets a notice. The factory checks that the pull request is its own |
@@ -215,6 +217,32 @@ The factory cannot mark conversations resolved or reply inside a comment's conve
 to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
 With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
 
+## Updating a pull request
+
+![Pull request update](images/pr-update.svg)
+
+A pull request goes stale when its base branch moves on and the two touch the same code, or just fall behind. Comment **`/update`** (a line with only that) on the ticket or on the factory's pull request, and the factory
+merges the base branch into the pull request's branch, resolves what conflicts, checks the result and pushes **one merge commit**. It works on the factory's own pull requests only, with the same
+conditions as a [revision](#pull-request-revisions) (branch `factory/issue-<n>`, authored by the bot, same repository, still open); on a ticket it finds the ticket's open pull request, and says so when there is none.
+An update is **not a revision**: it does not count towards `limits.revisions_per_pull_request`, and it can be asked again whenever the base moves.
+
+| Step | Who | What the factory checks itself |
+| --- | --- | --- |
+| 1. Read | the factory | the pull request and its base branch from Forgejo |
+| 2. Merge | **the controller**, in its own clone | fetches the base branch and merges it into the pull request's branch. Git runs only here, never in an agent's copy. A branch that already has everything from the base ends with `up_to_date` and a short note |
+| 3. Give up early | the factory | more than 40 conflicted files, a conflict in a **protected file** (`.factory/`, CI files, `protected_paths`, the end-to-end tests folder) or a merge git cannot make at all (histories with nothing in common): nothing is pushed and the comment says a person has to merge by hand (`update_blocked`) |
+| 4. Resolve | `merge-resolver` (writable, shell, package access), **only when something needs it** | works on a copy of the merged files, with conflict markers where git could not combine. **Every conflicted file is answered exactly once**, as `combined`, `kept_pull_request`, `kept_base` or `rewrote`, with a note; and **no conflict marker may remain** (the factory looks for them in every conflicted file). A merge git did by itself skips the resolver unless the checks fail afterwards: two changes that work alone can break together, and then the resolver is asked to fix that |
+| 5. Checks | the factory | the same change checks and project checks as for a feature, **on the merged tree**; failures go back to the resolver with the output (`limits.build_rounds`, 3 by default). What the base brought in is not counted as the agent's change, so a protected file that the base changed is no problem, while one the agent changes is refused |
+| 6. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on what the agent wrote (its resolutions and fixes). A merge git did by itself needs no review, because no agent wrote it |
+| 7. Push | the factory | **one merge commit with two parents** (the branch's tip and the base's tip), pushed as a normal push, **never forced**, so the pull request's earlier commits stay as they are. If a person pushed to the branch meanwhile, nothing is pushed and the comment says so: comment `/update` again |
+| 8. Reply | the factory | a comment with the merge commit, how many files came in, a table of how each conflict was resolved, and the check results. The factory never merges the pull request itself |
+
+The merge is made on the trusted side and then handed to the agent: the factory commits it locally (conflict markers included) and compares the agent's files with that commit, so the agent's change is exactly its resolutions and fixes.
+If the rounds run out, the resolver says it cannot continue, or a review keeps failing, nothing is pushed to the pull request; unfinished work is saved to a `-wip` branch as for a feature. Statuses: `update_pushed`, `up_to_date`, `update_blocked`, `update_no_pull_request`, `ignored` (and the shared `build_failed`, `publish_failed`, `infrastructure_failed`).
+With `"record": true` the update's [run record](#the-run-record) is committed with the merge under `.factory/runs/update-<number>-<run>/`.
+
+An update and a revision of the same pull request can run at once, since they are different workflows. Both only ever push as a normal push, so whichever is second is refused rather than overwriting the first: comment `/update` (or `/fix`) again after the first has finished.
+
 ## QA run
 
 ![QA run](images/qa-workflow.svg)
@@ -342,6 +370,10 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
+| `update_pushed` | update: the base branch was merged into the pull request's branch and the merge commit was pushed |
+| `up_to_date` | update: the branch already has everything from the base branch, so nothing was merged |
+| `update_blocked` | update: the factory cannot do this merge (a protected file or too many files in conflict, a merge git cannot make, or the resolver said it cannot continue); a person merges by hand |
+| `update_no_pull_request` | update: there is no open pull request of the factory for this ticket |
 | `qa_reported` | qa: the report is on the ticket (the tests that passed are on the pull request, or saved to a `-wip` branch) |
 | `qa_blocked` | qa: the tester could not write tests it could stand behind (the reason is on the ticket) |
 | `qa_failed` | qa: the tester's answer stayed unusable after the retry |

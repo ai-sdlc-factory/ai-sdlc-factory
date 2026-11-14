@@ -1,0 +1,47 @@
+digraph pr_update {
+  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
+  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  label="Pull request update: the base branch is merged into the pull request's branch, as one merge commit";
+
+  start  [label="A person comments /update on the ticket\nor on the factory's pull request", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
+  rules  [label="Is it the factory's own open pull request?\n(on a ticket: find its pull request)", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+  refuse [label="ignored without a word (not the factory's)\nor a short note: no pull request · closed", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  merge  [label="The controller merges the base branch\ninto the pull request's branch in its own clone\n(git never runs in an agent's copy)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  state  [label="what did the merge do?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+  uptodate [label="Nothing to merge: the branch already\nhas everything from the base", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  giveup [label="A person merges by hand: protected file in conflict,\nmore than 40 files, or a merge git cannot make", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+
+  subgraph cluster_loop {
+    label="Resolve and check  (3 rounds at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
+    resolver [label="merge-resolver, on a copy of the merged files\none answer per conflicted file; fixes what the merge broke", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    markers  [label="every conflict answered once?\nno conflict marker left? only allowed files changed?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    checks   [label="change checks + the project's checks\non the merged tree", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
+    reviewers[label="reviewers look at what the agent wrote\n(a merge git made alone needs none)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+  }
+  push   [label="Push ONE merge commit with two parents\nnever forced; refused if someone pushed meanwhile", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  reply  [label="Reply: the merge commit, files that came in,\nhow each conflict was resolved, the checks", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  again  [label="A person reviews and merges\n(the factory never merges)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
+  wip    [label="Nothing pushed to the pull request\nwork saved on a -wip branch + a comment", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+
+  start -> rules;
+  rules -> refuse [label="no", style=dashed];
+  rules -> merge [label="yes"];
+  merge -> state;
+  state -> uptodate [label="already has the base"];
+  state -> giveup [label="cannot be done\nby the factory", style=dashed];
+  state -> resolver [label="conflicts"];
+  state -> checks [label="clean merge:\nno agent needed"];
+  resolver -> markers;
+  markers -> resolver [label="no: sent back with the reason", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  markers -> checks [label="yes"];
+  checks -> reviewers [label="passed, agent wrote files"];
+  checks -> push [label="passed, clean merge"];
+  checks -> resolver [label="failed: output goes back", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  reviewers -> ok;
+  ok -> push [label="yes"];
+  ok -> resolver [label="no: feedback", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  ok -> wip [label="out of rounds\nor blocked", style=dashed];
+  push -> reply -> again;
+}

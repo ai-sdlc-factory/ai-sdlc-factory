@@ -125,6 +125,7 @@ public abstract partial class FactoryWorkflowBase
                 {
                     WorkIds.Revision => RunRecord.DirectoryForRevision(request.IssueNumber, runId),
                     WorkIds.Qa => RunRecord.DirectoryForQa(request.IssueNumber, runId),
+                    WorkIds.Update => RunRecord.DirectoryForUpdate(request.IssueNumber, runId),
                     _ => RunRecord.DirectoryFor(request.IssueNumber, runId),
                 };
             }
@@ -221,6 +222,7 @@ public abstract partial class FactoryWorkflowBase
     {
         WorkIds.Revision => "ask again with `/fix`.",
         WorkIds.Qa => "comment `/qa` again.",
+        WorkIds.Update => "comment `/update` again.",
         _ => "close and reopen this ticket.",
     };
 
@@ -234,7 +236,7 @@ public abstract partial class FactoryWorkflowBase
     /// The network each agent role gets: the developer may also fetch packages, every other agent can reach only
     /// the model provider. Which hosts a profile allows is decided in egress/profiles.json, not here.
     /// </summary>
-    public static string NetworkFor(string role) => role is "developer" or "reproducer" or "pr-resolver" or "e2e-tester" ? SandboxNetworks.Developer : SandboxNetworks.Model;
+    public static string NetworkFor(string role) => role is "developer" or "reproducer" or "pr-resolver" or "merge-resolver" or "e2e-tester" ? SandboxNetworks.Developer : SandboxNetworks.Model;
 
     protected const string NotSignedInMessage =
         "OpenCode is not signed in, so I cannot run the agents. Run the `opencode-login` service, then close and reopen this ticket.";

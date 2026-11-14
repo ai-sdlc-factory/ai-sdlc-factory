@@ -11,6 +11,7 @@ public enum RoutingAction
     RevisePullRequest,
     RetryFeature,
     RunQa,
+    UpdatePullRequest,
 }
 
 public sealed record RoutingDecision(
@@ -20,7 +21,8 @@ public sealed record RoutingDecision(
     HumanReply? Reply = null,
     bool Restart = false,
     RevisionRequest? Revision = null,
-    QaRequest? Qa = null);
+    QaRequest? Qa = null,
+    UpdateRequest? Update = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
@@ -119,6 +121,14 @@ public static partial class EventRouter
                             Qa: new QaRequest(owner, repo, issueNumber, false, qa.Suite, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", qa.Mode, qa.Note))
                         : Ignore("qa needs a feature or bug ticket");
                 }
+                if (UpdateCommand.IsMatch(body))
+                {
+                    // The ticket's pull request is looked up when the update starts; only a feature or bug ticket has one.
+                    return kind is WorkIds.Feature or WorkIds.Bug
+                        ? new RoutingDecision(RoutingAction.UpdatePullRequest, "update command on a ticket",
+                            Update: new UpdateRequest(owner, repo, issueNumber, false, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? ""))
+                        : Ignore("update needs a feature or bug ticket");
+                }
                 // `/retry` starts the ticket's run again, like closing and reopening it, without touching the ticket.
                 if (RetryCommand().IsMatch(body))
                 {
@@ -174,6 +184,11 @@ public static partial class EventRouter
         {
             return new RoutingDecision(RoutingAction.RunQa, "qa command on a pull request",
                 Qa: new QaRequest(owner, repo, pullNumber, true, qa.Suite, AsString(Get(Get(comment, "user"), "login")) ?? "", qa.Mode, qa.Note));
+        }
+        if (UpdateCommand.IsMatch(body))
+        {
+            return new RoutingDecision(RoutingAction.UpdatePullRequest, "update command on a pull request",
+                Update: new UpdateRequest(owner, repo, pullNumber, true, AsString(Get(Get(comment, "user"), "login")) ?? ""));
         }
         var match = FixCommand().Match(body);
         if (!match.Success)

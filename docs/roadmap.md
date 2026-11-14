@@ -36,7 +36,7 @@ Item 8 is also on your list above (the "factory improvement loop"); items 1 and 
 
 Small gaps found while building and testing these. None is started.
 
-- [ ] **Who may start things** (S). Anyone who can comment can start `/qa`, `/fix` and `/retry`, and each spends tokens. Check write access to the repository first (the `permissions.push` Forgejo already reports for the bot's own repositories is not enough: it must be the commenter's).
+- [ ] **Who may start things** (S). Anyone who can comment can start `/qa`, `/fix`, `/update` and `/retry`, and each spends tokens. Check write access to the repository first (the `permissions.push` Forgejo already reports for the bot's own repositories is not enough: it must be the commenter's).
 - [ ] **A durable usage log** (S to M). Token use is now in every workflow result (`usage`) and in the run record, but there is no total across tickets, days or repositories. Append one line per finished run (workflow id, kind, repository, tokens) on the host; it is also the base for the budget item below and for the improvement loop.
 - [ ] **QA: tell the tester what the pull request changed** (S). Give it the list of changed files (Forgejo `pulls/<n>/files`) and the diff, not only the title and criteria.
 - [ ] **QA: notice a UI-only change with no `ui` suite before spending a tester run** (S). Compare the changed files with the project's `ui` paths and say so on the ticket. The same comment should also show the scope line, which the "blocked" comment lacks today.
@@ -62,6 +62,7 @@ Small gaps found while building and testing these. None is started.
 
 - [x] **Planner agent and workflow**: a `plan` ticket is split by the `planner` role into proposed feature tickets, which are created only when a person writes `/approve` (see [Plan workflow](workflows.md#plan-workflow)). Still open: tickets that wait for another are created only when a person names them, because the factory does not react to merges; a way to start the next tickets by itself when a merge happens. Needs a scenario run on a machine with the Temporal dev server before it is trusted.
 - [x] `verify` in the templates: the starter projects have every feature on, including end-to-end suites, and their agent instructions say e2e belongs to the `/qa` run.
+- [x] `/update`: the base branch is merged into a factory pull request (on the ticket or on the pull request), conflicts are resolved by the `merge-resolver` role, the checks and reviewers run on the result, and one merge commit is pushed (see [Updating a pull request](workflows.md#updating-a-pull-request)). Still open: a person can start it by asking, but nothing starts it when the base moves; and a conflict in a protected file, or in more than 40 files, is left to a person.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
 - [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.
 - [x] `/qa` workflow: end-to-end API and UI tests of a finished pull request (`/qa`, `/qa full`, `/qa <note>`, `/fix qa`), the `browser` sandbox image, and the token use of every run stored in its result.

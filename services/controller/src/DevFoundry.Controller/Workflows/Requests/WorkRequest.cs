@@ -33,6 +33,7 @@ public static class WorkIds
     public const string Plan = "plan";
     public const string Revision = "revision";
     public const string Qa = "qa";
+    public const string Update = "update";
 
     private const int MaxReadable = 80;
 
