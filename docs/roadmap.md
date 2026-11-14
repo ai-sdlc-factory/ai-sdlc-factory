@@ -44,7 +44,6 @@ Small gaps found while building and testing these. None is started.
 - [ ] **QA: keep the tests that expose a real bug** (S). A failing run saves its tests to a `-wip` branch, so the developer fixing the findings never sees the test. Show it the failing output in `/fix qa`, or push the tests in a separate commit.
 - [ ] **QA: services for the application** (M). The sandbox has no database or cache server, so a QA run needs an application that works with SQLite or in-memory fakes. Sidecar containers on an isolated network would need an image allowlist like the repository-image policy.
 - [ ] **QA: screenshots for the UX review** (S to find out). Today it reads page text and accessibility snapshots. Find out whether OpenCode with the ChatGPT login accepts an image as input.
-- [ ] **`verify` in the templates** (S). The starter projects have every feature on except this one; the API and UI templates need a small e2e folder that works.
 - [ ] **`/retry` that resumes** (M). It starts the run again from the beginning. Resuming from the last good stage needs stage results saved between runs. Infrastructure failures are deliberately not retried by themselves, because a second try can spend tokens twice.
 - [ ] **Rename the feature workflow's `qa` role to `acceptance`** (S). It reads the diff against the acceptance criteria and never runs the application, which the `/qa` workflow now does; two things called QA confuse people.
 - [ ] **Review the same way twice** (S). Revisions of a pull request do not give the next round's reviewers the earlier findings to check, which the build loop does.
@@ -62,6 +61,7 @@ Small gaps found while building and testing these. None is started.
 
 ## Done
 
+- [x] `verify` in the templates: the starter projects have every feature on, including end-to-end suites, and their agent instructions say e2e belongs to the `/qa` run.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
 - [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.
 - [x] `/qa` workflow: end-to-end API and UI tests of a finished pull request (`/qa`, `/qa full`, `/qa <note>`, `/fix qa`), the `browser` sandbox image, and the token use of every run stored in its result.
