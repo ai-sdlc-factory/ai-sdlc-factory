@@ -24,7 +24,7 @@ digraph feature_workflow {
     changes  [label="change checks\nprotected paths · symlinks\nsize · secrets", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
     gates    [label="project checks (gates)\nbuild · test · lint\nno model access", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
     reviewers[label="reviewers\nreviewer · security (optional)\nux (UI change, medium or large)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    qa       [label="QA\nis every criterion met?\n(skipped in quick mode)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    qa       [label="acceptance check\nis every criterion met?\n(skipped in quick mode)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
     ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
   }
   publish [label="Publish\ncommit · push factory/issue-N · open the pull request\n(the factory never merges)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
@@ -36,7 +36,7 @@ digraph feature_workflow {
   analyst -> rejected [label="reject", style=dashed];
   analyst -> quick [label="pass"];
   quick -> coverage [label="no"];
-  quick -> triage [label="yes: skip coverage and QA;\ndesign review only if the\nneeds-architecture label forces it", style=dashed];
+  quick -> triage [label="yes: skip coverage and acceptance;\ndesign review only if the\nneeds-architecture label forces it", style=dashed];
   coverage -> evidence;
   evidence -> covered [label="every criterion\ncovered"];
   evidence -> triage [label="some missing"];

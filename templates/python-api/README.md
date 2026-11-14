@@ -15,9 +15,9 @@ python -m greetings.web      # http://127.0.0.1:5080/api/greetings/Ada
 | Setting | Here | What it does |
 | --- | --- | --- |
 | `image` | `python` | the sandbox image every agent and check runs in (Python 3.12, pytest, ruff) |
-| `mode` | `full` | the full process; `"quick"` would skip the coverage check, design review and QA |
+| `mode` | `full` | the full process; `"quick"` would skip the coverage check, design review and the acceptance check |
 | `record` | `true` | commits a run record to `.factory/runs/` on each pull request |
-| `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
+| `reviewers` | `reviewer`, `security` | who reviews every change besides the acceptance check |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
 | `protected_paths` | `ruff.toml`, `pytest.ini` | the lint and test settings, so no agent can loosen a check to make it pass. Dependencies are not protected |
 | `rules` | 3 | patterns a change may not add: two block the change, one only warns the reviewers |

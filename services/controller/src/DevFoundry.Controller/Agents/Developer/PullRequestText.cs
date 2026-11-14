@@ -24,7 +24,7 @@ public static class PullRequestText
         if (quickReason is not null)
         {
             text.AppendLine("## Quick mode");
-            text.AppendLine($"Because {TicketComments.Inert(quickReason)}, the coverage check, the design review and QA were skipped. The project's checks and the reviewers ran as usual.");
+            text.AppendLine($"Because {TicketComments.Inert(quickReason)}, the coverage check, the design review and the acceptance check were skipped. The project's checks and the reviewers ran as usual.");
             text.AppendLine();
         }
         if (bug is not null)

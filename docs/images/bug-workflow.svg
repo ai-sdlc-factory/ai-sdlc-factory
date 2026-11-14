@@ -257,7 +257,7 @@
 <title>reviewers</title>
 <path fill="#dbe8ff" stroke="#2b6cb0" d="M760.14,-286.31C760.14,-286.31 609.54,-286.31 609.54,-286.31 603.54,-286.31 597.54,-280.31 597.54,-274.31 597.54,-274.31 597.54,-246.29 597.54,-246.29 597.54,-240.29 603.54,-234.29 609.54,-234.29 609.54,-234.29 760.14,-234.29 760.14,-234.29 766.14,-234.29 772.14,-240.29 772.14,-246.29 772.14,-246.29 772.14,-274.31 772.14,-274.31 772.14,-280.31 766.14,-286.31 760.14,-286.31"/>
 <text text-anchor="middle" x="684.84" y="-270.1" font-family="DejaVu Sans" font-size="11.00">reviewers</text>
-<text text-anchor="middle" x="684.84" y="-256.6" font-family="DejaVu Sans" font-size="11.00">(QA is not used:</text>
+<text text-anchor="middle" x="684.84" y="-256.6" font-family="DejaVu Sans" font-size="11.00">(no acceptance check:</text>
 <text text-anchor="middle" x="684.84" y="-243.1" font-family="DejaVu Sans" font-size="11.00">red then green is the proof)</text>
 </g>
 <!-- green&#45;&gt;reviewers -->

@@ -9,7 +9,7 @@ incident advice) in isolated sandboxes, and the factory hands you a **reviewed p
 
 | Label the ticket | You get |
 | --- | --- |
-| `feature` | analysis, a check that it is not already built, an optional design review, the implementation, the project's own checks, code/security/UX review and QA, then a pull request |
+| `feature` | analysis, a check that it is not already built, an optional design review, the implementation, the project's own checks, code/security/UX review and an acceptance check, then a pull request |
 | `bug` | a pull request with a fix **proven by a test that failed before and passes after**; the factory runs that proof itself |
 | `incident` | an assessment, ranked likely causes (every cited file and commit is verified) and mitigation options, driven by `/option`, `/hotfix` and `/resolved`; a draft postmortem on request. It never touches production |
 

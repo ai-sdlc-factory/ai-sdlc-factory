@@ -1,13 +1,13 @@
 namespace DevFoundry.Controller.Tests.Scenarios;
 
-/// <summary>Reviewers and QA between the automated checks and the pull request.</summary>
+/// <summary>Reviewers and the acceptance check between the automated checks and the pull request.</summary>
 [Collection("temporal")]
 [Trait("Category", "Scenario")]
 public sealed class ReviewScenarios(TemporalFixture fixture)
 {
     private static AgentReply Say(string text) => AgentReply.Says(text);
 
-    /// <summary>The analyst passes with two open criteria and the developer is ready; reviewers and QA are scripted by the test.</summary>
+    /// <summary>The analyst passes with two open criteria and the developer is ready; reviewers and the acceptance check are scripted by the test.</summary>
     private static FakeWorld ToReview(int developerRounds = 1)
     {
         var world = new FakeWorld()
@@ -25,14 +25,14 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     {
         var world = ToReview()
             .Agent("reviewer", Say(Answers.Review(("minor", "Consider a shorter name."), ("nit", "Trailing space."))))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("pr_opened", result.Status);
         var comments = world.Comments;
         Assert.Contains(comments, c => c.Contains("Review (reviewer): no blocking findings") && c.Contains("Consider a shorter name."));
-        Assert.Contains(comments, c => c.Contains("QA: every criterion is met"));
+        Assert.Contains(comments, c => c.Contains("Acceptance: every criterion is met"));
         var prompt = Assert.Single(world.Calls("reviewer")).Prompt;
         Assert.Contains("<<<DIFF", prompt);
         Assert.Contains("- test: python -m pytest -q", prompt);
@@ -51,7 +51,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     {
         var world = ToReview(developerRounds: 2)
             .Agent("reviewer", Say(Answers.Review(("major", "goodbye() has no test."))), Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -68,12 +68,12 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     {
         var world = ToReview(developerRounds: 2)
             .Agent("reviewer", Say(Answers.Review()), Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "not_met")), Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "not_met")), Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("pr_opened", result.Status);
-        Assert.Contains(world.Comments, c => c.Contains("QA: 1 criterion not met") && c.Contains("no test checks this"));
+        Assert.Contains(world.Comments, c => c.Contains("Acceptance: 1 criterion not met") && c.Contains("no test checks this"));
         Assert.Contains("[qa] criterion not met: bye selects it. - no test checks this", world.Calls("developer").ElementAt(1).Prompt);
     }
 
@@ -84,7 +84,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
         var world = ToReview(developerRounds: 3);
         world.ExistingFiles = ["hello.py"];
         world.Agent("reviewer", Say(Answers.Review()), Say(Answers.Review()), Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -100,7 +100,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
         world.ProjectConfig = Project("""["reviewer","security"]""");
         world.Agent("reviewer", Say(Answers.Review()), Say(Answers.Review()))
              .Agent("security", Say(Answers.Review(("blocker", "The bye argument is passed to a shell."))), Say(Answers.Review()))
-             .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
+             .Agent("acceptance", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -115,7 +115,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     {
         var world = ToReview()
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -128,7 +128,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
         var blocking = Say(Answers.Review(("blocker", "Still wrong.")));
         var world = ToReview(developerRounds: 3)
             .Agent("reviewer", blocking, blocking, blocking)
-            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
         var request = ScenarioContext.Request();
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(request));
@@ -146,7 +146,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     {
         var world = ToReview(developerRounds: 2)
             .Agent("reviewer", Say(Answers.Review(("blocker", "Check the id first."))), Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -156,7 +156,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
             "Build round 2 of 3:** the developer is fixing 1 finding from the review", "Build round 2: the developer finished", "Pull request opened");
         Assert.DoesNotContain("EARLIER", world.Calls("reviewer").First().Prompt);
         Assert.Contains("Check the id first.", world.Calls("reviewer").ElementAt(1).Prompt);
-        Assert.Contains("Check the id first.", world.Calls("qa").ElementAt(1).Prompt);
+        Assert.Contains("Check the id first.", world.Calls("acceptance").ElementAt(1).Prompt);
         Assert.Contains("Check the id first.", world.Calls("developer").ElementAt(1).Prompt);
     }
 
@@ -181,7 +181,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
 
         Assert.Equal("review_failed", result.Status);
         Assert.Contains(world.Comments, c => c.Contains("reviewer review failed") && c.Contains("Nothing was published"));
-        Assert.Empty(world.Calls("qa"));
+        Assert.Empty(world.Calls("acceptance"));
         Assert.Empty(world.Publishes);
     }
 
@@ -191,7 +191,7 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
         const string contradictory = """{"verdict":"pass","summary":"Fine.","findings":[{"severity":"major","message":"No test."}]}""";
         var world = ToReview()
             .Agent("reviewer", Say(contradictory), Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -202,12 +202,12 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task An_unusable_QA_answer_stops_the_run()
     {
-        var world = ToReview().Agent("reviewer", Say(Answers.Review())).Agent("qa", Say("{}"), Say("{}"));
+        var world = ToReview().Agent("reviewer", Say(Answers.Review())).Agent("acceptance", Say("{}"), Say("{}"));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("review_failed", result.Status);
-        Assert.Contains(world.Comments, c => c.Contains("QA check failed"));
+        Assert.Contains(world.Comments, c => c.Contains("acceptance check failed"));
         Assert.Empty(world.Publishes);
     }
 
@@ -225,11 +225,11 @@ public sealed class ReviewScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task Reviewing_agents_are_read_only_and_get_the_model_login()
     {
-        var world = ToReview().Agent("reviewer", Say(Answers.Review())).Agent("qa", Say(Answers.Qa("met", "met")));
+        var world = ToReview().Agent("reviewer", Say(Answers.Review())).Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
-        foreach (var call in world.Calls("reviewer").Concat(world.Calls("qa")))
+        foreach (var call in world.Calls("reviewer").Concat(world.Calls("acceptance")))
         {
             Assert.False(call.Writable);
             Assert.True(call.ModelAuth);
@@ -260,7 +260,7 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")))
+            .Agent("acceptance", Say(Answers.Qa("met", "met")))
             .Changes(report, report);
         return world;
     }
@@ -317,11 +317,11 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
 
         Assert.True(result.Status == "pr_opened", why);
         Assert.Single(world.Calls("ux"));
-        AssertInOrder(world.Comments, "Review (reviewer): no blocking findings", "Review (ux): no blocking findings", "QA: every criterion is met");
+        AssertInOrder(world.Comments, "Review (reviewer): no blocking findings", "Review (ux): no blocking findings", "Acceptance: every criterion is met");
         Assert.Contains("- **ux**: Some things to look at.", world.PullRequests[0].Body);
         Assert.Contains("Tighten the heading spacing.", world.PullRequests[0].Body);
         var order = world.AgentCalls.Select(call => call.Role).ToList();
-        Assert.True(order.IndexOf("reviewer") < order.IndexOf("ux") && order.IndexOf("ux") < order.IndexOf("qa"), string.Join(",", order));
+        Assert.True(order.IndexOf("reviewer") < order.IndexOf("ux") && order.IndexOf("ux") < order.IndexOf("acceptance"), string.Join(",", order));
     }
 
     [SkippableFact]
@@ -363,7 +363,7 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
             .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()), Say(Answers.Review()))
             .Agent("ux", Say(Answers.Review(("major", "The email input has no label."))), Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")))
+            .Agent("acceptance", Say(Answers.Qa("met", "met")), Say(Answers.Qa("met", "met")))
             .Changes(report, report, report, report);
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
@@ -375,7 +375,7 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
         Assert.Contains(world.Comments, c => c.Contains("Review (ux): changes needed"));
         // Like the other reviewers, the UX review does not hold QA back: every review step runs each round, so the
         // developer gets all the feedback at once.
-        Assert.Equal(2, world.Calls("qa").Count());
+        Assert.Equal(2, world.Calls("acceptance").Count());
     }
 
     [SkippableFact]
@@ -388,7 +388,7 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
 
         Assert.Equal("review_failed", result.Status);
         Assert.Contains(world.Comments, c => c.Contains("ux review failed") && c.Contains("Nothing was published"));
-        Assert.Empty(world.Calls("qa"));
+        Assert.Empty(world.Calls("acceptance"));
         Assert.Empty(world.Publishes);
     }
 
@@ -400,7 +400,7 @@ public sealed class UxReviewScenarios(TemporalFixture fixture)
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("blocked", result.Status);
-        Assert.Empty(world.Calls("qa"));
+        Assert.Empty(world.Calls("acceptance"));
     }
 
     private static void AssertInOrder(IEnumerable<string> comments, params string[] fragments)
@@ -497,7 +497,7 @@ public sealed class StoppedRunScenarios(TemporalFixture fixture)
         var world = Building()
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
         world.Publish = _ => throw new Temporalio.Exceptions.ApplicationFailureException("push rejected", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
@@ -513,7 +513,7 @@ public sealed class StoppedRunScenarios(TemporalFixture fixture)
         var world = Building()
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
         world.PullRequestFailure = new Temporalio.Exceptions.ApplicationFailureException("forgejo down", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
@@ -612,7 +612,7 @@ public sealed class StoppedRunScenarios(TemporalFixture fixture)
         var world = Building()
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 

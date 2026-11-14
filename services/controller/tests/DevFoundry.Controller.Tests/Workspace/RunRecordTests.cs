@@ -360,7 +360,7 @@ public sealed class RecordScenarios(TemporalFixture fixture)
     private static FakeWorld ToPullRequest(string? project) => Building(project)
         .Agent("developer", Say(Answers.Developer()))
         .Agent("reviewer", Say(Answers.Review()))
-        .Agent("qa", Say(Answers.Qa("met", "met")));
+        .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
     [SkippableFact]
     public async Task A_recording_project_keeps_every_prompt_answer_and_check_in_order()
@@ -370,7 +370,7 @@ public sealed class RecordScenarios(TemporalFixture fixture)
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("pr_opened", result.Status);
-        Assert.Equal(["analyst", "coverage", "developer", "gate-test", "reviewer", "qa"], world.Records.Select(r => r.Slug));
+        Assert.Equal(["analyst", "coverage", "developer", "gate-test", "reviewer", "acceptance"], world.Records.Select(r => r.Slug));
         Assert.Equal([1, 2, 3, 4, 5, 6], world.Records.Select(r => r.Sequence));
         Assert.All(world.Records, record => Assert.Contains(record.Outcome, new[] { "accepted", "passed" }));
         var analyst = world.Records[0];
@@ -416,7 +416,7 @@ public sealed class RecordScenarios(TemporalFixture fixture)
         var world = Building(RecordingProject)
             .Agent("developer", Say("not json at all"), Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 

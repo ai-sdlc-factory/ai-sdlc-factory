@@ -24,7 +24,7 @@ The workflow chooses the role and runs `opencode run --agent <role>`. Every role
 | `developer` | feature, bug | implements, makes the project's checks pass | yes | yes |
 | `reviewer`, `security` | feature, bug | code quality; security review (if the project lists it) | no | no |
 | `ux` | feature, bug | usability of a medium or large UI change (projects with a UI only) | no | no |
-| `qa` | feature | is every acceptance criterion met? | no | no |
+| `acceptance` | feature | is every acceptance criterion met? (reads the diff; the `/qa` run is the one that runs the application) | no | no |
 | `bug-analyst` | bug | expected vs actual, severity | no | no |
 | `reproducer` | bug | one failing test, test files only | yes (checked) | yes |
 | `diagnostician` | bug | the root cause and whether the fix is small enough | no | no |
@@ -38,7 +38,7 @@ The workflow chooses the role and runs `opencode run --agent <role>`. Every role
 
 ## Rules
 
-- **Permissions live here, not in prompts.** The baseline in `opencode.json` denies everything except reading (`read`, `glob`, `grep`). A role adds only what it needs. The reviewers and QA get the diff in their prompt and have **no shell** on purpose.
+- **Permissions live here, not in prompts.** The baseline in `opencode.json` denies everything except reading (`read`, `glob`, `grep`). A role adds only what it needs. The reviewers and the acceptance check get the diff in their prompt and have **no shell** on purpose.
 - **Every role ends with one JSON verdict** in a fixed shape. The workflow validates it and decides what happens next in code; the agent only supplies the verdict value.
 - **Limits are written in the role file.** A validator rejects an answer that breaks a limit, and a model cannot respect a limit it was never told. Each role file lists its limits next to its answer shape.
 - **Ticket and repository text is data.** Each prompt says so; it is also why project files can add context but never widen permissions.
@@ -61,7 +61,7 @@ temperature: 0.2
 - **Re-check the role after a change.** Prompts and the strict JSON answers were tuned on one model; another can behave differently (for example how often the analyst asks questions).
 - **Measure it.** Each [run record](../docs/workflows.md#the-run-record) lists tokens (including reasoning tokens) per role, so you can compare settings on real tickets.
 - **What a comparison showed.** On small, clear cases (analyst, coverage, reviewer with a planted bug) all working models gave the right answers, and token use was within about 20%. That says nothing about larger diffs,
-  subtle bugs or the developer, so every role currently uses `gpt-6.1-sol`. Cheaper models are safest for roles whose claims the controller checks mechanically (coverage, QA); keep the strongest for the developer, the architect and
+  subtle bugs or the developer, so every role currently uses `gpt-6.1-sol`. Cheaper models are safest for roles whose claims the controller checks mechanically (coverage, acceptance); keep the strongest for the developer, the architect and
   the reviewers.
 
 ## Project-specific guidance

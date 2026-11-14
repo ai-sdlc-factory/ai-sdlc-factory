@@ -14,7 +14,7 @@ public sealed class ImageScenarios(TemporalFixture fixture)
         .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
         .Agent("developer", Say(Answers.Developer()))
         .Agent("reviewer", Say(Answers.Review()))
-        .Agent("qa", Say(Answers.Qa("met", "met")));
+        .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
     private static readonly RepoImageSource Dockerfile = new(
         "FROM dev-foundry/sandbox-dotnet:local\nRUN apt-get update && apt-get install -y redis-server",

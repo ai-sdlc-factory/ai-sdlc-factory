@@ -1,6 +1,6 @@
 namespace DevFoundry.Controller.Tests.Scenarios;
 
-/// <summary>Quick mode: chosen by a person, skips coverage, design review and QA, keeps everything that guards the code.</summary>
+/// <summary>Quick mode: chosen by a person, skips coverage, design review and the acceptance check, keeps everything that guards the code.</summary>
 [Collection("temporal")]
 [Trait("Category", "Scenario")]
 public sealed class QuickModeScenarios(TemporalFixture fixture)
@@ -33,7 +33,7 @@ public sealed class QuickModeScenarios(TemporalFixture fixture)
         Assert.Contains(world.Comments, c => c.Contains("**Quick mode**") && c.Contains("the ticket has the \"quick\" label"));
         Assert.DoesNotContain(world.Comments, c => c.Contains("**Triage"));
         Assert.Contains(world.Comments, c => c.EndsWith("Asking the reviewers."));
-        Assert.DoesNotContain(world.Comments, c => c.Contains("Asking the reviewers and QA"));
+        Assert.DoesNotContain(world.Comments, c => c.Contains("Asking the reviewers and the acceptance check"));
         var body = world.PullRequests[0].Body;
         Assert.Contains("## Quick mode", body);
         Assert.DoesNotContain("**qa**", body);
@@ -76,7 +76,7 @@ public sealed class QuickModeScenarios(TemporalFixture fixture)
         Assert.Equal("pr_opened", result.Status);
         Assert.Equal(["analyst", "architect", "developer", "reviewer"], Roles(world));
         Assert.DoesNotContain("coverage", Roles(world));
-        Assert.DoesNotContain("qa", Roles(world));
+        Assert.DoesNotContain("acceptance", Roles(world));
     }
 
     [SkippableFact]
@@ -130,22 +130,22 @@ public sealed class QuickModeScenarios(TemporalFixture fixture)
         Assert.Equal(["analyst", "developer", "reviewer"], Roles(quick));
         Assert.Contains(quick.Comments, c => c.Contains("the project's default mode is quick"));
 
-        var full = Quick(quickByDefault).Agent("coverage", Say(Answers.Coverage("missing", "missing"))).Agent("qa", Say(Answers.Qa("met", "met")));
+        var full = Quick(quickByDefault).Agent("coverage", Say(Answers.Coverage("missing", "missing"))).Agent("acceptance", Say(Answers.Qa("met", "met")));
         var fullResult = await full.RunAsync(fixture, context => context.RunToEndAsync(Labelled("full")));
         Assert.Equal("pr_opened", fullResult.Status);
-        Assert.Equal(["analyst", "coverage", "developer", "reviewer", "qa"], Roles(full));
+        Assert.Equal(["analyst", "coverage", "developer", "reviewer", "acceptance"], Roles(full));
         Assert.DoesNotContain(full.Comments, c => c.Contains("**Quick mode**"));
     }
 
     [SkippableFact]
     public async Task Without_the_label_or_a_project_default_the_full_process_runs()
     {
-        var world = Quick().Agent("coverage", Say(Answers.Coverage("missing", "missing"))).Agent("qa", Say(Answers.Qa("met", "met")));
+        var world = Quick().Agent("coverage", Say(Answers.Coverage("missing", "missing"))).Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(Labelled()));
 
         Assert.Equal("pr_opened", result.Status);
-        Assert.Equal(["analyst", "coverage", "developer", "reviewer", "qa"], Roles(world));
+        Assert.Equal(["analyst", "coverage", "developer", "reviewer", "acceptance"], Roles(world));
         Assert.DoesNotContain("## Quick mode", world.PullRequests[0].Body);
     }
 }

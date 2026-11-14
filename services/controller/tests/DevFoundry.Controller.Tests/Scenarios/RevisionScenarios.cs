@@ -392,7 +392,7 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task A_large_revision_is_checked_against_the_criteria_in_the_pull_request_body()
     {
-        var world = Reviewing().Agent("qa", Say(Answers.Qa("met", "met")));
+        var world = Reviewing().Agent("acceptance", Say(Answers.Qa("met", "met")));
         world.RevisionContext = FakeWorld.FactoryPullRequest(body: "Closes #3\n\n## Acceptance criteria\n- Says goodbye\n- Has a test");
         var files = Enumerable.Range(1, 3).Select(i => new FileChange($"f{i}.py", "modified")).ToList();
         world.Changes(new ChangeReport(files, []), new ChangeReport(files, []));
@@ -400,8 +400,8 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
 
         Assert.Equal("revision_pushed", result.Status);
-        Assert.Equal(["pr-resolver", "reviewer", "qa"], Roles(world));
-        Assert.Contains("Says goodbye", world.Calls("qa").Single().Prompt);
+        Assert.Equal(["pr-resolver", "reviewer", "acceptance"], Roles(world));
+        Assert.Contains("Says goodbye", world.Calls("acceptance").Single().Prompt);
     }
 
     private const string RuleProject = """{"image":"python","gates":[{"name":"test","command":["python","-m","pytest","-q"]}],"rules":[{"id":"no-print","files":"*.py","forbid":"\\bprint\\(","message":"Use logging."}]}""";

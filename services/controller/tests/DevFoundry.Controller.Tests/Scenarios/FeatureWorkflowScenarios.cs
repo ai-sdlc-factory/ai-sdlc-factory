@@ -20,7 +20,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
             .Agent("analyst", Say(Answers.Analyst(api: design)))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
         if (design)
         {
             world.Agent("architect", Say(Answers.Architect()));
@@ -70,7 +70,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         var calls = world.AgentCalls.ToDictionary(call => call.Role);
-        foreach (var role in new[] { "analyst", "coverage", "architect", "reviewer", "qa" })
+        foreach (var role in new[] { "analyst", "coverage", "architect", "reviewer", "acceptance" })
         {
             Assert.False(calls[role].Writable, $"{role} must be read-only");
             Assert.True(calls[role].ModelAuth);
@@ -161,7 +161,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, async context =>
         {
@@ -299,7 +299,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
             .Agent("coverage", Say(Answers.Coverage("covered", "covered")))
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -334,7 +334,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
             .Agent("architect", Say(Answers.Architect("needs_decision")), Say(Answers.Architect()))
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, async context =>
         {
@@ -610,7 +610,7 @@ public sealed class NetworkScenarios(TemporalFixture fixture)
         .Agent("architect", Say(Answers.Architect()))
         .Agent("developer", Say(Answers.Developer()))
         .Agent("reviewer", Say(Answers.Review()))
-        .Agent("qa", Say(Answers.Qa("met", "met")));
+        .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
     [SkippableFact]
     public async Task Only_the_developer_may_fetch_packages_and_every_other_agent_reaches_the_model_provider_only()
@@ -621,7 +621,7 @@ public sealed class NetworkScenarios(TemporalFixture fixture)
 
         var networks = world.AgentCalls.ToDictionary(call => call.Role, call => call.Network);
         Assert.Equal("developer", networks["developer"]);
-        foreach (var role in new[] { "analyst", "coverage", "architect", "reviewer", "qa" })
+        foreach (var role in new[] { "analyst", "coverage", "architect", "reviewer", "acceptance" })
         {
             Assert.Equal("model", networks[role]);
         }

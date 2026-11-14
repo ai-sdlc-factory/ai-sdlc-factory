@@ -78,7 +78,7 @@ public sealed class QuickModeTextTests
     {
         var text = TicketComments.QuickMode("the ticket has the \"quick\" label", []);
 
-        Assert.Contains("Because the ticket has the \"quick\" label, I skip the coverage check, the design review and QA", text);
+        Assert.Contains("Because the ticket has the \"quick\" label, I skip the coverage check, the design review and the acceptance check", text);
         Assert.Contains("the project's checks and the reviewers still run", text);
         Assert.Contains("add the `full` label", text);
         Assert.DoesNotContain("Triage would have asked", text);
@@ -102,7 +102,7 @@ public sealed class QuickModeTextTests
         var full = PullRequestText.Body(request, report, [], null, [], 1);
 
         Assert.Contains("## Quick mode", quick);
-        Assert.Contains("the coverage check, the design review and QA were skipped", quick);
+        Assert.Contains("the coverage check, the design review and the acceptance check were skipped", quick);
         Assert.DoesNotContain("Quick mode", full);
     }
 }

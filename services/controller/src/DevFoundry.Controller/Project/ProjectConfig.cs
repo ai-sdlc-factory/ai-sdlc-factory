@@ -434,7 +434,7 @@ public static partial class ProjectConfigParser
         var mode = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
         if (mode is not ("full" or "quick"))
         {
-            error = "\"mode\" must be \"full\" (the default) or \"quick\": quick mode skips the coverage check, the design review and QA for tickets in this project";
+            error = "\"mode\" must be \"full\" (the default) or \"quick\": quick mode skips the coverage check, the design review and the acceptance check for tickets in this project";
             return false;
         }
         quickByDefault = mode == "quick";

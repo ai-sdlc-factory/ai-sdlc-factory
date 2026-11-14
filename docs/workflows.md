@@ -95,13 +95,13 @@ Each round:
    get the diff in the prompt, so the agents that judge the work cannot run commands while the OpenCode login is readable. Findings are
    `blocker`, `major`, `minor` or `nit`; a blocker or major finding means `needs_changes`, and the verdict is derived from the findings
    (an answer where the two disagree is refused). Minor findings and nits are listed in the pull request.
-5. **QA** (read-only). Judges every remaining criterion as `met` or `not_met`; a `met` criterion must cite files and the factory checks they
+5. **Acceptance check** (`acceptance`, read-only; it reads the diff and never runs the application, which is what the [`/qa` run](#qa-run) does). Judges every remaining criterion as `met` or `not_met`; a `met` criterion must cite files and the factory checks they
    exist. Skipped in quick mode and in bug runs.
 6. Anything that fails goes back to the developer as feedback and uses one of the rounds. When everything passes, the run publishes.
 
-After a round in which a review or QA asked for changes, the next round's reviewers and QA are also given those findings (shortened to 1,500 characters) and asked to confirm that each one is really fixed, and to report any that is not as a blocking finding. They still review the whole change as usual, because a fix can bring new problems. Revisions of a pull request do not do this yet.
+After a round in which a review or the acceptance check asked for changes, the next round's reviewers and acceptance check are also given those findings (shortened to 1,500 characters) and asked to confirm that each one is really fixed, and to report any that is not as a blocking finding. They still review the whole change as usual, because a fix can bring new problems. Revisions of a pull request do not do this yet.
 
-A review or QA answer that stays unusable after the retry stops the run (`review_failed`): **nothing is published unreviewed**.
+A review or acceptance answer that stays unusable after the retry stops the run (`review_failed`): **nothing is published unreviewed**.
 
 **UX review.** The `ux` reviewer runs only for a project that declares a UI and only when the UI change is medium or large; it judges
 usability, visible accessibility and consistency from the code. The decision is made by counting files and lines in the UI paths (not by
@@ -114,7 +114,7 @@ For small, low-risk changes the full process is more than needed.
 
 - A **`quick` label** on the ticket, or `"mode": "quick"` in `.factory/project.json` as the project's default, selects it. A **`full` label**
   always wins (over the project default, and over `quick` if both are set). Only a person chooses it: no agent can switch checks off.
-- It **skips** the coverage check, the design review and QA. It **keeps** the analyst, the developer, the change and project checks, every
+- It **skips** the coverage check, the design review and the acceptance check. It **keeps** the analyst, the developer, the change and project checks, every
   configured reviewer (including `security`), the UX rule, the round caps, the run record and the human review of the pull request.
 - Because nothing was checked as already covered, the developer gets every criterion. If triage would have asked for a design review, the
   ticket says so; an explicit `needs-architecture` label still forces one.
@@ -134,7 +134,7 @@ The aim is a fix **proven by a test that fails before and passes after**. The fa
 | 4 | `diagnostician` (read-only) | answer shape; `too_large` stops with `needs_design` and suggests a feature ticket. Skipped in quick mode |
 | 5 | `developer` | gets the failing test, the observed failure and the root cause; may not edit the test |
 | 6 | **GREEN check** | the test files' SHA-256 are unchanged; the project's checks pass; **the same test command now passes** |
-| 7 | reviewers | as for features. QA and the architect are not used: red then green is the proof |
+| 7 | reviewers | as for features. The acceptance check and the architect are not used: red then green is the proof |
 
 The pull request is titled `Fix: <title>` and has a **Bug fix** section (severity, root cause, the test, and that it failed before and passes
 after). The failing run is posted on the ticket as well. The `quick` label skips only the diagnosis.
@@ -209,7 +209,7 @@ Anything else is left alone without a word. At most **three revisions per pull r
 | 1. Read | the factory | the pull request, every review still waiting and its line comments **with the code each was written on**, from Forgejo. Every comment is numbered |
 | 2. Resolve | `pr-resolver` (writable, shell, package access) in a checkout of the **pull request's own branch** | **every numbered comment is answered exactly once**, as `fixed`, `answered`, `declined` (with a reason) or `needs_clarification` (with the question); and a `fixed` answer must come with changed files |
 | 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (`limits.build_rounds`, 3 by default) |
-| 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. A revision that changes **3 or more files** is also checked by QA against the acceptance criteria in the pull request body |
+| 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. A revision that changes **3 or more files** is also checked by the acceptance check against the acceptance criteria in the pull request body |
 | 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**. If a person pushed to the branch meanwhile, the commit is put on top of theirs once (and the reply says so); if that conflicts, nothing is pushed |
 | 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. The reviewers are asked to review again. A person reviews again; the factory never merges |
 
@@ -384,7 +384,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `plan_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |
 | `build_failed` | the build rounds (3 by default) did not get through the checks and review (work saved to a `-wip` branch) |
 | `build_blocked` | the developer said it cannot continue (for example the ticket needs a protected file changed) (saved) |
-| `review_failed` | a review or QA answer stayed unusable; nothing was published (saved) |
+| `review_failed` | a review or acceptance answer stayed unusable; nothing was published (saved) |
 | `publish_failed` | publishing or opening the pull request failed (saved, or the branch is named in the comment) |
 | `blocked` | OpenCode is not signed in ([login guide](opencode-login.md)) (saved if code existed) |
 | `error` | an unexpected error; the ticket says so (saved if code existed) |

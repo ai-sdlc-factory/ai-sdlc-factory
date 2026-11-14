@@ -16,9 +16,9 @@ npm run build        # production build into dist/
 | Setting | Here | What it does |
 | --- | --- | --- |
 | `image` | `node` | the sandbox image every agent and check runs in (Node 22, npm) |
-| `mode` | `full` | the full process; `"quick"` would skip the coverage check, design review and QA |
+| `mode` | `full` | the full process; `"quick"` would skip the coverage check, design review and the acceptance check |
 | `record` | `true` | commits a run record to `.factory/runs/` on each pull request |
-| `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
+| `reviewers` | `reviewer`, `security` | who reviews every change besides the acceptance check |
 | `ui` | `src/**/*.tsx`, `*.css`, `index.html` | declares a user interface, so the **UX reviewer** runs on a UI change that is medium (3 files or 40 lines) or large (8 files or 200 lines) |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
 | `protected_paths` | `vite.config.ts`, `tsconfig.json` | files no agent may change. The lockfile is not protected: a new dependency changes `package.json` and `package-lock.json` together, and the `install` check (`npm ci`) fails if they disagree |

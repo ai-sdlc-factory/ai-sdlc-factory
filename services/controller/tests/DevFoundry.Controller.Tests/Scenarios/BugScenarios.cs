@@ -277,7 +277,7 @@ public sealed class BugScenarios(TemporalFixture fixture)
 
         Assert.Equal("pr_opened", result.Status);
         Assert.Contains("[reviewer, major]", world.Calls("developer").ElementAt(1).Prompt);
-        Assert.Empty(world.Calls("qa"));
+        Assert.Empty(world.Calls("acceptance"));
     }
 
     [SkippableFact]

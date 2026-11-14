@@ -44,7 +44,6 @@ Small gaps found while building and testing these. None is started.
 - [ ] **QA: services for the application** (M). The sandbox has no database or cache server, so a QA run needs an application that works with SQLite or in-memory fakes. Sidecar containers on an isolated network would need an image allowlist like the repository-image policy.
 - [ ] **QA: screenshots for the UX review** (S to find out). Today it reads page text and accessibility snapshots. Find out whether OpenCode with the ChatGPT login accepts an image as input.
 - [ ] **`/retry` that resumes** (M). It starts the run again from the beginning. Resuming from the last good stage needs stage results saved between runs. Infrastructure failures are deliberately not retried by themselves, because a second try can spend tokens twice.
-- [ ] **Rename the feature workflow's `qa` role to `acceptance`** (S). It reads the diff against the acceptance criteria and never runs the application, which the `/qa` workflow now does; two things called QA confuse people.
 
 ## Other ideas we discussed
 
@@ -62,6 +61,7 @@ Small gaps found while building and testing these. None is started.
 - [x] **Planner agent and workflow**: a `plan` ticket is split by the `planner` role into proposed feature tickets, which are created only when a person writes `/approve` (see [Plan workflow](workflows.md#plan-workflow)). Still open: tickets that wait for another are created only when a person names them, because the factory does not react to merges; a way to start the next tickets by itself when a merge happens. Needs a scenario run on a machine with the Temporal dev server before it is trusted.
 - [x] `verify` in the templates: the starter projects have every feature on, including end-to-end suites, and their agent instructions say e2e belongs to the `/qa` run.
 - [x] `/update`: the base branch is merged into a factory pull request (on the ticket or on the pull request), conflicts are resolved by the `merge-resolver` role, the checks and reviewers run on the result, and one merge commit is pushed (see [Updating a pull request](workflows.md#updating-a-pull-request)). Still open: a person can start it by asking, but nothing starts it when the base moves; and a conflict in a protected file, or in more than 40 files, is left to a person.
+- [x] The feature workflow's `qa` role is now `acceptance` (it reads the diff against the acceptance criteria and never runs the application), so "QA" means only the `/qa` run.
 - [x] Revisions and updates give the next round's reviewers the earlier findings to check, as the build loop does.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
 - [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.

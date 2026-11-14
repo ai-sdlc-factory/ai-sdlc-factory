@@ -23,7 +23,7 @@ digraph bug_workflow {
     tamper   [label="reproduction test unchanged?\n(SHA-256 of its files)", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
     gates    [label="change checks + project checks", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
     green    [label="GREEN check\nthe same test command must now PASS", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    reviewers[label="reviewers\n(QA is not used:\nred then green is the proof)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    reviewers[label="reviewers\n(no acceptance check:\nred then green is the proof)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
     ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
   }
   publish [label="Publish\ncommit · push · open the pull request  Fix: <title>", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];

@@ -12,7 +12,7 @@ public static class QaStatus
 
 public sealed record QaCriterion(int Index, string Criterion, string Status, IReadOnlyList<string> Evidence, string Note);
 
-/// <summary>QA's per-criterion answer. The verdict follows from the statuses; evidence for "met" is verified.</summary>
+/// <summary>The acceptance check's per-criterion answer. The verdict follows from the statuses; evidence for "met" is verified.</summary>
 public sealed record QaReport(string Verdict, string Summary, IReadOnlyList<QaCriterion> Criteria)
 {
     public IEnumerable<QaCriterion> NotMet => Criteria.Where(c => c.Status == QaStatus.NotMet);

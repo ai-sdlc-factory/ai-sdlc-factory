@@ -6,7 +6,7 @@ namespace DevFoundry.Controller;
 /// One run per bug ticket. The aim is a fix that is proven by a test that fails before and passes after:
 /// bug analyst, reproducer (writes a failing test), the factory's own "red" check (the test must fail on the unchanged
 /// code), diagnostician (root cause), then the shared build with the developer, the project's checks, the "green" check,
-/// and the reviewers. QA is replaced by the red/green proof. Quick mode skips the diagnosis.
+/// and the reviewers. The acceptance check is replaced by the red/green proof. Quick mode skips the diagnosis.
 /// </summary>
 [Workflow("BugWorkflow")]
 public sealed partial class BugWorkflow : FactoryWorkflowBase

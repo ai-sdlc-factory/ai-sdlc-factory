@@ -14,7 +14,7 @@ public sealed class CommentScenarios(TemporalFixture fixture)
         .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
         .Agent("developer", Say(Answers.Developer()))
         .Agent("reviewer", Say(Answers.Review()))
-        .Agent("qa", Say(Answers.Qa("met", "met")));
+        .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
     private static HumanReply Comment(string text) => new("bob", text);
 
@@ -85,7 +85,7 @@ public sealed class CommentScenarios(TemporalFixture fixture)
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
-            .Agent("qa", Say(Answers.Qa("met", "met")));
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
         var result = await world.RunAsync(fixture, async context =>
         {

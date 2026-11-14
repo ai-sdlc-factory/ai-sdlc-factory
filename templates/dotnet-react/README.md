@@ -16,9 +16,9 @@ cd frontend && npm run dev                    # http://127.0.0.1:5173 (forwards 
 | Setting | Here | What it does |
 | --- | --- | --- |
 | `image` | `dotnet-node` | one sandbox image with both the .NET SDK and Node, so every check can run |
-| `mode` | `full` | the full process; `"quick"` would skip the coverage check, design review and QA |
+| `mode` | `full` | the full process; `"quick"` would skip the coverage check, design review and the acceptance check |
 | `record` | `true` | commits a run record to `.factory/runs/` on each pull request |
-| `reviewers` | `reviewer`, `security` | who reviews every change besides QA |
+| `reviewers` | `reviewer`, `security` | who reviews every change besides the acceptance check |
 | `ui` | `frontend/src/**/*.tsx`, `*.css`, `index.html` | declares a user interface, so the **UX reviewer** runs on a UI change that is medium or large |
 | `limits` | 3 / 3 / 3 | build rounds, rounds of questions to a person, revisions per pull request |
 | `protected_paths` | migrations, `global.json`, `vite.config.ts` | files no agent may change. Dependencies are not protected: `package.json` and its lockfile change together, and the web checks use `npm ci`, which fails if they disagree |

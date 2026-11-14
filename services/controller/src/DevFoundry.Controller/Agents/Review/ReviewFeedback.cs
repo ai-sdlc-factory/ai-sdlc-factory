@@ -2,7 +2,7 @@ using System.Text;
 
 namespace DevFoundry.Controller;
 
-/// <summary>What goes back to the developer when a review or QA asks for changes.</summary>
+/// <summary>What goes back to the developer when a review or the acceptance check asks for changes.</summary>
 public static class ReviewFeedback
 {
     /// <summary>The first line of what goes back to the developer after a review; the findings follow, one per line.</summary>

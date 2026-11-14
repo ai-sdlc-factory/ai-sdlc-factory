@@ -76,7 +76,7 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 | `gates[].command` | **yes** | | The command as an **argument list**, 1 to 32 strings of at most 500 characters. There is no shell: use `["sh", "-c", "..."]` when you need one |
 | `gates[].timeout_seconds` | no | `600` | 10 to 1800 |
 | `gates[].cwd` | no | the repository root | A folder inside the repository to run the command in, such as `frontend`. Letters, digits and `. _ - @ + /`, no leading `/` and no `..`. A folder that does not exist fails the gate |
-| `reviewers` | no | `["reviewer"]` | Which review roles run: `reviewer` (code quality), `security`. Each at most once. QA is separate and always runs in the full process |
+| `reviewers` | no | `["reviewer"]` | Which review roles run: `reviewer` (code quality), `security`. Each at most once. The acceptance check is separate and always runs in the full process |
 | `ui` | no | none | Declares a user interface so the `ux` reviewer can run, [below](#ui) |
 | `rules` | no | none | Your own mechanical rules, checked on the lines a change adds: up to 20, [below](#rules) |
 | `limits` | no | the factory's defaults | How many tries and questions a run may use, [below](#limits) |

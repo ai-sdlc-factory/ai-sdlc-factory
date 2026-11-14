@@ -25,7 +25,7 @@ Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifac
 | **A separate launcher** for Docker | Docker access is effectively root on the host. A small service with no tokens that builds containers from one fixed specification is far easier to trust than agent-facing code with the socket. |
 | **Roles as Markdown files** | Permissions, models and prompts are reviewed like code and change without a rebuild. One role, one file, one verdict shape. |
 | **Two copies of the checkout** | An agent can plant `.git/hooks`; git never runs where an agent can write. See [the trust diagram](architecture.md#why-there-are-two-copies-of-the-checkout). |
-| **Reviewers and QA have no shell** | The agents that judge the work must not be able to run commands while the OpenCode login is readable; the controller gives them the diff in the prompt. |
+| **Reviewers and the acceptance check have no shell** | The agents that judge the work must not be able to run commands while the OpenCode login is readable; the controller gives them the diff in the prompt. |
 | **Egress allowlist through a proxy** | A tricked agent must not be able to send code or the login to an arbitrary server. A per-profile internal network plus a CONNECT-only proxy is enforced by the network, not by the agent's good behaviour. |
 | **Triage by fixed rules** | Whether a design review is needed is decided by counting the analyst's facts, so the same ticket gets the same answer and every reason is stated. |
 | **Quick mode chosen by a person** | An agent's estimate must never switch checks off. See [Quick mode](workflows.md#quick-mode). |
@@ -42,7 +42,7 @@ Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifac
 - **The analyst flags `public_api_change` too eagerly** for any new function, which makes triage ask for a design review on small tickets. Tightening the analyst wording (a public API is one other projects or users depend on) is the
   cheaper fix than changing the triage rules; quick mode is the escape hatch.
 - **The coverage agent is strict on purpose.** A test that calls a function directly does not count as "a test that runs the program". Expect more `partial` than `covered`.
-- **Reviewers and QA need to know which checks exist.** Without that, QA demanded tests for "unchanged" constraints that the project's checks could not run, and the developer and reviewer disagreed. The prompts now list the checks.
+- **Reviewers and the acceptance check need to know which checks exist.** Without that, the acceptance check demanded tests for "unchanged" constraints that the project's checks could not run, and the developer and reviewer disagreed. The prompts now list the checks.
 - **Retrying a publish can see "no changes".** After an attempt that had committed, the next inspection found nothing. The pristine clone is now reset before every inspection, and a branch with identical content is reused.
 - **Some paths cannot be provoked with a real model**: the architect's `needs_decision` and `reject`, build loops, publish failures. They are covered by workflow scenario tests with scripted agents on a Temporal dev server, and breaking a rule on purpose
   (the round cap, the red check, the one-file postmortem rule, the notice limits, ...) makes exactly the matching tests fail.

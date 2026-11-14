@@ -15,7 +15,7 @@ digraph pr_revision {
     resolver [label="pr-resolver\nfor each numbered comment: fixed, answered,\ndeclined (with a reason) or needs clarification", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
     answers  [label="every comment answered exactly once?\n\"fixed\" must mean files really changed", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
     checks   [label="change checks + the project's checks", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    reviewers[label="reviewers look at the revision\n(QA only for larger revisions)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    reviewers[label="reviewers look at the revision\n(acceptance check only for larger revisions)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
     ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
   }
   replied [label="Reply on the pull request: nothing was pushed,\nwith the answer to each comment", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];

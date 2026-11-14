@@ -1,7 +1,7 @@
 namespace DevFoundry.Controller;
 
 /// <summary>
-/// Quick mode skips the coverage check, the design review and QA; the analyst, the developer, the project's checks and
+/// Quick mode skips the coverage check, the design review and the acceptance check; the analyst, the developer, the project's checks and
 /// the reviewers still run. Only a person chooses it (a ticket label, or the project's default); no agent can.
 /// </summary>
 public static class WorkMode

@@ -191,7 +191,7 @@ Which roles can do what:
 | --- | --- | --- | --- | --- | --- |
 | `analyst`, `coverage`, `architect` | feature | yes | no | no | `model` |
 | `developer` | feature, bug | yes | yes | yes | `developer` (model + package registries) |
-| `reviewer`, `security`, `ux`, `qa` | feature, bug (QA: feature; `ux` also reads the evidence of a `/qa` run) | yes (given the diff) | no | no | `model` |
+| `reviewer`, `security`, `ux`, `acceptance` | feature, bug (`acceptance`: feature; `ux` also reads the evidence of a `/qa` run) | yes (given the diff) | no | no | `model` |
 | `bug-analyst`, `diagnostician` | bug | yes | no | no | `model` |
 | `reproducer` | bug | yes | yes (tests only, checked) | yes | `developer` |
 | `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |

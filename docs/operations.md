@@ -112,7 +112,7 @@ Reference points from real runs: a small feature in the full process used about 
 
 ### Spending less
 
-The main knobs, from the biggest effect down: `limits.build_rounds` (each failed round is another developer run, the checks and the reviews), `mode: "quick"` (skips the coverage check, design review and QA), and `limits.clarification_rounds`. Set them per project in
+The main knobs, from the biggest effect down: `limits.build_rounds` (each failed round is another developer run, the checks and the reviews), `mode: "quick"` (skips the coverage check, design review and the acceptance check), and `limits.clarification_rounds`. Set them per project in
 [`.factory/project.json`](project-setup.md#more-examples), or for all projects with the `FACTORY_DEFAULT_*` settings in [Configuration](configuration.md). The run record's usage table shows which roles used the tokens, so you can see what a change would save.
 
 ## Keeping the documentation correct

@@ -118,7 +118,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
         Assert.Contains("bob: /option 2", prompt);
         Assert.Contains("factory: Checklist given for option 2.", prompt);
         Assert.Contains("Rolled back at 11:05, errors are gone.", prompt);
-        Assert.DoesNotContain(Roles(world), role => role is "developer" or "qa" or "coverage" or "reproducer");
+        Assert.DoesNotContain(Roles(world), role => role is "developer" or "acceptance" or "coverage" or "reproducer");
     }
 
     [SkippableFact]

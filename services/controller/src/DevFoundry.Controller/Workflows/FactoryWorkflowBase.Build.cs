@@ -105,7 +105,7 @@ public abstract partial class FactoryWorkflowBase
             }
 
             var skipQa = quickReason is not null || bug is not null;
-            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(skipQa ? "" : " and QA")}.");
+            await CommentAsync(request, $"Build round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers{(skipQa ? "" : " and the acceptance check")}.");
             var review = await ReviewAsync(work, remaining, design, after, results, new ReviewOptions(skipQa, RuleNotes: ruleNotes, EarlierFindings: earlierFindings));
             if (review.Stop is { } reviewStop)
             {
@@ -209,9 +209,9 @@ public abstract partial class FactoryWorkflowBase
         }
     }
 
-    /// <summary>The ways one review can differ from the usual: QA skipped, QA judging other criteria, notes for the reviewers.</summary>
-    /// <param name="SkipQa">Quick mode and bug fixes do not ask QA.</param>
-    /// <param name="QaCriteria">The criteria QA judges, when they are not the ones still to be met (a larger revision is checked against the pull request's original criteria).</param>
+    /// <summary>The ways one review can differ from the usual: the acceptance check skipped, judging other criteria, notes for the reviewers.</summary>
+    /// <param name="SkipQa">Quick mode and bug fixes skip the acceptance check.</param>
+    /// <param name="QaCriteria">The criteria the acceptance check judges, when they are not the ones still to be met (a larger revision is checked against the pull request's original criteria).</param>
     /// <param name="RuleNotes">Project rules that only warn, for the reviewers to weigh.</param>
     /// <param name="EarlierFindings">What an earlier round asked the developer to change, for the reviewers to check was done.</param>
     protected sealed record ReviewOptions(bool SkipQa = false, IReadOnlyList<CriterionCoverage>? QaCriteria = null, string? RuleNotes = null, string? EarlierFindings = null);
@@ -286,7 +286,7 @@ public abstract partial class FactoryWorkflowBase
 
         var criteria = (qaCriteria ?? remaining).Select(criterion => criterion.Criterion).ToList();
         var qaOutcome = await RunAgentAsync<QaReport>(
-            "qa", project.Image, workspace,
+            "acceptance", project.Image, workspace,
             problem => QaPrompt.Build(request, criteria, changes, diff, gateSummary, problem, checks, earlierFindings),
             text => ParseQa(text, criteria));
         if (ticketClosed)
@@ -300,11 +300,11 @@ public abstract partial class FactoryWorkflowBase
         }
         if (qaOutcome.Value is not { } claimed)
         {
-            await CommentAsync(request, $"The QA check failed and needs a person to look at it: {qaOutcome.Describe()} Nothing was published.");
+            await CommentAsync(request, $"The acceptance check failed and needs a person to look at it: {qaOutcome.Describe()} Nothing was published.");
             return Stopped(qaOutcome.FailedStatus(Statuses.ReviewFailed));
         }
 
-        // QA may only call a criterion met if the files it cites exist.
+        // The acceptance check may only call a criterion met if the files it cites exist.
         var qa = QaParser.Verify(claimed, await FindExistingFilesAsync(workspace, project.Image, QaParser.PathsToCheck(claimed)));
         await CommentAsync(request, TicketComments.Qa(qa));
 

@@ -4,8 +4,8 @@ namespace DevFoundry.Controller;
 
 /// <summary>
 /// One run per feature ticket, following docs/feature-factory.md: the analyst, the coverage check, triage, the
-/// architect when triage asks for it, and then the shared build (developer, automated checks, reviewers, QA, pull
-/// request). Quick mode skips the coverage check, the design review and QA.
+/// architect when triage asks for it, and then the shared build (developer, automated checks, reviewers, acceptance check, pull
+/// request). Quick mode skips the coverage check, the design review and the acceptance check.
 /// </summary>
 [Workflow("FeatureWorkflow")]
 public sealed class FeatureWorkflow : FactoryWorkflowBase
@@ -37,7 +37,7 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
         }
         var verdict = analysis.Verdict!;
 
-        // Quick mode (chosen by a person, never by an agent) skips the coverage check, the design review and QA.
+        // Quick mode (chosen by a person, never by an agent) skips the coverage check, the design review and the acceptance check.
         var quickReason = WorkMode.QuickReason(request.Labels, project);
         CoverageReport coverageReport;
         if (quickReason is null)

@@ -136,7 +136,7 @@ public static class ReviewPrompt
 
 }
 
-/// <summary>The case for QA: does the change meet each remaining acceptance criterion?</summary>
+/// <summary>The case for the acceptance check: does the change meet each remaining acceptance criterion?</summary>
 public static class QaPrompt
 {
     public const int MaxLength = 22_000;

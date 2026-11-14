@@ -311,7 +311,7 @@ public sealed class ReviewFeedbackAndCommentTests
         var text = TicketComments.Qa(new QaReport("needs_changes", "s",
             [new QaCriterion(1, "Prints hello.", "met", ["hello.py"], ""), new QaCriterion(2, "Exits 0.", "not_met", [], "no test")]));
 
-        Assert.StartsWith("**QA: 1 criterion not met**", text);
+        Assert.StartsWith("**Acceptance: 1 criterion not met**", text);
         Assert.Contains("- **met**: Prints hello. (`hello.py`)", text);
         Assert.Contains("- **not met**: Exits 0. - no test", text);
     }

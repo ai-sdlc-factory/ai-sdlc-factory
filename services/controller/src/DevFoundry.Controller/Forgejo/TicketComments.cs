@@ -203,7 +203,7 @@ public static class TicketComments
     public static string Qa(QaReport report)
     {
         var text = new StringBuilder();
-        text.AppendLine(report.Verdict == ReviewReport.Pass ? "**QA: every criterion is met**" : $"**QA: {report.NotMet.Count()} criterion not met**");
+        text.AppendLine(report.Verdict == ReviewReport.Pass ? "**Acceptance: every criterion is met**" : $"**Acceptance: {report.NotMet.Count()} criterion not met**");
         text.AppendLine();
         text.AppendLine(Inert(report.Summary));
         foreach (var criterion in report.Criteria)
@@ -355,7 +355,7 @@ public static class TicketComments
         var text = new StringBuilder();
         text.AppendLine("**Quick mode**");
         text.AppendLine();
-        text.AppendLine($"Because {reason}, I skip the coverage check, the design review and QA. The analyst, the developer, the project's checks and the reviewers still run.");
+        text.AppendLine($"Because {reason}, I skip the coverage check, the design review and the acceptance check. The analyst, the developer, the project's checks and the reviewers still run.");
         if (skippedDesignReasons.Count > 0)
         {
             text.AppendLine();
