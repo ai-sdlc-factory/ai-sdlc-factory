@@ -37,7 +37,6 @@ Item 8 is also on your list above (the "factory improvement loop"); items 1 and 
 Small gaps found while building and testing these. None is started.
 
 - [ ] **Who may start things** (S). Anyone who can comment can start `/qa`, `/fix`, `/update` and `/retry`, and each spends tokens. Check write access to the repository first (the `permissions.push` Forgejo already reports for the bot's own repositories is not enough: it must be the commenter's).
-- [ ] **QA: notice a UI-only change with no `ui` suite before spending a tester run** (S). Compare the changed files with the project's `ui` paths and say so on the ticket. The same comment should also show the scope line, which the "blocked" comment lacks today.
 - [ ] **QA: keep the tests that expose a real bug** (S). A failing run saves its tests to a `-wip` branch, so the developer fixing the findings never sees the test. Show it the failing output in `/fix qa`, or push the tests in a separate commit.
 - [ ] **QA: services for the application** (M). The sandbox has no database or cache server, so a QA run needs an application that works with SQLite or in-memory fakes. Sidecar containers on an isolated network would need an image allowlist like the repository-image policy.
 - [ ] **QA: screenshots for the UX review** (S to find out). Today it reads page text and accessibility snapshots. Find out whether OpenCode with the ChatGPT login accepts an image as input.
@@ -55,6 +54,7 @@ Small gaps found while building and testing these. None is started.
 - [x] `/update`: the base branch is merged into a factory pull request (on the ticket or on the pull request), conflicts are resolved by the `merge-resolver` role, the checks and reviewers run on the result, and one merge commit is pushed (see [Updating a pull request](workflows.md#updating-a-pull-request)). Still open: a person can start it by asking, but nothing starts it when the base moves; and a conflict in a protected file, or in more than 40 files, is left to a person.
 - [x] The feature workflow's `qa` role is now `acceptance` (it reads the diff against the acceptance criteria and never runs the application), so "QA" means only the `/qa` run.
 - [x] Revisions and updates give the next round's reviewers the earlier findings to check, as the build loop does.
+- [x] QA: a UI-only change in a project with no `ui` suite is noticed before the tester runs (and repeated in the report), and the "blocked" comment now shows the scope line like the report.
 - [x] QA: the tester is told which files the pull request changed and the start of its diff (Forgejo `pulls/<n>/files` and `.diff`), not only the title and criteria.
 - [x] Durable usage log: one line per finished run in `.usage/usage.jsonl` under the workspace root, and `tools/usage-report.py` for totals by repository, day, month, kind, status or ticket.
 - [x] Unknown keys in `.factory/project.json` are warned about once on the ticket, with a "did you mean" hint; the run goes ahead without them.

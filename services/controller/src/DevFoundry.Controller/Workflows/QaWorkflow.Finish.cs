@@ -43,7 +43,7 @@ public sealed partial class QaWorkflow
         var tests = await PublishOrSaveAsync(work, pull, verify, runs, lastProblem);
         var input = new QaReportInput(
             pull, runs, tester, ux, uxNote, tests, attempts, TotalUsage,
-            RecordSpec(request, "QA report") is null ? "" : "The full record of this run is committed with the tests.", qa.Mode, qa.Note);
+            RecordSpec(request, "QA report") is null ? "" : "The full record of this run is committed with the tests.", qa.Mode, qa.Note, uiGap);
         await CommentAsync(request, QaReportComment.Build(input));
         return new WorkResult(Statuses.QaReported, WorkBranch: tests.Kind == QaTestsOutcome.Pushed ? pull.HeadRef : tests.Kind == QaTestsOutcome.Saved ? tests.Reference : null);
     }

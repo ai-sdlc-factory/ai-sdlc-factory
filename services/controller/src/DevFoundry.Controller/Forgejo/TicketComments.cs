@@ -324,8 +324,12 @@ public static class TicketComments
     public static string QaSuiteMissing(string requested, IEnumerable<string> configured) =>
         $"This project has no `{requested}` suite in `verify.suites`. It has: {string.Join(", ", configured.Select(name => $"`{name}`"))}.";
 
-    public static string QaBlocked(string summary) =>
-        $"**QA: the tester could not write tests it could stand behind**\n\n{Inert(summary.Length > 1500 ? summary[..1500] + "..." : summary)}";
+    public static string QaBlocked(string summary, string mode = QaRequest.Focused) =>
+        $"**QA: the tester could not write tests it could stand behind**\n\n{QaReportFormat.ScopeLine(mode)}\n\n{Inert(summary.Length > 1500 ? summary[..1500] + "..." : summary)}";
+
+    /// <summary>Said before the tester runs: the change is all UI and the project has no <c>ui</c> suite, so the tests can only exercise the API. The run goes on.</summary>
+    public static string QaUiGap(string gap, string mode) =>
+        $"**QA: a heads up before I start**\n\n{QaReportFormat.ScopeLine(mode)}\n\n{gap} I carry on, because API tests can still be of use.";
 
     /// <summary>`/fix qa` when no QA report with findings can be found.</summary>
     public const string QaNothingToFix =

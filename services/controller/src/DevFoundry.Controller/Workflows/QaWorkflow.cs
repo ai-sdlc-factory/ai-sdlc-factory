@@ -16,6 +16,9 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
 {
     private const int MaxAttempts = 3;
 
+    /// <summary>Set when the change is all UI and the project has no ui suite (see <see cref="QaUiGap"/>); the report repeats it.</summary>
+    private string? uiGap;
+
     [WorkflowRun]
     public async Task<WorkResult> RunAsync(QaRequest qa)
     {
@@ -70,6 +73,13 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
         var image = verify.Image ?? project.Image;
         var criteria = PullRequestCriteria.FromBody(pull.Body);
 
+        // Said before the tester spends a run, and again in the report, so it is not lost when the report is read days later.
+        uiGap = QaUiGap.Describe(changes, project.Ui, verify, qa.Suite);
+        if (uiGap is not null)
+        {
+            await CommentAsync(request, TicketComments.QaUiGap(uiGap, qa.Mode));
+        }
+
         TesterReport? tester = null;
         IReadOnlyList<QaSuiteRun> runs = [];
         string? feedback = null;
@@ -95,7 +105,7 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
             tester = report;
             if (report.Verdict == TesterReport.Blocked)
             {
-                await CommentAsync(request, TicketComments.QaBlocked(report.Summary));
+                await CommentAsync(request, TicketComments.QaBlocked(report.Summary, qa.Mode));
                 return new WorkResult(Statuses.QaBlocked);
             }
 

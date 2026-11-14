@@ -25,6 +25,65 @@ public sealed class QaScenarios(TemporalFixture fixture)
 
     private static string Report(FakeWorld world) => Assert.Single(world.Comments, c => c.Contains(QaReportFormat.Marker));
 
+    private const string UiPathsApiOnly =
+        """{"image":"node","gates":[{"name":"test","command":["npm","test"]}],"ui":{"paths":["web/**"]},"verify":{"tests":"e2e","suites":[{"name":"api","command":["npm","run","e2e:api"]}]}}""";
+
+    private static QaContext WithChangedFiles(FakeWorld world, params string[] paths) =>
+        world.QaContext with { Changes = new PullChanges(paths.Select(path => new ChangedFile(path, "modified", 3, 1)).ToList(), paths.Length, "", false) };
+
+    [SkippableFact]
+    public async Task A_ui_only_change_without_a_ui_suite_is_said_before_the_tester_runs_and_again_in_the_report()
+    {
+        var world = Api(UiPathsApiOnly).Agent("e2e-tester", Reply(Answers.Tester()));
+        world.QaContext = WithChangedFiles(world, "web/app.tsx", "web/button.tsx");
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        var notice = Assert.Single(world.Comments, c => c.StartsWith("**QA: a heads up before I start**"));
+        Assert.Contains("**Scope:** this pull request's change.", notice);
+        Assert.Contains("All 2 files this pull request changes are UI files", notice);
+        Assert.True(world.Comments.IndexOf(notice) < world.Comments.FindIndex(c => c.Contains(QaReportFormat.Marker)), "the notice comes before the report");
+        Assert.Single(world.Calls("e2e-tester")); // the run still goes ahead
+        Assert.Contains("**Heads up:** All 2 files this pull request changes are UI files", Report(world));
+    }
+
+    [SkippableFact]
+    public async Task A_change_that_also_touches_other_files_gets_no_ui_notice()
+    {
+        var world = Api(UiPathsApiOnly).Agent("e2e-tester", Reply(Answers.Tester()));
+        world.QaContext = WithChangedFiles(world, "web/app.tsx", "api/Handler.cs");
+
+        await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.DoesNotContain(world.Comments, c => c.Contains("a heads up before I start"));
+        Assert.DoesNotContain("Heads up", Report(world));
+    }
+
+    [SkippableFact]
+    public async Task A_project_with_a_ui_suite_gets_no_ui_notice()
+    {
+        const string both = """{"image":"node","gates":[{"name":"test","command":["npm","test"]}],"ui":{"paths":["web/**"]},"verify":{"tests":"e2e","suites":[{"name":"api","command":["npm","run","e2e:api"]},{"name":"ui","command":["npm","run","e2e:ui"]}]}}""";
+        var world = Api(both).Agent("e2e-tester", Reply(Answers.Tester()));
+        world.QaContext = WithChangedFiles(world, "web/app.tsx");
+
+        await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.DoesNotContain(world.Comments, c => c.Contains("a heads up before I start"));
+    }
+
+    [SkippableFact]
+    public async Task The_blocked_comment_says_what_the_run_was_asked_to_cover()
+    {
+        var world = new FakeWorld { ProjectConfig = ApiConfig }.Agent("e2e-tester", Reply(Answers.Tester("blocked")));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa() with { Mode = QaRequest.Full }));
+
+        Assert.Equal("qa_blocked", result.Status);
+        var blocked = Assert.Single(world.Comments, c => c.StartsWith("**QA: the tester could not write tests it could stand behind**"));
+        Assert.Contains("**Scope:** the whole application and this pull request's change.", blocked);
+    }
+
     [SkippableFact]
     public async Task The_tester_is_told_what_the_pull_request_changed()
     {

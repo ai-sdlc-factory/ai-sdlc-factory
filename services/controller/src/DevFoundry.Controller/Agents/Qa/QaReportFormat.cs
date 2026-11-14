@@ -59,6 +59,12 @@ public static partial class QaReportFormat
         return result;
     }
 
+    /// <summary>The line that says what a QA run was asked to cover; the report, the notice and the blocked comment all start with it, so a person always sees the scope.</summary>
+    public static string ScopeLine(string mode) =>
+        mode == QaRequest.Full
+            ? "**Scope:** the whole application and this pull request's change."
+            : "**Scope:** this pull request's change.";
+
     /// <summary>The instruction after <c>/fix</c> that means "fix what the latest QA report found".</summary>
     public static bool IsQaFix(string? instruction) => string.Equals(instruction?.Trim(), "qa", StringComparison.OrdinalIgnoreCase);
 }

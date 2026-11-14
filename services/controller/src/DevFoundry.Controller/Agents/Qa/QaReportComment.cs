@@ -16,7 +16,7 @@ public sealed record QaTestsOutcome(string Kind, string? Reference, int FileCoun
 /// <summary>Everything the report on the ticket is made from.</summary>
 public sealed record QaReportInput(
     PullRequestDetails Pull, IReadOnlyList<QaSuiteRun> Suites, TesterReport? Tester, ReviewReport? Ux, string? UxNote,
-    QaTestsOutcome Tests, int Attempts, TokenUsage? Usage, string TraceNote, string Mode = QaRequest.Focused, string? Note = null);
+    QaTestsOutcome Tests, int Attempts, TokenUsage? Usage, string TraceNote, string Mode = QaRequest.Focused, string? Note = null, string? UiGap = null);
 
 /// <summary>The QA report as a comment. The numbered findings under the heading are what <c>/fix qa</c> reads back, so each is one line.</summary>
 public static class QaReportComment
@@ -60,9 +60,11 @@ public static class QaReportComment
         var findings = Findings(input);
         text.AppendLine($"**QA report for pull request #{input.Pull.Number}: {(allPassed && findings.Count == 0 ? "no problems found" : findings.Count == 0 ? "tests need a look" : $"{findings.Count} finding{(findings.Count == 1 ? "" : "s")}")}**");
         text.AppendLine();
-        text.AppendLine(input.Mode == QaRequest.Full
-            ? "**Scope:** the whole application and this pull request's change."
-            : "**Scope:** this pull request's change.");
+        text.AppendLine(QaReportFormat.ScopeLine(input.Mode));
+        if (input.UiGap is not null)
+        {
+            text.AppendLine($"**Heads up:** {input.UiGap}");
+        }
         if (!string.IsNullOrWhiteSpace(input.Note))
         {
             text.AppendLine($"**Your note:** {TicketComments.Inert(Clip(input.Note, 300))}");

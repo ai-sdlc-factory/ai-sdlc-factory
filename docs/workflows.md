@@ -256,7 +256,9 @@ A deeper test of a change that is already finished, started by a person with a c
 | `/qa api`, `/qa ui`, `/qa full ui` | run only that suite (the words can come in either order, `full` and the suite first) |
 | `/qa <your note>` | the note, and any lines below it, are given to the tester to take into account, for example `/qa focus on the 404 cases` or `/qa full api check what happens with an empty city id`. Up to 1,500 characters; it is data from a person, not instructions that change the tester's role |
 
-The report names the scope and repeats your note.
+The report names the scope and repeats your note. The same scope line is at the top of every other comment a `/qa` run posts about itself (the heads-up below and the "tester could not write tests" comment), so a person always sees what was asked.
+
+**A UI-only change with no `ui` suite.** When every file the pull request changes matches the project's [`ui.paths`](project-setup.md) and `verify.suites` has no `ui` suite (and the person did not choose a suite), the tests can only exercise the API, which never touches what changed. The factory says so in a comment before the tester starts, and again as a "Heads up" line in the report, and carries on, because API tests can still help. It decides by comparing paths only, so it costs nothing, and it says nothing when it cannot be sure (the list of changed files was cut, or Forgejo could not give it).
   The project must have [`verify`](project-setup.md#end-to-end-checks-verify) settings; without them the ticket
 gets an answer that says how to add them.
 
