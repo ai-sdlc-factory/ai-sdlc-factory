@@ -109,6 +109,11 @@ public sealed class FakeWorld
     /// <summary>What Forgejo says about the pull request an /update is for; the default is a pull request the factory opened for ticket 7, based on main.</summary>
     public UpdateContext UpdateContext { get; set; } = new(FactoryPullRequest().Pull, "factory-bot");
 
+    /// <summary>What Forgejo says about the pull request a /review is for: by default a person's open pull request with two changed files and a short diff.</summary>
+    public ReviewContext ReviewContext { get; set; } = new(
+        FactoryPullRequest(author: "alice", headRef: "alice/goodbye").Pull,
+        new PullChanges([new ChangedFile("hello.py", "modified", 4, 1), new ChangedFile("test_hello.py", "added", 9, 0)], 2, "diff --git a/hello.py b/hello.py\n+def goodbye():\n+    return 'Goodbye'\n", false));
+
     /// <summary>What merging the base branch does: by default it goes through without conflicts and brings three files.</summary>
     public MergeResult Merge { get; set; } = new(MergeResult.Merged, "b4a5e6f7c8d90123", [], 3);
 
@@ -276,6 +281,9 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_qa_context")]
         public QaContext ReadQaContext(QaRequest request) => world.QaContext;
+
+        [Activity("forgejo_read_review_context")]
+        public ReviewContext ReadReviewContext(PullReviewRequest request) => world.ReviewContext;
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
@@ -514,7 +522,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -560,6 +568,19 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     public async Task<WorkResult> RunUpdateAsync(UpdateRequest request)
     {
         var handle = await Client.StartWorkflowAsync((PullRequestUpdateWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
+    }
+
+    public static PullReviewRequest PullReview()
+    {
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+        return new PullReviewRequest("acme", repo, 7, "bob");
+    }
+
+    public async Task<WorkResult> RunPullReviewAsync(PullReviewRequest request)
+    {
+        var handle = await Client.StartWorkflowAsync((PullRequestReviewWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
@@ -615,6 +636,12 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         if (request.IsPlan)
         {
             return await ResultAsync(await StartPlanAsync(request));
+        }
+        if (request.IsDocs)
+        {
+            var docs = await Client.StartWorkflowAsync((DocsWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+            using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            return await docs.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
         }
         if (request.IsBug)
         {
@@ -777,6 +804,15 @@ public static class Answers
             verdict,
             summary = verdict == "done" ? "Resolved the merge." : "Cannot continue.",
             resolutions = verdict == "done" ? paths.Select(path => new { path, how = "combined", note = $"Kept both changes in {path}." }).ToArray() : [],
+            notes = Array.Empty<string>(),
+        });
+
+    /// <summary>The documentation writer's answer.</summary>
+    public static string Docs(string verdict = "done") =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict switch { "done" => "Wrote AGENTS.md from the code.", "unchanged" => "The documents are already right.", _ => "Cannot continue." },
             notes = Array.Empty<string>(),
         });
 

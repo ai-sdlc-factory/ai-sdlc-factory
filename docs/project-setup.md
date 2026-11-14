@@ -46,6 +46,7 @@ Create these labels in the repository (**Issues > Labels**). Only the first thre
 | `feature` | starts the [feature workflow](workflows.md#feature-workflow) |
 | `bug` | starts the [bug workflow](workflows.md#bug-workflow). Also needed for the incident `/hotfix` command |
 | `incident` | starts the [incident workflow](workflows.md#incident-workflow) |
+| `docs` | starts a [documentation run](workflows.md#documentation-run): the factory writes or updates `AGENTS.md`, `README.md` and `docs/` and opens a pull request |
 | `quick` | [quick mode](workflows.md#quick-mode) for this ticket |
 | `full` | the full process for this ticket, even if the project defaults to quick |
 | `needs-architecture` | forces a design review, even in quick mode |

@@ -126,6 +126,9 @@ public static class Statuses
     /// <summary>qa: there is no open pull request of the factory for this ticket.</summary>
     public const string QaNoPullRequest = "qa_no_pull_request";
 
+    /// <summary>review: the reviewers' findings on a pull request were posted on it (nothing was changed).</summary>
+    public const string ReviewPosted = "review_posted";
+
     /// <summary>update: the branch already has everything the base branch has, so nothing was merged.</summary>
     public const string UpToDate = "up_to_date";
 

@@ -22,11 +22,11 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 | # | Workflow | What it does | Why it fits | Effort | Done |
 | --- | --- | --- | --- | --- | --- |
 | 1 | PR revision loop | A human review comment (or "request changes") on a factory PR starts a bounded revision: the developer addresses it, the checks and reviewers run again, and a new commit goes to the same branch | It completes the loop after the PR is opened. Today a person has to fix the PR by hand | Medium | [x] |
-| 2 | Review of human PRs | When a person opens a PR, the reviewer and security roles review it read-only and post findings | The roles and the diff handling already exist. Nothing is written, so it is low risk | Small | [ ] |
+| 2 | Review of human PRs | When a person opens a PR, the reviewer and security roles review it read-only and post findings | The roles and the diff handling already exist. Nothing is written, so it is low risk | Small | [x] (on request: `/review` on any pull request; nothing starts it automatically) |
 | 3 | Dependency updates | A scheduled run bumps dependencies, runs the project's checks, and opens a PR with the changes and test results | Temporal schedules suit this. It is repetitive, the checks decide, and humans review | Medium | [ ] |
 | 4 | Planner | A `plan` ticket is split into proposed feature tickets that a person approves | Helps with big goals, but a wrong split costs a lot, so it needs approval | Medium | [x] |
 | 5 | CI-failure triage | When the pipeline fails on a branch, diagnose and propose or open a fix | It reuses the bug workflow, but needs a webhook from Bitbucket Pipelines or Forgejo CI | Medium | [ ] |
-| 6 | Docs and `AGENTS.md` upkeep | Onboarding draft for a new repo, and updates when the structure changes | Cheap, and it improves every other workflow's input | Small | [ ] |
+| 6 | Docs and `AGENTS.md` upkeep | Onboarding draft for a new repo, and updates when the structure changes | Cheap, and it improves every other workflow's input | Small | [x] (a `docs` ticket; nothing writes docs by itself when the structure changes, because the factory does not react to merges) |
 | 7 | Release notes | A changelog draft from merged PRs | Useful but low risk and low priority | Small | [ ] |
 | 8 | Factory retrospective | A weekly report of repeated problems, from a durable run log | Needs the run log first | Medium | [ ] |
 

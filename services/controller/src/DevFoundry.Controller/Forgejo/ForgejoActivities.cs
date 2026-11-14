@@ -112,6 +112,15 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
         return new UpdateContext(await forgejo.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token), settings.ForgejoBotLogin);
     }
 
+    /// <summary>Reads the pull request a <c>/review</c> is for, and what it changes.</summary>
+    [Activity("forgejo_read_review_context")]
+    public async Task<ReviewContext> ReadReviewContextAsync(PullReviewRequest request)
+    {
+        var token = ActivityExecutionContext.Current.CancellationToken;
+        var pull = await forgejo.GetPullRequestAsync(request.Owner, request.Repo, request.Number, token);
+        return new ReviewContext(pull, await TryGetChangesAsync(request.Owner, request.Repo, request.Number, token));
+    }
+
     /// <summary>Asks the reviewers to look again after a revision was pushed. Never fails the run.</summary>
     [Activity("forgejo_request_reviewers")]
     public Task<bool> RequestReviewersAsync(ReviewRequestInput request) =>

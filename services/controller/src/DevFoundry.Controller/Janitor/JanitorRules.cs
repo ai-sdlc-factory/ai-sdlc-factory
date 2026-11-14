@@ -18,7 +18,7 @@ public enum WipAction
 public static partial class JanitorRules
 {
     /// <summary>Only folders the factory itself makes (named after a workflow id) are ever removed; anything else in the root is not ours.</summary>
-    private static readonly string[] OurPrefixes = [$"{WorkIds.Feature}-", $"{WorkIds.Bug}-", $"{WorkIds.Incident}-", $"{WorkIds.Plan}-", $"{WorkIds.Revision}-", $"{WorkIds.Qa}-", $"{WorkIds.Update}-"];
+    private static readonly string[] OurPrefixes = [$"{WorkIds.Feature}-", $"{WorkIds.Bug}-", $"{WorkIds.Incident}-", $"{WorkIds.Plan}-", $"{WorkIds.Revision}-", $"{WorkIds.Qa}-", $"{WorkIds.Update}-", $"{WorkIds.Review}-", $"{WorkIds.Docs}-"];
 
     [GeneratedRegex(@"\Afactory/issue-(?<number>\d+)-wip(?:-\d+)?\z")]
     private static partial Regex WipBranch();

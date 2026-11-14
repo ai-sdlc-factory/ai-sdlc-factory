@@ -196,6 +196,7 @@ Which roles can do what:
 | `reproducer` | bug | yes | yes (tests only, checked) | yes | `developer` |
 | `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |
 | `merge-resolver` | pull request update (`/update`) | yes (and git history) | yes (checked like the developer's changes; no protected files, no conflict marker left) | yes | `developer` |
+| `docs-writer` | documentation run (`docs` label) | yes | yes (only `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and Markdown under `docs/`, checked) | no | `model` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
 | `planner` | plan | yes | no | no | `model` |
 | `investigator` | incident | yes (and git history) | no | yes (read-only workspace) | `model` |

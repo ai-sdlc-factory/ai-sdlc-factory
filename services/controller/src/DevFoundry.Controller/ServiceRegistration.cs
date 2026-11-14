@@ -22,6 +22,8 @@ public static class ServiceRegistration
             .AddWorkflow<PlanWorkflow>()
             .AddWorkflow<PullRequestRevisionWorkflow>()
             .AddWorkflow<PullRequestUpdateWorkflow>()
+            .AddWorkflow<PullRequestReviewWorkflow>()
+            .AddWorkflow<DocsWorkflow>()
             .AddWorkflow<QaWorkflow>();
 
         // The hosted worker keeps its client to itself, so the janitor gets one of its own (it connects when first used).

@@ -405,6 +405,69 @@ public sealed class EventRouterTests
     public void Anything_but_the_command_alone_on_a_line_is_not_an_update(string body) =>
         Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
 
+    [Theory]
+    [InlineData("/review")]
+    [InlineData("  /REVIEW  ")]
+    [InlineData("Could you look at this?\n/review\nthanks")]
+    [InlineData("/review\r\n")]
+    public void Review_on_a_pull_request_starts_a_review_of_that_pull_request(string body)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment(body)));
+
+        Assert.Equal(RoutingAction.ReviewPullRequest, decision.Action);
+        Assert.Equal(new PullReviewRequest("acme", "shop", 7, "bob"), decision.Review);
+    }
+
+    [Theory]
+    [InlineData("/review please")]
+    [InlineData("/reviews")]
+    [InlineData("please /review")]
+    [InlineData("/revise this")]
+    public void Anything_but_the_review_command_alone_on_a_line_is_not_a_review(string body) =>
+        Assert.NotEqual(RoutingAction.ReviewPullRequest, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
+
+    [Fact]
+    public void A_review_command_written_by_the_factory_is_ignored() =>
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment($"{EventRouter.BotMarker}\n/review"))).Action);
+
+    [Fact]
+    public void Review_on_a_ticket_is_only_a_comment()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", ["feature"], more: new { comment = Comment("/review") })));
+
+        Assert.Equal(RoutingAction.ReplyToFeature, decision.Action);
+    }
+
+    [Fact]
+    public void A_ticket_with_the_docs_label_starts_a_documentation_run()
+    {
+        var decision = EventRouter.Decide(Event("issues", Ticket("opened", ["docs"])));
+
+        Assert.Equal(RoutingAction.StartFeature, decision.Action);
+        Assert.Equal(WorkIds.Docs, decision.Feature!.Kind);
+        Assert.True(decision.Feature.IsDocs);
+        Assert.Equal(WorkIds.For("acme", "shop", 7, WorkIds.Docs), decision.Feature.WorkflowId);
+    }
+
+    [Theory]
+    [InlineData("feature", WorkIds.Feature)]
+    [InlineData("bug", WorkIds.Bug)]
+    [InlineData("plan", WorkIds.Plan)]
+    [InlineData("incident", WorkIds.Incident)]
+    public void The_docs_label_loses_to_every_other_kind_of_ticket(string other, string kind)
+    {
+        var decision = EventRouter.Decide(Event("issues", Ticket("opened", ["docs", other])));
+
+        Assert.Equal(kind, decision.Feature!.Kind);
+    }
+
+    [Fact]
+    public void Qa_and_update_need_a_feature_or_bug_ticket_so_a_docs_ticket_gets_neither()
+    {
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", Ticket("created", ["docs"], more: new { comment = Comment("/qa") }))).Action);
+        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", Ticket("created", ["docs"], more: new { comment = Comment("/update") }))).Action);
+    }
+
     [Fact]
     public void An_update_command_written_by_the_factory_is_ignored() =>
         Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment($"{EventRouter.BotMarker}\n/update"))).Action);

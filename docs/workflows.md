@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, a sixth that tests a finished change from the outside on request, and a seventh that brings a pull request up to date with its base branch. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, a sixth that tests a finished change from the outside on request, a seventh that brings a pull request up to date with its base branch, an eighth that reviews any pull request on request, and a ninth that writes documentation. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
@@ -13,9 +13,11 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | `incident` | `IncidentWorkflow` | an **assessment, likely causes and mitigation options** on the ticket; a **draft postmortem** pull request on request | incident-analyst, investigator, mitigator, postmortem-writer |
 | a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
 | **`/update`** on a ticket or on a factory pull request | `PullRequestUpdateWorkflow` | the **base branch merged into the pull request's branch** as one merge commit, conflicts resolved and checked | merge-resolver, reviewer, security |
+| **`/review`** on any pull request | `PullRequestReviewWorkflow` | the **reviewers' findings posted on the pull request**; nothing is written or changed | reviewer, security |
+| `docs` | `DocsWorkflow` | a **pull request that writes or updates AGENTS.md, README.md, CONTRIBUTING.md and Markdown under `docs/`**, checked against the code by the reviewers | docs-writer, reviewer, security |
 | **`/qa`** on a ticket or on a factory pull request | `QaWorkflow` | a **QA report** on the ticket; end-to-end API and UI tests added to the pull request when they pass | e2e-tester, ux |
 
-If a ticket has several of these labels, `incident` wins over `plan`, which wins over `feature`, which wins over `bug`. The labels `quick`, `full` and
+If a ticket has several of these labels, `incident` wins over `plan`, which wins over `feature`, which wins over `bug`, which wins over `docs`. The labels `quick`, `full` and
 `needs-architecture` change how a feature or bug run behaves ([Quick mode](#quick-mode)).
 
 ## Ticket routing
@@ -33,6 +35,7 @@ answer:
 | a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again, [carrying on from the stages the earlier run finished](#resuming-a-run-with-retry) (feature and bug tickets). **`/retry restart`** starts from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
 | a comment with a line starting **`/qa`** (`/qa [full] [api|ui] [note]`), on a feature or bug ticket or on a factory pull request | starts a [QA run](#qa-run) (id `qa-<owner>-<repo>-<number>-<hash>`); a second one for the same number while one runs gets a notice |
 | a comment that is just **`/update`**, on a feature or bug ticket or on a factory pull request | starts an [update](#updating-a-pull-request) of the pull request (id `update-<owner>-<repo>-<number>-<hash>`, where the number is the one the comment is on); a second one for the same number while one runs gets a notice |
+| a comment that is just **`/review`**, on **any** pull request (a person's too) | starts a [review](#reviewing-a-pull-request) (id `review-<owner>-<repo>-<pr>-<hash>`); a second one for the same pull request while one runs gets a notice |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
 | comments written by the factory | ignored (they carry a hidden marker), so it never answers itself |
 | a review that **requests changes**, or a comment with **`/fix`**, on a pull request | starts a [revision](#pull-request-revisions) of that pull request (id `revision-<owner>-<repo>-<pr>-<hash>`); if one is already running the person gets a notice. The factory checks that the pull request is its own |
@@ -217,6 +220,32 @@ The factory cannot mark conversations resolved or reply inside a comment's conve
 to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
 With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
 
+## Reviewing a pull request
+
+A person comments **`/review`** (a line with only that) on a pull request, **anyone's, not only the factory's**, and the project's reviewers read it and post their findings on it. It writes nothing: no commit, no branch, no merge. Nothing starts by itself when a pull request is opened, because every review spends tokens; a person asks.
+
+| Step | Who | What is checked |
+| --- | --- | --- |
+| 1. Read | the factory | the pull request must be open (a closed or merged one gets a note); the changed files and the diff come from Forgejo (`pulls/<n>/files` and `.diff`, the same as for a [QA run](#qa-run)). If Forgejo cannot give them, nothing is reviewed and the person is told |
+| 2. Checkout | the factory | a throwaway local branch off the **default branch**, never pushed. The project's settings and sandbox image therefore always come from the trusted branch, never from a branch the pull request's author controls, so a pull request from a fork or by a stranger cannot change what runs on this machine |
+| 3. Review | `reviewer`, and `security` if the project lists it (read-only, **no shell**, model access only) | each reads the code as it is on the default branch and the pull request's **diff in the prompt**, and judges it against the pull request's own description. The project's checks are **not** run, and the reviewers are told so. A long diff is cut (the reviewers and the summary say so) |
+| 4. Post | the factory | one comment per reviewer, as for a feature, then a short summary with the number of blocking findings per reviewer. A person decides; the factory does not merge |
+
+Statuses: `review_posted`, `ignored` (a closed pull request), `error` (Forgejo could not give the changes), and the shared `blocked` (OpenCode not signed in), `review_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `review`.
+
+## Documentation run
+
+Label a ticket **`docs`** to have the factory write or update a repository's documentation: the **onboarding draft** for a repository that has none, or an update after its structure changed. The ticket's text says what to document ("document the new login flow"); with no text the writer writes `AGENTS.md` if there is none, and otherwise brings `AGENTS.md` and `README.md` up to date with the code. A ticket with another factory label (`feature`, `bug`, `plan`, `incident`) is that kind of ticket instead.
+
+| Step | Who | What the factory checks itself |
+| --- | --- | --- |
+| 1. Write | `docs-writer` (writable, **no shell**, model access only) in a checkout of the default branch | reads the repository and writes only what it verified. It cannot run anything, so it cannot invent a command it did not see work |
+| 2. Allowed files | the factory | only `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `.md` files under `docs/` may be added or changed, **nothing may be deleted**, and the usual checks apply (protected paths such as `.factory/`, secrets, size, symbolic links). Anything else goes back to the writer with the list of files it may write |
+| 3. Review | `reviewer`, `security` if listed | asked one question: is every statement in the changed documents true of the code, and is nothing invented? A blocking finding goes back to the writer (`limits.build_rounds`, 3 by default) |
+| 4. Pull request | the factory | one pull request that says it was written by the factory and **must be read by a person** before it is merged |
+
+The project's code checks (`gates`) are **not** run, because no code changed. If the documents already say what the repository does, the writer says so and the factory opens no pull request (`no_changes`). Statuses: `pr_opened`, `no_changes`, `build_blocked` (the writer cannot continue), `build_failed` (the rounds ran out), `publish_failed`, `blocked`. The writer is not asked questions and does not ask any: a person corrects the pull request, or comments `/fix` on it.
+
 ## Updating a pull request
 
 ![Pull request update](images/pr-update.svg)
@@ -396,6 +425,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
+| `review_posted` | review: the reviewers' findings on the pull request were posted on it (nothing was changed) |
 | `update_pushed` | update: the base branch was merged into the pull request's branch and the merge commit was pushed |
 | `up_to_date` | update: the branch already has everything from the base branch, so nothing was merged |
 | `update_blocked` | update: the factory cannot do this merge (a protected file or too many files in conflict, a merge git cannot make, or the resolver said it cannot continue); a person merges by hand |
@@ -421,7 +451,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 
 | Label | Effect |
 | --- | --- |
-| `feature`, `bug`, `incident`, `plan` | choose the workflow ([routing](#ticket-routing)) |
+| `feature`, `bug`, `incident`, `plan`, `docs` | choose the workflow ([routing](#ticket-routing)) |
 | `quick`, `full` | [quick mode](#quick-mode) on or off for this ticket |
 | `needs-architecture` | forces a design review, even in quick mode |
 

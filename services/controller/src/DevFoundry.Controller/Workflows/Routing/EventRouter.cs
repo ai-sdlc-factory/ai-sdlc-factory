@@ -12,6 +12,7 @@ public enum RoutingAction
     RetryFeature,
     RunQa,
     UpdatePullRequest,
+    ReviewPullRequest,
 }
 
 public sealed record RoutingDecision(
@@ -22,7 +23,8 @@ public sealed record RoutingDecision(
     bool Restart = false,
     RevisionRequest? Revision = null,
     QaRequest? Qa = null,
-    UpdateRequest? Update = null);
+    UpdateRequest? Update = null,
+    PullReviewRequest? Review = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
@@ -34,6 +36,7 @@ public static partial class EventRouter
     public const string BugLabel = "bug";
     public const string IncidentLabel = "incident";
     public const string PlanLabel = "plan";
+    public const string DocsLabel = "docs";
 
     /// <summary>Hidden marker on every comment the factory writes, so it never answers itself.</summary>
     public const string BotMarker = "<!-- dev-foundry:factory -->";
@@ -78,7 +81,8 @@ public static partial class EventRouter
         var kind = HasLabel(issue, IncidentLabel) ? WorkIds.Incident
             : HasLabel(issue, PlanLabel) ? WorkIds.Plan
             : HasLabel(issue, FeatureLabel) ? WorkIds.Feature
-            : HasLabel(issue, BugLabel) ? WorkIds.Bug : null;
+            : HasLabel(issue, BugLabel) ? WorkIds.Bug
+            : HasLabel(issue, DocsLabel) ? WorkIds.Docs : null;
         var hasFeatureLabel = kind is not null;
         var action = AsString(Get(payload, "action"));
         var isOpen = AsString(Get(issue, "state")) is null or "open";
@@ -186,6 +190,11 @@ public static partial class EventRouter
         {
             return new RoutingDecision(RoutingAction.RunQa, "qa command on a pull request",
                 Qa: new QaRequest(owner, repo, pullNumber, true, qa.Suite, AsString(Get(Get(comment, "user"), "login")) ?? "", qa.Mode, qa.Note));
+        }
+        if (ReviewCommand.IsMatch(body))
+        {
+            return new RoutingDecision(RoutingAction.ReviewPullRequest, "review command on a pull request",
+                Review: new PullReviewRequest(owner, repo, pullNumber, AsString(Get(Get(comment, "user"), "login")) ?? ""));
         }
         if (UpdateCommand.IsMatch(body))
         {

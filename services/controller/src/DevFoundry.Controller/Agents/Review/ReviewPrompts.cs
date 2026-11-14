@@ -13,7 +13,7 @@ public static class ReviewPrompt
     public static string Build(
         WorkRequest request, IReadOnlyList<CriterionCoverage> remaining, ArchitectDesign? design,
         ChangeReport changes, string diff, string gateSummary, string? previousProblem, int otherFilesNotShown = 0,
-        IReadOnlyList<string>? checks = null, string? earlierFindings = null, string? evidence = null, string? note = null)
+        IReadOnlyList<string>? checks = null, string? earlierFindings = null, string? evidence = null, string? note = null, bool checksRan = true)
     {
         var text = new StringBuilder();
         text.AppendLine("Review the change that was just made in the repository checked out in the current directory (read-only).");
@@ -33,7 +33,7 @@ public static class ReviewPrompt
             text.AppendLine($"The architect\'s approach: {PromptText.ClipLine(design.Approach, 1500)}");
         }
         text.AppendLine();
-        text.AppendLine($"Automated checks already passed ({gateSummary}). Files changed:");
+        text.AppendLine(checksRan ? $"Automated checks already passed ({gateSummary}). Files changed:" : $"{gateSummary} Files changed:");
         AppendChecks(text, checks);
         foreach (var file in changes.Files.Take(MaxFilesListed))
         {

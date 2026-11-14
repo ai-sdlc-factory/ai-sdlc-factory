@@ -207,7 +207,7 @@ def check_statuses_and_labels() -> None:
         if f"`{status}`" not in workflows:
             fail(f"result status {status} is not in docs/workflows.md")
 
-    labels = set(re.findall(r'(?:FeatureLabel|BugLabel|IncidentLabel|QuickLabel|FullLabel|ForceLabel) = "([a-z-]+)"', "".join(
+    labels = set(re.findall(r'(?:FeatureLabel|BugLabel|IncidentLabel|PlanLabel|DocsLabel|QuickLabel|FullLabel|ForceLabel) = "([a-z-]+)"', "".join(
         read(p) for p in [ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Routing/EventRouter.cs",
                           ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Routing/WorkMode.cs",
                           ROOT / "services/controller/src/DevFoundry.Controller/Agents/Coverage/Triage.cs"])))

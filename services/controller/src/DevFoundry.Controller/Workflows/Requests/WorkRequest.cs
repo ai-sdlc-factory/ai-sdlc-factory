@@ -16,6 +16,8 @@ public sealed record WorkRequest(
     public bool IsIncident => Kind == WorkIds.Incident;
 
     public bool IsPlan => Kind == WorkIds.Plan;
+
+    public bool IsDocs => Kind == WorkIds.Docs;
 }
 
 /// <summary>A human comment on a ticket that has a feature workflow.</summary>
@@ -37,6 +39,8 @@ public static class WorkIds
     public const string Revision = "revision";
     public const string Qa = "qa";
     public const string Update = "update";
+    public const string Review = "review";
+    public const string Docs = "docs";
 
     private const int MaxReadable = 80;
 

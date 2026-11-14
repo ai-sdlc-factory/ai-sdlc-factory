@@ -339,6 +339,35 @@ public static class TicketComments
     public const string QaBusy =
         "A QA run is already going for this one. Its report will be posted here when it is done.";
 
+    public const string PullReviewClosed = "This pull request is closed or merged, so I did not review it.";
+
+    public const string PullReviewBusy =
+        "A review of this pull request is already going. Its findings will be posted here when it is done; comment `/review` again after that if the pull request has changed.";
+
+    public const string PullReviewNoChanges =
+        "I could not read what this pull request changes from Forgejo, so I did not review it. Comment `/review` again in a moment.";
+
+    /// <summary>The comment that ends a <c>/review</c>: what each reviewer concluded, and that nothing was changed.</summary>
+    public static string PullReviewDone(int pullNumber, IReadOnlyList<(string Role, ReviewReport Report)> reports, bool diffCut)
+    {
+        var text = new StringBuilder();
+        text.AppendLine($"**Review of pull request #{pullNumber} finished**");
+        text.AppendLine();
+        foreach (var (role, report) in reports)
+        {
+            var blocking = report.Blocking.Count();
+            text.AppendLine($"- {role}: {(blocking == 0 ? "no blocking findings" : $"{blocking} blocking finding{(blocking == 1 ? "" : "s")}")}{(report.Advice.Any() ? $", {report.Advice.Count()} other note{(report.Advice.Count() == 1 ? "" : "s")}" : "")}");
+        }
+        text.AppendLine();
+        if (diffCut)
+        {
+            text.AppendLine("The diff was too long to read in full, so the reviewers saw only its start.");
+            text.AppendLine();
+        }
+        text.Append("The findings are in the comments above. I read the diff only: the project's checks were not run, nothing was changed, and I do not merge. A person decides.");
+        return text.ToString();
+    }
+
     /// <summary>`/update` on a ticket with no open pull request of the factory.</summary>
     public const string UpdateNoPullRequest =
         "I could not find an open pull request made by the factory for this ticket, so there is nothing to update. `/update` works once the pull request is open.";

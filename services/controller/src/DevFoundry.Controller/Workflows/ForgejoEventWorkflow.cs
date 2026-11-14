@@ -43,6 +43,7 @@ public sealed class ForgejoEventWorkflow
             RoutingAction.RetryFeature => RetryTicketAsync(decision),
             RoutingAction.RunQa => StartQaAsync(decision.Qa!),
             RoutingAction.UpdatePullRequest => StartUpdateAsync(decision.Update!),
+            RoutingAction.ReviewPullRequest => StartReviewAsync(decision.Review!),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
@@ -72,6 +73,10 @@ public sealed class ForgejoEventWorkflow
             else if (feature.IsBug)
             {
                 await Workflow.StartChildWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(feature), options);
+            }
+            else if (feature.IsDocs)
+            {
+                await Workflow.StartChildWorkflowAsync((DocsWorkflow workflow) => workflow.RunAsync(feature), options);
             }
             else
             {
@@ -146,6 +151,29 @@ public sealed class ForgejoEventWorkflow
         }
     }
 
+    /// <summary>`/review`: reviews a pull request (read only); a second one for the same pull request while one is running gets a notice.</summary>
+    private static async Task StartReviewAsync(PullReviewRequest review)
+    {
+        try
+        {
+            await Workflow.StartChildWorkflowAsync(
+                (PullRequestReviewWorkflow workflow) => workflow.RunAsync(review),
+                new ChildWorkflowOptions
+                {
+                    Id = review.WorkflowId,
+                    ParentClosePolicy = ParentClosePolicy.Abandon,
+                    IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                });
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(review.Owner, review.Repo, review.Number, TicketComments.PullReviewBusy)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
     private static async Task RevisePullRequestAsync(RevisionRequest revision)
     {
         try
@@ -176,7 +204,9 @@ public sealed class ForgejoEventWorkflow
         var feature = decision.Feature!;
         var delivered = feature.IsIncident
             ? await SignalAsync<IncidentWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
-            : feature.IsPlan
+            : feature.IsDocs
+                ? await SignalAsync<DocsWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+                : feature.IsPlan
                 ? await SignalAsync<PlanWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
                 : feature.IsBug
                 ? await SignalAsync<BugWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
@@ -200,6 +230,10 @@ public sealed class ForgejoEventWorkflow
         else if (feature.IsPlan)
         {
             await SignalAsync<PlanWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+        }
+        else if (feature.IsDocs)
+        {
+            await SignalAsync<DocsWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
         }
         else if (feature.IsBug)
         {
