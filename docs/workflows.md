@@ -192,7 +192,7 @@ breath, nothing is created and the plan changes first. A ticket that cannot be o
 reported, tickets already created stay, and a new `/approve` tries the rest; each ticket is tried once, so a lost answer cannot open one twice.
 
 The run ends with `plan_created` once the whole plan is created, and waits up to 7 days while tickets remain. Closing the ticket ends it.
-As with the other workflows, anyone who can comment on the ticket can use the commands (see "Who may start things" in the [roadmap](roadmap.md)).
+As with the other workflows, anyone who can comment on the ticket can use the commands (nothing checks the commenter's write access yet; see [Known limitations](operations.md#known-limitations)).
 
 ## Pull request revisions
 

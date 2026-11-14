@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Workflows](workflows.md)
 
-Why the factory is built the way it is, and what running it taught us. What is not built yet is on the [roadmap](roadmap.md). The factory follows the stage-and-artifact idea of
+Why the factory is built the way it is, and what running it taught us. The factory follows the stage-and-artifact idea of
 Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifact, deterministic code controls the flow, and humans own the gates.
 
 ## Principles

@@ -38,7 +38,6 @@ Start at the [documentation index](docs/README.md).
 | [Configuration](docs/configuration.md) | Every setting: `.env`, service variables, agents and models |
 | [Operations](docs/operations.md) | Watching runs, troubleshooting, cleaning up, backups, security notes |
 | [Design and decisions](docs/design.md) | Why it is built this way, and findings from running it |
-| [Roadmap](docs/roadmap.md) | What is not built yet, and what is done |
 | [Infrastructure](infra/README.md) | Compose services, local addresses, the bot account |
 | [Demo and monitoring](demo/README.md) | A demo production for the weather app with Prometheus, Alertmanager, Grafana and Loki, where alerts open tickets |
 | [Agents](agents/README.md) | The role files, permissions and models |

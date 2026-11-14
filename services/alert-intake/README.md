@@ -2,7 +2,7 @@
 
 Turns a monitoring alert into a ticket. It receives Alertmanager notifications, decides with **fixed rules (no AI)** whether an alert becomes a ticket, and opens it in Forgejo. If the ticket carries the factory's `incident` label, the factory's [incident workflow](../../docs/workflows.md#incident-workflow) then starts on it, like on any ticket a person wrote.
 
-The design follows the roadmap item "Alert intake": agents never get production access, and what monitoring says is **data**, never an instruction.
+The design: agents never get production access, and what monitoring says is **data**, never an instruction.
 
 ## What it does
 

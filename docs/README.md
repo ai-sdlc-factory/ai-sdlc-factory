@@ -20,7 +20,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | change an **agent**, its model or its permissions | [Agents](../agents/README.md) |
 | sign the agents in with ChatGPT | [OpenCode login](opencode-login.md) |
 | run a **demo "production"** with monitoring (Prometheus, Grafana, Loki) where alerts open tickets | [Demo and monitoring](../demo/README.md) |
-| see what is planned next | [Roadmap and ideas](roadmap.md) |
+| know the **limits** of what is built | [Known limitations](operations.md#known-limitations) |
 
 ## Guides by component
 

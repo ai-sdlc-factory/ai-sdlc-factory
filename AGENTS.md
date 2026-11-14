@@ -31,7 +31,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - **Live check:** the `valters/weather` repository on the local Forgejo is the fixture (a .NET API with SQLite and a Vite/React front end). Its `.factory/project.json` has every feature on, including `verify` with an `api` and a `ui` suite. A live run (a new ticket, `/retry`, `/qa`) spends the plan's tokens and writes to that repository, so ask the owner first. Read tickets and pull requests through the Forgejo API with the bot's token (`FORGEJO_BOT_TOKEN` in `infra/.env`); never print or commit it.
 - **This machine's clock:** under WSL2 the wall clock can step by several seconds, which makes timeouts fire early and tests fail with "after 5000ms". `python3 tools/check-clock.py` tells you whether it is steady.
 - **Committing:** only when asked, one logical change per commit. Keep generated files (archives, build output, a record folder) out of git.
-- **What is not built yet** is in `docs/roadmap.md`, with the items found most recently under "Next up".
+- **What is not built, or only partly,** is in `docs/operations.md` under "Known limitations".
 
 ## Rules that keep it correct
 - **The controller decides, agents advise.** An agent returns one validated JSON verdict; code decides what happens. Do not move a decision into a prompt.
