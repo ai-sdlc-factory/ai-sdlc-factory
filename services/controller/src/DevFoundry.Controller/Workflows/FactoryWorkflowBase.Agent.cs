@@ -34,6 +34,8 @@ public abstract partial class FactoryWorkflowBase
         string? problem = null;
         for (var attempt = 1; attempt <= MaxAgentAttempts; attempt++)
         {
+            // A budget that is used up ends the run here; a daily limit makes it wait. Never in the middle of an agent's run.
+            await EnforceTokenLimitsAsync();
             SandboxRunResult result;
             var promptText = prompt(problem);
             var started = Workflow.UtcNow;
@@ -79,6 +81,11 @@ public abstract partial class FactoryWorkflowBase
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, TimedOut = true, Output = result.Stderr, Problem = problem, Usage = spent });
                 continue;
             }
+            if (result.ExitCode != 0 && ProviderLimit.Detect(result.Stdout, result.Stderr) is { } limitSaid)
+            {
+                await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "usage limit", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = limitSaid, Usage = spent });
+                throw new RunStopException(Statuses.UsageLimit, TicketComments.ProviderLimitReached(role, limitSaid));
+            }
             if (result.ExitCode != 0)
             {
                 problem = $"OpenCode exited with code {result.ExitCode}: {Short(result.Stderr)}";
@@ -87,6 +94,11 @@ public abstract partial class FactoryWorkflowBase
             }
 
             var text = OpenCodeEvents.FinalText(result.Stdout);
+            if (text is null && ProviderLimit.Detect(result.Stdout, result.Stderr) is { } noAnswerLimit)
+            {
+                await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "usage limit", promptText) with { ExitCode = result.ExitCode, Output = result.Stdout, Problem = noAnswerLimit, Usage = spent });
+                throw new RunStopException(Statuses.UsageLimit, TicketComments.ProviderLimitReached(role, noAnswerLimit));
+            }
             if (text is null)
             {
                 problem = result.OutputTruncated ? "the output was too long to contain the answer" : "OpenCode returned no answer";

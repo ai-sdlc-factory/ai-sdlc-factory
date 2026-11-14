@@ -107,6 +107,7 @@ public abstract partial class FactoryWorkflowBase
             maxBuildRounds = limits.BuildRounds;
             maxClarificationRounds = limits.ClarificationRounds;
             maxRevisionsPerPullRequest = limits.RevisionsPerPullRequest;
+            SetTokenLimits(limits, defaults);
             var extraProtected = (project.ProtectedPaths ?? []).ToList();
             if (project.Verify is { } verify && request.Kind != WorkIds.Qa)
             {
@@ -143,6 +144,15 @@ public abstract partial class FactoryWorkflowBase
             try
             {
                 result = await stages(new WorkContext(request, workspace, project));
+            }
+            catch (RunStopException stop)
+            {
+                // The token budget is used up, a daily limit's wait ended with the ticket closed, or the provider's usage limit is reached.
+                if (stop.Comment is not null)
+                {
+                    await CommentAsync(request, stop.Comment);
+                }
+                result = new WorkResult(stop.Status);
             }
             catch (ActivityFailureException error)
             {
@@ -213,10 +223,10 @@ public abstract partial class FactoryWorkflowBase
     }
 
     // Endings after which code may exist that nobody has seen; a run a person closed, or one that stopped before the build, has none.
-    protected static readonly HashSet<string> StoppedWithWork = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Blocked, Statuses.Error, Statuses.InfrastructureFailed];
+    protected static readonly HashSet<string> StoppedWithWork = [Statuses.BudgetExceeded, Statuses.UsageLimit, Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Blocked, Statuses.Error, Statuses.InfrastructureFailed];
 
     // For these the ticket always gets a summary, even when there was nothing to save.
-    protected static readonly HashSet<string> AlwaysExplained = [Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Error];
+    protected static readonly HashSet<string> AlwaysExplained = [Statuses.BudgetExceeded, Statuses.UsageLimit, Statuses.BuildFailed, Statuses.BuildBlocked, Statuses.ReviewFailed, Statuses.PublishFailed, Statuses.Error];
 
     /// <summary>
     /// When a run stops without publishing, push what it had written to a work-in-progress branch and say so on the

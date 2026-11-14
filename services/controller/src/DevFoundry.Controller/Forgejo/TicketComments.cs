@@ -150,6 +150,8 @@ public static class TicketComments
             "review_failed" => "a review step could not be completed",
             "publish_failed" => "the finished work could not be published as a pull request",
             "blocked" => "OpenCode is not signed in",
+            "budget_exceeded" => "the run used its token budget",
+            "usage_limit" => "the model provider's usage limit is reached",
             "infrastructure_failed" => "part of the factory's own machinery failed",
             "error" => "an unexpected error",
             _ => status,
@@ -377,6 +379,19 @@ public static class TicketComments
     /// <summary>`/update` while an update for the same ticket or pull request is still going.</summary>
     public const string UpdateBusy =
         "An update of this pull request is already going. What it did will be posted here when it is done; comment `/update` again after that if the branch is still behind.";
+
+    /// <summary>The run used its token budget, so it stopped before asking another agent.</summary>
+    public static string TokenBudgetReached(long used, long budget) =>
+        $"**Token budget reached**\n\nThis run has used {used:N0} tokens of its budget of {budget:N0} (input, output, reasoning and cache writes; cached input that was only read again is not counted), so I stopped before asking another agent. " +
+        "To allow more, raise `limits.token_budget` in `.factory/project.json` (the operator's `FACTORY_MAX_TOKENS_PER_RUN` is the most a project can ask for), then comment `/retry` (a feature or bug run keeps the stages that finished).";
+
+    /// <summary>A daily token limit is reached, so the run waits until the next UTC day instead of failing.</summary>
+    public static string DailyLimitWaiting(bool allRepositories, string repository, DateTimeOffset resume) =>
+        $"**Daily token limit reached**\n\nThe factory has used its token limit for today ({(allRepositories ? "for all repositories" : $"for `{Inert(repository)}`")}), so I am waiting and will carry on after {resume:HH:mm} UTC on {resume:yyyy-MM-dd}. Close the ticket to stop the run.";
+
+    /// <summary>The model provider says its usage limit is reached; the run stopped instead of asking again.</summary>
+    public static string ProviderLimitReached(string role, string said) =>
+        $"**The model provider's usage limit is reached**\n\nThe {Inert(role)}'s run failed with: `{Inert(said.Length > 300 ? said[..300] : said)}`. Nothing is wrong with the ticket. I stopped instead of asking again; comment `/retry` once the limit has reset.";
 
     /// <summary>`.factory/project.json` has keys the factory does not know. The run goes ahead; the file is read without them.</summary>
     public static string UnknownProjectKeys(IReadOnlyList<string> warnings) =>

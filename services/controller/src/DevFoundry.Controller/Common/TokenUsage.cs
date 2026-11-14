@@ -8,6 +8,12 @@ namespace DevFoundry.Controller;
 public sealed record TokenUsage(
     long Input, long Output, long Reasoning, long CacheRead, long CacheWrite, long Total, double Cost, int Steps, bool Partial = false)
 {
+    /// <summary>
+    /// What counts against a token budget or a daily limit: input, output, reasoning and cache writes. Reads of cached input are left out, because they
+    /// are the cheap part (the same text read again) and the total with them says little about the spend.
+    /// </summary>
+    public long Counted => Input + Output + Reasoning + CacheWrite;
+
     public static TokenUsage Sum(IEnumerable<TokenUsage> usages)
     {
         var list = usages.ToList();

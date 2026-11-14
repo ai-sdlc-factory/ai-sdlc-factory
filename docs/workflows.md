@@ -394,6 +394,7 @@ visible as the repository.
 | Build rounds | 3 |
 | Retry of an unusable agent answer | 1 (the retry quotes the exact problem) |
 | Reproduction attempts (bug) | 3, with 2 question rounds each |
+| Tokens per run, per day, per repository | not limited unless set: [Token limits](operations.md#token-limits) |
 | Revisions per pull request | 3, one at a time; 3 build rounds each; at most 30 comments per revision |
 | Incident looks at new information | 3 |
 | Plan changes asked for by people | 3; at most 8 tickets in a plan |
@@ -425,6 +426,8 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
+| `budget_exceeded` | the run used its token budget and stopped before asking another agent (work saved if code existed); see [Token limits](operations.md#token-limits) |
+| `usage_limit` | the model provider said its usage limit is reached, so the run stopped instead of asking again; `/retry` after the limit resets (work saved if code existed) |
 | `review_posted` | review: the reviewers' findings on the pull request were posted on it (nothing was changed) |
 | `update_pushed` | update: the base branch was merged into the pull request's branch and the merge commit was pushed |
 | `up_to_date` | update: the branch already has everything from the base branch, so nothing was merged |

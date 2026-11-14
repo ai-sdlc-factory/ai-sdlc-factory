@@ -57,8 +57,26 @@ public sealed class WorkerSettings
         Defaults = new FactoryDefaults(
             Number(configuration, "FACTORY_DEFAULT_BUILD_ROUNDS", FactoryDefaults.Standard.BuildRounds, LimitRanges.BuildRoundsOk, $"{LimitRanges.MinBuildRounds} to {LimitRanges.MaxBuildRounds}"),
             Number(configuration, "FACTORY_DEFAULT_CLARIFICATION_ROUNDS", FactoryDefaults.Standard.ClarificationRounds, LimitRanges.ClarificationRoundsOk, $"{LimitRanges.MinClarificationRounds} to {LimitRanges.MaxClarificationRounds}"),
-            Number(configuration, "FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST", FactoryDefaults.Standard.RevisionsPerPullRequest, LimitRanges.RevisionsOk, $"{LimitRanges.MinRevisions} to {LimitRanges.MaxRevisions}")),
+            Number(configuration, "FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST", FactoryDefaults.Standard.RevisionsPerPullRequest, LimitRanges.RevisionsOk, $"{LimitRanges.MinRevisions} to {LimitRanges.MaxRevisions}"),
+            MaxTokensPerRun: Tokens(configuration, "FACTORY_MAX_TOKENS_PER_RUN"),
+            DailyTokenLimit: Tokens(configuration, "FACTORY_DAILY_TOKEN_LIMIT"),
+            RepoDailyTokenLimit: Tokens(configuration, "FACTORY_REPO_DAILY_TOKEN_LIMIT")),
     };
+
+    /// <summary>A token limit: empty or 0 means no limit. Anything but a whole number from 10,000 up stops the start with a message, because a typo would otherwise switch the limit off or make every run stop at once.</summary>
+    private static long Tokens(IConfiguration configuration, string key)
+    {
+        var text = configuration[key];
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return 0;
+        }
+        if (!long.TryParse(text.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value) || (value != 0 && value < LimitRanges.MinTokenBudget) || value > 1_000_000_000_000)
+        {
+            throw new InvalidOperationException($"{key} must be 0 (no limit) or a whole number of tokens from {LimitRanges.MinTokenBudget:N0}, but it is \"{text}\".");
+        }
+        return value;
+    }
 
     /// <summary>A default that is not a whole number in range stops the worker at start with a message, instead of changing behaviour quietly.</summary>
     private static int Number(IConfiguration configuration, string key, int fallback, Func<int, bool> inRange, string range)

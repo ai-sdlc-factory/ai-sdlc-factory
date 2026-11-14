@@ -26,6 +26,9 @@ public sealed record UsageLine(
     [property: JsonPropertyName("steps")] int Steps,
     [property: JsonPropertyName("partial")] bool Partial);
 
+/// <summary>What the finished runs of one UTC day used, as the usage log counts it (<see cref="TokenUsage.Counted"/>): all repositories together, and one repository.</summary>
+public sealed record UsageToday(long All, long Repository);
+
 public sealed partial class GitWorkspace
 {
     /// <summary>Where the log is, under the workspace root (a host path, so a person can read it without going into a container). No sandbox mounts this folder.</summary>
@@ -57,5 +60,51 @@ public sealed partial class GitWorkspace
             stream.Write(bytes, 0, bytes.Length);
         }
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// What the runs that finished today (UTC) used, from the usage log: in all, and for <paramref name="repository"/>. A run that is still going is not in the log yet,
+    /// so the caller adds its own. A line that cannot be read is skipped, and a run written twice counts once.
+    /// </summary>
+    public UsageToday UsageToday(string repository, DateTimeOffset now)
+    {
+        var path = UsageLogPath(RequireRoot());
+        if (!File.Exists(path))
+        {
+            return new UsageToday(0, 0);
+        }
+        var day = now.UtcDateTime.ToString("yyyy-MM-dd");
+        long all = 0, mine = 0;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        while (reader.ReadLine() is { } line)
+        {
+            if (!line.Contains($"\"time\":\"{day}", StringComparison.Ordinal))
+            {
+                continue; // most of the log is other days: not worth parsing
+            }
+            try
+            {
+                using var document = JsonDocument.Parse(line);
+                var root = document.RootElement;
+                if (!seen.Add(root.GetProperty("run_id").GetString() ?? Guid.NewGuid().ToString()))
+                {
+                    continue;
+                }
+                var counted = root.GetProperty("input").GetInt64() + root.GetProperty("output").GetInt64()
+                    + root.GetProperty("reasoning").GetInt64() + root.GetProperty("cache_write").GetInt64();
+                all += counted;
+                if (string.Equals(root.GetProperty("repository").GetString(), repository, StringComparison.Ordinal))
+                {
+                    mine += counted;
+                }
+            }
+            catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+            {
+                // A line cut short by a write in progress, or not ours: skipped.
+            }
+        }
+        return new UsageToday(all, mine);
     }
 }

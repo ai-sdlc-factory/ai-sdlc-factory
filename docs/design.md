@@ -57,7 +57,6 @@ These are designed or discussed, and deliberately left out until real use shows 
 
 | Item | Idea |
 | --- | --- |
-| **Limits and budgets** | Track tokens per ticket and per day. First a per-ticket budget in `.factory/project.json` (counting input, output, reasoning and cache writes, not cache reads) that a project can only lower from a factory-wide maximum; over it, the run stops, saves its work and says so. Then daily and per-repository caps from a host-side usage log, waiting instead of failing. With a ChatGPT login there is no provider-side cap to set, and provider usage-limit errors should be recognised and stop the run. Checks happen between agent runs, so a single run can overshoot; timeouts bound that. |
 | **Review comments inline** | Reply inside each comment's thread (Forgejo's API has no way to; the factory posts one summary reply with a table), and react to individual line comments instead of a whole review. |
 | **Incident collector, the rest** | The first version exists ([alert-intake](../services/alert-intake/README.md), run by the [demo environment](../demo/README.md)). Still open: sources other than Alertmanager, closing a ticket by itself when its alert resolves (today it only comments), running it in the factory's own Compose stack, and pointing it at a real production system instead of the demo. |
 | **Review of human pull requests** | Run the reviewer and security roles read-only on pull requests that people open. |

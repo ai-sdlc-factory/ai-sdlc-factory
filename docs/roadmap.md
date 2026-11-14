@@ -45,7 +45,6 @@ Small gaps found while building and testing these. None is started.
 
 - [x] **Browser image and end-to-end spike** (done: the `browser` image runs Chromium in the locked-down sandbox, see [QA run](workflows.md#qa-run); whether OpenCode can take a screenshot as input is still open, so the UX review reads page text and accessibility snapshots). Original item (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
   and whether OpenCode can take a screenshot as input. Prerequisite for the scheduled UI check and for UI bugs that can be reproduced with a test.
-- [ ] **Token and spending limits** (M). The per-run total is stored in every result, and the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) gives totals across tickets, days and repositories. A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps read from that log, and recognition of the provider's usage-limit errors so a run stops cleanly.
 
 ## Done
 
@@ -56,6 +55,7 @@ Small gaps found while building and testing these. None is started.
 - [x] Revisions and updates give the next round's reviewers the earlier findings to check, as the build loop does.
 - [x] QA: a UI-only change in a project with no `ui` suite is noticed before the tester runs (and repeated in the report), and the "blocked" comment now shows the scope line like the report.
 - [x] QA: the tester is told which files the pull request changed and the start of its diff (Forgejo `pulls/<n>/files` and `.diff`), not only the title and criteria.
+- [x] Token limits: a per-run budget (`limits.token_budget`, lowering the operator's `FACTORY_MAX_TOKENS_PER_RUN`), daily and per-repository caps (`FACTORY_DAILY_TOKEN_LIMIT`, `FACTORY_REPO_DAILY_TOKEN_LIMIT`) read from the usage log, with a run waiting for the next day instead of failing, and the provider's usage-limit errors recognised so a run stops cleanly (see [Token limits](operations.md#token-limits)). The budget is per **run**, not summed over a ticket's retries, revisions and QA runs.
 - [x] Durable usage log: one line per finished run in `.usage/usage.jsonl` under the workspace root, and `tools/usage-report.py` for totals by repository, day, month, kind, status or ticket.
 - [x] Unknown keys in `.factory/project.json` are warned about once on the ticket, with a "did you mean" hint; the run goes ahead without them.
 - [x] `/retry` resumes: the analysis (with people's answers), coverage check, design and bug analysis are saved when they pass and reused by the next `/retry` if the ticket and the default branch are unchanged; `/retry restart` starts over (see [Resuming a run](workflows.md#resuming-a-run-with-retry)). Still open: the developer's work and a bug's reproduction are not resumed.

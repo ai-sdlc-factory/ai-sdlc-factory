@@ -267,6 +267,10 @@ services:
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}
       FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST: ${FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST:-3}
+      # Token limits (see docs/configuration.md). 0 = no limit. A project can only lower the per-run maximum.
+      FACTORY_MAX_TOKENS_PER_RUN: ${FACTORY_MAX_TOKENS_PER_RUN:-0}
+      FACTORY_DAILY_TOKEN_LIMIT: ${FACTORY_DAILY_TOKEN_LIMIT:-0}
+      FACTORY_REPO_DAILY_TOKEN_LIMIT: ${FACTORY_REPO_DAILY_TOKEN_LIMIT:-0}
       # Whether a repository may bring its own sandbox image (.factory/Dockerfile). Off by default; read the warning in docs/configuration.md first.
       FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
       # The janitor: removes leftover checkouts and reports old work-in-progress branches (see docs/operations.md).

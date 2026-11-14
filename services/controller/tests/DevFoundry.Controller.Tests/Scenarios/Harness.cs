@@ -49,19 +49,22 @@ public sealed record AgentReply(SandboxRunResult Result, Exception? Failure = nu
         new Temporalio.Exceptions.ApplicationFailureException("starting the sandbox failed: docker is down", errorType: "Docker", nonRetryable: true));
 
     /// <summary>The model answered with this text (as OpenCode's JSON event stream).</summary>
-    public static AgentReply Says(string text) => new(new SandboxRunResult(0, false, Events(text), "", false));
+    public static AgentReply Says(string text, long input = 100) => new(new SandboxRunResult(0, false, Events(text, input), "", false));
+
+    /// <summary>The model provider refuses the call because its usage limit is reached: OpenCode exits with an error and says so.</summary>
+    public static AgentReply UsageLimitReached { get; } = new(new SandboxRunResult(1, false, "", "Error: You have hit your usage limit. Try again later.", false));
 
     public static AgentReply NotSignedIn { get; } = new(new SandboxRunResult(78, false, "", "OpenCode is not signed in", false));
 
     public static AgentReply Crashes { get; } = new(new SandboxRunResult(1, false, "", "boom", false));
 
-    private static string Events(string text) => string.Join('\n',
+    private static string Events(string text, long input = 100) => string.Join('\n',
         JsonSerializer.Serialize(new { type = "step_start" }),
         JsonSerializer.Serialize(new { type = "text", part = new { messageID = "m1", text } }),
         JsonSerializer.Serialize(new
         {
             type = "step_finish",
-            part = new { reason = "stop", cost = 0.01, tokens = new { total = 175, input = 100, output = 20, reasoning = 5, cache = new { read = 50, write = 0 } } },
+            part = new { reason = "stop", cost = 0.01, tokens = new { total = input + 75, input, output = 20, reasoning = 5, cache = new { read = 50, write = 0 } } },
         }));
 }
 
@@ -145,6 +148,12 @@ public sealed class FakeWorld
 
     /// <summary>The runs added to the usage log.</summary>
     public List<UsageLogEntry> UsageLogs { get; } = [];
+
+    /// <summary>What the usage log says the finished runs used today, for the daily token limits.</summary>
+    public UsageToday UsageToday { get; set; } = new(0, 0);
+
+    /// <summary>How many times the daily totals were looked up (once before every agent run, when a daily limit is set).</summary>
+    public int UsageTodayChecks { get; private set; }
 
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
@@ -287,6 +296,13 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
+
+        [Activity("workspace_usage_today")]
+        public UsageToday UsageToday(string repository)
+        {
+            lock (world.gate) { world.UsageTodayChecks++; }
+            return world.UsageToday;
+        }
 
         [Activity("workspace_log_usage")]
         public void LogUsage(UsageLogEntry entry)

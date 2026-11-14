@@ -72,6 +72,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     [Activity("workspace_log_usage")]
     public Task LogUsageAsync(UsageLogEntry entry) => workspace.LogUsageAsync(entry, DateTimeOffset.UtcNow);
 
+    /// <summary>What the runs that finished today used, for the daily token limits.</summary>
+    [Activity("workspace_usage_today")]
+    public Task<UsageToday> UsageTodayAsync(string repository) => Task.FromResult(workspace.UsageToday(repository, DateTimeOffset.UtcNow));
+
     /// <summary>Keeps the stages a run has finished, for a later <c>/retry</c>.</summary>
     [Activity("workspace_save_resume")]
     public Task SaveResumeAsync(SaveResumeRequest request) => workspace.SaveResumeAsync(request);

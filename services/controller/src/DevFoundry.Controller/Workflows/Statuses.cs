@@ -15,6 +15,9 @@ public static class Statuses
     /// <summary>The incident analyst's answer could not be used, even after one retry.</summary>
     public const string AssessmentFailed = "assessment_failed";
 
+    /// <summary>the run used its token budget (limits.token_budget, or the operator's FACTORY_MAX_TOKENS_PER_RUN) and stopped before asking another agent (work saved if code existed).</summary>
+    public const string BudgetExceeded = "budget_exceeded";
+
     /// <summary>OpenCode is not signed in (login guide) (saved if code existed).</summary>
     public const string Blocked = "blocked";
 
@@ -128,6 +131,9 @@ public static class Statuses
 
     /// <summary>review: the reviewers' findings on a pull request were posted on it (nothing was changed).</summary>
     public const string ReviewPosted = "review_posted";
+
+    /// <summary>the model provider said its usage limit is reached, so the run stopped instead of trying again; `/retry` after the limit resets (work saved if code existed).</summary>
+    public const string UsageLimit = "usage_limit";
 
     /// <summary>update: the branch already has everything the base branch has, so nothing was merged.</summary>
     public const string UpToDate = "up_to_date";

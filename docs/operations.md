@@ -109,8 +109,7 @@ docker compose up -d
 ## Cost and usage
 
 With a ChatGPT login there is no per-token price: usage counts against your plan, and OpenCode reports `cost` as 0 (the field is kept, so an API key would show real figures). The run record lists tokens per role and step.
-Reference points from real runs: a small feature in the full process used about 52,000 tokens (about 28,000 without cache reads), and the same kind of ticket in quick mode about 28,000. There are **no limits or budgets yet** (the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories) is the base for them); the design for them (a per-ticket budget first) is in
-[Design](design.md#not-built-yet).
+Reference points from real runs: a small feature in the full process used about 52,000 tokens (about 28,000 without cache reads), and the same kind of ticket in quick mode about 28,000. Tokens can be capped, per run and per day: see [Token limits](#token-limits).
 
 ### The usage log: totals across tickets, days and repositories
 
@@ -131,6 +130,20 @@ python3 tools/usage-report.py --by kind --repo acme/shop      # filter by --repo
 ```
 
 The report counts each run once even if a line was written twice (by `run_id`), skips a line it cannot read and says so. It is plain JSON lines, so `jq` or a spreadsheet work as well. To keep the file small, move it away when you like (the controller creates a new one); nothing reads it back except you and this tool.
+
+### Token limits
+
+Nothing is limited until you say so; every limit is off by default. All of them count **input + output + reasoning + cache writes**, and leave out cached input that was only read again (the cheap part). They are checked **before each agent run**, never in the middle of one, so a single long agent run can still go over; the agent's own timeout (15 or 30 minutes) bounds that.
+
+| Limit | Set by | At the limit |
+| --- | --- | --- |
+| **per run** | `limits.token_budget` in a project's [`.factory/project.json`](project-setup.md#limits), and the operator's maximum `FACTORY_MAX_TOKENS_PER_RUN` (a project can only lower it) | the run stops before its next agent with `budget_exceeded`, **saves what it wrote** to a `-wip` branch and says so on the ticket. Raise the budget and comment `/retry`; a feature or bug run keeps the stages that finished |
+| **per day, all repositories** | `FACTORY_DAILY_TOKEN_LIMIT` | the run **waits for the next UTC day** (it says so once on the ticket) and then carries on. Closing the ticket ends the wait |
+| **per day, one repository** | `FACTORY_REPO_DAILY_TOKEN_LIMIT` | the same, for runs on that repository |
+
+A budget belongs to one run: a `/retry`, a revision, an update or a QA run is a new run with its own budget. The daily limits are read from the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories): the runs that **finished** today plus what the asking run has used itself. A run that is still going is in the log only when it ends, so several runs working at once can together go a little over a day's limit; and what a waiting run uses after midnight counts toward the new day. Delete or move the log and the day starts from zero.
+
+**The provider's own limit.** When the model provider (your ChatGPT plan, or an API key's quota) says its limit is reached, OpenCode fails and the factory recognises it: the run stops at once with `usage_limit`, saves its work, and says that nothing is wrong with the ticket and to comment `/retry` after the limit resets. It does not try the same call a second time, which would only be told the same. This goes by the provider's **wording** on OpenCode's standard error and its `error` events (for example "usage limit", "rate limit", "too many requests", an HTTP 429 or an exceeded quota), because no document fixes the text. A limit worded differently is reported as an ordinary failure (tried once more, then `analysis_failed`, `build_failed` or the like); if you meet one, the patterns are in one place, `ProviderLimit.cs`.
 
 ### Spending less
 
