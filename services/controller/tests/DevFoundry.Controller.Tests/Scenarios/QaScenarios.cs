@@ -52,7 +52,7 @@ public sealed class QaScenarios(TemporalFixture fixture)
         Assert.Contains("no problems found", report);
         Assert.Contains("api: passed, 1 scenario", report);
         Assert.Contains("were added to the pull request in one commit", report);
-        Assert.Contains("Tokens used by the agents of this run: 175 (input 100, output 20, reasoning 5, cache read 50) in 1 model step.", report);
+        Assert.DoesNotContain("Tokens used", report);
         Assert.DoesNotContain(QaReportFormat.FindingsHeading, report);
         Assert.Empty(world.Problems);
     }

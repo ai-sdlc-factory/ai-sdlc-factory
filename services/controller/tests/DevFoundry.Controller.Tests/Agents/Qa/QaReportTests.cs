@@ -28,7 +28,7 @@ public sealed class QaReportTests
         Assert.Contains("- api: passed, 1 scenario", text);
         Assert.Contains("(`c0ffee`, 2 file(s))", text);
         Assert.DoesNotContain(QaReportFormat.FindingsHeading, text);
-        Assert.Contains("Tokens used by the agents of this run: 175 (input 100, output 20, reasoning 5, cache read 50) in 1 model step.", text);
+        Assert.DoesNotContain("oken", text); // usage is in the run log, not the ticket
     }
 
     [Fact]
@@ -89,11 +89,6 @@ public sealed class QaReportTests
         Assert.Equal(QaReportFormat.MaxFindings, QaReportFormat.ExtractFindings(many).Count);
     }
 
-    [Fact]
-    public void A_report_without_usage_says_so()
-    {
-        Assert.Contains("Token use was not reported.", QaReportComment.Build(Input([Run()])));
-    }
 
     [Theory]
     [InlineData("qa", true)]

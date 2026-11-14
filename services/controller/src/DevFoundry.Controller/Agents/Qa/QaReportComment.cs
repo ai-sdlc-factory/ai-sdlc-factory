@@ -145,14 +145,9 @@ public static class QaReportComment
         }
 
         text.AppendLine();
-        text.AppendLine($"{input.Attempts} attempt{(input.Attempts == 1 ? "" : "s")} of the tester. {UsageLine(input.Usage)} {input.TraceNote}".TrimEnd());
+        text.AppendLine($"{input.Attempts} attempt{(input.Attempts == 1 ? "" : "s")} of the tester. {input.TraceNote}".TrimEnd());
         return text.ToString().TrimEnd();
     }
-
-    public static string UsageLine(TokenUsage? usage) =>
-        usage is null
-            ? "Token use was not reported."
-            : $"Tokens used by the agents of this run: {usage.Total} (input {usage.Input}, output {usage.Output}, reasoning {usage.Reasoning}, cache read {usage.CacheRead}) in {usage.Steps} model step{(usage.Steps == 1 ? "" : "s")}{(usage.Partial ? ", at least: some output was cut" : "")}.";
 
     private static string Clip(string text, int max) => text.Length > max ? text[..max] + "..." : text;
 
