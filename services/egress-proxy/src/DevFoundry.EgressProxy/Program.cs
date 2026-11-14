@@ -78,7 +78,15 @@ using var stop = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
 AppDomain.CurrentDomain.ProcessExit += (_, _) => stop.Cancel();
 
-var server = new ProxyServer(new EgressPolicy(config, listenMap), new SystemResolver(), new ConsoleAccessLog(), new ProxyOptions());
+// EGRESS_DENIED_LOG: a file that every refusal is also written to (optional), so that the factory's weekly report can read it.
+IAccessLog accessLog = new ConsoleAccessLog();
+if (Environment.GetEnvironmentVariable("EGRESS_DENIED_LOG") is { Length: > 0 } deniedLog)
+{
+    accessLog = new TeeAccessLog(accessLog, new DeniedLogFile(deniedLog));
+    Console.WriteLine($"refusals are also written to {deniedLog}");
+}
+
+var server = new ProxyServer(new EgressPolicy(config, listenMap), new SystemResolver(), accessLog, new ProxyOptions());
 Console.WriteLine($"egress proxy listening on port {port}");
 await server.RunAsync(new TcpListener(IPAddress.Any, port), stop.Token);
 return 0;

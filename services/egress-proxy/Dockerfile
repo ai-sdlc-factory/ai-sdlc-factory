@@ -16,7 +16,8 @@ CMD ["dotnet", "test", "services/egress-proxy/tests/DevFoundry.EgressProxy.Tests
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 ENV DOTNET_EnableDiagnostics=0
 WORKDIR /app
-RUN useradd --system --uid 10001 egress
+RUN useradd --system --uid 10001 egress \
+    && mkdir -p /var/log/egress && chown egress /var/log/egress
 COPY --from=build /out ./
 USER egress
 EXPOSE 3128

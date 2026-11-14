@@ -44,6 +44,8 @@ docker compose logs -f egress-proxy
 
 `decision` is `allow`, `deny` or `audit` (allowed only because the profile is in audit mode).
 
+With `EGRESS_DENIED_LOG` set (Compose sets it to `/var/log/egress/denied.jsonl`, a volume the controller reads) every **refusal** is also written to that file, one line each in the same shape, at most 10 MB (then it stops writing and says so once on standard error). The factory's [weekly report](../../docs/operations.md#the-weekly-report-what-repeats) reads it to show which hosts sandboxes were refused again and again. A log that cannot be written is reported once and never stops the proxy.
+
 ## Running it
 
 Part of the stack: `docker compose up -d egress-proxy`. It is hardened like the other services (read-only
