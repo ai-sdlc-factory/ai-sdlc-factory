@@ -132,6 +132,12 @@ public sealed class FakeWorld
         return this;
     }
 
+    /// <summary>The stage results kept between runs, by workflow id, as the real store keeps them in a file per ticket.</summary>
+    public Dictionary<string, ResumeState> Resumes { get; } = [];
+
+    /// <summary>The workflow ids whose saved stages were looked up (a lookup happens only for a run started by /retry).</summary>
+    public List<string> ResumeLoads { get; } = [];
+
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
     public static RevisionContext FactoryPullRequest(
@@ -270,6 +276,28 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
+
+        [Activity("workspace_save_resume")]
+        public void SaveResume(SaveResumeRequest request)
+        {
+            lock (world.gate) { world.Resumes[request.Name] = request.State; }
+        }
+
+        [Activity("workspace_load_resume")]
+        public ResumeState? LoadResume(string name)
+        {
+            lock (world.gate)
+            {
+                world.ResumeLoads.Add(name);
+                return world.Resumes.GetValueOrDefault(name);
+            }
+        }
+
+        [Activity("workspace_clear_resume")]
+        public void ClearResume(string name)
+        {
+            lock (world.gate) { world.Resumes.Remove(name); }
+        }
 
         [Activity("workspace_merge_base")]
         public MergeResult MergeBase(MergeBaseRequest request)

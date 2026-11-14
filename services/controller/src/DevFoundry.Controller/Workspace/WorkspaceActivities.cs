@@ -67,4 +67,18 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     [Activity("workspace_publish_merge")]
     public Task<PublishResult> PublishMergeAsync(PublishMergeRequest request) =>
         workspace.PublishMergeAsync(request, ActivityExecutionContext.Current.CancellationToken);
+
+    /// <summary>Keeps the stages a run has finished, for a later <c>/retry</c>.</summary>
+    [Activity("workspace_save_resume")]
+    public Task SaveResumeAsync(SaveResumeRequest request) => workspace.SaveResumeAsync(request);
+
+    [Activity("workspace_load_resume")]
+    public Task<ResumeState?> LoadResumeAsync(string name) => Task.FromResult(workspace.LoadResume(name));
+
+    [Activity("workspace_clear_resume")]
+    public Task ClearResumeAsync(string name)
+    {
+        workspace.ClearResume(name);
+        return Task.CompletedTask;
+    }
 }

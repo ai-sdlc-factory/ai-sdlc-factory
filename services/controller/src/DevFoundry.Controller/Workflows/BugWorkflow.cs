@@ -30,18 +30,27 @@ public sealed partial class BugWorkflow : FactoryWorkflowBase
     private async Task<WorkResult> StagesAsync(WorkContext work)
     {
         var (request, workspace, project) = work;
-        var analysis = await ConverseAsync<BugAnalysis>(
-            request, workspace, project.Image, "bug-analyst", maxClarificationRounds + 1,
-            (round, answers, problem) => BugPrompts.Analyst(request, answers, problem, round, maxClarificationRounds + 1),
-            text => BugParser.TryParseAnalysis(text, out var value, out var error) ? (value, null) : (null, error),
-            BugComments.Analysis,
-            value => value.Verdict switch { BugAnalysis.Pass => Next.Done, BugAnalysis.Reject => Next.Stop, _ => Next.Ask },
-            failedStatus: Statuses.AnalysisFailed, rejectedStatus: Statuses.Rejected, failureText: "The bug analysis failed");
-        if (analysis.Stop is { } stop)
+        // What an earlier run finished (only on /retry, and only if the ticket and the default branch are as they were) is not done again. The reproduction
+        // is not kept: its test files live in the checkout, which is removed when a run ends.
+        var saved = await BeginResumeAsync(request, workspace);
+        var understood = saved.BugAnalysis;
+        if (understood is null)
         {
-            return stop;
+            var analysis = await ConverseAsync<BugAnalysis>(
+                request, workspace, project.Image, "bug-analyst", maxClarificationRounds + 1,
+                (round, answers, problem) => BugPrompts.Analyst(request, answers, problem, round, maxClarificationRounds + 1),
+                text => BugParser.TryParseAnalysis(text, out var value, out var error) ? (value, null) : (null, error),
+                BugComments.Analysis,
+                value => value.Verdict switch { BugAnalysis.Pass => Next.Done, BugAnalysis.Reject => Next.Stop, _ => Next.Ask },
+                failedStatus: Statuses.AnalysisFailed, rejectedStatus: Statuses.Rejected, failureText: "The bug analysis failed");
+            if (analysis.Stop is { } stop)
+            {
+                return stop;
+            }
+            understood = analysis.Verdict!;
+            saved = saved with { BugAnalysis = understood };
+            await SaveResumeAsync(request, saved);
         }
-        var understood = analysis.Verdict!;
 
         var reproduction = await ReproduceAsync(work, understood);
         if (reproduction.Stop is { } notReproduced)

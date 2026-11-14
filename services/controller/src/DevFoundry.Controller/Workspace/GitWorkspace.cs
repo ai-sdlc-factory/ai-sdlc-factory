@@ -94,7 +94,11 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
     }
 
     /// <summary>The janitor's name for <see cref="CleanupAsync"/>: removes the checkout, the pristine clone and the record folder of one run.</summary>
-    public Task DeleteAsync(string name) => CleanupAsync(name);
+    public async Task DeleteAsync(string name)
+    {
+        await CleanupAsync(name);
+        ClearResume(name); // the run is long gone and its saved stages are as old as the checkout, so they go with it
+    }
 
     public Task CleanupAsync(string name)
     {
@@ -141,6 +145,20 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
             {
                 var touched = child.EnumerateFileSystemInfos().Select(entry => entry.LastWriteTimeUtc).Append(child.LastWriteTimeUtc).Max();
                 latest[child.Name] = latest.TryGetValue(child.Name, out var earlier) && earlier > touched ? earlier : touched;
+            }
+        }
+        var resumeFolder = new DirectoryInfo($"{root}/.resume");
+        if (resumeFolder.Exists && resumeFolder.LinkTarget is null)
+        {
+            // A ticket's saved stages count as part of its run: the janitor removes them when nothing touched any of it for the configured days.
+            foreach (var file in resumeFolder.EnumerateFiles("*.json").Where(file => file.LinkTarget is null))
+            {
+                var name = Path.GetFileNameWithoutExtension(file.Name);
+                if (WorkspaceName().IsMatch(name))
+                {
+                    var touched = file.LastWriteTimeUtc;
+                    latest[name] = latest.TryGetValue(name, out var earlier) && earlier > touched ? earlier : touched;
+                }
             }
         }
         return latest.Select(pair => new WorkspaceEntry(pair.Key, new DateTimeOffset(pair.Value, TimeSpan.Zero))).OrderBy(entry => entry.Name, StringComparer.Ordinal).ToList();

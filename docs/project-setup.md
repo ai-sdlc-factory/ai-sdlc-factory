@@ -411,7 +411,7 @@ treat repository text as data and will not obey commands in it, so write convent
 3. Within a few seconds the bot comments "The factory picked up this feature ticket". The analyst, coverage check and the rest follow, each as a comment.
 4. When it is done there is a pull request `factory/issue-<n>`. Review it like any other, and merge it yourself.
 
-To run a ticket again, comment `/retry` on it, or **close and reopen** it. To follow a run in detail, open it in the Temporal UI; the [operations guide](operations.md) lists what to look at.
+To run a ticket again, comment `/retry` on it (it carries on from the stages the last run finished; `/retry restart` starts over), or **close and reopen** it (from the beginning). To follow a run in detail, open it in the Temporal UI; the [operations guide](operations.md) lists what to look at.
 
 ## What the factory will not do
 

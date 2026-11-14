@@ -345,6 +345,18 @@ public static class TicketComments
     public const string UpdateBusy =
         "An update of this pull request is already going. What it did will be posted here when it is done; comment `/update` again after that if the branch is still behind.";
 
+    /// <summary>`/retry` found nothing finished from an earlier run.</summary>
+    public const string ResumeNothingSaved =
+        "Nothing finished in an earlier run was saved for this ticket, so I start from the beginning.";
+
+    /// <summary>`/retry` found saved results, but the ticket or the repository is no longer what they were made from.</summary>
+    public static string ResumeNotUsable(string why) =>
+        $"I start from the beginning, because {why}.";
+
+    /// <summary>`/retry` carries on from what an earlier run finished.</summary>
+    public static string ResumeUsing(IReadOnlyList<string> kept) =>
+        $"Carrying on from the earlier run: I keep {string.Join(" and ", kept)} and do not ask for them again. Comment `/retry restart` to start from the beginning instead.";
+
     /// <summary>`/retry` on a ticket whose run is still going.</summary>
     public const string RetryWhileRunning =
         "A factory run is still active for this ticket, so `/retry` was not needed. It works once the run has finished.";

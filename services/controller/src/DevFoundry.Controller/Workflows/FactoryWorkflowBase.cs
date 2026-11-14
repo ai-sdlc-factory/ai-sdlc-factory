@@ -143,6 +143,10 @@ public abstract partial class FactoryWorkflowBase
                 await CommentAsync(request, $"The factory hit an unexpected error and stopped: {TicketComments.Inert(Short(reason))}{(infrastructure ? TicketComments.RetryHint : "")}");
                 result = new WorkResult(infrastructure ? Statuses.InfrastructureFailed : Statuses.Error);
             }
+            if (result.Status == Statuses.PrOpened)
+            {
+                await ClearResumeAsync(request);
+            }
             await NoteUnusedCommentsAsync(request, result);
             result = await SaveUnfinishedWorkAsync(request, result);
             return result with { Usage = TotalUsage };

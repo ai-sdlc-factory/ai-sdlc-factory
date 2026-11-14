@@ -126,12 +126,38 @@ public sealed class EventRouterTests
         Assert.True(decision.Restart);
         Assert.Equal(WorkIds.For("acme", "shop", 7), decision.Feature!.WorkflowId);
         Assert.False(string.IsNullOrEmpty(decision.Feature.Title)); // the ticket's current text goes with it
+        Assert.True(decision.Feature.Resume); // carries on from the stages an earlier run finished
+    }
+
+    [Theory]
+    [InlineData("/retry restart")]
+    [InlineData("  /RETRY   Restart  ")]
+    [InlineData("Start over please.\n/retry restart")]
+    public void Retry_restart_starts_from_the_beginning(string body)
+    {
+        var decision = EventRouter.Decide(Event("issue_comment",
+            Ticket("created", more: new { comment = Comment(body) })));
+
+        Assert.Equal(RoutingAction.RetryFeature, decision.Action);
+        Assert.True(decision.Restart);
+        Assert.False(decision.Feature!.Resume);
+    }
+
+    [Fact]
+    public void Reopening_a_ticket_still_starts_from_the_beginning()
+    {
+        var decision = EventRouter.Decide(Event("issues", Ticket("reopened")));
+
+        Assert.True(decision.Restart);
+        Assert.False(decision.Feature!.Resume);
     }
 
     [Theory]
     [InlineData("please /retry this")]
     [InlineData("/retry-later")]
     [InlineData("/retryy")]
+    [InlineData("/retry now")]
+    [InlineData("/retry restarting")]
     public void Only_a_line_that_is_just_retry_counts(string body)
     {
         var decision = EventRouter.Decide(Event("issue_comment",

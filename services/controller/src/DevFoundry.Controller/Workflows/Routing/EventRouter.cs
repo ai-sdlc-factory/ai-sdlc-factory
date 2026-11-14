@@ -130,10 +130,12 @@ public static partial class EventRouter
                         : Ignore("update needs a feature or bug ticket");
                 }
                 // `/retry` starts the ticket's run again, like closing and reopening it, without touching the ticket.
-                if (RetryCommand().IsMatch(body))
+                if (RetryCommand().Match(body.Replace("\r", "")) is { Success: true } retry)
                 {
+                    // `/retry` carries on from the stages an earlier run finished; `/retry restart` starts from the beginning like reopening the ticket.
+                    var resume = !retry.Groups["restart"].Success;
                     return isOpen
-                        ? new RoutingDecision(RoutingAction.RetryFeature, "retry", Restart: true, Feature: TicketRequest(issue, owner, repo, issueNumber, kind!))
+                        ? new RoutingDecision(RoutingAction.RetryFeature, "retry", Restart: true, Feature: TicketRequest(issue, owner, repo, issueNumber, kind!) with { Resume = resume })
                         : Ignore("ticket is closed");
                 }
                 return new RoutingDecision(
@@ -156,8 +158,8 @@ public static partial class EventRouter
             LabelNames(issue),
             kind);
 
-    /// <summary>A line that is just <c>/retry</c> on a ticket: run the factory on it again.</summary>
-    [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t]*/retry[ \t]*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline)]
+    /// <summary>A line that is just <c>/retry</c> (or <c>/retry restart</c>) on a ticket: run the factory on it again.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t]*/retry(?<restart>[ \t]+restart)?[ \t]*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline)]
     private static partial System.Text.RegularExpressions.Regex RetryCommand();
 
     /// <summary>A line starting with <c>/fix</c> (or <c>/revise</c>) on a pull request; what follows it says what to change.</summary>

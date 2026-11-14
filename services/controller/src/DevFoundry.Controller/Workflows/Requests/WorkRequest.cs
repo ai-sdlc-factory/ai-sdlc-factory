@@ -1,10 +1,13 @@
 
 namespace DevFoundry.Controller;
 
-/// <summary>A ticket that asks the factory to build a feature, fix a bug, look at an incident or plan a larger request (<see cref="Kind"/>).</summary>
+/// <summary>
+/// A ticket that asks the factory to build a feature, fix a bug, look at an incident or plan a larger request (<see cref="Kind"/>).
+/// <see cref="Resume"/> is set by <c>/retry</c>: the run may reuse the stage results an earlier run of the same ticket saved (see <see cref="ResumeState"/>).
+/// </summary>
 public sealed record WorkRequest(
     string Owner, string Repo, int IssueNumber, string Title, string Body, string Author,
-    IReadOnlyList<string>? Labels = null, string Kind = WorkIds.Feature)
+    IReadOnlyList<string>? Labels = null, string Kind = WorkIds.Feature, bool Resume = false)
 {
     public string WorkflowId => WorkIds.For(Owner, Repo, IssueNumber, Kind);
 

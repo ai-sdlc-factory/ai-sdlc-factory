@@ -30,24 +30,41 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
     private async Task<WorkResult> StagesAsync(WorkContext work)
     {
         var (request, workspace, project) = work;
-        var analysis = await AnalyseAsync(request, workspace, project.Image);
-        if (analysis.Stop is { } stop)
+        // What an earlier run finished (only on /retry, and only if the ticket and the default branch are as they were) is not done again.
+        var saved = await BeginResumeAsync(request, workspace);
+        var verdict = saved.Analysis;
+        if (verdict is null)
         {
-            return stop;
+            var analysis = await AnalyseAsync(request, workspace, project.Image);
+            if (analysis.Stop is { } stop)
+            {
+                return stop;
+            }
+            verdict = analysis.Verdict!;
+            saved = saved with { Analysis = verdict };
+            await SaveResumeAsync(request, saved);
         }
-        var verdict = analysis.Verdict!;
 
         // Quick mode (chosen by a person, never by an agent) skips the coverage check, the design review and the acceptance check.
         var quickReason = WorkMode.QuickReason(request.Labels, project);
         CoverageReport coverageReport;
         if (quickReason is null)
         {
-            var coverage = await CheckCoverageAsync(request, workspace, project.Image, verdict);
-            if (coverage.Stop is { } stopped)
+            if (saved.Coverage is { } keptCoverage)
             {
-                return stopped;
+                coverageReport = keptCoverage;
             }
-            coverageReport = coverage.Verdict!;
+            else
+            {
+                var coverage = await CheckCoverageAsync(request, workspace, project.Image, verdict);
+                if (coverage.Stop is { } stopped)
+                {
+                    return stopped;
+                }
+                coverageReport = coverage.Verdict!;
+                saved = saved with { Coverage = coverageReport };
+                await SaveResumeAsync(request, saved);
+            }
         }
         else
         {
@@ -81,12 +98,21 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
         ArchitectDesign? approved = null;
         if (triage.NeedsArchitect)
         {
-            var design = await DesignAsync(request, workspace, project.Image, coverageReport, triage);
-            if (design.Stop is { } designStop)
+            if (saved.Design is { } keptDesign)
             {
-                return designStop;
+                approved = keptDesign;
             }
-            approved = design.Verdict;
+            else
+            {
+                var design = await DesignAsync(request, workspace, project.Image, coverageReport, triage);
+                if (design.Stop is { } designStop)
+                {
+                    return designStop;
+                }
+                approved = design.Verdict;
+                saved = saved with { Design = approved };
+                await SaveResumeAsync(request, saved);
+            }
         }
 
         // From here no stage asks a question, so a new comment can no longer change the outcome.

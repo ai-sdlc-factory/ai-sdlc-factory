@@ -28,9 +28,9 @@ answer:
 | Forgejo event | What happens |
 | --- | --- |
 | ticket **opened**, **reopened** or **labelled**, open, with a factory label | starts that ticket's workflow. Workflow id: `<kind>-<owner>-<repo>-<number>-<hash>`; the hash of the exact owner and repository keeps similar names apart, and the same name is the ticket's workspace folder |
-| the same event again for a ticket that already had a run | ignored. Comment **`/retry`** (or close and reopen the ticket) to run it again; a new run starts from the beginning and reads the whole ticket again |
+| the same event again for a ticket that already had a run | ignored. Comment **`/retry`** to run it again from the last good stage, or **`/retry restart`** (or close and reopen the ticket) to run it again from the beginning ([Resuming a run](#resuming-a-run-with-retry)) |
 | a **comment** by a person | sent to the running workflow (signal `human_reply`); see [Talking to the factory](#talking-to-the-factory) |
-| a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
+| a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again, [carrying on from the stages the earlier run finished](#resuming-a-run-with-retry) (feature and bug tickets). **`/retry restart`** starts from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
 | a comment with a line starting **`/qa`** (`/qa [full] [api|ui] [note]`), on a feature or bug ticket or on a factory pull request | starts a [QA run](#qa-run) (id `qa-<owner>-<repo>-<number>-<hash>`); a second one for the same number while one runs gets a notice |
 | a comment that is just **`/update`**, on a feature or bug ticket or on a factory pull request | starts an [update](#updating-a-pull-request) of the pull request (id `update-<owner>-<repo>-<number>-<hash>`, where the number is the one the comment is on); a second one for the same number while one runs gets a notice |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
@@ -291,7 +291,31 @@ Some failures say nothing about the ticket or the agent's work: a sandbox stoppe
 
 For these the ticket comment says it is a problem with the factory itself, not with the ticket, and the run ends with the status `infrastructure_failed`. Code written so far is saved to the work-in-progress branch like for any other stop. A check that cannot run for this reason also ends the run at once; it is not sent to the developer as feedback, which would only cost a build round and tokens.
 
-Comment **`/retry`** on the ticket to run it again. `/retry` starts the ticket's workflow from the beginning, exactly like closing and reopening it (it reads the current ticket text, so edit the ticket first if needed). It needs the ticket to be open and the earlier run to have finished; while a run is still active the person gets one notice instead. It does not resume from the last good stage.
+Comment **`/retry`** on the ticket to run it again. It needs the ticket to be open and the earlier run to have finished; while a run is still active the person gets one notice instead. A feature or bug run [carries on from the stages the earlier run finished](#resuming-a-run-with-retry), so a failure of the factory itself costs only the stage that was running. The factory never retries by itself: a second try can spend tokens twice, so a person decides.
+
+### Resuming a run with `/retry`
+
+Every stage of a feature or bug run that uses a model and cannot change unless the ticket or the repository changes is **saved when it passes**, in a small file per ticket on the controller's volume (`.resume/<workflow id>.json` in `FACTORY_WORKSPACE_ROOT`, next to the checkouts; it is not in the checkout, so the end of a run does not remove it, and no agent can reach it):
+
+| Saved | Ticket kind | Why it is safe to reuse |
+| --- | --- | --- |
+| the **analysis**, with what people answered to its questions | feature | the criteria are what was agreed on the ticket; people are not asked the same questions again |
+| the **coverage check** | feature (not in quick mode) | what is already built, as of the default branch's tip when it ran |
+| the **design** | feature, when triage asked for one | an approved design, as of the same tip |
+| the **bug analysis** | bug | what is wrong, as the ticket says |
+
+The developer's work is not saved here (a run that stops with code saves that to a [work-in-progress branch](#when-a-run-stops-the-work-in-progress-branch)), and neither is a bug's reproduction, because its test files live in the checkout; both are done again.
+
+`/retry` uses the saved stages only when **nothing they were made from has changed**: the ticket's kind, title, text and labels are the same (a fingerprint of them is saved), and the default branch is at the same commit. Otherwise the run starts from the beginning and the ticket says why (for example "the ticket's text or labels changed since the earlier run"); edit the ticket and `/retry` to have it analysed again. The comment on a resumed run says what is reused, for example "Carrying on from the earlier run: I keep the analysis and the coverage check and do not ask for them again."
+
+| You do | What happens |
+| --- | --- |
+| comment `/retry` | carries on from the saved stages, if they still apply |
+| comment `/retry restart`, or close and reopen the ticket | starts from the beginning and ignores what was saved |
+| a pull request is opened | the saved stages are removed: there is nothing left to resume |
+| nobody touches the ticket for `FACTORY_JANITOR_CHECKOUT_DAYS` | the janitor removes the saved stages with the leftover checkout |
+
+Plan and incident tickets always start from the beginning: their runs are short, and a person is in the loop at every step. A version of the factory with a different format of the saved file does not read an older one (it starts from the beginning).
 
 ## When a run stops: the work-in-progress branch
 

@@ -43,7 +43,6 @@ Small gaps found while building and testing these. None is started.
 - [ ] **QA: keep the tests that expose a real bug** (S). A failing run saves its tests to a `-wip` branch, so the developer fixing the findings never sees the test. Show it the failing output in `/fix qa`, or push the tests in a separate commit.
 - [ ] **QA: services for the application** (M). The sandbox has no database or cache server, so a QA run needs an application that works with SQLite or in-memory fakes. Sidecar containers on an isolated network would need an image allowlist like the repository-image policy.
 - [ ] **QA: screenshots for the UX review** (S to find out). Today it reads page text and accessibility snapshots. Find out whether OpenCode with the ChatGPT login accepts an image as input.
-- [ ] **`/retry` that resumes** (M). It starts the run again from the beginning. Resuming from the last good stage needs stage results saved between runs. Infrastructure failures are deliberately not retried by themselves, because a second try can spend tokens twice.
 
 ## Other ideas we discussed
 
@@ -63,6 +62,7 @@ Small gaps found while building and testing these. None is started.
 - [x] `/update`: the base branch is merged into a factory pull request (on the ticket or on the pull request), conflicts are resolved by the `merge-resolver` role, the checks and reviewers run on the result, and one merge commit is pushed (see [Updating a pull request](workflows.md#updating-a-pull-request)). Still open: a person can start it by asking, but nothing starts it when the base moves; and a conflict in a protected file, or in more than 40 files, is left to a person.
 - [x] The feature workflow's `qa` role is now `acceptance` (it reads the diff against the acceptance criteria and never runs the application), so "QA" means only the `/qa` run.
 - [x] Revisions and updates give the next round's reviewers the earlier findings to check, as the build loop does.
+- [x] `/retry` resumes: the analysis (with people's answers), coverage check, design and bug analysis are saved when they pass and reused by the next `/retry` if the ticket and the default branch are unchanged; `/retry restart` starts over (see [Resuming a run](workflows.md#resuming-a-run-with-retry)). Still open: the developer's work and a bug's reproduction are not resumed.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
 - [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.
 - [x] `/qa` workflow: end-to-end API and UI tests of a finished pull request (`/qa`, `/qa full`, `/qa <note>`, `/fix qa`), the `browser` sandbox image, and the token use of every run stored in its result.
