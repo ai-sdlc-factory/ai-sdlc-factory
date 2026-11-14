@@ -8,6 +8,7 @@ A tiny full-stack app: a .NET API that builds a greeting and a React page that a
 - `tests/Greetings.Api.Tests`: xUnit tests, including API tests that start the app in memory
 - `frontend/`: Vite + React + TypeScript. `src/api.ts` is the only code that talks to the API; `src/App.tsx` is the screen
 - `Greetings.slnx`: the .NET solution; `dotnet build` and `dotnet test` at the root cover the API
+- `e2e/`: end-to-end tests (`Api.E2E` for the API, `ui` for Playwright), written by the `/qa` run (not part of the solution)
 
 ## Build and test
 - API: `dotnet build --nologo -v q` and `dotnet test --nologo -v q` (from the root)
@@ -29,4 +30,5 @@ The factory runs the commands under `gates` in `.factory/project.json` (the web 
 - xUnit for the API, Vitest and Testing Library for the web. Test behaviour, not implementation details. Every change in behaviour comes with a test; a bug fix includes a test that fails without the fix.
 
 ## Do not touch
+- `e2e/`: the end-to-end tests belong to the `/qa` run, and only it may change them. If one fails, fix the application, not the test.
 - `**/Migrations/**`, `global.json` (the SDK version) and `frontend/vite.config.ts`: a person changes these.

@@ -6,6 +6,7 @@ A tiny React app where a person types a name and is greeted. It exists to show h
 ## Layout
 - `src/App.tsx`: the one screen. `src/greeting.ts`: the rule that decides the greeting (pure, no React)
 - `src/*.test.ts(x)`: Vitest tests. `src/styles.css`: styling with CSS variables
+- `e2e/ui`: Playwright tests against the running page, written by the `/qa` run (Vitest does not collect them)
 - `index.html`, `vite.config.ts`, `tsconfig.json`: the build setup
 
 ## Build and test
@@ -34,4 +35,5 @@ The factory runs the commands under `gates` in `.factory/project.json`. There is
 - Every change in behaviour comes with a test. A bug fix includes a test that fails without the fix.
 
 ## Do not touch
+- `e2e/`: the end-to-end tests belong to the `/qa` run, and only it may change them. If one fails, fix the application, not the test.
 - `vite.config.ts` and `tsconfig.json`: a person changes these.

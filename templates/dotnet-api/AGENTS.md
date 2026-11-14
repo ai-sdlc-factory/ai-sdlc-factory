@@ -7,6 +7,7 @@ A tiny ASP.NET Core web API that greets a person by name. It exists to show how 
 - `src/Greetings.Api`: the web API. `Program.cs` maps the routes; `Greeting.cs` holds the business rule
 - `tests/Greetings.Api.Tests`: xUnit tests, including API tests that start the app in memory
 - `Greetings.slnx`: the solution; `dotnet build` and `dotnet test` at the root cover everything
+- `e2e/Api.E2E`: end-to-end tests against the running API, written by the `/qa` run (not part of the solution)
 
 ## Build and test
 - Build: `dotnet build --nologo -v q`
@@ -27,5 +28,6 @@ The factory runs the commands under `gates` in `.factory/project.json`. If this 
 - A bug fix includes a test that fails without the fix.
 
 ## Do not touch
+- `e2e/`: the end-to-end tests belong to the `/qa` run, and only it may change them. If one fails, fix the application, not the test.
 - `**/Migrations/**` and `global.json` (the SDK version): a person changes these.
 - A new NuGet package is fine when the ticket needs it; say why in the pull request.
