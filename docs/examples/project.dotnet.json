@@ -12,5 +12,14 @@
     { "name": "build", "command": ["dotnet", "build", "--nologo", "-v", "q"], "timeout_seconds": 600 },
     { "name": "test", "command": ["dotnet", "test", "--nologo", "-v", "q"], "timeout_seconds": 900 },
     { "name": "audit", "command": ["dotnet", "list", "package", "--vulnerable"] }
-  ]
+  ],
+  "verify": {
+    "start": ["dotnet", "run", "--project", "src/Api", "--urls", "http://127.0.0.1:5080"],
+    "ready": "http://127.0.0.1:5080/health",
+    "startup_timeout_seconds": 90,
+    "tests": "e2e",
+    "suites": [
+      { "name": "api", "command": ["dotnet", "test", "e2e/Api.E2E", "--nologo", "-v", "q"], "timeout_seconds": 600 }
+    ]
+  }
 }

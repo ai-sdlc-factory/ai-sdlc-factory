@@ -14,5 +14,12 @@
   ],
   "gates": [
     { "name": "check", "command": ["sh", "-c", "npm ci --no-audit --no-fund && npm run lint && npm run typecheck && npm test --silent"], "timeout_seconds": 600 }
-  ]
+  ],
+  "verify": {
+    "image": "browser",
+    "tests": "e2e",
+    "suites": [
+      { "name": "ui", "command": ["sh", "-c", "npm ci --no-audit --no-fund && npx playwright test"], "cwd": "e2e/ui", "timeout_seconds": 900 }
+    ]
+  }
 }
