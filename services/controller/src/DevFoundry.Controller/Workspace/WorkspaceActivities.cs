@@ -68,6 +68,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     public Task<PublishResult> PublishMergeAsync(PublishMergeRequest request) =>
         workspace.PublishMergeAsync(request, ActivityExecutionContext.Current.CancellationToken);
 
+    /// <summary>Adds a finished run to the usage log (one line: the run, what it was about, the tokens its agents used).</summary>
+    [Activity("workspace_log_usage")]
+    public Task LogUsageAsync(UsageLogEntry entry) => workspace.LogUsageAsync(entry, DateTimeOffset.UtcNow);
+
     /// <summary>Keeps the stages a run has finished, for a later <c>/retry</c>.</summary>
     [Activity("workspace_save_resume")]
     public Task SaveResumeAsync(SaveResumeRequest request) => workspace.SaveResumeAsync(request);

@@ -44,6 +44,19 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_revision_is_logged_under_its_pull_request_number()
+    {
+        var world = Reviewing();
+        var request = ScenarioContext.Revision();
+
+        await world.RunAsync(fixture, context => context.RunRevisionAsync(request));
+
+        var entry = Assert.Single(world.Snapshot(world.UsageLogs));
+        Assert.Equal(("revision", 7, "revision_pushed"), (entry.Kind, entry.Number, entry.Status));
+        Assert.Equal(2 * 175, entry.Usage.Total); // the resolver and the reviewer
+    }
+
+    [SkippableFact]
     public async Task The_resolver_is_given_every_comment_numbered_and_works_in_a_writable_workspace_with_package_access()
     {
         var world = Reviewing();

@@ -138,6 +138,9 @@ public sealed class FakeWorld
     /// <summary>The workflow ids whose saved stages were looked up (a lookup happens only for a run started by /retry).</summary>
     public List<string> ResumeLoads { get; } = [];
 
+    /// <summary>The runs added to the usage log.</summary>
+    public List<UsageLogEntry> UsageLogs { get; } = [];
+
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
     public static RevisionContext FactoryPullRequest(
@@ -276,6 +279,12 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
+
+        [Activity("workspace_log_usage")]
+        public void LogUsage(UsageLogEntry entry)
+        {
+            lock (world.gate) { world.UsageLogs.Add(entry); }
+        }
 
         [Activity("workspace_save_resume")]
         public void SaveResume(SaveResumeRequest request)

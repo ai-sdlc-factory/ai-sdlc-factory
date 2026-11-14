@@ -107,8 +107,28 @@ docker compose up -d
 ## Cost and usage
 
 With a ChatGPT login there is no per-token price: usage counts against your plan, and OpenCode reports `cost` as 0 (the field is kept, so an API key would show real figures). The run record lists tokens per role and step.
-Reference points from real runs: a small feature in the full process used about 52,000 tokens (about 28,000 without cache reads), and the same kind of ticket in quick mode about 28,000. There are **no limits or budgets yet**; the design for them (a per-ticket budget first) is in
+Reference points from real runs: a small feature in the full process used about 52,000 tokens (about 28,000 without cache reads), and the same kind of ticket in quick mode about 28,000. There are **no limits or budgets yet** (the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories) is the base for them); the design for them (a per-ticket budget first) is in
 [Design](design.md#not-built-yet).
+
+### The usage log: totals across tickets, days and repositories
+
+Every finished run that used an agent adds **one line** to `usage.jsonl` in the folder `.usage/` under `FACTORY_WORKSPACE_ROOT` (a host path, so you can read it without going into a container; no sandbox can reach it). The file only grows (about 300 bytes a run), it is never rewritten, and it holds no text from tickets or code: only which run it was and what it used.
+
+```json
+{"time":"2026-11-14T10:00:00Z","workflow_id":"feature-acme-shop-1-ab12cd34","run_id":"…","kind":"feature","repository":"acme/shop","number":1,"status":"pr_opened","input":1000,"output":200,"reasoning":10,"cache_read":500,"cache_write":0,"total":1710,"cost":0,"steps":5,"partial":false}
+```
+
+`kind` is `feature`, `bug`, `incident`, `plan`, `revision`, `qa` or `update`; `number` is the ticket or, for a revision, QA run or update, the number of the ticket or pull request the comment was on; `status` is how the run ended (a run that stopped is logged too, because its tokens were spent); `partial` is true when an agent's usage could not be read in full, so the total is a lower bound. A run that stopped before any agent ran (no settings file, a repository image that would not build) adds no line. A line is added when the run ends, so a run that is still going is not in it yet.
+
+Totals, from the repository root:
+
+```sh
+python3 tools/usage-report.py                                  # by repository (reads the root named in infra/.env)
+python3 tools/usage-report.py --by day --since 2026-11-01     # by day; also month, kind, status, ticket
+python3 tools/usage-report.py --by kind --repo acme/shop      # filter by --repo, --kind, --since, --until
+```
+
+The report counts each run once even if a line was written twice (by `run_id`), skips a line it cannot read and says so. It is plain JSON lines, so `jq` or a spreadsheet work as well. To keep the file small, move it away when you like (the controller creates a new one); nothing reads it back except you and this tool.
 
 ### Spending less
 

@@ -37,7 +37,6 @@ Item 8 is also on your list above (the "factory improvement loop"); items 1 and 
 Small gaps found while building and testing these. None is started.
 
 - [ ] **Who may start things** (S). Anyone who can comment can start `/qa`, `/fix`, `/update` and `/retry`, and each spends tokens. Check write access to the repository first (the `permissions.push` Forgejo already reports for the bot's own repositories is not enough: it must be the commenter's).
-- [ ] **A durable usage log** (S to M). Token use is now in every workflow result (`usage`) and in the run record, but there is no total across tickets, days or repositories. Append one line per finished run (workflow id, kind, repository, tokens) on the host; it is also the base for the budget item below and for the improvement loop.
 - [ ] **QA: tell the tester what the pull request changed** (S). Give it the list of changed files (Forgejo `pulls/<n>/files`) and the diff, not only the title and criteria.
 - [ ] **QA: notice a UI-only change with no `ui` suite before spending a tester run** (S). Compare the changed files with the project's `ui` paths and say so on the ticket. The same comment should also show the scope line, which the "blocked" comment lacks today.
 - [ ] **QA: keep the tests that expose a real bug** (S). A failing run saves its tests to a `-wip` branch, so the developer fixing the findings never sees the test. Show it the failing output in `/fix qa`, or push the tests in a separate commit.
@@ -48,11 +47,7 @@ Small gaps found while building and testing these. None is started.
 
 - [x] **Browser image and end-to-end spike** (done: the `browser` image runs Chromium in the locked-down sandbox, see [QA run](workflows.md#qa-run); whether OpenCode can take a screenshot as input is still open, so the UX review reads page text and accessibility snapshots). Original item (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
   and whether OpenCode can take a screenshot as input. Prerequisite for the scheduled UI check and for UI bugs that can be reproduced with a test.
-- [ ] **Token and spending limits** (M). The per-run total is stored now (see "A durable usage log" above). A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps from a host-side usage log, and recognition of the provider's usage-limit errors so a run stops cleanly.
-- [ ] **Startup check of each role's model** (S). Fail early when a role names a model the login cannot use.
-- [ ] **Models and reasoning per role** (S). Try `variant` (low for the roles the controller checks mechanically, high for developer, architect and reviewers) and compare tokens and quality from the run records.
-- [ ] **Repo map or language-server tools** (M). A generated repository map (ctags) at sandbox start, or language servers baked into the images, for large repositories.
-- [ ] **Marketing visuals** (S). Two non-technical images for slides and marketing: the ticket-to-reviewed-code flow, and a simplified architecture. A first draft of the flow image had card text running to the bottom edge and an overflowing label, and the drafts are gone, so they need to be redone before review.
+- [ ] **Token and spending limits** (M). The per-run total is stored in every result, and the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) gives totals across tickets, days and repositories. A per-ticket budget first (a project can only lower a factory-wide maximum), then daily and per-repository caps read from that log, and recognition of the provider's usage-limit errors so a run stops cleanly.
 
 ## Done
 
@@ -61,6 +56,7 @@ Small gaps found while building and testing these. None is started.
 - [x] `/update`: the base branch is merged into a factory pull request (on the ticket or on the pull request), conflicts are resolved by the `merge-resolver` role, the checks and reviewers run on the result, and one merge commit is pushed (see [Updating a pull request](workflows.md#updating-a-pull-request)). Still open: a person can start it by asking, but nothing starts it when the base moves; and a conflict in a protected file, or in more than 40 files, is left to a person.
 - [x] The feature workflow's `qa` role is now `acceptance` (it reads the diff against the acceptance criteria and never runs the application), so "QA" means only the `/qa` run.
 - [x] Revisions and updates give the next round's reviewers the earlier findings to check, as the build loop does.
+- [x] Durable usage log: one line per finished run in `.usage/usage.jsonl` under the workspace root, and `tools/usage-report.py` for totals by repository, day, month, kind, status or ticket.
 - [x] Unknown keys in `.factory/project.json` are warned about once on the ticket, with a "did you mean" hint; the run goes ahead without them.
 - [x] `/retry` resumes: the analysis (with people's answers), coverage check, design and bug analysis are saved when they pass and reused by the next `/retry` if the ticket and the default branch are unchanged; `/retry restart` starts over (see [Resuming a run](workflows.md#resuming-a-run-with-retry)). Still open: the developer's work and a bug's reproduction are not resumed.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).

@@ -35,6 +35,47 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     // ---- the whole way ------------------------------------------------------------------------------------
 
     [SkippableFact]
+    public async Task A_finished_run_is_added_to_the_usage_log_with_its_tokens_and_how_it_ended()
+    {
+        var world = ToBuild().Agent("developer", Say(Answers.Developer()));
+        var request = ScenarioContext.Request();
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(request));
+
+        var entry = Assert.Single(world.Snapshot(world.UsageLogs));
+        Assert.Equal(request.WorkflowId, entry.WorkflowId);
+        Assert.Equal("feature", entry.Kind);
+        Assert.Equal($"acme/{request.Repo}", entry.Repository);
+        Assert.Equal(1, entry.Number);
+        Assert.Equal("pr_opened", entry.Status);
+        Assert.False(string.IsNullOrEmpty(entry.RunId));
+        Assert.Equal(result.Usage, entry.Usage); // the same figures as the workflow result
+        Assert.Equal(5 * 175, entry.Usage.Total);
+    }
+
+    [SkippableFact]
+    public async Task A_run_that_stopped_is_logged_too_because_its_tokens_were_spent()
+    {
+        var world = ToBuild().Agent("developer", Say(Answers.Developer("blocked")));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("build_blocked", result.Status);
+        Assert.Equal("build_blocked", Assert.Single(world.Snapshot(world.UsageLogs)).Status);
+    }
+
+    [SkippableFact]
+    public async Task A_run_where_no_agent_ran_adds_nothing_to_the_usage_log()
+    {
+        var world = new FakeWorld { ProjectConfig = null }; // no settings in the repository: the run stops before any agent
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("needs_config", result.Status);
+        Assert.Empty(world.UsageLogs);
+    }
+
+    [SkippableFact]
     public async Task A_misspelled_setting_is_warned_about_once_and_the_run_goes_ahead()
     {
         var world = ToBuild().Agent("developer", Say(Answers.Developer()));

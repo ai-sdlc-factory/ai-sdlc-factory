@@ -158,7 +158,9 @@ public abstract partial class FactoryWorkflowBase
             }
             await NoteUnusedCommentsAsync(request, result);
             result = await SaveUnfinishedWorkAsync(request, result);
-            return result with { Usage = TotalUsage };
+            result = result with { Usage = TotalUsage };
+            await LogUsageAsync(request, result);
+            return result;
         }
         finally
         {
@@ -170,6 +172,28 @@ public abstract partial class FactoryWorkflowBase
                     StartToCloseTimeout = TimeSpan.FromMinutes(1),
                     CancellationToken = CancellationToken.None,
                 });
+        }
+    }
+
+    /// <summary>
+    /// Adds the run to the host's usage log when an agent ran, so there is a total across tickets, days and repositories. Best effort: the log never decides
+    /// how a run ends. One attempt, because a second after a lost answer would count the run twice.
+    /// </summary>
+    private static async Task LogUsageAsync(WorkRequest request, WorkResult result)
+    {
+        if (result.Usage is not { } usage)
+        {
+            return;
+        }
+        try
+        {
+            await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.LogUsageAsync(new UsageLogEntry(
+                    request.WorkflowId, Workflow.Info.RunId ?? "", request.Kind, $"{request.Owner}/{request.Repo}", request.IssueNumber, result.Status, usage)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 1));
+        }
+        catch (ActivityFailureException)
+        {
         }
     }
 
