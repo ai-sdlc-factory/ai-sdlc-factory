@@ -55,6 +55,28 @@ public sealed class PlanScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task An_approval_that_arrived_while_the_planner_was_working_is_dropped_with_a_notice()
+    {
+        var world = Planning();
+        var started = new TaskCompletionSource<WorkflowHandle<PlanWorkflow, WorkResult>>();
+        // The person approves while the planner is still working, so before any plan has been posted.
+        world.BeforeAgent = _ => started.Task.Result.SignalAsync(w => w.OnHumanReplyAsync(new HumanReply("bob", "/approve"))).GetAwaiter().GetResult();
+
+        var result = await world.RunAsync(fixture, async context =>
+        {
+            var handle = await context.StartPlanAsync(PlanTicket());
+            started.SetResult(handle);
+            await WaitForCountAsync(world, "**Plan: proposed tickets**", 1);
+            await WaitForCountAsync(world, PlanComments.ApprovalWhilePlanning, 1);
+            await handle.SignalAsync(w => w.OnTicketClosedAsync());
+            return await ScenarioContext.ResultAsync(handle);
+        });
+
+        Assert.Equal("closed", result.Status);
+        Assert.Empty(world.CreatedIssues);
+    }
+
+    [SkippableFact]
     public async Task A_plain_approval_creates_only_the_tickets_that_wait_for_nothing_and_the_rest_when_named()
     {
         var world = Planning();

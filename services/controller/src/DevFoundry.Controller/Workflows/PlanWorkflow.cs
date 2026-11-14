@@ -18,6 +18,9 @@ public sealed class PlanWorkflow : FactoryWorkflowBase
     /// <summary>The tickets already opened, by plan number. Kept in the run, so a second <c>/approve</c> never opens one twice.</summary>
     private readonly Dictionary<int, CreatedTicket> created = [];
 
+    /// <summary>How many comments from people were waiting when the proposal was written, so that only those count as given while planning.</summary>
+    private int repliesBeforeProposal;
+
     private int refreshes;
     private bool finalNoticePosted;
 
@@ -45,7 +48,12 @@ public sealed class PlanWorkflow : FactoryWorkflowBase
                 request, workspace, project.Image, "planner", maxClarificationRounds + 1,
                 (round, answers, problem) => PlanPrompts.Planner(request, previous, feedback, answers, problem, round, maxClarificationRounds + 1),
                 text => PlanParser.TryParse(text, out var value, out var error) ? (value, null) : (null, error),
-                plan => PlanComments.Proposal(plan),
+                plan =>
+                {
+                    // Taken here, before the proposal is posted: a comment that arrives after this can be a reaction to it.
+                    repliesBeforeProposal = replies.Count;
+                    return PlanComments.Proposal(plan);
+                },
                 plan => plan.Verdict switch { TicketPlan.Pass => Next.Done, TicketPlan.Reject => Next.Stop, _ => Next.Ask },
                 failedStatus: Statuses.PlanFailed, rejectedStatus: Statuses.Rejected, failureText: "The plan failed");
             if (planned.Stop is { } stop)
@@ -66,11 +74,21 @@ public sealed class PlanWorkflow : FactoryWorkflowBase
 
     /// <summary>
     /// An approval that arrived while the planner was still working was meant for an older plan, not the one just posted, and a person
-    /// has not seen this one. It is dropped, with a notice, so no ticket is ever created from a plan nobody read.
+    /// has not seen this one. It is dropped, with a notice, so no ticket is ever created from a plan nobody read. Only comments that were
+    /// already waiting when the proposal was written count: one that arrives after that (a person approving as soon as the proposal appears)
+    /// may well be a reaction to it, and can reach the workflow before this code runs.
     /// </summary>
     private async Task DropApprovalsGivenWhilePlanningAsync(WorkRequest request)
     {
-        var dropped = replies.RemoveAll(reply => PlanCommands.Parse(reply.Body) is not null);
+        var dropped = 0;
+        for (var index = Math.Min(repliesBeforeProposal, replies.Count) - 1; index >= 0; index--)
+        {
+            if (PlanCommands.Parse(replies[index].Body) is not null)
+            {
+                replies.RemoveAt(index);
+                dropped++;
+            }
+        }
         if (dropped > 0)
         {
             await CommentAsync(request, PlanComments.ApprovalWhilePlanning);
