@@ -11,7 +11,6 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 
 - [x] **Demo service with monitoring and deployment** (done as a first version: [`demo/`](../demo/README.md)). The weather application runs from its default branch in Docker, with Prometheus, Alertmanager, Grafana and Loki, a delivery script with rollback and a script that breaks it on purpose. Still open: let a merge to the default branch start the delivery (a Forgejo Actions runner or a webhook), and blue/green switching.
 - [x] **Alert intake: react to monitoring alerts** (done as a first version: [`services/alert-intake`](../services/alert-intake/README.md)). Alertmanager notifications become one ticket per alert, with an operator-owned route table, deduplication by fingerprint, a rate limit, redacted and bounded evidence (recent log lines from Loki), and a dry run as the default. Still open: more sources than Alertmanager, closing tickets by itself when an alert resolves (today it only comments), and running it in the factory's own Compose stack.
-- [ ] **Planner agent and workflow** (M). A `plan` ticket is split into proposed feature tickets that a person approves before they are created. First version creates only tickets without dependencies, because the factory does not react to merges yet.
 - [ ] **Factory improvement loop** (M). Periodically evaluate what happened and what could be improved. Needs a durable run log first (one line per finished run, no ticket text). Then a weekly deterministic report of what repeats (rejected answers, rounds used, refused hosts, token outliers),
   and an agent that proposes prompt and config changes as a reviewed ticket, never applied automatically.
 - [ ] **Scheduled UI check** (L). A separate scheduled flow that checks the real UI, for projects that have one, and files bug tickets for what is broken or looks wrong (or becomes part of QA/UX).
@@ -25,13 +24,13 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 | 1 | PR revision loop | A human review comment (or "request changes") on a factory PR starts a bounded revision: the developer addresses it, the checks and reviewers run again, and a new commit goes to the same branch | It completes the loop after the PR is opened. Today a person has to fix the PR by hand | Medium | [x] |
 | 2 | Review of human PRs | When a person opens a PR, the reviewer and security roles review it read-only and post findings | The roles and the diff handling already exist. Nothing is written, so it is low risk | Small | [ ] |
 | 3 | Dependency updates | A scheduled run bumps dependencies, runs the project's checks, and opens a PR with the changes and test results | Temporal schedules suit this. It is repetitive, the checks decide, and humans review | Medium | [ ] |
-| 4 | Planner | A `plan` ticket is split into proposed feature tickets that a person approves | Helps with big goals, but a wrong split costs a lot, so it needs approval | Medium | [ ] |
+| 4 | Planner | A `plan` ticket is split into proposed feature tickets that a person approves | Helps with big goals, but a wrong split costs a lot, so it needs approval | Medium | [x] |
 | 5 | CI-failure triage | When the pipeline fails on a branch, diagnose and propose or open a fix | It reuses the bug workflow, but needs a webhook from Bitbucket Pipelines or Forgejo CI | Medium | [ ] |
 | 6 | Docs and `AGENTS.md` upkeep | Onboarding draft for a new repo, and updates when the structure changes | Cheap, and it improves every other workflow's input | Small | [ ] |
 | 7 | Release notes | A changelog draft from merged PRs | Useful but low risk and low priority | Small | [ ] |
 | 8 | Factory retrospective | A weekly report of repeated problems, from a durable run log | Needs the run log first | Medium | [ ] |
 
-Items 4 and 8 are also on your list above (the planner and the "factory improvement loop"); item 1 is done.
+Item 8 is also on your list above (the "factory improvement loop"); items 1 and 4 are done.
 
 ## Next up (from building `/retry`, the failure classes and `/qa`)
 
@@ -61,6 +60,7 @@ Small gaps found while building and testing these. None is started.
 
 ## Done
 
+- [x] **Planner agent and workflow**: a `plan` ticket is split by the `planner` role into proposed feature tickets, which are created only when a person writes `/approve` (see [Plan workflow](workflows.md#plan-workflow)). Still open: tickets that wait for another are created only when a person names them, because the factory does not react to merges; a way to start the next tickets by itself when a merge happens. Needs a scenario run on a machine with the Temporal dev server before it is trusted.
 - [x] `verify` in the templates: the starter projects have every feature on, including end-to-end suites, and their agent instructions say e2e belongs to the `/qa` run.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
 - [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.

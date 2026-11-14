@@ -2,18 +2,19 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has three workflows, one per kind of ticket, a fourth that revises its own pull requests after a review, and a fifth that tests a finished change from the outside on request. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, and a sixth that tests a finished change from the outside on request. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
 | --- | --- | --- | --- |
 | `feature` | `FeatureWorkflow` | a reviewed **pull request** | analyst, coverage, architect, developer, reviewer, security, ux, qa |
 | `bug` | `BugWorkflow` | a **pull request with a fix proven by a test** that failed before and passes after | bug-analyst, reproducer, diagnostician, developer, reviewer, security |
+| `plan` | `PlanWorkflow` | **proposed feature tickets** on the ticket, created only when a person approves | planner |
 | `incident` | `IncidentWorkflow` | an **assessment, likely causes and mitigation options** on the ticket; a **draft postmortem** pull request on request | incident-analyst, investigator, mitigator, postmortem-writer |
 | a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
 | **`/qa`** on a ticket or on a factory pull request | `QaWorkflow` | a **QA report** on the ticket; end-to-end API and UI tests added to the pull request when they pass | e2e-tester, ux |
 
-If a ticket has several of these labels, `incident` wins over `feature`, which wins over `bug`. The labels `quick`, `full` and
+If a ticket has several of these labels, `incident` wins over `plan`, which wins over `feature`, which wins over `bug`. The labels `quick`, `full` and
 `needs-architecture` change how a feature or bug run behaves ([Quick mode](#quick-mode)).
 
 ## Ticket routing
@@ -42,7 +43,7 @@ The webhook must send **Issues**, **Issue Label** and **Issue Comment** events, 
 Everything happens on the ticket. When a workflow needs a person it posts a comment and **waits** (up to 7 days; nothing runs while it
 waits). Your reply arrives as a comment event and the workflow continues.
 
-- Only the stages that ask questions read comments: the **analyst**, **architect**, **reproducer**, **diagnostician** and the incident
+- Only the stages that ask questions read comments: the **analyst**, **architect**, **reproducer**, **diagnostician**, the **planner** and the incident
   roles. They get the replies as answers, clipped and marked as data.
 - A comment that arrives **once the build has started** gets one notice per run: it cannot change what is built. Comments no stage ever
   read are reported when the run ends.
@@ -160,6 +161,32 @@ Write these on their own line in a comment on the incident ticket:
 | any other comment | **new information**: the investigator and mitigator look again (3 times at most; then the ticket is told to use a command or close it) |
 
 Closing the ticket ends the run; so does 7 days without a reply. Anyone who can comment on the ticket can use the commands.
+
+## Plan workflow
+
+A `plan` ticket is for a goal that is bigger than one change. The factory does not build it; it proposes how to split it, and a person decides.
+
+| Step | Who | What the factory checks itself |
+| --- | --- | --- |
+| 1. Plan | `planner` (read-only) | answer shape. 1 to 8 tickets, each with a title, a summary, 1 to 8 acceptance criteria and `depends_on`: the numbers of earlier tickets it waits for. A ticket may only wait for a different, earlier ticket, so the order is the build order and there is no cycle. It may ask questions on the ticket first, like the analyst |
+| 2. Approve | a person, with fixed **slash commands** | nothing is created before this; see below |
+| 3. Create | the controller, not an agent | one `feature` ticket per approved item, with its summary, acceptance criteria and what it depends on. Each starts the [feature workflow](#feature-workflow) through the webhook, so it spends plan tokens |
+
+Write these on their own line in a comment on the plan ticket:
+
+| Command | What it does |
+| --- | --- |
+| `/approve` | creates every ticket that waits for nothing and that was not created yet. The factory does not react to merges yet, so tickets that wait for another are not created by this |
+| `/approve 2 3` (or `2, 3`) | creates exactly the tickets named, including one that waits for another (a person says when its turn has come). A number already created, or not in the plan, is answered and skipped |
+| any other comment | a **change to the plan**: the planner plans again with its earlier plan and the comment (3 times at most). Once any ticket is created the plan is final, and the ticket says so once |
+
+A line such as `/approve please` is not an approval, so it cannot create tickets by accident. An `/approve` that arrives while the planner is
+still working is dropped with a notice, because it was not meant for the new plan. If a person asks for a change and approves in the same
+breath, nothing is created and the plan changes first. A ticket that cannot be opened (for example the repository has no `feature` label) is
+reported, tickets already created stay, and a new `/approve` tries the rest; each ticket is tried once, so a lost answer cannot open one twice.
+
+The run ends with `plan_created` once the whole plan is created, and waits up to 7 days while tickets remain. Closing the ticket ends it.
+As with the other workflows, anyone who can comment on the ticket can use the commands (see "Who may start things" in the [roadmap](roadmap.md)).
 
 ## Pull request revisions
 
@@ -286,6 +313,7 @@ visible as the repository.
 | Reproduction attempts (bug) | 3, with 2 question rounds each |
 | Revisions per pull request | 3, one at a time; 3 build rounds each; at most 30 comments per revision |
 | Incident looks at new information | 3 |
+| Plan changes asked for by people | 3; at most 8 tickets in a plan |
 | Wait for a person | 7 days |
 | One agent run | 15 minutes; the developer 30 minutes; capped by `SANDBOX_MAX_RUN_SECONDS` (30 minutes) |
 | A project check (gate) | its `timeout_seconds` (default 600, at most 1800) |
@@ -301,6 +329,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | --- | --- |
 | `pr_opened` | feature or bug: the pull request is open |
 | `postmortem_opened` | incident: the draft postmortem pull request is open |
+| `plan_created` | plan: the approved tickets were created (also when the run ended after some were) |
 | `no_changes` | the work produced nothing to publish |
 | `already_implemented` | the coverage check found every criterion already met |
 | `rejected`, `design_rejected` | the analyst (or bug/incident analyst) or the architect said it cannot or should not be done as asked |
@@ -320,7 +349,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `qa_no_pull_request` | qa: there is no open pull request of the factory for this ticket |
 | `infrastructure_failed` | a part of the factory's own machinery failed (a sandbox stopped reporting progress, the launcher or Docker was unavailable); the ticket says so and that `/retry` runs it again (saved if code existed) |
 | `image_failed` | the repository's own `.factory/Dockerfile` could not be read or built (see [a project's own image](project-setup.md#a-projects-own-image)) |
-| `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |
+| `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `plan_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |
 | `build_failed` | the build rounds (3 by default) did not get through the checks and review (work saved to a `-wip` branch) |
 | `build_blocked` | the developer said it cannot continue (for example the ticket needs a protected file changed) (saved) |
 | `review_failed` | a review or QA answer stayed unusable; nothing was published (saved) |
@@ -334,12 +363,12 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 
 | Label | Effect |
 | --- | --- |
-| `feature`, `bug`, `incident` | choose the workflow ([routing](#ticket-routing)) |
+| `feature`, `bug`, `incident`, `plan` | choose the workflow ([routing](#ticket-routing)) |
 | `quick`, `full` | [quick mode](#quick-mode) on or off for this ticket |
 | `needs-architecture` | forces a design review, even in quick mode |
 
 ### Where the code is
 
-Decisions are in `Workflows/` (`EventRouter`, `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow` on a shared `FactoryWorkflowBase`), the
+Decisions are in `Workflows/` (`EventRouter`, `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow` on a shared `FactoryWorkflowBase`), the
 parsers and prompts of each role in `Agents/<role>/`, and git handling in `Workspace/`. See the
 [controller guide](../services/controller/README.md#code-layout). The scenario tests run the real workflows on a Temporal dev server with scripted agents.

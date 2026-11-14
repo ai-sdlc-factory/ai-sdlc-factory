@@ -30,7 +30,7 @@ Docker Compose runs all of it on one machine ([Infrastructure](../infra/README.m
 1. A person creates or labels a ticket in Forgejo. Forgejo sends a **signed webhook** to the api.
 2. The api verifies the signature (HMAC-SHA256 over the exact bytes) and starts `ForgejoEventWorkflow` in Temporal. Repeated
    deliveries of the same id are ignored.
-3. That workflow is the **router**: with fixed rules it starts the ticket's own workflow (feature, bug or incident), signals a
+3. That workflow is the **router**: with fixed rules it starts the ticket's own workflow (feature, bug, incident or plan), signals a
    waiting workflow with a comment, or ignores the event. See [Ticket routing](workflows.md#ticket-routing).
 4. The ticket's workflow runs on the **controller**. For every agent step it asks the launcher (through Temporal, queue
    `sandbox`) to run a command in a sandbox. The workflow, not the agent, decides what happens with the answer.

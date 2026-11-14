@@ -15,6 +15,7 @@ What the workflows do for a ticket is described in the [workflows guide](../../d
 | `FeatureWorkflow` | a `feature` ticket | [feature workflow](../../docs/workflows.md#feature-workflow) |
 | `BugWorkflow` | a `bug` ticket | [bug workflow](../../docs/workflows.md#bug-workflow) |
 | `IncidentWorkflow` | an `incident` ticket | [incident workflow](../../docs/workflows.md#incident-workflow) |
+| `PlanWorkflow` | a `plan` ticket | [plan workflow](../../docs/workflows.md#plan-workflow) |
 | `PullRequestRevisionWorkflow` | a review that requests changes, or `/fix`, on a factory pull request | [pull request revision](../../docs/workflows.md#pull-request-revisions): one new commit on the same branch |
 
 The three ticket workflows share one base class, `FactoryWorkflowBase`: the workspace, the conversation with people, running one agent, the build loop with the project's checks and
@@ -45,8 +46,8 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 
 | Folder | What is in it |
 | --- | --- |
-| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow` and `PullRequestRevisionWorkflow` (their own stage orders), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `WorkRequest` and the workflow id rules |
-| `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision, `Bug`, `Incident`, `Revision`) |
+| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow` and `PullRequestRevisionWorkflow` (their own stage orders), `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `WorkRequest` and the workflow id rules |
+| `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with QA and the UX decision, `Bug`, `Incident`, `Plan`, `Revision`) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
 | `Forgejo/` | the API client, the comment, ticket and pull request activities, ticket comment texts |
 | `Project/` | `.factory/project.json` parsing |

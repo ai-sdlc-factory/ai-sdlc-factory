@@ -19,6 +19,7 @@ public static class ServiceRegistration
             .AddWorkflow<FeatureWorkflow>()
             .AddWorkflow<BugWorkflow>()
             .AddWorkflow<IncidentWorkflow>()
+            .AddWorkflow<PlanWorkflow>()
             .AddWorkflow<PullRequestRevisionWorkflow>()
             .AddWorkflow<QaWorkflow>();
 

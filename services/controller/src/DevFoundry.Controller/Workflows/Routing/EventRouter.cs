@@ -31,6 +31,7 @@ public static partial class EventRouter
     public const string FeatureLabel = "feature";
     public const string BugLabel = "bug";
     public const string IncidentLabel = "incident";
+    public const string PlanLabel = "plan";
 
     /// <summary>Hidden marker on every comment the factory writes, so it never answers itself.</summary>
     public const string BotMarker = "<!-- dev-foundry:factory -->";
@@ -71,8 +72,9 @@ public static partial class EventRouter
     private static RoutingDecision DecideTicketEvent(ForgejoEvent input, JsonElement issue, string owner, string repo, int issueNumber)
     {
         var payload = input.Payload;
-        // An incident is never built as a feature or a bug; a feature label wins over a bug label.
+        // An incident is never built as a feature or a bug, and a plan is split into tickets, not built; a feature label wins over a bug label.
         var kind = HasLabel(issue, IncidentLabel) ? WorkIds.Incident
+            : HasLabel(issue, PlanLabel) ? WorkIds.Plan
             : HasLabel(issue, FeatureLabel) ? WorkIds.Feature
             : HasLabel(issue, BugLabel) ? WorkIds.Bug : null;
         var hasFeatureLabel = kind is not null;
@@ -111,7 +113,7 @@ public static partial class EventRouter
                 }
                 if (QaCommand.Parse(body) is { } qa)
                 {
-                    // Only the factory's feature and bug tickets have a pull request to test.
+                    // Only the factory's feature and bug tickets have a pull request to test (not an incident or a plan).
                     return kind is WorkIds.Feature or WorkIds.Bug
                         ? new RoutingDecision(RoutingAction.RunQa, "qa command on a ticket",
                             Qa: new QaRequest(owner, repo, issueNumber, false, qa.Suite, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", qa.Mode, qa.Note))

@@ -32,7 +32,7 @@ Start at the [documentation index](docs/README.md).
 | --- | --- |
 | [Getting started](docs/getting-started.md) | Installing and configuring the factory, step by step |
 | [Setting up a project](docs/project-setup.md) | Webhook, labels, `.factory/project.json` (required and optional settings), `AGENTS.md` |
-| [Workflows](docs/workflows.md) | Routing, the feature, bug and incident workflows, quick mode, statuses, limits (with diagrams) |
+| [Workflows](docs/workflows.md) | Routing, the feature, bug, incident and plan workflows, quick mode, statuses, limits (with diagrams) |
 | [Architecture](docs/architecture.md) | The parts, trust boundaries, where data lives |
 | [Configuration](docs/configuration.md) | Every setting: `.env`, service variables, agents and models |
 | [Operations](docs/operations.md) | Watching runs, troubleshooting, cleaning up, backups, security notes |

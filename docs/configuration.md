@@ -196,6 +196,7 @@ Which roles can do what:
 | `reproducer` | bug | yes | yes (tests only, checked) | yes | `developer` |
 | `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
+| `planner` | plan | yes | no | no | `model` |
 | `investigator` | incident | yes (and git history) | no | yes (read-only workspace) | `model` |
 | `postmortem-writer` | incident | yes | yes (one new file, checked) | no | `model` |
 | `e2e-tester` | qa (`/qa`) | yes | yes (files under the project's `verify.tests` folder only, checked) | yes | `developer` |

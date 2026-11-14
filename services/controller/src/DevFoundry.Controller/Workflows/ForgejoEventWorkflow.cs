@@ -64,6 +64,10 @@ public sealed class ForgejoEventWorkflow
             {
                 await Workflow.StartChildWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(feature), options);
             }
+            else if (feature.IsPlan)
+            {
+                await Workflow.StartChildWorkflowAsync((PlanWorkflow workflow) => workflow.RunAsync(feature), options);
+            }
             else if (feature.IsBug)
             {
                 await Workflow.StartChildWorkflowAsync((BugWorkflow workflow) => workflow.RunAsync(feature), options);
@@ -148,7 +152,9 @@ public sealed class ForgejoEventWorkflow
         var feature = decision.Feature!;
         var delivered = feature.IsIncident
             ? await SignalAsync<IncidentWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
-            : feature.IsBug
+            : feature.IsPlan
+                ? await SignalAsync<PlanWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
+                : feature.IsBug
                 ? await SignalAsync<BugWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!))
                 : await SignalAsync<FeatureWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
         if (!delivered)
@@ -166,6 +172,10 @@ public sealed class ForgejoEventWorkflow
         if (feature.IsIncident)
         {
             await SignalAsync<IncidentWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
+        }
+        else if (feature.IsPlan)
+        {
+            await SignalAsync<PlanWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());
         }
         else if (feature.IsBug)
         {

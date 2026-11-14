@@ -424,7 +424,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -484,6 +484,15 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
+    public Task<WorkflowHandle<PlanWorkflow, WorkResult>> StartPlanAsync(WorkRequest request) =>
+        Client.StartWorkflowAsync((PlanWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+
+    public static async Task<WorkResult> ResultAsync(WorkflowHandle<PlanWorkflow, WorkResult> handle)
+    {
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
+    }
+
     public Task<WorkflowHandle<IncidentWorkflow, WorkResult>> StartIncidentAsync(WorkRequest request) =>
         Client.StartWorkflowAsync((IncidentWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
@@ -499,6 +508,10 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         if (request.IsIncident)
         {
             return await ResultAsync(await StartIncidentAsync(request));
+        }
+        if (request.IsPlan)
+        {
+            return await ResultAsync(await StartPlanAsync(request));
         }
         if (request.IsBug)
         {
@@ -619,6 +632,24 @@ public static class Answers
                 : [],
             recommended = verdict == "pass" ? recommended : 0,
             questions = questions ?? (verdict == "needs_clarification" ? ["Is there a feature flag?"] : []),
+        });
+
+    /// <summary>A plan of three tickets: 1 and 2 wait for nothing, 3 waits for 1.</summary>
+    public static string Plan(string verdict = "pass", int tickets = 3, string[]? questions = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict == "reject" ? "This is one small change, not a plan." : "Split into storage, API and screen.",
+            tickets = verdict == "pass"
+                ? Enumerable.Range(1, tickets).Select(i => new
+                {
+                    title = $"Part {i}",
+                    summary = $"What part {i} does.",
+                    acceptance_criteria = new[] { $"Criterion A of part {i}", $"Criterion B of part {i}" },
+                    depends_on = i == 3 ? new[] { 1 } : Array.Empty<int>(),
+                }).ToArray()
+                : [],
+            questions = questions ?? (verdict == "needs_clarification" ? ["Which database?"] : []),
         });
 
     public static string Postmortem(string verdict = "done") =>

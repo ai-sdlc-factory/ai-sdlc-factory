@@ -395,6 +395,34 @@ public sealed class EventRouterTests
     }
 
     [Fact]
+    public void A_plan_ticket_starts_a_plan_run_and_the_incident_label_alone_wins_over_it()
+    {
+        foreach (var labels in new[] { new[] { "plan" }, ["plan", "feature"], ["bug", "plan"] })
+        {
+            var decision = EventRouter.Decide(Event("issues", Ticket("opened", labels)));
+
+            Assert.Equal(RoutingAction.StartFeature, decision.Action);
+            Assert.True(decision.Feature!.IsPlan);
+            Assert.StartsWith("plan-acme-shop-7-", decision.Feature.WorkflowId);
+        }
+        Assert.True(EventRouter.Decide(Event("issues", Ticket("opened", ["plan", "incident"]))).Feature!.IsIncident);
+    }
+
+    [Fact]
+    public void Comments_and_closing_on_a_plan_ticket_go_to_the_plan_run_and_qa_is_not_offered()
+    {
+        var comment = EventRouter.Decide(Event("issue_comment", Ticket("created", ["plan"], more: new { comment = Comment("/approve 2") })));
+        var closed = EventRouter.Decide(Event("issues", Ticket("closed", ["plan"], "closed")));
+        var qa = EventRouter.Decide(Event("issue_comment", Ticket("created", ["plan"], more: new { comment = Comment("/qa") })));
+
+        Assert.Equal(RoutingAction.ReplyToFeature, comment.Action);
+        Assert.StartsWith("plan-acme-shop-7-", comment.Feature!.WorkflowId);
+        Assert.Equal(RoutingAction.CloseFeature, closed.Action);
+        Assert.StartsWith("plan-acme-shop-7-", closed.Feature!.WorkflowId);
+        Assert.Equal(RoutingAction.Ignore, qa.Action);
+    }
+
+    [Fact]
     public void Feature_and_bug_ids_for_the_same_ticket_number_differ()
     {
         Assert.NotEqual(WorkIds.For("acme", "shop", 7), WorkIds.For("acme", "shop", 7, WorkIds.Bug));

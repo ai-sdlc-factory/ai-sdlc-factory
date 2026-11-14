@@ -72,6 +72,12 @@ public static class Statuses
     /// <summary>revision: a /fix with no text and no review to act on.</summary>
     public const string NothingToDo = "nothing_to_do";
 
+    /// <summary>plan: the approved tickets were created (or the run ended after some were).</summary>
+    public const string PlanCreated = "plan_created";
+
+    /// <summary>The planner's answer could not be used, even after one retry.</summary>
+    public const string PlanFailed = "plan_failed";
+
     /// <summary>The postmortem could not be drafted or did not pass its checks.</summary>
     public const string PostmortemFailed = "postmortem_failed";
 

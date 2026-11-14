@@ -1,7 +1,7 @@
 
 namespace DevFoundry.Controller;
 
-/// <summary>A ticket that asks the factory to build a feature or to fix a bug (<see cref="Kind"/>).</summary>
+/// <summary>A ticket that asks the factory to build a feature, fix a bug, look at an incident or plan a larger request (<see cref="Kind"/>).</summary>
 public sealed record WorkRequest(
     string Owner, string Repo, int IssueNumber, string Title, string Body, string Author,
     IReadOnlyList<string>? Labels = null, string Kind = WorkIds.Feature)
@@ -11,6 +11,8 @@ public sealed record WorkRequest(
     public bool IsBug => Kind == WorkIds.Bug;
 
     public bool IsIncident => Kind == WorkIds.Incident;
+
+    public bool IsPlan => Kind == WorkIds.Plan;
 }
 
 /// <summary>A human comment on a ticket that has a feature workflow.</summary>
@@ -18,7 +20,7 @@ public sealed record HumanReply(string Author, string Body);
 
 /// <summary>
 /// The workflow id, which is also the name of the ticket's workspace folder:
-/// <c>feature-{owner}-{repo}-{number}-{hash}</c> (<c>bug-...</c> for a bug ticket). The readable part is lowercased, cleaned and shortened so the
+/// <c>feature-{owner}-{repo}-{number}-{hash}</c> (<c>bug-...</c> for a bug ticket, <c>plan-...</c> for a plan). The readable part is lowercased, cleaned and shortened so the
 /// whole id always fits the workspace name limit (128 characters). The hash is of the exact owner and repository,
 /// so repositories whose cleaned names look alike (<c>a-b/c</c> and <c>a/b-c</c>) still get different ids, and so
 /// do very long names that had to be cut.
@@ -28,6 +30,7 @@ public static class WorkIds
     public const string Feature = "feature";
     public const string Bug = "bug";
     public const string Incident = "incident";
+    public const string Plan = "plan";
     public const string Revision = "revision";
     public const string Qa = "qa";
 
