@@ -111,6 +111,80 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
             Text(head, "ref"), Text(head, "sha"), Repository(head), Repository(@base), Text(@base, "ref"), Text(Child(root, "user"), "login"));
     }
 
+    public const int MaxChangedFiles = 300;
+    public const int MaxDiffBytes = 120_000;
+    private const int FilesPerPage = 50;
+
+    /// <summary>
+    /// The files a pull request changes (<c>pulls/&lt;n&gt;/files</c>, up to <see cref="MaxChangedFiles"/>) and the start of its diff (<c>pulls/&lt;n&gt;.diff</c>, at most
+    /// <see cref="MaxDiffBytes"/> bytes read, so a huge pull request is never pulled in whole). Both are what the pull request page shows.
+    /// </summary>
+    public async Task<PullChanges> GetPullChangesAsync(string owner, string repo, int number, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var path = $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}";
+        var files = new List<ChangedFile>();
+        var total = 0;
+        for (var page = 1; files.Count < MaxChangedFiles; page++)
+        {
+            using var request = Authorized(HttpMethod.Get, $"{path}/files?page={page}&limit={FilesPerPage}");
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw Failure("changed files", response.StatusCode, response.ReasonPhrase);
+            }
+            if (response.Headers.TryGetValues("X-Total-Count", out var counts) && int.TryParse(counts.FirstOrDefault(), out var reported))
+            {
+                total = reported;
+            }
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                break;
+            }
+            var listed = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                listed++;
+                if (files.Count < MaxChangedFiles)
+                {
+                    files.Add(new ChangedFile(
+                        Text(item, "filename"), Text(item, "status"), Count(item, "additions"), Count(item, "deletions"),
+                        Text(item, "previous_filename") is { Length: > 0 } previous ? previous : null));
+                }
+            }
+            if (listed < FilesPerPage)
+            {
+                break;
+            }
+        }
+        total = Math.Max(total, files.Count);
+
+        using var diffRequest = Authorized(HttpMethod.Get, $"{path}.diff");
+        using var diffResponse = await http.SendAsync(diffRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!diffResponse.IsSuccessStatusCode)
+        {
+            throw Failure("diff", diffResponse.StatusCode, diffResponse.ReasonPhrase);
+        }
+        await using var stream = await diffResponse.Content.ReadAsStreamAsync(cancellationToken);
+        var buffer = new byte[MaxDiffBytes + 1];
+        var read = 0;
+        while (read < buffer.Length)
+        {
+            var count = await stream.ReadAsync(buffer.AsMemory(read), cancellationToken);
+            if (count == 0)
+            {
+                break;
+            }
+            read += count;
+        }
+        var cut = read > MaxDiffBytes;
+        return new PullChanges(files, total, System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxDiffBytes)), cut);
+    }
+
+    private static int Count(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : 0;
+
     /// <summary>
     /// Every review of a pull request that is still waiting to be acted on: by a person (not the bot), not dismissed, asking for changes or
     /// commenting (an approval is not a request), and submitted after the factory's last revision. Comments in conversations a person has

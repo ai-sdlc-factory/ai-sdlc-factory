@@ -19,8 +19,17 @@ public sealed record ReviewDetails(long Id, string Reviewer, string State, strin
 /// <param name="QaFindings">For a <c>/fix qa</c>: the findings of the latest QA report, one string each; null for any other revision.</param>
 public sealed record RevisionContext(PullRequestDetails Pull, string BotLogin, IReadOnlyList<ReviewDetails> Reviews, int PriorRevisions, IReadOnlyList<string>? QaFindings = null);
 
-/// <summary>What a QA run needs to know before it touches the branch: the factory's pull request for the ticket (null when there is none), and the bot's login.</summary>
-public sealed record QaContext(PullRequestDetails? Pull, string BotLogin);
+/// <summary>One file a pull request changes: its path, whether it was added, modified, deleted or renamed, and how many lines.</summary>
+public sealed record ChangedFile(string Path, string Status, int Additions, int Deletions, string? PreviousPath = null);
+
+/// <summary>
+/// What a pull request changes, as Forgejo reports it: the files (at most <see cref="ForgejoClient.MaxChangedFiles"/>), how many there are in all, and the start of the diff
+/// (<see cref="DiffCut"/> when it was longer). Text from the repository, so only ever given to an agent as data.
+/// </summary>
+public sealed record PullChanges(IReadOnlyList<ChangedFile> Files, int TotalFiles, string Diff, bool DiffCut);
+
+/// <summary>What a QA run needs to know before it touches the branch: the factory's pull request for the ticket (null when there is none), and the bot's login, and what the pull request changes (null when Forgejo could not say).</summary>
+public sealed record QaContext(PullRequestDetails? Pull, string BotLogin, PullChanges? Changes = null);
 
 /// <summary>What an <c>/update</c> needs to know before it touches the branch: the factory's pull request for the ticket (null when there is none), and the bot's login.</summary>
 public sealed record UpdateContext(PullRequestDetails? Pull, string BotLogin);

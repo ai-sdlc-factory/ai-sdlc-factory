@@ -263,7 +263,7 @@ gets an answer that says how to add them.
 | Step | Who | What is checked |
 | --- | --- | --- |
 | 1 | code | the pull request exists, is open, is the factory's own (branch `factory/issue-<n>`, author the bot, same repository) and the project has the suite asked for |
-| 2 | `e2e-tester` (reads, edits, runs commands, like the developer) | starts the application as `verify.start` says, tries it from the outside, and writes API and/or UI tests under `verify.tests` (the same sandbox settings as the developer: model and package registries, nothing else) |
+| 2 | `e2e-tester` (reads, edits, runs commands, like the developer) | is told what the pull request changed (its files with added and removed lines, and the start of its diff, from Forgejo; the full diff is one `git diff` away in the checkout), then starts the application as `verify.start` says, tries it from the outside, and writes API and/or UI tests under `verify.tests` (the same sandbox settings as the developer: model and package registries, nothing else) |
 | 3 | code | only files under the tests folder changed; no deletions, no secrets, no protected files. Anything else goes back to the tester |
 | 4 | **the factory** | runs each suite itself in a fresh sandbox **without the model login**: starts the application, waits for `verify.ready`, runs the suite, stops the application. Pass and fail are facts; the tester's word is not used |
 | 5 | `e2e-tester` again, up to 3 attempts | after a failing run it sees the output and says for each failing test whether it is an `application_bug` (keep the test) or a `test_problem` (fix it). If all it names are application bugs, the loop stops |

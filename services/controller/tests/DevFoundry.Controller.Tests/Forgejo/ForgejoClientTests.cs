@@ -44,6 +44,133 @@ public sealed class ForgejoClientTests
     private static ForgejoClient WithComments(Conversation conversation) =>
         new(new HttpClient(conversation) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
 
+    /// <summary>Forgejo's pull request endpoints: the changed files in pages of 50, and the diff.</summary>
+    private sealed class PullEndpoints(int files, string diff, HttpStatusCode filesStatus = HttpStatusCode.OK, HttpStatusCode diffStatus = HttpStatusCode.OK) : HttpMessageHandler
+    {
+        public List<string> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request.RequestUri!.PathAndQuery);
+            if (request.RequestUri.AbsolutePath.EndsWith(".diff"))
+            {
+                return Task.FromResult(new HttpResponseMessage(diffStatus) { Content = new StringContent(diff) });
+            }
+            var query = System.Web.HttpUtility.ParseQueryString(request.RequestUri.Query);
+            var page = int.Parse(query["page"]!);
+            var limit = int.Parse(query["limit"]!);
+            var items = Enumerable.Range((page - 1) * limit + 1, Math.Max(0, Math.Min(limit, files - (page - 1) * limit)))
+                .Select(i => i == 2
+                    ? (object)new { filename = "new.py", previous_filename = "old.py", status = "renamed", additions = 0, deletions = 0 }
+                    : new { filename = $"src/file{i}.py", previous_filename = "", status = "modified", additions = i, deletions = 1 });
+            var response = new HttpResponseMessage(filesStatus) { Content = new StringContent(JsonSerializer.Serialize(items)) };
+            response.Headers.Add("X-Total-Count", files.ToString());
+            return Task.FromResult(response);
+        }
+    }
+
+    private static ForgejoClient WithPull(PullEndpoints endpoints) =>
+        new(new HttpClient(endpoints) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+
+    [Fact]
+    public async Task The_changed_files_are_read_page_by_page_with_renames_and_line_counts_and_the_diff_comes_with_them()
+    {
+        var endpoints = new PullEndpoints(70, "diff --git a/x b/x\n+new line\n");
+
+        var changes = await WithPull(endpoints).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.Equal(70, changes.Files.Count);
+        Assert.Equal(70, changes.TotalFiles);
+        Assert.Equal(new ChangedFile("src/file1.py", "modified", 1, 1), changes.Files[0]);
+        Assert.Equal(new ChangedFile("new.py", "renamed", 0, 0, "old.py"), changes.Files[1]);
+        Assert.Equal("diff --git a/x b/x\n+new line\n", changes.Diff);
+        Assert.False(changes.DiffCut);
+        Assert.Equal(
+            ["/api/v1/repos/acme/shop/pulls/7/files?page=1&limit=50", "/api/v1/repos/acme/shop/pulls/7/files?page=2&limit=50", "/api/v1/repos/acme/shop/pulls/7.diff"],
+            endpoints.Requests);
+    }
+
+    [Fact]
+    public async Task A_pull_request_with_very_many_files_is_cut_at_the_limit_but_its_real_size_is_kept()
+    {
+        var changes = await WithPull(new PullEndpoints(1000, "")).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.Equal(ForgejoClient.MaxChangedFiles, changes.Files.Count);
+        Assert.Equal(1000, changes.TotalFiles);
+    }
+
+    [Fact]
+    public async Task A_huge_diff_is_read_only_as_far_as_the_limit_and_says_it_was_cut()
+    {
+        var changes = await WithPull(new PullEndpoints(1, new string('+', ForgejoClient.MaxDiffBytes * 3))).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.Equal(ForgejoClient.MaxDiffBytes, changes.Diff.Length);
+        Assert.True(changes.DiffCut);
+    }
+
+    [Fact]
+    public async Task A_diff_exactly_at_the_limit_is_not_called_cut()
+    {
+        var changes = await WithPull(new PullEndpoints(1, new string('+', ForgejoClient.MaxDiffBytes))).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.False(changes.DiffCut);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound, HttpStatusCode.OK, "changed files")]
+    [InlineData(HttpStatusCode.OK, HttpStatusCode.InternalServerError, "diff")]
+    public async Task A_refusal_names_what_could_not_be_read(HttpStatusCode files, HttpStatusCode diff, string what)
+    {
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(() =>
+            WithPull(new PullEndpoints(3, "x", files, diff)).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None));
+
+        Assert.Contains(what, error.Message);
+    }
+
+    private sealed class WholePullRequest(HttpStatusCode files) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/pulls/7"))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"title":"Add goodbye","body":"b","state":"open","merged":false,"head":{"ref":"factory/issue-3","sha":"abc","repo":{"full_name":"acme/shop"}},"base":{"ref":"main","repo":{"full_name":"acme/shop"}},"user":{"login":"factory-bot"}}"""),
+                });
+            }
+            return Task.FromResult(path.EndsWith(".diff")
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("+x\n") }
+                : new HttpResponseMessage(files) { Content = new StringContent("""[{"filename":"a.py","status":"added","additions":1,"deletions":0}]""") });
+        }
+    }
+
+    private static Task<QaContext> ReadQaContext(HttpStatusCode files)
+    {
+        var client = new ForgejoClient(new HttpClient(new WholePullRequest(files)) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        var activities = new ForgejoActivities(client, new WorkerSettings { ForgejoToken = "secret-token", ForgejoBotLogin = "factory-bot" });
+        return new Temporalio.Testing.ActivityEnvironment().RunAsync(() => activities.ReadQaContextAsync(new QaRequest("acme", "shop", 7, true, null, "bob")));
+    }
+
+    [Fact]
+    public async Task The_qa_context_carries_what_the_pull_request_changed()
+    {
+        var context = await ReadQaContext(HttpStatusCode.OK);
+
+        Assert.Equal("factory/issue-3", context.Pull!.HeadRef);
+        Assert.Equal("a.py", Assert.Single(context.Changes!.Files).Path);
+        Assert.Equal("+x\n", context.Changes.Diff);
+    }
+
+    [Fact]
+    public async Task When_the_changes_cannot_be_read_the_qa_context_still_has_the_pull_request_and_none_of_them()
+    {
+        var context = await ReadQaContext(HttpStatusCode.InternalServerError);
+
+        Assert.Equal("factory/issue-3", context.Pull!.HeadRef);
+        Assert.Null(context.Changes); // the tester is only less well informed; the run goes on
+    }
+
     [Fact]
     public async Task A_notice_is_posted_when_none_of_the_latest_comments_is_one()
     {

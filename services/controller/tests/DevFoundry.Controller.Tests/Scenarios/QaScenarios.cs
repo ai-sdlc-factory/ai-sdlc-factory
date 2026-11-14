@@ -26,6 +26,34 @@ public sealed class QaScenarios(TemporalFixture fixture)
     private static string Report(FakeWorld world) => Assert.Single(world.Comments, c => c.Contains(QaReportFormat.Marker));
 
     [SkippableFact]
+    public async Task The_tester_is_told_what_the_pull_request_changed()
+    {
+        var world = Api().Agent("e2e-tester", Reply(Answers.Tester()));
+        world.QaContext = world.QaContext with
+        {
+            Changes = new PullChanges([new ChangedFile("src/greeting.py", "modified", 6, 1)], 1, "diff --git a/src/greeting.py b/src/greeting.py\n+def goodbye():\n", false),
+        };
+
+        await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        var prompt = Assert.Single(world.Calls("e2e-tester")).Prompt;
+        Assert.Contains("- src/greeting.py (modified, +6 -1)", prompt);
+        Assert.Contains("+def goodbye():", prompt);
+        Assert.Empty(world.Problems);
+    }
+
+    [SkippableFact]
+    public async Task Without_what_changed_the_tester_still_runs_on_the_title_and_the_criteria()
+    {
+        var world = Api().Agent("e2e-tester", Reply(Answers.Tester()));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.DoesNotContain("CHANGED_FILES", Assert.Single(world.Calls("e2e-tester")).Prompt);
+    }
+
+    [SkippableFact]
     public async Task Passing_tests_are_pushed_onto_the_pull_request_and_the_report_says_what_was_used()
     {
         var world = Api().Agent("e2e-tester", Reply(Answers.Tester()));

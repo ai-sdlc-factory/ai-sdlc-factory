@@ -45,12 +45,12 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
         var pull = context.Pull!;
         return await RunPipelineAsync(
             qa.ToWorkRequest(pull.Title), "QA",
-            work => StagesAsync(work, qa, pull),
+            work => StagesAsync(work, qa, pull, context.Changes),
             workspaceFor: request => new WorkspaceRequest(request.Owner, request.Repo, request.WorkflowId, pull.HeadRef, ExistingBranch: true),
             startMessage: $"Starting a QA run on pull request #{pull.Number}. The tester will try the application and write end-to-end tests; this can take a while.");
     }
 
-    private async Task<WorkResult> StagesAsync(WorkContext work, QaRequest qa, PullRequestDetails pull)
+    private async Task<WorkResult> StagesAsync(WorkContext work, QaRequest qa, PullRequestDetails pull, PullChanges? changes)
     {
         var (request, workspace, project) = work;
         commentsCanStillBeUsed = false;
@@ -80,7 +80,7 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
             var feedbackNow = feedback;
             var outcome = await RunAgentAsync<TesterReport>(
                 "e2e-tester", image, workspace,
-                problem => TesterPrompt.Build(pull, criteria, verify, suites, feedbackNow, attempt, MaxAttempts, problem, qa.Mode, qa.Note),
+                problem => TesterPrompt.Build(pull, criteria, verify, suites, feedbackNow, attempt, MaxAttempts, problem, qa.Mode, qa.Note, changes),
                 TesterParser.Parse, writable: true, timeoutSeconds: DeveloperTimeoutSeconds);
             if (outcome.NotSignedIn)
             {

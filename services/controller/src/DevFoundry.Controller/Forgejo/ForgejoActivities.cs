@@ -80,7 +80,21 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
         {
             return new QaContext(null, settings.ForgejoBotLogin);
         }
-        return new QaContext(await forgejo.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token), settings.ForgejoBotLogin);
+        var pull = await forgejo.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token);
+        return new QaContext(pull, settings.ForgejoBotLogin, await TryGetChangesAsync(request.Owner, request.Repo, number.Value, token));
+    }
+
+    /// <summary>What the pull request changes, for the tester. A tester that is not told is only less well informed, so a failure here never stops the run.</summary>
+    private async Task<PullChanges?> TryGetChangesAsync(string owner, string repo, int number, CancellationToken token)
+    {
+        try
+        {
+            return await forgejo.GetPullChangesAsync(owner, repo, number, token);
+        }
+        catch (Exception error) when (error is Temporalio.Exceptions.ApplicationFailureException or HttpRequestException || (error is TaskCanceledException && !token.IsCancellationRequested))
+        {
+            return null;
+        }
     }
 
     /// <summary>Finds the factory's open pull request for the ticket an <c>/update</c> came from, or reads the pull request it came from.</summary>
