@@ -88,8 +88,10 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 Rules that apply to the whole file:
 
 - It must be a JSON **object** of at most **16 KB**, a regular file (not a symbolic link), in the repository's default branch.
-- **Unknown keys are ignored without a warning**, so a typo such as `"gate"` is not reported as an error (the run then stops because `gates` is missing, but a
-  misspelled optional key like `"recrod"` silently does nothing). Check the spelling against the table.
+- **Unknown keys are warned about, not rejected.** A key the factory does not know (a typo such as `"recrod"` or `"protected_path"`, at the top level or inside a
+  gate, a rule, `ui` or `verify`) does nothing, but the ticket gets one comment that names it and, when it is close to a real setting, says which: "`recrod` is not a
+  setting the factory knows, so it is ignored. Did you mean `record`?" The run goes ahead with the file read without it, so fix the name on the default branch if it was
+  meant to count. (A missing required key such as `gates`, or a misspelled key inside `limits`, still makes the file unusable.)
 - It is **untrusted input**: it can only choose among options the factory already offers. It cannot add models, permissions, images or network hosts.
 - Agents **cannot change it**. `.factory/` is a protected path, so only a person can edit it.
 

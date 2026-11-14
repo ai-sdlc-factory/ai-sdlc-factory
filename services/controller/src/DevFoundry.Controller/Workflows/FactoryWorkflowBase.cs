@@ -91,6 +91,15 @@ public abstract partial class FactoryWorkflowBase
                 return new WorkResult(Statuses.NeedsConfig);
             }
 
+            if (project.Warnings is { Count: > 0 } warnings)
+            {
+                // Said once while it is still among the latest comments, so a retry or a revision does not repeat it.
+                await Workflow.ExecuteActivityAsync(
+                    (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                        new CommentRequest(request.Owner, request.Repo, request.IssueNumber, TicketComments.UnknownProjectKeys(warnings))),
+                    ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+            }
+
             var defaults = await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.GetDefaultsAsync(),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(1)));

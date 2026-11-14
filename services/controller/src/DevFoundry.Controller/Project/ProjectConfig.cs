@@ -25,7 +25,8 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// allows) and name commands that run inside the same sandbox the agent already works in.
 /// </summary>
 public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false, IReadOnlyList<ProjectRule>? Rules = null,
-    ProjectLimits? Limits = null, IReadOnlyList<string>? ProtectedPaths = null, VerifyConfig? Verify = null);
+    ProjectLimits? Limits = null, IReadOnlyList<string>? ProtectedPaths = null, VerifyConfig? Verify = null,
+    IReadOnlyList<string>? Warnings = null);
 
 public static partial class ProjectConfigParser
 {
@@ -290,7 +291,7 @@ public static partial class ProjectConfigParser
             {
                 return false;
             }
-            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules, limits, protectedPaths, verify);
+            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules, limits, protectedPaths, verify, ProjectKeys.Warnings(root));
             return true;
         }
     }

@@ -43,6 +43,7 @@ public sealed class TemplateTests
         Assert.NotEmpty(config.Rules!);
         Assert.NotNull(config.Limits);
         Assert.NotEmpty(config.ProtectedPaths!);
+        Assert.Empty(config.Warnings!); // the templates use every setting, so a key the parser reads but the known-key list lacks shows up here
     }
 
     [Theory]

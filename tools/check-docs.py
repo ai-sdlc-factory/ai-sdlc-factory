@@ -131,6 +131,12 @@ def check_project_keys() -> None:
         if f"`{key}`" not in guide and f"`{key}\"" not in guide and f'"{key}"' not in guide:
             fail(f".factory/project.json key \"{key}\" (ProjectConfig.cs) is not in docs/project-setup.md")
 
+    # A key a reader asks for but ProjectKeys.cs does not list would be reported as unknown to the people who use it.
+    known = read(ROOT / "services/controller/src/DevFoundry.Controller/Project/ProjectKeys.cs")
+    for key in project_keys:
+        if f'"{key}"' not in known:
+            fail(f".factory/project.json key \"{key}\" is read by the parser but is not in ProjectKeys.cs, so it would be warned about as unknown")
+
 
 def check_roles() -> None:
     configuration = read(ROOT / "docs/configuration.md")

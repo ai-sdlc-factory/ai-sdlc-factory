@@ -345,6 +345,12 @@ public static class TicketComments
     public const string UpdateBusy =
         "An update of this pull request is already going. What it did will be posted here when it is done; comment `/update` again after that if the branch is still behind.";
 
+    /// <summary>`.factory/project.json` has keys the factory does not know. The run goes ahead; the file is read without them.</summary>
+    public static string UnknownProjectKeys(IReadOnlyList<string> warnings) =>
+        "**`.factory/project.json`: " + (warnings.Count == 1 ? "a setting I do not know" : $"{warnings.Count} settings I do not know") + "**\n\n" +
+        string.Join('\n', warnings.Select(warning => $"- {warning}")) +
+        "\n\nThe run goes ahead with the file read without " + (warnings.Count == 1 ? "it" : "them") + ". A misspelled setting does nothing, so fix the name on the default branch if it was meant to count.";
+
     /// <summary>`/retry` found nothing finished from an earlier run.</summary>
     public const string ResumeNothingSaved =
         "Nothing finished in an earlier run was saved for this ticket, so I start from the beginning.";

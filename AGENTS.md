@@ -34,7 +34,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 
 ## Rules that keep it correct
 - **The controller decides, agents advise.** An agent returns one validated JSON verdict; code decides what happens. Do not move a decision into a prompt.
-- **A new `project.json` key** needs parsing and tests in `Project/`, an entry in `docs/project-setup.md`, and (if it has a factory default) a `FACTORY_DEFAULT_*` setting in `WorkerSettings`, `infra/compose.yaml`, `infra/.env.example` and `docs/configuration.md`. `check-docs.py` fails when one is missing.
+- **A new `project.json` key** needs parsing and tests in `Project/`, a place in the known-key lists of `Project/ProjectKeys.cs` (or it is warned about as unknown), an entry in `docs/project-setup.md`, and (if it has a factory default) a `FACTORY_DEFAULT_*` setting in `WorkerSettings`, `infra/compose.yaml`, `infra/.env.example` and `docs/configuration.md`. `check-docs.py` fails when one is missing.
 - **A new environment variable** must be documented in `docs/configuration.md`.
 - **A new agent role** needs a file in `agents/agents/`, a row in `docs/configuration.md`, and a prompt builder and parser in `Agents/`. Put its limits in the role file next to its answer shape.
 - **Shared role texts** (`agents/standards/engineering-floor.md`, `security-checklist.md`) are copied into role files between markers. Edit the source, paste it into the roles, and let `check-docs.py` confirm they match.

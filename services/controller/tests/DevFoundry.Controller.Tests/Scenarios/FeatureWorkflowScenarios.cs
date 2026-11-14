@@ -35,6 +35,21 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     // ---- the whole way ------------------------------------------------------------------------------------
 
     [SkippableFact]
+    public async Task A_misspelled_setting_is_warned_about_once_and_the_run_goes_ahead()
+    {
+        var world = ToBuild().Agent("developer", Say(Answers.Developer()));
+        world.ProjectConfig = """{"image":"python","gates":[{"name":"test","command":["python","-m","pytest","-q"]}],"revewers":["security"]}""";
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        var notice = Assert.Single(world.Snapshot(world.Notices));
+        Assert.Contains("`revewers` is not a setting the factory knows, so it is ignored. Did you mean `reviewers`?", notice);
+        Assert.Contains(notice, world.Comments);
+        Assert.Equal(["reviewer"], world.Calls("reviewer").Select(call => call.Role).Distinct()); // the misspelled key changed nothing
+    }
+
+    [SkippableFact]
     public async Task A_clear_small_ticket_becomes_a_pull_request()
     {
         var world = ToBuild().Agent("developer", Say(Answers.Developer()));
