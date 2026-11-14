@@ -129,6 +129,20 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task The_next_rounds_reviewer_is_given_what_the_last_review_asked_for()
+    {
+        var world = Reviewing(Answers.Revision("done", "fixed", "fixed", "fixed"), Answers.Revision("done", "fixed", "fixed", "fixed"))
+            .Agent("reviewer", Say(Answers.Review(("major", "The rename misses one caller."))), Say(Answers.Review()));
+
+        await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
+
+        var prompts = world.Calls("reviewer").Select(call => call.Prompt).ToList();
+        Assert.DoesNotContain("<<<EARLIER", prompts[0]);
+        Assert.Contains("<<<EARLIER", prompts[1]);
+        Assert.Contains("The rename misses one caller.", prompts[1]);
+    }
+
+    [SkippableFact]
     public async Task Three_rounds_that_fail_push_nothing_to_the_pull_request_and_save_the_work_aside()
     {
         var failing = Enumerable.Repeat(FakeWorld.Fails("still red"), 3).ToArray();

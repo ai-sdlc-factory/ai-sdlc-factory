@@ -111,6 +111,7 @@ public sealed partial class PullRequestUpdateWorkflow : FactoryWorkflowBase
         var needsAgent = conflicts.Count > 0;
         MergeReport? report = null;
         string? feedback = null;
+        string? earlierFindings = null; // what the last review asked for, so the next review checks it was done
         for (var round = 1; round <= maxBuildRounds; round++)
         {
             if (needsAgent)
@@ -176,7 +177,7 @@ public sealed partial class PullRequestUpdateWorkflow : FactoryWorkflowBase
             if (report is not null && after.Files.Count > 0)
             {
                 await CommentAsync(request, $"Update round {round}: {BuildFeedback.Summary(results)}. Asking the reviewers.");
-                var review = await ReviewAsync(work with { Request = reviewRequest }, criteria, null, after, results, new ReviewOptions(SkipQa: true, RuleNotes: ruleNotes));
+                var review = await ReviewAsync(work with { Request = reviewRequest }, criteria, null, after, results, new ReviewOptions(SkipQa: true, RuleNotes: ruleNotes, EarlierFindings: earlierFindings));
                 if (review.Stop is { } reviewStop)
                 {
                     return reviewStop;
@@ -184,6 +185,7 @@ public sealed partial class PullRequestUpdateWorkflow : FactoryWorkflowBase
                 if (review.Feedback is not null)
                 {
                     feedback = review.Feedback;
+                    earlierFindings = review.Feedback;
                     needsAgent = true;
                     continue;
                 }

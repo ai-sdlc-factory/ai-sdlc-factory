@@ -121,6 +121,22 @@ public sealed class UpdateScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task The_next_rounds_reviewer_is_given_what_the_last_review_asked_for()
+    {
+        var world = Conflicted("src/app.py")
+            .Agent("merge-resolver", Say(Answers.Merge("done", "src/app.py")), Say(Answers.Merge("done", "src/app.py")))
+            .Agent("reviewer", Say(Answers.Review(("major", "The base's rename was lost."))), Say(Answers.Review()));
+
+        var result = await world.RunAsync(fixture, context => context.RunUpdateAsync(ScenarioContext.Update()));
+
+        Assert.Equal("update_pushed", result.Status);
+        var prompts = world.Calls("reviewer").Select(call => call.Prompt).ToList();
+        Assert.DoesNotContain("<<<EARLIER", prompts[0]);
+        Assert.Contains("<<<EARLIER", prompts[1]);
+        Assert.Contains("The base's rename was lost.", prompts[1]);
+    }
+
+    [SkippableFact]
     public async Task A_conflict_in_a_protected_file_is_left_to_a_person_without_asking_an_agent()
     {
         var world = new FakeWorld { Merge = Conflicting(".github/workflows/ci.yml", "src/app.py") };

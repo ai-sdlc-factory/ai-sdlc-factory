@@ -121,6 +121,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             .ToList();
 
         string? feedback = null;
+        string? earlierFindings = null; // what the last review asked for, so the next review checks it was done
         for (var round = 1; round <= maxBuildRounds; round++)
         {
             var feedbackForRound = feedback;
@@ -184,7 +185,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             var checkOriginal = original.Count > 0 && after.Files.Count >= PullRequestCriteria.QaFromChangedFiles;
             var review = await ReviewAsync(
                 work with { Request = reviewRequest }, criteria, null, after, results,
-                new ReviewOptions(SkipQa: !checkOriginal, QaCriteria: checkOriginal ? original : null, RuleNotes: ruleNotes));
+                new ReviewOptions(SkipQa: !checkOriginal, QaCriteria: checkOriginal ? original : null, RuleNotes: ruleNotes, EarlierFindings: earlierFindings));
             if (review.Stop is { } reviewStop)
             {
                 return reviewStop;
@@ -192,6 +193,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             if (review.Feedback is not null)
             {
                 feedback = review.Feedback;
+                earlierFindings = review.Feedback;
                 continue;
             }
 
