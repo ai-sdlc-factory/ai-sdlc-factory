@@ -22,6 +22,7 @@ python -m greetings.web      # http://127.0.0.1:5080/api/greetings/Ada
 | `protected_paths` | `ruff.toml`, `pytest.ini` | the lint and test settings, so no agent can loosen a check to make it pass. Dependencies are not protected |
 | `rules` | 3 | patterns a change may not add: two block the change, one only warns the reviewers |
 | `gates` | lint, test | the checks that decide whether a change is acceptable |
+| `verify` | `e2e` | how `/qa` tries a finished change for real: an `api` suite in `e2e/` (pytest against the running API). Only used by a `/qa` run; `e2e` is protected for every other run |
 
 Not used here: `ui` (no user interface) and a gate `cwd`.
 

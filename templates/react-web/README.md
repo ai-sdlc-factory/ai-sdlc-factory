@@ -24,6 +24,7 @@ npm run build        # production build into dist/
 | `protected_paths` | `vite.config.ts`, `tsconfig.json` | files no agent may change. The lockfile is not protected: a new dependency changes `package.json` and `package-lock.json` together, and the `install` check (`npm ci`) fails if they disagree |
 | `rules` | 4 | patterns a change may not add: two block the change, two only warn the reviewers |
 | `gates` | install, typecheck, test, build | the checks that decide whether a change is acceptable |
+| `verify` | `e2e` | how `/qa` tries a finished change for real: a `ui` suite in `e2e/ui` (Playwright 1.52 in the `browser` image; its config starts the dev server). The tests also write the page as text to `e2e/evidence/` for the UX reviewer. Only used by a `/qa` run |
 
 Not used here: a gate `cwd` (the app is at the repository root). See the `dotnet-react` template.
 

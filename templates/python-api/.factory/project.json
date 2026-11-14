@@ -13,5 +13,14 @@
   "gates": [
     { "name": "lint", "command": ["ruff", "check", "."], "timeout_seconds": 120 },
     { "name": "test", "command": ["python", "-m", "pytest", "-q"], "timeout_seconds": 300 }
-  ]
+  ],
+  "verify": {
+    "start": ["python", "-m", "greetings.web"],
+    "ready": "http://127.0.0.1:5080/api/greetings/Ada",
+    "startup_timeout_seconds": 30,
+    "tests": "e2e",
+    "suites": [
+      { "name": "api", "command": ["python", "-m", "pytest", "-q", "e2e"], "timeout_seconds": 300 }
+    ]
+  }
 }

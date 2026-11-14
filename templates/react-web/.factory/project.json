@@ -21,5 +21,12 @@
     { "name": "typecheck", "command": ["npm", "run", "typecheck"], "timeout_seconds": 300 },
     { "name": "test", "command": ["npm", "test"], "timeout_seconds": 300 },
     { "name": "build", "command": ["npm", "run", "build"], "timeout_seconds": 300 }
-  ]
+  ],
+  "verify": {
+    "image": "browser",
+    "tests": "e2e",
+    "suites": [
+      { "name": "ui", "command": ["sh", "-c", "npm ci --no-audit --no-fund && npx playwright test"], "cwd": "e2e/ui", "timeout_seconds": 900 }
+    ]
+  }
 }

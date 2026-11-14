@@ -21,6 +21,7 @@ dotnet run --project src/Greetings.Api   # http://localhost:5080/api/greetings/A
 | `protected_paths` | migrations, `global.json` | files no agent may change. Dependencies are not protected: an agent may add a package, and the reviewers see it |
 | `rules` | 3 | patterns a change may not add: two block the change, one only warns the reviewers |
 | `gates` | build, test, audit | the checks that decide whether a change is acceptable |
+| `verify` | `e2e` | how `/qa` tries a finished change for real: an `api` suite in `e2e/Api.E2E`: the factory starts the API and the tests call it over HTTP. Only used by a `/qa` run; `e2e` is protected for every other run |
 
 Not used here: `ui` (there is no user interface) and a gate `cwd` (everything runs in the repository root). See the `dotnet-react` and `react-web` templates.
 

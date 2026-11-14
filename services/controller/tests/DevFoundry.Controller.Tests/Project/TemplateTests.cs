@@ -47,6 +47,17 @@ public sealed class TemplateTests
 
     [Theory]
     [MemberData(nameof(Names))]
+    public void The_end_to_end_setup_names_tests_that_exist(string name)
+    {
+        var json = File.ReadAllText(Path.Combine(Templates()!, name, ".factory", "project.json"));
+        ProjectConfigParser.TryParse(json, out var config, out _);
+
+        Assert.NotNull(config!.Verify);
+        Assert.True(Directory.Exists(Path.Combine(Templates()!, name, config.Verify!.Tests)), $"{name}: verify.tests {config.Verify.Tests} does not exist");
+    }
+
+    [Theory]
+    [MemberData(nameof(Names))]
     public void A_gate_that_runs_in_a_folder_names_a_folder_that_exists(string name)
     {
         var json = File.ReadAllText(Path.Combine(Templates()!, name, ".factory", "project.json"));

@@ -17,6 +17,7 @@ Small, working starter projects with **every factory feature switched on**, to s
 | `AGENTS.md` | what the agents should know about the project: layout, commands, conventions, what not to touch |
 | `.gitignore` | keeps build output out of changes (the factory rejects a change that adds it) |
 | `README.md` | how to run the project and what each setting does |
+| `e2e/` | end-to-end tests for `/qa`, run against the started application (the `verify` setting). They are not part of the gates |
 | the code and tests | a stand-in application that builds and passes, so the checks have something to check |
 
 The settings are explained in [Setting up a project](../docs/project-setup.md); the `AGENTS.md` files follow the outline there.

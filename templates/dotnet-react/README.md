@@ -24,6 +24,7 @@ cd frontend && npm run dev                    # http://127.0.0.1:5173 (forwards 
 | `protected_paths` | migrations, `global.json`, `vite.config.ts` | files no agent may change. Dependencies are not protected: `package.json` and its lockfile change together, and the web checks use `npm ci`, which fails if they disagree |
 | `rules` | 4 | patterns a change may not add: three block the change, one only warns the reviewers |
 | `gates` | 2 for the API, 4 for the web | the checks that decide whether a change is acceptable. The web gates use `cwd: "frontend"` to run inside that folder |
+| `verify` | `e2e` | how `/qa` tries a finished change for real: an `api` suite (`e2e/Api.E2E`) and a `ui` suite (`e2e/ui`, Playwright) in the `browser` image. The factory starts the API; Playwright starts Vite, which forwards `/api`. Only used by a `/qa` run |
 
 Also here: [`.factory/Dockerfile.example`](.factory/Dockerfile.example), a project's own sandbox image (adds a Redis server). It is inactive under that name: see the comments in it, and "A project's own image" in `docs/project-setup.md`, before you rename it.
 
