@@ -1,9 +1,9 @@
 # Roadmap and ideas
 
-[Documentation index](README.md) | [Design and decisions](design.md#not-built-yet)
+[Documentation index](README.md) | [Design and decisions](design.md)
 
-A personal to-do list of what is **not built yet**, so ideas are not forgotten. Tick an item when it is done and move it to the "Done" section at the bottom. The reasoning behind the bigger
-items is in [Design and decisions](design.md#not-built-yet); how the built parts work is in [Workflows](workflows.md).
+A personal to-do list of what is **not built yet**, so ideas are not forgotten. Tick an item when it is done and move it to the "Done" section at the bottom. Why the factory is built the way
+it is, and what running it taught, is in [Design and decisions](design.md); how the built parts work is in [Workflows](workflows.md).
 
 Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or more.
 
@@ -11,7 +11,6 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 
 - [x] **Demo service with monitoring and deployment** (done as a first version: [`demo/`](../demo/README.md)). The weather application runs from its default branch in Docker, with Prometheus, Alertmanager, Grafana and Loki, a delivery script with rollback and a script that breaks it on purpose. Still open: let a merge to the default branch start the delivery (a Forgejo Actions runner or a webhook), and blue/green switching.
 - [x] **Alert intake: react to monitoring alerts** (done as a first version: [`services/alert-intake`](../services/alert-intake/README.md)). Alertmanager notifications become one ticket per alert, with an operator-owned route table, deduplication by fingerprint, a rate limit, redacted and bounded evidence (recent log lines from Loki), and a dry run as the default. Still open: more sources than Alertmanager, closing tickets by itself when an alert resolves (today it only comments), and running it in the factory's own Compose stack.
-  and an agent that proposes prompt and config changes as a reviewed ticket, never applied automatically.
 - [ ] **Scheduled UI check** (L). A separate scheduled flow that checks the real UI, for projects that have one, and files bug tickets for what is broken or looks wrong (or becomes part of QA/UX).
   Design: a Temporal schedule per project (operator-owned list), a browser sandbox, deterministic findings (console errors, accessibility violations, screenshots), reproduced twice before a ticket is filed, fingerprint deduplication, a cap on new tickets per sweep,
   and tickets labelled `auto-detected` that a person promotes to `bug` (or a per-project auto-start). Depends on the browser image below. The same frame can later run other sweeps (dependency audit, broken links, flaky tests on `main`).
@@ -42,6 +41,9 @@ Small gaps found while building and testing these. None is started.
 
 ## Other ideas we discussed
 
+- [ ] **Review comments inline** (S, blocked by Forgejo). Reply inside each line comment's thread, and react to single line comments instead of a whole review. Forgejo's API has no way to reply in a thread, so the factory posts one summary reply with a table.
+- [ ] **Reviews that start by themselves** (S). `/review` reviews any pull request on request. Nothing starts one when a person opens a pull request, because every review spends tokens; an opt-in project setting could.
+
 - [x] **Browser image and end-to-end spike** (done: the `browser` image runs Chromium in the locked-down sandbox, see [QA run](workflows.md#qa-run); whether OpenCode can take a screenshot as input is still open, so the UX review reads page text and accessibility snapshots). Original item (S). A sandbox image with Chromium and Playwright, so a project can run browser tests as a gate. Spike on the fixture's `web/` folder first: memory use inside the 2 GB sandbox, whether Chromium launches with all capabilities dropped,
   and whether OpenCode can take a screenshot as input. Prerequisite for the scheduled UI check and for UI bugs that can be reproduced with a test.
 
@@ -62,7 +64,6 @@ Small gaps found while building and testing these. None is started.
 - [x] `/retry`, and failures of the factory's own machinery told apart from the ticket's (`infrastructure_failed`).
 - [x] Build rounds announce themselves, the developer's report is posted, and reviewers check the earlier findings.
 - [x] `/qa` workflow: end-to-end API and UI tests of a finished pull request (`/qa`, `/qa full`, `/qa <note>`, `/fix qa`), the `browser` sandbox image, and the token use of every run stored in its result.
-
 - [x] Janitor: removes checkouts of finished runs, lists (and optionally deletes) old work-in-progress branches, and removes old unused repository images.
 - [x] Feature workflow: analyst, coverage check, triage, architect, developer, project checks, reviewers, UX review, QA, pull request.
 - [x] Bug workflow with the red-then-green proof.

@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, a sixth that tests a finished change from the outside on request, a seventh that brings a pull request up to date with its base branch, an eighth that reviews any pull request on request, and a ninth that writes documentation, and a tenth that, once a week, looks at how the factory itself did. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has **five workflows that start from a ticket's label** (feature, bug, plan, incident and docs) and **five more that start from a comment or a timer**: revising its own pull requests after a review, testing a finished change from the outside (`/qa`), bringing a pull request up to date with its base branch (`/update`), reviewing any pull request (`/review`), and, once a week, looking at how the factory itself did. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |

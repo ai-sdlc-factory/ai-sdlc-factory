@@ -15,7 +15,7 @@ boundaries are. How each kind of ticket is handled is in [Workflows](workflows.m
 | **Forgejo** | Holds the repositories, tickets, labels and pull requests. People work here. | It is the human interface; the factory never needs another one. |
 | **api** ([guide](../services/api/README.md)) | Receives signed Forgejo webhooks, checks the signature, starts a Temporal workflow. | It faces the network (webhooks) but has no Forgejo token, no Docker and no business logic. |
 | **Temporal** | Durable workflows: every step, prompt, answer and check output is stored in its history; waits for people cost nothing. | A run can take days (waiting for answers) and survives restarts. |
-| **controller** ([guide](../services/controller/README.md)) | Runs the workflows. Decides every next step in code, holds the only Forgejo token, runs git, validates what agents answer. | All decisions live in one reviewed, tested place. |
+| **controller** ([guide](../services/controller/README.md)) | Runs the workflows. Decides every next step in code, holds the only Forgejo token, runs git, validates what agents answer. Also runs the janitor and starts the weekly report on what repeated. | All decisions live in one reviewed, tested place. |
 | **sandbox-launcher** ([guide](../services/sandbox-launcher/README.md)) | The only service with the Docker socket. Starts one disposable container per agent run with a fixed isolation policy. | Docker access is effectively root on the host; it is kept in a small service that has no tokens and takes requests it can validate. |
 | **egress-proxy** ([guide](../services/egress-proxy/README.md)) | The only way out of a sandbox: HTTPS tunnels to allowlisted hosts, everything logged. | An agent that is tricked by text must not be able to send code or the login anywhere. |
 | **Sandboxes** | One per agent run: OpenCode, one role file, the project's language image. | Disposable and isolated: non-root, read-only root, no capabilities, no route out except the proxy. |
@@ -30,7 +30,8 @@ Docker Compose runs all of it on one machine ([Infrastructure](../infra/README.m
 1. A person creates or labels a ticket in Forgejo. Forgejo sends a **signed webhook** to the api.
 2. The api verifies the signature (HMAC-SHA256 over the exact bytes) and starts `ForgejoEventWorkflow` in Temporal. Repeated
    deliveries of the same id are ignored.
-3. That workflow is the **router**: with fixed rules it starts the ticket's own workflow (feature, bug, incident or plan), signals a
+3. That workflow is the **router**: with fixed rules it starts the ticket's own workflow (feature, bug, incident, plan or docs), starts
+   the workflow a slash command asks for on a ticket or pull request (`/fix`, `/update`, `/qa`, `/review`, `/retry`), signals a
    waiting workflow with a comment, or ignores the event. See [Ticket routing](workflows.md#ticket-routing).
 4. The ticket's workflow runs on the **controller**. For every agent step it asks the launcher (through Temporal, queue
    `sandbox`) to run a command in a sandbox. The workflow, not the agent, decides what happens with the answer.
@@ -82,10 +83,12 @@ The [egress guide](../egress/README.md) describes the network rules in detail; [
 | --- | --- | --- |
 | Tickets, branches, pull requests | Forgejo (PostgreSQL) | until you delete them |
 | Every workflow step: prompts, agent answers, check output | Temporal history | 7 days after a run ends (`TEMPORAL_RETENTION`) |
-| Checkouts (pristine clone and agent copy) | `FACTORY_WORKSPACE_ROOT` on the host | removed when the workflow ends; old ones from hand-stopped runs are **not** cleaned automatically |
+| Checkouts (pristine clone and agent copy) | `FACTORY_WORKSPACE_ROOT` on the host | removed when the workflow ends; leftovers of runs that were stopped by hand are removed by the [janitor](operations.md#cleaning-up) after a few days |
+| The stages a feature or bug run finished (for `/retry`) | `.resume/<run>.json` under `FACTORY_WORKSPACE_ROOT` | until a pull request opens, or the janitor removes it |
+| One line per finished run (tokens, rounds, per-agent figures; no ticket text) and the weekly reports | `.usage/usage.jsonl` and `.usage/reports/` under `FACTORY_WORKSPACE_ROOT` | until you move or delete them ([usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories)) |
 | The run record (prompts, answers, check output, tokens, cost) | `.factory/runs/` in the pull request or work-in-progress branch, if the project sets `"record": true` | with the repository |
 | The OpenCode login | Docker volume `opencode-data` | until the volume is removed |
-| Egress decisions | `docker compose logs egress-proxy` | as long as Docker keeps the container log |
+| Egress decisions | `docker compose logs egress-proxy`; every refusal also in the `egress-log` volume (`denied.jsonl`, at most 10 MB), which the controller reads for the weekly report | the console log as long as Docker keeps it; the file until the volume is removed |
 
 ## The code
 

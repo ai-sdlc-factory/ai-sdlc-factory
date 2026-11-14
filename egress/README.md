@@ -37,7 +37,7 @@ at all. The factory picks the profile by role, never the agent or the repository
 | `none` (no network) | nothing | the factory's own small helper commands: does a file or commit exist, a file hash |
 | `model` | `chatgpt.com`, `auth.openai.com` | every agent role except the two below: the analysts, architect, diagnostician, reviewers, the acceptance check, the incident roles and the postmortem writer |
 | `packages` | package registries (PyPI, npm, NuGet, Maven, crates.io, Go, RubyGems) | the project's own checks, and a bug fix's red and green test runs |
-| `developer` | `model` + `packages` | the developer and the reproducer (they run the project's tests, which may fetch packages) |
+| `developer` | `model` + `packages` | the developer, the reproducer, the pull request and merge resolvers and the end-to-end tester (they run the project's tests, which may fetch packages) |
 
 Each profile has its own internal Docker network and its own proxy address, so a container cannot ask
 for a more generous profile: from the `model` network the `developer` proxy is not reachable at all.

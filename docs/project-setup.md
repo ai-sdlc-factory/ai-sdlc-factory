@@ -31,7 +31,7 @@ branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests.
 | HTTP method | `POST` |
 | Content type | `application/json` |
 | Secret | the `FORGEJO_WEBHOOK_SECRET` from `infra/.env` (the same for every repository) |
-| Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** (this also carries `/fix` comments on pull requests). Add **Pull Request Review Rejected** if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
+| Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** (this also carries the slash commands on pull requests: `/fix`, `/update`, `/qa` and `/review`). Add **Pull Request Review Rejected** if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
 | Active | yes |
 
 Use **Test Delivery**. A valid delivery returns `202` and appears in the Temporal UI (http://localhost:8080). Adding a label to an existing ticket

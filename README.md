@@ -33,11 +33,12 @@ Start at the [documentation index](docs/README.md).
 | --- | --- |
 | [Getting started](docs/getting-started.md) | Installing and configuring the factory, step by step |
 | [Setting up a project](docs/project-setup.md) | Webhook, labels, `.factory/project.json` (required and optional settings), `AGENTS.md` |
-| [Workflows](docs/workflows.md) | Routing, the feature, bug, incident and plan workflows, quick mode, statuses, limits (with diagrams) |
+| [Workflows](docs/workflows.md) | Routing, every workflow (feature, bug, incident, plan, docs, revisions, updates, QA, reviews, the weekly report), quick mode, `/retry`, statuses, limits (with diagrams) |
 | [Architecture](docs/architecture.md) | The parts, trust boundaries, where data lives |
 | [Configuration](docs/configuration.md) | Every setting: `.env`, service variables, agents and models |
 | [Operations](docs/operations.md) | Watching runs, troubleshooting, cleaning up, backups, security notes |
-| [Design and decisions](docs/design.md) | Why it is built this way, findings from running it, what is not built yet |
+| [Design and decisions](docs/design.md) | Why it is built this way, and findings from running it |
+| [Roadmap](docs/roadmap.md) | What is not built yet, and what is done |
 | [Infrastructure](infra/README.md) | Compose services, local addresses, the bot account |
 | [Demo and monitoring](demo/README.md) | A demo production for the weather app with Prometheus, Alertmanager, Grafana and Loki, where alerts open tickets |
 | [Agents](agents/README.md) | The role files, permissions and models |
@@ -54,7 +55,7 @@ Start at the [documentation index](docs/README.md).
 - [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
 - [`egress/`](egress/README.md): the internet allowlist for the sandboxes.
 - [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services.
-- [`tests/integration/`](tests/integration/README.md): the deployed pipeline test. [`tools/check-docs.py`](tools/check-docs.py): the documentation check.
+- [`tests/integration/`](tests/integration/README.md): the deployed pipeline test. [`tools/`](tools/): `check-docs.py` (the documentation check), `usage-report.py` (token totals from the usage log) and `check-clock.py`.
 - [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the integration tests.
 
 All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in

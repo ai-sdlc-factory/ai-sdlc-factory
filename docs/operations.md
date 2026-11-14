@@ -194,11 +194,12 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 | Limitation | Notes |
 | --- | --- |
 | The janitor never deletes pull request branches or sandbox images that are still in use | by design; see [Cleaning up](#cleaning-up) |
-| No token or spending limits | recorded, not enforced |
+| Token limits are off until you set them, and are per run and per day | a budget covers one run (a retry, revision, update or QA run has its own), the daily limits count only runs that have finished, and a single agent run can go over a limit by its own length. See [Token limits](#token-limits) |
 | Pull request updates | only the factory's own pull requests are updated, and always by a normal push (never forced); a merge conflict in a protected file, or in more than 40 files, is left to a person; anyone who can comment can start one |
+| Reviews, updates and documentation runs spend tokens on anyone's request | `/review` works on anyone's pull request, and anyone who can comment can start `/review`, `/qa`, `/fix`, `/update` and `/retry`; nothing checks the commenter's write access yet |
 | Pull request revisions | only the factory's own pull requests are revised; the factory cannot resolve conversations (no API), and anyone who can comment on the pull request can start a revision |
 | Incident tickets come from people, or from the alert intake | the intake only watches the [demo environment](../demo/README.md); watching a real system needs its alerts routed in the intake's `mapping.json`. It opens a ticket only when `ALERT_INTAKE_DRY_RUN` is `false`, and the factory's incident workflow then spends tokens on every one |
-| Unknown keys in `.factory/project.json` are ignored silently | check spelling against the [reference](project-setup.md#reference) |
+| Unknown keys in `.factory/project.json` only produce a warning | the ticket names the key and the likely spelling, and the run goes ahead without it; see the [reference](project-setup.md#reference) |
 | Forgejo only | the router reads Forgejo's webhook format |
 | One controller instance | the workspace folder is local to it; a second controller would need a shared or per-worker workspace |
 | Temporal history is kept 7 days by default | use the run record to keep a run |

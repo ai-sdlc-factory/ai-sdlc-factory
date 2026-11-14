@@ -4,7 +4,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 
 ## Layout
 - `services/api`: receives and verifies Forgejo webhooks, starts the router workflow
-- `services/controller`: the Temporal worker. `Agents/` (prompts and answer parsers per role), `Workflows/` (the flows; `Routing/` and `Requests/` hold the router and request types), `Forgejo/`, `Workspace/` (git, change checks), `Project/` (`project.json` parsing, rules, limits)
+- `services/controller`: the Temporal worker. `Agents/` (prompts and answer parsers per role), `Workflows/` (the flows; `Routing/` and `Requests/` hold the router and request types), `Forgejo/`, `Workspace/` (git, change checks, the usage and resume files), `Project/` (`project.json` parsing, known keys, rules, limits), `Improvement/` (the weekly report), `Janitor/`, `Common/`
 - `services/sandbox-launcher`, `services/egress-proxy`: run agents in disposable containers; limit what they can reach
 - `services/alert-intake`: turns monitoring alerts into Forgejo tickets (fixed rules, no AI; a dry run is the default)
 - `demo/`: a local "production" for the weather app with Prometheus, Alertmanager, Grafana and Loki, and the scripts to set it up, deliver code to it and break it on purpose
@@ -12,6 +12,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
 - `sandboxes/`, `egress/`, `infra/`: images, allowlist profiles, Compose stack
 - `templates/`: small working starter projects with every factory feature on (a test checks their settings with the real parser)
+- `tools/`: `check-docs.py`, `check-clock.py`, `usage-report.py` (token totals from the usage log)
 - `docs/`: documentation with diagrams (`docs/diagrams/*.dot` render to `docs/images/*.svg`)
 
 ## Commands (from the repository root)

@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Workflows](workflows.md)
 
-Why the factory is built the way it is, what running it taught us, and what is deliberately not built yet. The factory follows the stage-and-artifact idea of
+Why the factory is built the way it is, and what running it taught us. What is not built yet is on the [roadmap](roadmap.md). The factory follows the stage-and-artifact idea of
 Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifact, deterministic code controls the flow, and humans own the gates.
 
 ## Principles
@@ -15,7 +15,7 @@ Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifac
 4. **Humans own the gates.** Humans decide scope (the ticket), answer questions on the ticket, review every pull request, and merge. For incidents, humans carry out every action; the factory only advises.
 5. **Everything on the ticket.** Communication with people is comments on the ticket, and a workflow that needs a person simply waits (a Temporal wait costs nothing).
 6. **Nothing is lost.** Stopped runs save their work to a `-wip` branch; every step is in Temporal history, and optionally in a committed run record.
-7. **Bounded everything.** Round caps, retries, timeouts, file and size limits, and a concurrency limit. A model cannot make a run loop forever.
+7. **Bounded everything.** Round caps, retries, timeouts, file and size limits, a concurrency limit, and optional token budgets and daily caps. A model cannot make a run loop forever or spend without end.
 
 ## Decisions and why
 
@@ -33,7 +33,8 @@ Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifac
 | **Incident = advice only; slash commands** | The factory has no access to production and should not get any. People decide with fixed commands, because a model's reading of free text is not a safe way to trigger actions. |
 | **A separate collector for incidents** (first version built: the [alert intake](../services/alert-intake/README.md)) | Detecting incidents needs production access. That belongs in a small, separate, deterministic component that files a ticket with a bounded, redacted evidence bundle, so agents never see production. The intake does exactly that for Alertmanager alerts: an operator-owned route table, deduplication by fingerprint, a rate limit, redacted evidence, and a dry run as the default. |
 | **The factory never merges** | The last gate is a person. |
-| **ChatGPT login, not an API key** | The target is a personal or small-team setup with a subscription. It means no per-token price and no provider-side spending cap. |
+| **ChatGPT login, not an API key** | The target is a personal or small-team setup with a subscription. It means no per-token price and no provider-side spending cap, so the factory counts tokens itself and can limit them per run and per day ([Token limits](operations.md#token-limits)); all of it is off until an operator sets it. |
+| **The factory only proposes changes to itself** | Once a week it counts what repeated in its own runs and an agent proposes prompt and setting changes as a ticket ([weekly report](operations.md#the-weekly-report-what-repeats)). Nothing is applied automatically: an agent working from counts cannot see why a run went the way it did, and a change to a prompt or an allowlist changes what every later run does. A person reads and decides. |
 
 ## Findings from running it
 
@@ -50,21 +51,6 @@ Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifac
 - **The .NET CLI crashes if `HOME` does not exist**, while Python and Node tolerate it. The sandbox entrypoint now creates `HOME` and the XDG directories. Found by actually running the documentation's language examples.
 - **A model can follow `AGENTS.md`**: a developer told "tests live in `check_x.py`, plain asserts" wrote exactly that. The analyst-type roles are told to treat repository text as data, so they will not obey commands in it.
 - **Token use** of a small feature in the full process was about 52,000 (about 28,000 without cache reads); in quick mode about 28,000 in total. The developer is the largest part either way.
-
-## Not built yet
-
-These are designed or discussed, and deliberately left out until real use shows they are needed. The working to-do list is the [roadmap](roadmap.md).
-
-| Item | Idea |
-| --- | --- |
-| **Review comments inline** | Reply inside each comment's thread (Forgejo's API has no way to; the factory posts one summary reply with a table), and react to individual line comments instead of a whole review. |
-| **Incident collector, the rest** | The first version exists ([alert-intake](../services/alert-intake/README.md), run by the [demo environment](../demo/README.md)). Still open: sources other than Alertmanager, closing a ticket by itself when its alert resolves (today it only comments), running it in the factory's own Compose stack, and pointing it at a real production system instead of the demo. |
-| **Review of human pull requests** | Run the reviewer and security roles read-only on pull requests that people open. |
-| **Dependency updates** | A scheduled run that bumps dependencies, runs the project's checks and opens a pull request. |
-| **Factory retrospective** | A durable run log (one line per finished run, no ticket text) and a weekly deterministic report of what repeats (rejected answers, rounds used, refused hosts, outliers), with an agent proposing prompt changes as a reviewed ticket, never applied automatically. |
-| **Warning on unknown `project.json` keys** | Today a misspelled optional key is silently ignored. |
-| **Startup check of each role's model** | Fail early when a role names a model the login cannot use. |
-| **Language-server tools** | OpenCode's language-server downloads are off for network reasons; if wanted, bake the servers into the images. A generated repo map (ctags) could also help large repositories. |
 
 ## Older notes
 

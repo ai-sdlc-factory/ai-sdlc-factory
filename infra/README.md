@@ -116,5 +116,5 @@ docker compose stop      # Stop services
 docker compose down      # Remove containers/network; keep data
 ```
 
-Data persists in named volumes (`postgres-data`, `forgejo-data`, `pgadmin-data`, `mailpit-data`, `opencode-data`). `docker compose down --volumes` deletes all stack data, including repositories, databases,
+Data persists in named volumes (`postgres-data`, `forgejo-data`, `pgadmin-data`, `mailpit-data`, `opencode-data`, `egress-log`). `docker compose down --volumes` deletes all stack data, including repositories, databases,
 captured emails, and the OpenCode login. Database initialization and pgAdmin login setup run only on empty volumes; changing passwords in `.env` does not update the existing database accounts or the existing pgAdmin login.
