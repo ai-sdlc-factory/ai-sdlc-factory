@@ -76,6 +76,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     [Activity("workspace_usage_today")]
     public Task<UsageToday> UsageTodayAsync(string repository) => Task.FromResult(workspace.UsageToday(repository, DateTimeOffset.UtcNow));
 
+    /// <summary>Makes and saves the weekly report on what repeats.</summary>
+    [Activity("workspace_improvement_report")]
+    public Task<ImprovementReportResult> BuildImprovementReportAsync(ImprovementRequest request) => Task.FromResult(workspace.BuildImprovementReport(request));
+
     /// <summary>Keeps the stages a run has finished, for a later <c>/retry</c>.</summary>
     [Activity("workspace_save_resume")]
     public Task SaveResumeAsync(SaveResumeRequest request) => workspace.SaveResumeAsync(request);

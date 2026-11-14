@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace DevFoundry.Controller;
 
 /// <summary>What a finished run used, as the workflow knows it. The activity adds the time.</summary>
-public sealed record UsageLogEntry(string WorkflowId, string RunId, string Kind, string Repository, int Number, string Status, TokenUsage Usage);
+public sealed record UsageLogEntry(string WorkflowId, string RunId, string Kind, string Repository, int Number, string Status, TokenUsage Usage, RunStats? Stats = null);
 
 /// <summary>One line of the usage log. Names are fixed (snake_case) because other tools read the file: <c>tools/usage-report.py</c> and whatever a person writes.</summary>
 public sealed record UsageLine(
@@ -24,7 +24,17 @@ public sealed record UsageLine(
     [property: JsonPropertyName("total")] long Total,
     [property: JsonPropertyName("cost")] double Cost,
     [property: JsonPropertyName("steps")] int Steps,
-    [property: JsonPropertyName("partial")] bool Partial);
+    [property: JsonPropertyName("partial")] bool Partial,
+    [property: JsonPropertyName("rounds")] int Rounds = 0,
+    [property: JsonPropertyName("gate_failures")] int GateFailures = 0,
+    [property: JsonPropertyName("roles")] Dictionary<string, RoleLine>? Roles = null);
+
+/// <summary>One role's part of a run, as a line of the log.</summary>
+public sealed record RoleLine(
+    [property: JsonPropertyName("attempts")] int Attempts,
+    [property: JsonPropertyName("rejected")] int Rejected,
+    [property: JsonPropertyName("failed")] int Failed,
+    [property: JsonPropertyName("tokens")] long Tokens);
 
 /// <summary>What the finished runs of one UTC day used, as the usage log counts it (<see cref="TokenUsage.Counted"/>): all repositories together, and one repository.</summary>
 public sealed record UsageToday(long All, long Repository);
@@ -49,7 +59,9 @@ public sealed partial class GitWorkspace
         var usage = entry.Usage;
         var line = JsonSerializer.Serialize(new UsageLine(
             now.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"), entry.WorkflowId, entry.RunId, entry.Kind, entry.Repository, entry.Number, entry.Status,
-            usage.Input, usage.Output, usage.Reasoning, usage.CacheRead, usage.CacheWrite, usage.Total, usage.Cost, usage.Steps, usage.Partial));
+            usage.Input, usage.Output, usage.Reasoning, usage.CacheRead, usage.CacheWrite, usage.Total, usage.Cost, usage.Steps, usage.Partial,
+            entry.Stats?.Rounds ?? 0, entry.Stats?.GateFailures ?? 0,
+            entry.Stats?.Roles.ToDictionary(pair => pair.Key, pair => new RoleLine(pair.Value.Attempts, pair.Value.Rejected, pair.Value.Failed, pair.Value.Tokens))));
 
         var path = UsageLogPath(root);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

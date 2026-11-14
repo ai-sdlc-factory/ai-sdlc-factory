@@ -51,7 +51,7 @@ A **janitor** in the controller cleans up once a day (the first pass is five min
 
 | What | Rule | Setting |
 | --- | --- | --- |
-| **Leftover checkouts** (`<name>/`, `.base/<name>/`, `.records/<name>/` in `FACTORY_WORKSPACE_ROOT`, and the ticket's saved stages `.resume/<name>.json` that `/retry` reuses) | removed when the run with that id is **not running** (asked of Temporal) **and** nothing has touched the folders for 2 days. Only folders named after a run (`feature-`, `bug-`, `incident-`, `revision-`, `qa-`, `update-`, `review-`, `docs-`) are ever touched, never anything else in that folder. If Temporal cannot be asked, nothing is removed | `FACTORY_JANITOR_CHECKOUT_DAYS` |
+| **Leftover checkouts** (`<name>/`, `.base/<name>/`, `.records/<name>/` in `FACTORY_WORKSPACE_ROOT`, and the ticket's saved stages `.resume/<name>.json` that `/retry` reuses) | removed when the run with that id is **not running** (asked of Temporal) **and** nothing has touched the folders for 2 days. Only folders named after a run (`feature-`, `bug-`, `incident-`, `revision-`, `qa-`, `update-`, `review-`, `docs-`, `improvement-`) are ever touched, never anything else in that folder. If Temporal cannot be asked, nothing is removed | `FACTORY_JANITOR_CHECKOUT_DAYS` |
 | **Old `-wip` branches** (`factory/issue-<n>-wip`) in repositories the bot can push to | **listed** in the log once their last commit is 30 days old. **Deleted** only if you set `FACTORY_JANITOR_DELETE_WIP=true` **and** their ticket is closed **and** no open pull request uses them. Pull request branches (`factory/issue-<n>`) are never touched | `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` |
 | **Repository images** (`dev-foundry/repo:*`, only while `FACTORY_ALLOW_REPO_IMAGES` is on) | removed once a day when older than 60 days and no container uses them. They are rebuilt on the next use, so the only cost is a build. The launcher does this | `FACTORY_JANITOR_IMAGE_DAYS` (0 = never) |
 
@@ -116,10 +116,10 @@ Reference points from real runs: a small feature in the full process used about 
 Every finished run that used an agent adds **one line** to `usage.jsonl` in the folder `.usage/` under `FACTORY_WORKSPACE_ROOT` (a host path, so you can read it without going into a container; no sandbox can reach it). The file only grows (about 300 bytes a run), it is never rewritten, and it holds no text from tickets or code: only which run it was and what it used.
 
 ```json
-{"time":"2026-11-14T10:00:00Z","workflow_id":"feature-acme-shop-1-ab12cd34","run_id":"…","kind":"feature","repository":"acme/shop","number":1,"status":"pr_opened","input":1000,"output":200,"reasoning":10,"cache_read":500,"cache_write":0,"total":1710,"cost":0,"steps":5,"partial":false}
+{"time":"2026-11-14T10:00:00Z","workflow_id":"feature-acme-shop-1-ab12cd34","run_id":"…","kind":"feature","repository":"acme/shop","number":1,"status":"pr_opened","input":1000,"output":200,"reasoning":10,"cache_read":500,"cache_write":0,"total":1710,"cost":0,"steps":5,"partial":false,"rounds":2,"gate_failures":1,"roles":{"developer":{"attempts":2,"rejected":0,"failed":0,"tokens":900},"analyst":{"attempts":2,"rejected":1,"failed":0,"tokens":400}}}
 ```
 
-`kind` is `feature`, `bug`, `incident`, `plan`, `revision`, `qa` or `update`; `number` is the ticket or, for a revision, QA run or update, the number of the ticket or pull request the comment was on; `status` is how the run ended (a run that stopped is logged too, because its tokens were spent); `partial` is true when an agent's usage could not be read in full, so the total is a lower bound. A run that stopped before any agent ran (no settings file, a repository image that would not build) adds no line. A line is added when the run ends, so a run that is still going is not in it yet.
+`kind` is `feature`, `bug`, `incident`, `plan`, `revision`, `qa`, `update`, `review`, `docs` or `improvement`; `number` is the ticket or, for a revision, QA run or update, the number of the ticket or pull request the comment was on; `status` is how the run ended (a run that stopped is logged too, because its tokens were spent); `partial` is true when an agent's usage could not be read in full, so the total is a lower bound. `rounds` is the most rounds a loop of the run reached (build, revision, update or documentation rounds), `gate_failures` how many times one of the project's checks failed, and `roles` what each agent did in the run: `attempts` made, answers `rejected` (unusable, or against a rule) and runs that `failed` outright, and the `tokens` it used. A run whose agents all failed before using any tokens still gets a line, because its failures are what the [weekly report](#the-weekly-report-what-repeats) looks for. A run that stopped before any agent ran (no settings file, a repository image that would not build) adds no line. Lines written before these figures existed simply lack them. Nothing from a ticket (its title, text or comments) is ever written to it. A line is added when the run ends, so a run that is still going is not in it yet.
 
 Totals, from the repository root:
 
@@ -130,6 +130,39 @@ python3 tools/usage-report.py --by kind --repo acme/shop      # filter by --repo
 ```
 
 The report counts each run once even if a line was written twice (by `run_id`), skips a line it cannot read and says so. It is plain JSON lines, so `jq` or a spreadsheet work as well. To keep the file small, move it away when you like (the controller creates a new one); nothing reads it back except you and this tool.
+
+### The weekly report: what repeats
+
+Once a week (a few minutes after the controller starts and then checked every hour, so a restart never makes a second one) the factory evaluates the **last completed week** (Monday to Monday, UTC) by **counting**: no model is involved, the same logs always give the same report. It reads the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories) and the egress proxy's log of refused hosts, and saves `.usage/reports/<year>-W<week>.md` next to the usage log. A rule only flags something when there is enough to mean something (at least 5 runs or attempts), and all of them are constants in [`ReportRules.cs`](../services/controller/src/DevFoundry.Controller/Improvement/ImprovementReport.cs):
+
+| What repeats | Flagged when |
+| --- | --- |
+| **rejected answers**, per agent | at least 20% of an agent's answers were unusable or against a rule (a prompt or an answer shape that is unclear) |
+| **failed agent runs**, per agent | at least 20% of its runs failed outright (no answer, a timeout, an error) |
+| **rounds used**, per kind of run | at least 30% of the runs needed 3 rounds or more |
+| **runs that stopped the same way** | 3 or more runs of a kind ended the same unhealthy way (anything but a pull request, a posted result or a close) |
+| **token outliers** | a run used 3 times the median of its kind (needs 5 runs of the kind) and at least 50,000 tokens |
+| **refused hosts** | the same host was refused 3 or more times (from the proxy's refusal log) |
+
+Without anything to flag, or with no repository set, that is all: a file. To have the factory use it, set `FACTORY_IMPROVEMENT_REPO=owner/name` (usually the factory's own repository on Forgejo; it needs a `.factory/project.json`, because an agent reads it). When the report flags something, the factory then:
+
+1. opens the report as a **ticket** in that repository, titled "Factory report, 2026-W46". It carries **no factory label**, so no workflow starts on it;
+2. runs the read-only `improver` agent on a checkout of that repository (no shell, no editing; the model only), which proposes up to 8 changes to prompts, settings, allowlists or code as **one comment** on the ticket: what to change in which file, which numbers in the report say so, and what could get worse;
+3. checks only that every proposal names a file that exists (a proposal naming one that does not is left out, and the comment says how many);
+4. stops. **Nothing is applied, and nothing will be**: the proposals are suggestions from counts, which cannot see why a run went the way it did. A person reads them, checks the evidence in the report, and makes the change by hand, or files a ticket for it.
+
+The agent's own run costs tokens like any other (kind `improvement` in the usage log, so the next report sees it) and counts against the [token limits](#token-limits). A week with no run, or with nothing flagged, opens no ticket and costs none. Turn the whole thing off with `FACTORY_IMPROVEMENT=false`.
+
+**Refused hosts.** The egress proxy also writes each refusal (one JSON line, at most 10 MB, then it stops writing and says so once) to a volume the controller reads, `egress-log`, at `/var/log/egress/denied.jsonl`. Without that file the report says it knows nothing about refused hosts, rather than claiming there were none. A refusal can be a host that is not on the profile's list, a name that does not resolve or a connection that failed; the report shows the reason.
+
+**Running it by hand** (a week that failed, or to look at one now). A run that ended with `improvement_failed` is not started again by itself, so a broken week cannot loop every hour. From the `infra` folder:
+
+```sh
+docker compose run --rm --no-deps --entrypoint temporal temporal-namespace workflow start --task-queue factory-events --type ImprovementWorkflow \
+  --workflow-id improvement-2026-w46-again --input '{"Week":"2026-W46","From":"2026-11-09","To":"2026-11-16","Repository":null}'
+```
+
+(`Repository` as `"owner/name"` opens the ticket and runs the agent; `null` only saves the report. The command uses the `temporalio/admin-tools` image of the `temporal-namespace` service, which already knows the Temporal address; the same workflow can be started from the Temporal UI with the same input.) Use a new workflow id each time: the week's own id is taken once a run for it has finished.
 
 ### Token limits
 

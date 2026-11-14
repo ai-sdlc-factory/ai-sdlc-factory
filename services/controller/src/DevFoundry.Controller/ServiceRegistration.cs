@@ -24,6 +24,7 @@ public static class ServiceRegistration
             .AddWorkflow<PullRequestUpdateWorkflow>()
             .AddWorkflow<PullRequestReviewWorkflow>()
             .AddWorkflow<DocsWorkflow>()
+            .AddWorkflow<ImprovementWorkflow>()
             .AddWorkflow<QaWorkflow>();
 
         // The hosted worker keeps its client to itself, so the janitor gets one of its own (it connects when first used).
@@ -39,6 +40,7 @@ public static class ServiceRegistration
         services.AddSingleton<IJanitorForgejo>(sp => sp.GetRequiredService<ForgejoClient>());
         services.AddSingleton<JanitorRunner>();
         services.AddHostedService<JanitorService>();
+        services.AddHostedService<ImprovementService>();
         // Registered after the worker, so it stops first and the readiness file disappears before shutdown.
         services.AddHostedService<ReadinessFile>();
         return services;

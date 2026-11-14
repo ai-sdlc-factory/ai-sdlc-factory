@@ -129,6 +129,15 @@ public static class Statuses
     /// <summary>qa: there is no open pull request of the factory for this ticket.</summary>
     public const string QaNoPullRequest = "qa_no_pull_request";
 
+    /// <summary>improvement: the proposals for changing the factory were posted on the weekly report's ticket (nothing was applied).</summary>
+    public const string ImprovementPosted = "improvement_posted";
+
+    /// <summary>improvement: the report could not be made, the ticket could not be opened, or the agent's proposals could not be used.</summary>
+    public const string ImprovementFailed = "improvement_failed";
+
+    /// <summary>improvement: the weekly report was saved on the host; no ticket was opened (no repository is set for them, or nothing repeated).</summary>
+    public const string ReportSaved = "report_saved";
+
     /// <summary>review: the reviewers' findings on a pull request were posted on it (nothing was changed).</summary>
     public const string ReviewPosted = "review_posted";
 

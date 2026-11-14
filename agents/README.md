@@ -31,6 +31,7 @@ The workflow chooses the role and runs `opencode run --agent <role>`. Every role
 | `pr-resolver` | pull request revision | addresses a reviewer's comments on the factory's own pull request, one answer per comment | yes (checked) | yes |
 | `merge-resolver` | pull request update | resolves the conflicts of the base branch merged into the factory's own pull request, one answer per conflicted file, and fixes what the merge broke | yes (checked) | yes |
 | `docs-writer` | documentation run | writes or updates AGENTS.md, README.md, CONTRIBUTING.md and Markdown under `docs/` from the code, nothing else | yes (checked) | no |
+| `improver` | weekly improvement | reads the factory's weekly report and its own repository and proposes changes to prompts and settings as a comment, nothing applied | no | no |
 | `planner` | plan | splits a large request into feature tickets for a person to approve | no | no |
 | `incident-analyst` | incident | severity, impact, timeline, what is missing | no | no |
 | `investigator` | incident | likely causes from the code and git history | no | yes (read-only workspace, for `git`) |

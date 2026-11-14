@@ -186,20 +186,23 @@ public abstract partial class FactoryWorkflowBase
     }
 
     /// <summary>
-    /// Adds the run to the host's usage log when an agent ran, so there is a total across tickets, days and repositories. Best effort: the log never decides
+    /// Adds the run to the host's usage log when an agent ran (even one that failed before using any tokens), so there is a total across tickets, days and repositories. Best effort: the log never decides
     /// how a run ends. One attempt, because a second after a lost answer would count the run twice.
     /// </summary>
-    private static async Task LogUsageAsync(WorkRequest request, WorkResult result)
+    private async Task LogUsageAsync(WorkRequest request, WorkResult result)
     {
-        if (result.Usage is not { } usage)
+        // A run whose agents all failed before spending anything is still worth a line: its failures are what the weekly report looks for.
+        var stats = Stats;
+        if (result.Usage is null && stats.Roles.Count == 0)
         {
             return;
         }
+        var usage = result.Usage ?? new TokenUsage(0, 0, 0, 0, 0, 0, 0, 0);
         try
         {
             await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.LogUsageAsync(new UsageLogEntry(
-                    request.WorkflowId, Workflow.Info.RunId ?? "", request.Kind, $"{request.Owner}/{request.Repo}", request.IssueNumber, result.Status, usage)),
+                    request.WorkflowId, Workflow.Info.RunId ?? "", request.Kind, $"{request.Owner}/{request.Repo}", request.IssueNumber, result.Status, usage, stats)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 1));
         }
         catch (ActivityFailureException)

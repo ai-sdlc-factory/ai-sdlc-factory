@@ -39,6 +39,7 @@ public abstract partial class FactoryWorkflowBase
                 return new WorkResult(Statuses.Closed);
             }
 
+            NoteRound(round);
             await CommentAsync(request, TicketComments.BuildRoundStarted(round, maxBuildRounds, feedback));
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<DeveloperReport>(
@@ -197,6 +198,10 @@ public abstract partial class FactoryWorkflowBase
                 ActivityPolicy.Sandbox(TimeSpan.FromSeconds(gate.TimeoutSeconds + 300), attempts: 1));
             var output = string.Join('\n', new[] { result.Stdout, result.Stderr }.Where(part => part.Length > 0));
             var gatePassed = result.ExitCode == 0 && !result.TimedOut;
+            if (!gatePassed)
+            {
+                gateFailures++;
+            }
             await RecordAsync(workspace, RecordStep.Gate(gate.Name, started, gatePassed ? "passed" : "failed", commandText) with { ExitCode = result.ExitCode, TimedOut = result.TimedOut, Output = output });
             return new GateResult(gate.Name, gatePassed, result.ExitCode, result.TimedOut, output);
         }

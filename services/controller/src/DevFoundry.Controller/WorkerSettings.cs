@@ -34,6 +34,15 @@ public sealed class WorkerSettings
     /// <summary>Delete reported branches whose ticket is closed. Off: they are only listed in the log.</summary>
     public bool JanitorDeleteWip { get; init; }
 
+    /// <summary>The weekly report on what repeats is made (see <c>FACTORY_IMPROVEMENT</c>); it only reads the host's logs and writes a file.</summary>
+    public bool ImprovementEnabled { get; init; } = true;
+
+    /// <summary>The repository (<c>owner/name</c>) whose tickets carry the weekly report and the agent's proposals, usually the factory's own; empty means the report is only saved to a file.</summary>
+    public string ImprovementRepository { get; init; } = "";
+
+    /// <summary>The egress proxy's log of refused hosts, if it writes one that this controller can read.</summary>
+    public string EgressDeniedLog { get; init; } = "";
+
     /// <summary>What a project gets when its <c>limits</c> do not say (the <c>FACTORY_DEFAULT_*</c> settings).</summary>
     public FactoryDefaults Defaults { get; init; } = FactoryDefaults.Standard;
 
@@ -54,6 +63,9 @@ public sealed class WorkerSettings
         JanitorCheckoutDays = Number(configuration, "FACTORY_JANITOR_CHECKOUT_DAYS", 2, v => v is >= 1 and <= 30, "1 to 30"),
         JanitorWipDays = Number(configuration, "FACTORY_JANITOR_WIP_DAYS", 30, v => v is >= 1 and <= 365, "1 to 365"),
         JanitorDeleteWip = Switch(configuration, "FACTORY_JANITOR_DELETE_WIP"),
+        ImprovementEnabled = Switch(configuration, "FACTORY_IMPROVEMENT", fallback: true),
+        ImprovementRepository = Repository(configuration, "FACTORY_IMPROVEMENT_REPO"),
+        EgressDeniedLog = configuration["FACTORY_EGRESS_DENIED_LOG"] ?? "",
         Defaults = new FactoryDefaults(
             Number(configuration, "FACTORY_DEFAULT_BUILD_ROUNDS", FactoryDefaults.Standard.BuildRounds, LimitRanges.BuildRoundsOk, $"{LimitRanges.MinBuildRounds} to {LimitRanges.MaxBuildRounds}"),
             Number(configuration, "FACTORY_DEFAULT_CLARIFICATION_ROUNDS", FactoryDefaults.Standard.ClarificationRounds, LimitRanges.ClarificationRoundsOk, $"{LimitRanges.MinClarificationRounds} to {LimitRanges.MaxClarificationRounds}"),
@@ -91,6 +103,21 @@ public sealed class WorkerSettings
             throw new InvalidOperationException($"{key} must be a whole number from {range}, but it is \"{text}\".");
         }
         return value;
+    }
+
+    /// <summary>An <c>owner/name</c>, or empty. Anything else stops the start: a ticket opened in the wrong place cannot be taken back.</summary>
+    private static string Repository(IConfiguration configuration, string key)
+    {
+        var text = configuration[key]?.Trim() ?? "";
+        if (text.Length == 0)
+        {
+            return "";
+        }
+        if (!System.Text.RegularExpressions.Regex.IsMatch(text, @"\A[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\z") || text.Contains(".."))
+        {
+            throw new InvalidOperationException($"{key} must be a repository as owner/name, but it is \"{text}\".");
+        }
+        return text;
     }
 
     /// <summary>A safety switch: empty means off, "true" or "false" (any case) mean what they say, and anything else stops the start rather than guess.</summary>

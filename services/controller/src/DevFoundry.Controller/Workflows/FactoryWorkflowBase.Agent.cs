@@ -59,6 +59,7 @@ public abstract partial class FactoryWorkflowBase
             {
                 var infrastructure = InfrastructureFailure.Is(error);
                 var message = infrastructure ? InfrastructureFailure.Describe(error) : error.InnerException?.Message ?? error.Message;
+                NoteAttempt(role, "failed", null);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = -1, Problem = message });
                 return message.Contains("not signed in", StringComparison.OrdinalIgnoreCase)
                     ? new AgentOutcome<T>(null, true, null)
@@ -72,23 +73,27 @@ public abstract partial class FactoryWorkflowBase
             }
             if (result.ExitCode == 78)
             {
+                NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "not signed in", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = "OpenCode is not signed in" });
                 return new AgentOutcome<T>(null, true, null);
             }
             if (result.TimedOut)
             {
                 problem = $"the {role} ran out of time";
+                NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, TimedOut = true, Output = result.Stderr, Problem = problem, Usage = spent });
                 continue;
             }
             if (result.ExitCode != 0 && ProviderLimit.Detect(result.Stdout, result.Stderr) is { } limitSaid)
             {
+                NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "usage limit", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = limitSaid, Usage = spent });
                 throw new RunStopException(Statuses.UsageLimit, TicketComments.ProviderLimitReached(role, limitSaid));
             }
             if (result.ExitCode != 0)
             {
                 problem = $"OpenCode exited with code {result.ExitCode}: {Short(result.Stderr)}";
+                NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = problem, Usage = spent });
                 continue;
             }
@@ -96,22 +101,26 @@ public abstract partial class FactoryWorkflowBase
             var text = OpenCodeEvents.FinalText(result.Stdout);
             if (text is null && ProviderLimit.Detect(result.Stdout, result.Stderr) is { } noAnswerLimit)
             {
+                NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "usage limit", promptText) with { ExitCode = result.ExitCode, Output = result.Stdout, Problem = noAnswerLimit, Usage = spent });
                 throw new RunStopException(Statuses.UsageLimit, TicketComments.ProviderLimitReached(role, noAnswerLimit));
             }
             if (text is null)
             {
                 problem = result.OutputTruncated ? "the output was too long to contain the answer" : "OpenCode returned no answer";
+                NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stdout, Problem = problem, Usage = spent });
                 continue;
             }
             var (value, error2) = parse(text);
             if (value is not null)
             {
+                NoteAttempt(role, "accepted", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "accepted", promptText) with { ExitCode = result.ExitCode, Output = text, Usage = spent });
                 return new AgentOutcome<T>(value, false, null);
             }
             problem = error2;
+            NoteAttempt(role, "rejected", spent);
             await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "answer rejected", promptText) with { ExitCode = result.ExitCode, Output = text, Problem = problem, Usage = spent });
         }
         return new AgentOutcome<T>(null, false, problem);

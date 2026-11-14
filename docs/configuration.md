@@ -36,6 +36,9 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
 | `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
 | `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
+| `FACTORY_IMPROVEMENT` | `false` switches off the weekly [report on what repeats](operations.md#the-weekly-report-what-repeats) (it only reads the factory's own logs and writes a file under the workspace root) | `true` |
+| `FACTORY_IMPROVEMENT_REPO` | a repository as `owner/name` (usually the factory's own) where the weekly report is opened as a ticket, with an agent's proposals for changing the factory as a comment. It needs a `.factory/project.json`. Empty = the report is only saved to a file. Anything but `owner/name` stops the controller at start. Nothing is ever applied automatically | empty |
+| `FACTORY_EGRESS_DENIED_LOG` | where the controller reads the egress proxy's log of refused hosts (set by Compose to the shared `egress-log` volume). Missing file = the report says it knows nothing about refused hosts | `/var/log/egress/denied.jsonl` (set by Compose) |
 | `FACTORY_MAX_TOKENS_PER_RUN` | the most tokens one run may use before it stops (see [Token limits](operations.md#token-limits)). A project can set a lower [`limits.token_budget`](project-setup.md#limits), never a higher one. `0` or empty = no limit; otherwise a whole number from 10000 | `0` |
 | `FACTORY_DAILY_TOKEN_LIMIT` | the most tokens all runs together may use in one UTC day, counted from the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) plus what the asking run has used itself. A run that would go over **waits for the next day** and says so on its ticket. `0` or empty = no limit | `0` |
 | `FACTORY_REPO_DAILY_TOKEN_LIMIT` | the same for one repository (`owner/name`). `0` or empty = no limit | `0` |
@@ -161,6 +164,7 @@ login volume. Details: [launcher guide](../services/sandbox-launcher/README.md).
 | `EGRESS_LISTEN_MAP` | set in Compose | which profile each listen address belongs to |
 | `EGRESS_MODE` | `enforce` (from `SANDBOX_EGRESS`) | `enforce`, `audit`, `open` (open bypasses the proxy entirely) |
 | `EGRESS_PORT` | `3128` | the proxy's port |
+| `EGRESS_DENIED_LOG` | `/var/log/egress/denied.jsonl` (set by Compose) | a file every refusal is also written to, one JSON line each, at most 10 MB; the controller's [weekly report](operations.md#the-weekly-report-what-repeats) reads it. Empty = no file (refusals are still on the console) |
 
 The allowlist format, adding a host, and what the protection does and does not cover are in the [egress guide](../egress/README.md).
 
@@ -201,6 +205,7 @@ Which roles can do what:
 | `pr-resolver` | pull request revision | yes | yes (checked like the developer's changes) | yes | `developer` |
 | `merge-resolver` | pull request update (`/update`) | yes (and git history) | yes (checked like the developer's changes; no protected files, no conflict marker left) | yes | `developer` |
 | `docs-writer` | documentation run (`docs` label) | yes | yes (only `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and Markdown under `docs/`, checked) | no | `model` |
+| `improver` | the weekly improvement run | yes (the factory's own repository) | no | no | `model` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
 | `planner` | plan | yes | no | no | `model` |
 | `investigator` | incident | yes (and git history) | no | yes (read-only workspace) | `model` |

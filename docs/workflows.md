@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, a sixth that tests a finished change from the outside on request, a seventh that brings a pull request up to date with its base branch, an eighth that reviews any pull request on request, and a ninth that writes documentation. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has four workflows, one per kind of ticket, a fifth that revises its own pull requests after a review, a sixth that tests a finished change from the outside on request, a seventh that brings a pull request up to date with its base branch, an eighth that reviews any pull request on request, and a ninth that writes documentation, and a tenth that, once a week, looks at how the factory itself did. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
@@ -15,6 +15,7 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | **`/update`** on a ticket or on a factory pull request | `PullRequestUpdateWorkflow` | the **base branch merged into the pull request's branch** as one merge commit, conflicts resolved and checked | merge-resolver, reviewer, security |
 | **`/review`** on any pull request | `PullRequestReviewWorkflow` | the **reviewers' findings posted on the pull request**; nothing is written or changed | reviewer, security |
 | `docs` | `DocsWorkflow` | a **pull request that writes or updates AGENTS.md, README.md, CONTRIBUTING.md and Markdown under `docs/`**, checked against the code by the reviewers | docs-writer, reviewer, security |
+| **once a week**, by itself | `ImprovementWorkflow` | a **report on what repeated**, saved on the host; with a repository set, a **ticket** with the report and an agent's **proposals** for changing the factory, never applied | improver |
 | **`/qa`** on a ticket or on a factory pull request | `QaWorkflow` | a **QA report** on the ticket; end-to-end API and UI tests added to the pull request when they pass | e2e-tester, ux |
 
 If a ticket has several of these labels, `incident` wins over `plan`, which wins over `feature`, which wins over `bug`, which wins over `docs`. The labels `quick`, `full` and
@@ -246,6 +247,12 @@ Label a ticket **`docs`** to have the factory write or update a repository's doc
 
 The project's code checks (`gates`) are **not** run, because no code changed. If the documents already say what the repository does, the writer says so and the factory opens no pull request (`no_changes`). Statuses: `pr_opened`, `no_changes`, `build_blocked` (the writer cannot continue), `build_failed` (the rounds ran out), `publish_failed`, `blocked`. The writer is not asked questions and does not ask any: a person corrects the pull request, or comments `/fix` on it.
 
+## Weekly improvement report
+
+Not started by a ticket or a comment: once a week the factory looks at **how it did itself**. The report is made by counting its logs (rejected answers per agent, rounds used, runs that stopped the same way, token outliers, hosts a sandbox was refused), and with a repository set it is opened as a ticket where a read-only `improver` agent proposes changes to prompts and settings. **Nothing is applied automatically.** What it reads, the rules that flag something, the setting, the ticket it opens and how to run it by hand are in the [operations guide](operations.md#the-weekly-report-what-repeats).
+
+Statuses: `report_saved` (the report is on the host; no ticket, because no repository is set or nothing repeated), `improvement_posted` (the proposals, or the agent's "nothing to propose", are on the ticket), `improvement_failed` (the report or the ticket could not be made, or no proposal named a file that exists), and the shared `blocked`, `budget_exceeded`, `usage_limit`.
+
 ## Updating a pull request
 
 ![Pull request update](images/pr-update.svg)
@@ -426,6 +433,9 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |
+| `report_saved` | improvement: the weekly report was saved on the host; no ticket was opened (no repository is set for them, or nothing repeated) |
+| `improvement_posted` | improvement: the proposals for changing the factory (or "nothing to propose") were posted on the weekly report's ticket; nothing was applied |
+| `improvement_failed` | improvement: the report or its ticket could not be made, or no proposal named a file that exists |
 | `budget_exceeded` | the run used its token budget and stopped before asking another agent (work saved if code existed); see [Token limits](operations.md#token-limits) |
 | `usage_limit` | the model provider said its usage limit is reached, so the run stopped instead of asking again; `/retry` after the limit resets (work saved if code existed) |
 | `review_posted` | review: the reviewers' findings on the pull request were posted on it (nothing was changed) |

@@ -273,6 +273,10 @@ services:
       FACTORY_REPO_DAILY_TOKEN_LIMIT: ${FACTORY_REPO_DAILY_TOKEN_LIMIT:-0}
       # Whether a repository may bring its own sandbox image (.factory/Dockerfile). Off by default; read the warning in docs/configuration.md first.
       FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
+      # The weekly report on what repeats (see docs/operations.md). It only reads the logs and writes a file; set the repository to also open it as a ticket.
+      FACTORY_IMPROVEMENT: ${FACTORY_IMPROVEMENT:-true}
+      FACTORY_IMPROVEMENT_REPO: ${FACTORY_IMPROVEMENT_REPO:-}
+      FACTORY_EGRESS_DENIED_LOG: /var/log/egress/denied.jsonl
       # The janitor: removes leftover checkouts and reports old work-in-progress branches (see docs/operations.md).
       FACTORY_JANITOR: ${FACTORY_JANITOR:-true}
       FACTORY_JANITOR_INTERVAL_HOURS: ${FACTORY_JANITOR_INTERVAL_HOURS:-24}
@@ -287,6 +291,8 @@ services:
     volumes:
       - ${FACTORY_WORKSPACE_ROOT}:${FACTORY_WORKSPACE_ROOT}
       - ${FACTORY_GLOBAL_CONFIG:-../agents}:/etc/factory:ro
+      # The egress proxy's log of refused hosts, read only, for the weekly report.
+      - egress-log:/var/log/egress:ro
     networks: [control, forge]
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/worker-ready"]
@@ -312,9 +318,12 @@ services:
       # enforce (default), audit (allow every HTTPS host and log it) or open (this proxy is bypassed; see SANDBOX_EGRESS)
       EGRESS_MODE: ${SANDBOX_EGRESS:-enforce}
       EGRESS_LISTEN_MAP: model=${SANDBOX_NET_BASE:-10.250}.1.2,packages=${SANDBOX_NET_BASE:-10.250}.2.2,developer=${SANDBOX_NET_BASE:-10.250}.3.2
+      # Every refusal is also written here, one JSON line each (at most 10 MB), for the factory's weekly report.
+      EGRESS_DENIED_LOG: /var/log/egress/denied.jsonl
     volumes:
       # Your own rules: set EGRESS_PROFILES in .env to a file in the same format (see egress/README.md).
       - ${EGRESS_PROFILES:-../egress/profiles.json}:/etc/egress/profiles.json:ro
+      - egress-log:/var/log/egress
     networks:
       egress:
       sandbox-model:
@@ -515,6 +524,7 @@ networks:
         - subnet: ${SANDBOX_NET_BASE:-10.250}.3.0/24
 
 volumes:
+  egress-log:
   postgres-data:
   forgejo-data:
   pgadmin-data:

@@ -114,6 +114,7 @@ public sealed partial class PullRequestUpdateWorkflow : FactoryWorkflowBase
         string? earlierFindings = null; // what the last review asked for, so the next review checks it was done
         for (var round = 1; round <= maxBuildRounds; round++)
         {
+            NoteRound(round);
             if (needsAgent)
             {
                 var feedbackForRound = feedback;

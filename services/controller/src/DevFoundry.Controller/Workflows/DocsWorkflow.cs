@@ -42,6 +42,7 @@ public sealed class DocsWorkflow : FactoryWorkflowBase
             {
                 return new WorkResult(Statuses.Closed);
             }
+            NoteRound(round);
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<DocsReport>(
                 "docs-writer", project.Image, workspace,

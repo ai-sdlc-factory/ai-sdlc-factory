@@ -124,6 +124,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         string? earlierFindings = null; // what the last review asked for, so the next review checks it was done
         for (var round = 1; round <= maxBuildRounds; round++)
         {
+            NoteRound(round);
             var feedbackForRound = feedback;
             var outcome = await RunAgentAsync<RevisionReport>(
                 "pr-resolver", project.Image, workspace,

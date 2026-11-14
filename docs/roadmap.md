@@ -11,7 +11,6 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 
 - [x] **Demo service with monitoring and deployment** (done as a first version: [`demo/`](../demo/README.md)). The weather application runs from its default branch in Docker, with Prometheus, Alertmanager, Grafana and Loki, a delivery script with rollback and a script that breaks it on purpose. Still open: let a merge to the default branch start the delivery (a Forgejo Actions runner or a webhook), and blue/green switching.
 - [x] **Alert intake: react to monitoring alerts** (done as a first version: [`services/alert-intake`](../services/alert-intake/README.md)). Alertmanager notifications become one ticket per alert, with an operator-owned route table, deduplication by fingerprint, a rate limit, redacted and bounded evidence (recent log lines from Loki), and a dry run as the default. Still open: more sources than Alertmanager, closing tickets by itself when an alert resolves (today it only comments), and running it in the factory's own Compose stack.
-- [ ] **Factory improvement loop** (M). Periodically evaluate what happened and what could be improved. Needs a durable run log first (one line per finished run, no ticket text). Then a weekly deterministic report of what repeats (rejected answers, rounds used, refused hosts, token outliers),
   and an agent that proposes prompt and config changes as a reviewed ticket, never applied automatically.
 - [ ] **Scheduled UI check** (L). A separate scheduled flow that checks the real UI, for projects that have one, and files bug tickets for what is broken or looks wrong (or becomes part of QA/UX).
   Design: a Temporal schedule per project (operator-owned list), a browser sandbox, deterministic findings (console errors, accessibility violations, screenshots), reproduced twice before a ticket is filed, fingerprint deduplication, a cap on new tickets per sweep,
@@ -28,9 +27,9 @@ Effort is a rough guess: **S** about a day, **M** a few days, **L** a week or mo
 | 5 | CI-failure triage | When the pipeline fails on a branch, diagnose and propose or open a fix | It reuses the bug workflow, but needs a webhook from Bitbucket Pipelines or Forgejo CI | Medium | [ ] |
 | 6 | Docs and `AGENTS.md` upkeep | Onboarding draft for a new repo, and updates when the structure changes | Cheap, and it improves every other workflow's input | Small | [x] (a `docs` ticket; nothing writes docs by itself when the structure changes, because the factory does not react to merges) |
 | 7 | Release notes | A changelog draft from merged PRs | Useful but low risk and low priority | Small | [ ] |
-| 8 | Factory retrospective | A weekly report of repeated problems, from a durable run log | Needs the run log first | Medium | [ ] |
+| 8 | Factory retrospective | A weekly report of repeated problems, from a durable run log | Needs the run log first | Medium | [x] (the weekly improvement report, with proposals as a ticket) |
 
-Item 8 is also on your list above (the "factory improvement loop"); items 1 and 4 are done.
+Item 8 (the "factory retrospective") is now covered by the weekly improvement report; items 1 and 4 are done.
 
 ## Next up (from building `/retry`, the failure classes and `/qa`)
 
@@ -55,6 +54,7 @@ Small gaps found while building and testing these. None is started.
 - [x] Revisions and updates give the next round's reviewers the earlier findings to check, as the build loop does.
 - [x] QA: a UI-only change in a project with no `ui` suite is noticed before the tester runs (and repeated in the report), and the "blocked" comment now shows the scope line like the report.
 - [x] QA: the tester is told which files the pull request changed and the start of its diff (Forgejo `pulls/<n>/files` and `.diff`), not only the title and criteria.
+- [x] Factory improvement loop: the run log now also keeps per run the rounds used, failed checks and, per agent, attempts, rejected answers, failed runs and tokens; the egress proxy writes its refusals to a file the controller can read; once a week a deterministic report of what repeats is saved (and, with `FACTORY_IMPROVEMENT_REPO`, opened as a ticket where a read-only `improver` agent proposes changes). Nothing is applied automatically (see [the weekly report](operations.md#the-weekly-report-what-repeats)). Still open: the report cannot see why a run went the way it did, so a person has to judge each proposal.
 - [x] Token limits: a per-run budget (`limits.token_budget`, lowering the operator's `FACTORY_MAX_TOKENS_PER_RUN`), daily and per-repository caps (`FACTORY_DAILY_TOKEN_LIMIT`, `FACTORY_REPO_DAILY_TOKEN_LIMIT`) read from the usage log, with a run waiting for the next day instead of failing, and the provider's usage-limit errors recognised so a run stops cleanly (see [Token limits](operations.md#token-limits)). The budget is per **run**, not summed over a ticket's retries, revisions and QA runs.
 - [x] Durable usage log: one line per finished run in `.usage/usage.jsonl` under the workspace root, and `tools/usage-report.py` for totals by repository, day, month, kind, status or ticket.
 - [x] Unknown keys in `.factory/project.json` are warned about once on the ticket, with a "did you mean" hint; the run goes ahead without them.

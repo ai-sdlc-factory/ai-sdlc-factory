@@ -155,6 +155,14 @@ public sealed class FakeWorld
     /// <summary>How many times the daily totals were looked up (once before every agent run, when a daily limit is set).</summary>
     public int UsageTodayChecks { get; private set; }
 
+    /// <summary>What the weekly report activity returns: by default a report with two findings.</summary>
+    public ImprovementReportResult ImprovementReport { get; set; } = new("# Factory report, 2026-W46\n\n## What repeated (2)\n\n- **Rejected answers: the analyst agent.**\n", 12, 2, "/var/tmp/reports/2026-W46.md");
+
+    /// <summary>When set, making the report fails with this.</summary>
+    public Exception? ImprovementReportFailure { get; set; }
+
+    public List<ImprovementRequest> ImprovementRequests { get; } = [];
+
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
     public static RevisionContext FactoryPullRequest(
@@ -296,6 +304,13 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
+
+        [Activity("workspace_improvement_report")]
+        public ImprovementReportResult BuildImprovementReport(ImprovementRequest request)
+        {
+            lock (world.gate) { world.ImprovementRequests.Add(request); }
+            return world.ImprovementReportFailure is { } failure ? throw failure : world.ImprovementReport;
+        }
 
         [Activity("workspace_usage_today")]
         public UsageToday UsageToday(string repository)
@@ -538,7 +553,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<ImprovementWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -597,6 +612,15 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     public async Task<WorkResult> RunPullReviewAsync(PullReviewRequest request)
     {
         var handle = await Client.StartWorkflowAsync((PullRequestReviewWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
+    }
+
+    public static ImprovementRequest Improvement(string? repository = "acme/factory") => new("2026-W46", "2026-11-09", "2026-11-16", repository);
+
+    public async Task<WorkResult> RunImprovementAsync(ImprovementRequest request)
+    {
+        var handle = await Client.StartWorkflowAsync((ImprovementWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId + "-" + Guid.NewGuid().ToString("N")[..8], Queue));
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
@@ -830,6 +854,24 @@ public static class Answers
             verdict,
             summary = verdict switch { "done" => "Wrote AGENTS.md from the code.", "unchanged" => "The documents are already right.", _ => "Cannot continue." },
             notes = Array.Empty<string>(),
+        });
+
+    /// <summary>The improver's answer: one proposal for each target.</summary>
+    public static string Improvement(string verdict = "proposals", params string[] targets) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict == "nothing" ? "Too little data to propose anything." : "The analyst's answers are often rejected; its prompt is unclear about the shape.",
+            proposals = verdict == "nothing"
+                ? []
+                : (targets.Length == 0 ? ["agents/agents/analyst.md"] : targets).Select(target => new
+                {
+                    kind = "prompt",
+                    target,
+                    change = $"Say in {target} that the answer is one JSON object.",
+                    evidence = "7 of 20 analyst answers (35%) were rejected.",
+                    risk = "A longer prompt costs a few tokens on every run.",
+                }).ToArray(),
         });
 
     public static string Architect(string verdict = "pass", string[]? questions = null) =>
