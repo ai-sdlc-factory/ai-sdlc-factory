@@ -363,7 +363,7 @@ Every stage of a feature or bug run that uses a model and cannot change unless t
 
 The developer's work is not saved here (a run that stops with code saves that to a [work-in-progress branch](#when-a-run-stops-the-work-in-progress-branch)), and neither is a bug's reproduction, because its test files live in the checkout; both are done again.
 
-`/retry` uses the saved stages only when **nothing they were made from has changed**: the ticket's kind, title, text and labels are the same (a fingerprint of them is saved), and the default branch is at the same commit. Otherwise the run starts from the beginning and the ticket says why (for example "the ticket's text or labels changed since the earlier run"); edit the ticket and `/retry` to have it analysed again. The comment on a resumed run says what is reused, for example "Carrying on from the earlier run: I keep the analysis and the coverage check and do not ask for them again."
+`/retry` uses the saved stages only when **nothing they were made from has changed**: the ticket's kind, title, text and labels are the same (a fingerprint of them is saved), and the default branch is at the same commit, **or** its new commits only changed Markdown documents the stages do not read (a README or a page under `docs/`; not `AGENTS.md`, not anything under `.factory/`, no code). Otherwise the run starts from the beginning and the ticket says why (for example "the ticket's text or labels changed since the earlier run"); edit the ticket and `/retry` to have it analysed again. The comment on a resumed run says what is reused, for example "Carrying on from the earlier run: I keep the analysis and the coverage check and do not ask for them again."
 
 | You do | What happens |
 | --- | --- |

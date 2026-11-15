@@ -129,6 +129,40 @@ public sealed class ResumeScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task New_commits_that_only_touch_documentation_do_not_make_the_saved_results_stale()
+    {
+        var world = TwoRuns(analystAnswers: 1);
+        world.Agent("coverage", Say(Answers.Coverage("missing", "missing")));
+        var runs = 0;
+        world.Prepare = prepare => new WorkspaceInfo(prepare.Name, $"/work/{prepare.Name}", prepare.Branch, "main", ++runs == 1 ? "aaaa111" : "bbbb222");
+        world.ChangedSinceFiles = ["README.md", "docs/setup.md"];
+        var request = ScenarioContext.Request();
+
+        var (_, second) = await RunTwiceAsync(world, fixture, request);
+
+        Assert.Equal("pr_opened", second.Status);
+        Assert.Single(world.Calls("analyst"));
+        Assert.Single(world.Calls("coverage"));
+        Assert.Contains(world.Comments, c => c.Contains("Carrying on from the earlier run"));
+        Assert.DoesNotContain(world.Comments, c => c.Contains("default branch has new commits"));
+    }
+
+    [SkippableFact]
+    public async Task New_commits_that_touch_code_still_make_the_saved_results_stale()
+    {
+        var world = TwoRuns(analystAnswers: 2);
+        world.Agent("coverage", Say(Answers.Coverage("missing", "missing")), Say(Answers.Coverage("missing", "missing")));
+        var runs = 0;
+        world.Prepare = prepare => new WorkspaceInfo(prepare.Name, $"/work/{prepare.Name}", prepare.Branch, "main", ++runs == 1 ? "aaaa111" : "bbbb222");
+        world.ChangedSinceFiles = ["README.md", "src/app.py"];
+
+        await RunTwiceAsync(world, fixture, ScenarioContext.Request());
+
+        Assert.Equal(2, world.Calls("analyst").Count());
+        Assert.Contains(world.Comments, c => c.Contains("default branch has new commits"));
+    }
+
+    [SkippableFact]
     public async Task New_commits_on_the_default_branch_make_the_saved_results_stale()
     {
         var world = TwoRuns(analystAnswers: 2);

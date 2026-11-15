@@ -22,6 +22,36 @@ public sealed partial class GitWorkspace
     private const string TooLarge = "larger than";
 
     /// <summary>
+    /// The paths the default branch changed between an earlier commit and the one the clone is at now, read in the trusted clone, or null when that cannot be said (the commit is not
+    /// there, or there are too many files). Used to see whether new commits touched anything an earlier run's saved results depend on.
+    /// </summary>
+    public async Task<IReadOnlyList<string>?> ChangedSinceAsync(string name, string fromCommit, CancellationToken cancellationToken)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        if (!System.Text.RegularExpressions.Regex.IsMatch(fromCommit, "^[0-9a-f]{40}$"))
+        {
+            return null;
+        }
+        var basePath = BasePath(root, name);
+        if (!Directory.Exists($"{basePath}/.git"))
+        {
+            return null;
+        }
+        try
+        {
+            var start = File.Exists($"{basePath}/.git/factory-start") ? File.ReadAllText($"{basePath}/.git/factory-start").Trim() : "HEAD";
+            var output = await GitAsync(["diff", "--name-only", "-z", "--no-renames", fromCommit, start], basePath, useToken: false, cancellationToken);
+            var paths = output.Split('\0', StringSplitOptions.RemoveEmptyEntries).ToList();
+            return paths.Count is 0 or > 500 || paths.Any(path => !IsPlainRelative(path)) ? null : paths;
+        }
+        catch (ApplicationFailureException)
+        {
+            return null; // the earlier commit is not in the clone (history was rewritten, or it is too old)
+        }
+    }
+
+    /// <summary>
     /// Removes new files from the agent's copy that are over the scan limit (a log or recording a tool left behind), so they do not cost the agent an attempt.
     /// It checks every path itself (plain, not protected, no link on the way, not a file the repository already has, still a regular file over the limit), so nothing else can be deleted through it. Returns the paths removed.
     /// </summary>

@@ -34,6 +34,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     public Task<ChangeReport> DetectChangesAsync(string name) =>
         workspace.DetectChangesAsync(name, ActivityExecutionContext.Current.CancellationToken);
 
+    [Activity("workspace_changed_since")]
+    public Task<IReadOnlyList<string>?> ChangedSinceAsync(string name, string fromCommit) =>
+        workspace.ChangedSinceAsync(name, fromCommit, ActivityExecutionContext.Current.CancellationToken);
+
     [Activity("workspace_remove_oversized")]
     public Task<IReadOnlyList<string>> RemoveOversizedAsync(RemoveOversizedRequest request) => Task.FromResult(workspace.RemoveOversized(request));
 

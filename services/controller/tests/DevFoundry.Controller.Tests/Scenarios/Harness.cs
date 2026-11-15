@@ -237,6 +237,9 @@ public sealed class FakeWorld
 
     public List<string> RemovedOversized { get; } = [];
 
+    /// <summary>The files the default branch changed since the earlier run, as the resume check is told; null means it cannot say.</summary>
+    public IReadOnlyList<string>? ChangedSinceFiles { get; set; }
+
     public FakeWorld Changes(params ChangeReport[] reports)
     {
         foreach (var report in reports)
@@ -350,6 +353,9 @@ public sealed class FakeWorld
         {
             lock (world.gate) { world.Resumes[request.Name] = request.State; }
         }
+
+        [Activity("workspace_changed_since")]
+        public IReadOnlyList<string>? ChangedSince(string name, string fromCommit) => world.ChangedSinceFiles;
 
         [Activity("workspace_load_resume")]
         public ResumeState? LoadResume(string name)

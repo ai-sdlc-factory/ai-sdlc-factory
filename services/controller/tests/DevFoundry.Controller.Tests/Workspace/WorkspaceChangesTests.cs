@@ -170,6 +170,30 @@ public sealed class WorkspaceChangesTests : IDisposable
     }
 
     [Fact]
+    public async Task The_files_the_default_branch_changed_since_an_earlier_commit_are_found_in_the_trusted_clone()
+    {
+        var workspace = Workspace();
+        var first = await Prepared(workspace, "feature-acme-shop-1");
+        var seed = Path.Combine(temp, "seed2");
+        Git(temp, "clone", "--quiet", origin, seed);
+        File.WriteAllText(Path.Combine(seed, "README.md"), "# docs\n");
+        Directory.CreateDirectory(Path.Combine(seed, "src"));
+        File.WriteAllText(Path.Combine(seed, "src", "new.py"), "x = 1\n");
+        Git(seed, "add", ".");
+        Git(seed, "commit", "--quiet", "-m", "more");
+        Git(seed, "push", "--quiet", "origin", "HEAD:main");
+        var second = await Prepared(workspace, "feature-acme-shop-2");
+
+        var changed = await workspace.ChangedSinceAsync(second.Name, first.HeadCommit, CancellationToken.None);
+
+        Assert.NotEqual(first.HeadCommit, second.HeadCommit);
+        Assert.Equal(["README.md", "src/new.py"], changed!.Order(StringComparer.Ordinal));
+        Assert.Null(await workspace.ChangedSinceAsync(second.Name, new string('0', 40), CancellationToken.None)); // a commit the clone does not have
+        Assert.Null(await workspace.ChangedSinceAsync(second.Name, "not-a-commit", CancellationToken.None));
+        Assert.Null(await workspace.ChangedSinceAsync(second.Name, second.HeadCommit, CancellationToken.None)); // nothing changed
+    }
+
+    [Fact]
     public async Task Ignored_files_are_not_changes()
     {
         var workspace = Workspace();

@@ -39,6 +39,31 @@ public sealed class ResumeStateTests
         Assert.Contains("another version", (state with { Version = 0 }).WhyNot(Ticket(), Workspace()));
     }
 
+    [Theory]
+    [InlineData("README.md", true)]
+    [InlineData("docs/setup.md", true)]
+    [InlineData("CHANGELOG.MD", true)]
+    [InlineData("AGENTS.md", false)]
+    [InlineData("docs/agents.md", false)] // the same name as AGENTS.md, so treated as it: when in doubt, start over
+    [InlineData("sub/AGENTS.md", false)]
+    [InlineData(".factory/notes.md", false)]
+    [InlineData(".factory/project.json", false)]
+    [InlineData("src/app.py", false)]
+    [InlineData("package.json", false)]
+    public void Only_a_document_the_stages_do_not_read_is_an_unrelated_change(string path, bool unrelated) =>
+        Assert.Equal(unrelated, ResumeState.IsUnrelated(path));
+
+    [Fact]
+    public void New_commits_that_only_changed_unrelated_documents_do_not_stale_the_record()
+    {
+        var state = ResumeState.Start(Ticket(), Workspace());
+
+        Assert.Null(state.WhyNot(Ticket(), Workspace("def456"), ["README.md", "docs/a.md"]));
+        Assert.Contains("default branch has new commits", state.WhyNot(Ticket(), Workspace("def456"), ["README.md", "src/a.py"]));
+        Assert.Contains("default branch has new commits", state.WhyNot(Ticket(), Workspace("def456"), null));
+        Assert.Contains("default branch has new commits", state.WhyNot(Ticket(), Workspace("def456"), []));
+    }
+
     [Fact]
     public void A_record_says_which_stages_it_keeps()
     {

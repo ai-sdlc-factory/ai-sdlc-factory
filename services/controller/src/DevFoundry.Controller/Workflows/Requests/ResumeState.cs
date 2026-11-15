@@ -39,9 +39,21 @@ public sealed record ResumeState(
     }.OfType<string>().ToList();
 
     /// <summary>Null when this record may be used for this run; otherwise why not (a sentence that continues "I start from the beginning, because ...").</summary>
-    public string? WhyNot(WorkRequest request, WorkspaceInfo workspace) =>
+    /// <param name="changedSince">The files the default branch changed since the earlier run (null when that could not be found out). New commits that only touched
+    /// files the stages do not read (see <see cref="IsUnrelated"/>) do not make the saved results stale.</param>
+    public string? WhyNot(WorkRequest request, WorkspaceInfo workspace, IReadOnlyList<string>? changedSince = null) =>
         Version != CurrentVersion ? "the earlier run was saved by another version of the factory"
         : Fingerprint != FingerprintOf(request) ? "the ticket's text or labels changed since the earlier run"
-        : HeadCommit != workspace.HeadCommit ? "the default branch has new commits since the earlier run, so what it found may be out of date"
+        : HeadCommit != workspace.HeadCommit && !(changedSince is { Count: > 0 } && changedSince.All(IsUnrelated))
+            ? "the default branch has new commits since the earlier run, so what it found may be out of date"
         : null;
+
+    /// <summary>
+    /// A file whose change cannot make an earlier analysis, coverage check or design out of date: a Markdown document other than <c>AGENTS.md</c> (which the agents are told to
+    /// read as the project's rules) and nothing under <c>.factory/</c> (the project's settings). Code, tests, configuration and everything else count.
+    /// </summary>
+    public static bool IsUnrelated(string path) =>
+        path.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+        && !path.StartsWith(".factory/", StringComparison.Ordinal)
+        && !string.Equals(System.IO.Path.GetFileName(path), "AGENTS.md", StringComparison.OrdinalIgnoreCase);
 }

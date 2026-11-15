@@ -34,7 +34,22 @@ public abstract partial class FactoryWorkflowBase
             await CommentAsync(request, TicketComments.ResumeNothingSaved);
             return fresh;
         }
-        if (saved.WhyNot(request, workspace) is { } why)
+        // New commits on the default branch make the saved results stale only if they touched something the stages read; a README edit does not.
+        IReadOnlyList<string>? changedSince = null;
+        if (saved.HeadCommit != workspace.HeadCommit)
+        {
+            try
+            {
+                changedSince = await Workflow.ExecuteActivityAsync(
+                    (WorkspaceActivities activities) => activities.ChangedSinceAsync(request.WorkflowId, saved.HeadCommit),
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(1), 2));
+            }
+            catch (ActivityFailureException)
+            {
+                changedSince = null;
+            }
+        }
+        if (saved.WhyNot(request, workspace, changedSince) is { } why)
         {
             await CommentAsync(request, TicketComments.ResumeNotUsable(why));
             return fresh;
