@@ -318,6 +318,14 @@ public sealed class ConnectRequestParserTests
         Assert.Equal(ParseFailure.NotConnect, Parse(head, out _));
 
     [Theory]
+    [InlineData("GET http://Registry.Example.com/pkg HTTP/1.1", "registry.example.com")]
+    [InlineData("GET http://127.0.0.1:5080/api/cities HTTP/1.1", "127.0.0.1")]
+    [InlineData("GET /relative HTTP/1.1", "-")]
+    [InlineData("GET http://bad\u0001host/ HTTP/1.1", "-")]
+    public void A_refused_plain_request_is_logged_with_its_host(string head, string expected) =>
+        Assert.Equal(expected, ConnectRequestParser.PlainHttpHost(System.Text.Encoding.ASCII.GetBytes(head + "\r\n\r\n")));
+
+    [Theory]
     [InlineData("")]
     [InlineData("CONNECT")]
     [InlineData("CONNECT a.com:443")]

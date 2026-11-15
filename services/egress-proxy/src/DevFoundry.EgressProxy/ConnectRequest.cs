@@ -18,6 +18,21 @@ public static partial class ConnectRequestParser
     [GeneratedRegex(@"\A[A-Za-z0-9.-]{1,253}\z")]
     private static partial Regex HostChars();
 
+    /// <summary>The host a plain HTTP request (<c>GET http://host/path</c>) was aimed at, for the refusal log; "-" when it cannot be read safely.</summary>
+    public static string PlainHttpHost(byte[] head)
+    {
+        var end = Array.IndexOf(head, (byte)'\r');
+        var line = Encoding.ASCII.GetString(head, 0, end < 0 ? head.Length : end).Split(' ');
+        if (line.Length < 2 || !line[1].StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            return "-";
+        }
+        var authority = line[1]["http://".Length..].Split('/', '?')[0];
+        var colon = authority.LastIndexOf(':');
+        var host = colon > 0 ? authority[..colon] : authority;
+        return HostChars().IsMatch(host) ? host.ToLowerInvariant() : "-";
+    }
+
     public static ParseFailure TryParse(byte[] head, out ConnectRequest? request)
     {
         request = null;

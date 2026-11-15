@@ -108,7 +108,7 @@ public sealed class ProxyServer(EgressPolicy policy, IResolver resolver, IAccess
         switch (ConnectRequestParser.TryParse(head, out var request))
         {
             case ParseFailure.NotConnect:
-                Record("-", 0, "deny", "only CONNECT is supported (plain HTTP is not proxied)");
+                Record(ConnectRequestParser.PlainHttpHost(head), 0, "deny", "only CONNECT is supported (plain HTTP is not proxied)");
                 await TryRespondAsync(stream, 405, "Method Not Allowed", "only HTTPS tunnels (CONNECT) are supported");
                 return;
             case ParseFailure.Malformed:
