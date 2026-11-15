@@ -629,4 +629,70 @@ public sealed class EventRouterTests
         Assert.Matches(@"^[a-z0-9][a-z0-9._-]{0,127}$", first);
         Assert.NotEqual(first, second);
     }
+
+    // ---- /ask --------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_question_on_a_ticket_with_a_factory_label_starts_an_answer_and_is_not_a_reply_to_an_agent()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", more: new { comment = Comment("/ask how does the cart work?") })));
+
+        Assert.Equal(RoutingAction.AskQuestion, decision.Action);
+        var ask = decision.Ask!;
+        Assert.Equal(("acme", "shop", 7, false, "bob", "how does the cart work?", "Add wishlist", "As a user..."),
+            (ask.Owner, ask.Repo, ask.Number, ask.OnPullRequest, ask.Author, ask.Question, ask.Title, ask.Body));
+        Assert.Equal(WorkIds.For("acme", "shop", 7, WorkIds.Ask), ask.WorkflowId);
+        Assert.Null(decision.Reply);
+    }
+
+    [Fact]
+    public void A_question_needs_no_factory_label()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", labels: [], more: new { comment = Comment("/ask what is this repository?") })));
+
+        Assert.Equal(RoutingAction.AskQuestion, decision.Action);
+    }
+
+    [Fact]
+    public void A_question_on_a_closed_ticket_is_still_answered()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", state: "closed", more: new { comment = Comment("/ask what changed?") })));
+
+        Assert.Equal(RoutingAction.AskQuestion, decision.Action);
+    }
+
+    [Fact]
+    public void A_question_on_a_pull_request_starts_an_answer_for_any_pull_request()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment("/ask does this break the API?")));
+
+        Assert.Equal(RoutingAction.AskQuestion, decision.Action);
+        Assert.True(decision.Ask!.OnPullRequest);
+        Assert.Equal("does this break the API?", decision.Ask.Question);
+    }
+
+    [Fact]
+    public void A_bare_ask_is_still_a_command()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", more: new { comment = Comment("/ask") })));
+
+        Assert.Equal(RoutingAction.AskQuestion, decision.Action);
+        Assert.Equal("", decision.Ask!.Question);
+    }
+
+    [Fact]
+    public void A_question_written_by_the_factory_is_ignored()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", more: new { comment = Comment($"{EventRouter.BotMarker}\n/ask loop forever") })));
+
+        Assert.Equal(RoutingAction.Ignore, decision.Action);
+    }
+
+    [Fact]
+    public void A_comment_that_only_mentions_ask_is_a_normal_comment()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", more: new { comment = Comment("I would ask the team first.") })));
+
+        Assert.Equal(RoutingAction.ReplyToFeature, decision.Action);
+    }
 }

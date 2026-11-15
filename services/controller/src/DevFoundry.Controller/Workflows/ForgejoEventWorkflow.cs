@@ -44,6 +44,7 @@ public sealed class ForgejoEventWorkflow
             RoutingAction.RunQa => StartQaAsync(decision.Qa!),
             RoutingAction.UpdatePullRequest => StartUpdateAsync(decision.Update!),
             RoutingAction.ReviewPullRequest => StartReviewAsync(decision.Review!),
+            RoutingAction.AskQuestion => StartAskAsync(decision.Ask!),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
@@ -170,6 +171,29 @@ public sealed class ForgejoEventWorkflow
             await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(review.Owner, review.Repo, review.Number, TicketComments.PullReviewBusy)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
+    /// <summary>`/ask`: answers a question about the repository (read only); a second one for the same ticket or pull request while one is running gets a notice.</summary>
+    private static async Task StartAskAsync(AskRequest ask)
+    {
+        try
+        {
+            await Workflow.StartChildWorkflowAsync(
+                (AskWorkflow workflow) => workflow.RunAsync(ask),
+                new ChildWorkflowOptions
+                {
+                    Id = ask.WorkflowId,
+                    ParentClosePolicy = ParentClosePolicy.Abandon,
+                    IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                });
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(ask.Owner, ask.Repo, ask.Number, AskComments.Busy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
     }

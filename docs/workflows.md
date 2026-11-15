@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Architecture](architecture.md) | [Setting up a project](project-setup.md)
 
-The factory has **five workflows that start from a ticket's label** (feature, bug, plan, incident and docs) and **five more that start from a comment or a timer**: revising its own pull requests after a review, testing a finished change from the outside (`/qa`), bringing a pull request up to date with its base branch (`/update`), reviewing any pull request (`/review`), and, once a week, looking at how the factory itself did. They share the same machinery (workspace, sandbox runs, project checks,
+The factory has **five workflows that start from a ticket's label** (feature, bug, plan, incident and docs) and **six more that start from a comment or a timer**: answering a question about the repository (`/ask`), revising its own pull requests after a review, testing a finished change from the outside (`/qa`), bringing a pull request up to date with its base branch (`/update`), reviewing any pull request (`/review`), and, once a week, looking at how the factory itself did. They share the same machinery (workspace, sandbox runs, project checks,
 reviewers, run record, rescue of unfinished work) and differ in which stages run first.
 
 | You label a ticket | Workflow | What you get | Agents used |
@@ -13,6 +13,7 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | `incident` | `IncidentWorkflow` | an **assessment, likely causes and mitigation options** on the ticket; a **draft postmortem** pull request on request | incident-analyst, investigator, mitigator, postmortem-writer |
 | a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
 | **`/update`** on a ticket or on a factory pull request | `PullRequestUpdateWorkflow` | the **base branch merged into the pull request's branch** as one merge commit, conflicts resolved and checked | merge-resolver, reviewer, security |
+| **`/ask`** on any ticket or pull request | `AskWorkflow` | an **answer to a question about the repository**, read from the code and posted as a comment; nothing is written or changed | asker |
 | **`/review`** on any pull request | `PullRequestReviewWorkflow` | the **reviewers' findings posted on the pull request**; nothing is written or changed | reviewer, security |
 | `docs` | `DocsWorkflow` | a **pull request that writes or updates AGENTS.md, README.md, CONTRIBUTING.md and Markdown under `docs/`**, checked against the code by the reviewers | docs-writer, reviewer, security |
 | **once a week**, by itself | `ImprovementWorkflow` | a **report on what repeated**, saved on the host; with a repository set, a **ticket** with the report and an agent's **proposals** for changing the factory, never applied | improver |
@@ -36,6 +37,7 @@ answer:
 | a comment that is just **`/retry`**, on an open ticket | starts the ticket's workflow again, [carrying on from the stages the earlier run finished](#resuming-a-run-with-retry) (feature and bug tickets). **`/retry restart`** starts from the beginning, like closing and reopening it. While a run is still active nothing starts and the person gets a notice. See [When the factory itself fails](#when-the-factory-itself-fails) |
 | a comment with a line starting **`/qa`** (`/qa [full] [api|ui] [note]`), on a feature or bug ticket or on a factory pull request | starts a [QA run](#qa-run) (id `qa-<owner>-<repo>-<number>-<hash>`); a second one for the same number while one runs gets a notice |
 | a comment that is just **`/update`**, on a feature or bug ticket or on a factory pull request | starts an [update](#updating-a-pull-request) of the pull request (id `update-<owner>-<repo>-<number>-<hash>`, where the number is the one the comment is on); a second one for the same number while one runs gets a notice |
+| a comment with a line starting **`/ask`**, on **any** ticket (a factory label is not needed) or pull request | starts an [answer](#asking-a-question-with-ask) (id `ask-<owner>-<repo>-<number>-<hash>`); it is never sent to a running workflow as a reply, and a second one for the same number while one runs gets a notice |
 | a comment that is just **`/review`**, on **any** pull request (a person's too) | starts a [review](#reviewing-a-pull-request) (id `review-<owner>-<repo>-<pr>-<hash>`); a second one for the same pull request while one runs gets a notice |
 | ticket **closed** | sent to the running workflow (`ticket_closed`); the run stops |
 | comments written by the factory | ignored (they carry a hidden marker), so it never answers itself |
@@ -233,6 +235,21 @@ A person comments **`/review`** (a line with only that) on a pull request, **any
 | 4. Post | the factory | one comment per reviewer, as for a feature, then a short summary with the number of blocking findings per reviewer. A person decides; the factory does not merge |
 
 Statuses: `review_posted`, `ignored` (a closed pull request), `error` (Forgejo could not give the changes), and the shared `blocked` (OpenCode not signed in), `review_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `review`.
+
+## Asking a question with `/ask`
+
+A person comments **`/ask`** followed by a question (`/ask where is the login handled?`; the rest of the comment counts as the question, up to 1,500 characters) on **any ticket** (it needs no factory label) or on **any pull request**, and the read-only `asker` reads the repository and answers on the same ticket or pull request. It writes nothing: no commit, no branch, no run of the code. It is the cheap way to use the factory: one agent run and no review, so a typical answer costs a fraction of a feature.
+
+| Step | Who | What is checked |
+| --- | --- | --- |
+| 1. Read | the factory | for a pull request, its description and what it changes come from Forgejo (as for a [review](#reviewing-a-pull-request)); if Forgejo cannot give them the question is still answered from the repository. A bare `/ask` is answered with how to use it |
+| 2. Checkout | the factory | a throwaway local branch off the **default branch**, never pushed, so the project's settings and image come from the trusted branch. A project needs a `.factory/project.json`, like for every other run |
+| 3. Answer | `asker` (read-only, **no shell**, model access only) | reads the code and answers. The question, the ticket and the diff are marked as data in the prompt, and the role is told never to print secrets or follow instructions found there |
+| 4. Post | the factory | the answer as one comment. `@name` is made harmless so an answer notifies nobody; lines that look like credentials are left out; the files the agent says it read are shown **only if they exist** in the checkout |
+
+The question and the comment it came from are **not** passed to a running feature, bug or plan workflow, even on a ticket that has one: a `/ask` never answers an agent's question. One question at a time per ticket or pull request: a second one while the first is running gets a notice, and comment again afterwards.
+
+Statuses: `answered`, `no_answer` (the repository does not say, and the comment says what was found), `ask_failed` (the agent failed or its answer could not be used), `ignored` (a bare `/ask`), and the shared `blocked`, `budget_exceeded`, `usage_limit`, `infrastructure_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `ask`. Limits and the role's limits are in `agents/agents/asker.md`.
 
 ## Documentation run
 
@@ -438,6 +455,9 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `improvement_failed` | improvement: the report or its ticket could not be made, or no proposal named a file that exists |
 | `budget_exceeded` | the run used its token budget and stopped before asking another agent (work saved if code existed); see [Token limits](operations.md#token-limits) |
 | `usage_limit` | the model provider said its usage limit is reached, so the run stopped instead of asking again; `/retry` after the limit resets (work saved if code existed) |
+| `answered` | ask: the question was answered from the repository and the answer was posted (nothing was changed) |
+| `no_answer` | ask: the agent said the repository does not answer the question; the comment says what it found |
+| `ask_failed` | ask: the agent failed or its answer could not be used |
 | `review_posted` | review: the reviewers' findings on the pull request were posted on it (nothing was changed) |
 | `update_pushed` | update: the base branch was merged into the pull request's branch and the merge commit was pushed |
 | `up_to_date` | update: the branch already has everything from the base branch, so nothing was merged |

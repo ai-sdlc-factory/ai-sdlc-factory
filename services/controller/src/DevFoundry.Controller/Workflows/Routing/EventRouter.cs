@@ -13,6 +13,7 @@ public enum RoutingAction
     RunQa,
     UpdatePullRequest,
     ReviewPullRequest,
+    AskQuestion,
 }
 
 public sealed record RoutingDecision(
@@ -24,7 +25,8 @@ public sealed record RoutingDecision(
     RevisionRequest? Revision = null,
     QaRequest? Qa = null,
     UpdateRequest? Update = null,
-    PullReviewRequest? Review = null);
+    PullReviewRequest? Review = null,
+    AskRequest? Ask = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
@@ -109,13 +111,20 @@ public static partial class EventRouter
 
             case "issue_comment" when action == "created":
                 var body = AsString(Get(Get(payload, "comment"), "body")) ?? "";
-                if (!hasFeatureLabel)
-                {
-                    return Ignore("ticket is not a feature");
-                }
                 if (body.Contains(BotMarker, StringComparison.Ordinal))
                 {
                     return Ignore("comment written by the factory");
+                }
+                // A question needs no factory label (any ticket can be asked about), and it is never a reply to an agent.
+                if (AskCommand.Parse(body) is { } question)
+                {
+                    return new RoutingDecision(RoutingAction.AskQuestion, "ask command on a ticket",
+                        Ask: new AskRequest(owner, repo, issueNumber, false, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", question,
+                            AsString(Get(issue, "title")) ?? "", AsString(Get(issue, "body")) ?? ""));
+                }
+                if (!hasFeatureLabel)
+                {
+                    return Ignore("ticket is not a feature");
                 }
                 if (QaCommand.Parse(body) is { } qa)
                 {
@@ -190,6 +199,11 @@ public static partial class EventRouter
         {
             return new RoutingDecision(RoutingAction.RunQa, "qa command on a pull request",
                 Qa: new QaRequest(owner, repo, pullNumber, true, qa.Suite, AsString(Get(Get(comment, "user"), "login")) ?? "", qa.Mode, qa.Note));
+        }
+        if (AskCommand.Parse(body) is { } question)
+        {
+            return new RoutingDecision(RoutingAction.AskQuestion, "ask command on a pull request",
+                Ask: new AskRequest(owner, repo, pullNumber, true, AsString(Get(Get(comment, "user"), "login")) ?? "", question));
         }
         if (ReviewCommand.IsMatch(body))
         {

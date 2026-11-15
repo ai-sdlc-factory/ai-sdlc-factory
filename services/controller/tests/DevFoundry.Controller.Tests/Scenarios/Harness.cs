@@ -113,6 +113,8 @@ public sealed class FakeWorld
     public UpdateContext UpdateContext { get; set; } = new(FactoryPullRequest().Pull, "factory-bot");
 
     /// <summary>What Forgejo says about the pull request a /review is for: by default a person's open pull request with two changed files and a short diff.</summary>
+    public Exception? ReviewContextFailure { get; set; }
+
     public ReviewContext ReviewContext { get; set; } = new(
         FactoryPullRequest(author: "alice", headRef: "alice/goodbye").Pull,
         new PullChanges([new ChangedFile("hello.py", "modified", 4, 1), new ChangedFile("test_hello.py", "added", 9, 0)], 2, "diff --git a/hello.py b/hello.py\n+def goodbye():\n+    return 'Goodbye'\n", false));
@@ -233,10 +235,10 @@ public sealed class FakeWorld
         return this;
     }
 
-    public FakeWorld Changes(params ChangeReport[] reports)
-    {
     public List<string> RemovedOversized { get; } = [];
 
+    public FakeWorld Changes(params ChangeReport[] reports)
+    {
         foreach (var report in reports)
         {
             changes.Enqueue(_ => report);
@@ -318,7 +320,7 @@ public sealed class FakeWorld
         public QaContext ReadQaContext(QaRequest request) => world.QaContext;
 
         [Activity("forgejo_read_review_context")]
-        public ReviewContext ReadReviewContext(PullReviewRequest request) => world.ReviewContext;
+        public ReviewContext ReadReviewContext(PullReviewRequest request) => world.ReviewContextFailure is { } failure ? throw failure : world.ReviewContext;
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
@@ -464,8 +466,6 @@ public sealed class FakeWorld
         [Activity("workspace_read_project_config")]
         public string? ReadProjectConfig(string name) => world.ProjectConfig;
 
-        [Activity("workspace_changes")]
-        public ChangeReport DetectChanges(string name)
         [Activity("workspace_remove_oversized")]
         public IReadOnlyList<string> RemoveOversized(RemoveOversizedRequest request)
         {
@@ -476,6 +476,8 @@ public sealed class FakeWorld
             return request.Paths;
         }
 
+        [Activity("workspace_changes")]
+        public ChangeReport DetectChanges(string name)
         {
             if (world.ChangesFailure is not null)
             {
@@ -585,7 +587,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<ImprovementWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<AskWorkflow>().AddWorkflow<ImprovementWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -639,6 +641,19 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     {
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
         return new PullReviewRequest("acme", repo, 7, "bob");
+    }
+
+    public static AskRequest Ask(string question = "Where is the greeting built?", bool onPullRequest = false)
+    {
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+        return new AskRequest("acme", repo, 7, onPullRequest, "bob", question, "Say goodbye", "As a user I want a goodbye.");
+    }
+
+    public async Task<WorkResult> RunAskAsync(AskRequest request)
+    {
+        var handle = await Client.StartWorkflowAsync((AskWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     public async Task<WorkResult> RunPullReviewAsync(PullReviewRequest request)
@@ -887,6 +902,10 @@ public static class Answers
             summary = verdict switch { "done" => "Wrote AGENTS.md from the code.", "unchanged" => "The documents are already right.", _ => "Cannot continue." },
             notes = Array.Empty<string>(),
         });
+
+    /// <summary>The asker's answer.</summary>
+    public static string Ask(string verdict = "answered", string answer = "The greeting is built in `hello.py`.", params string[] files) =>
+        JsonSerializer.Serialize(new { verdict, answer, files });
 
     /// <summary>The improver's answer: one proposal for each target.</summary>
     public static string Improvement(string verdict = "proposals", params string[] targets) =>

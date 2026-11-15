@@ -138,6 +138,15 @@ public static class Statuses
     /// <summary>improvement: the weekly report was saved on the host; no ticket was opened (no repository is set for them, or nothing repeated).</summary>
     public const string ReportSaved = "report_saved";
 
+    /// <summary>ask: the question was answered from the repository and the answer was posted (nothing was changed).</summary>
+    public const string Answered = "answered";
+
+    /// <summary>ask: the agent said the repository does not answer the question, and the comment says so.</summary>
+    public const string NoAnswer = "no_answer";
+
+    /// <summary>ask: the agent failed or its answer could not be used, so nothing was posted but the failure.</summary>
+    public const string AskFailed = "ask_failed";
+
     /// <summary>review: the reviewers' findings on a pull request were posted on it (nothing was changed).</summary>
     public const string ReviewPosted = "review_posted";
 

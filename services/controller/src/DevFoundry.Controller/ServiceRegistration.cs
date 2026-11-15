@@ -24,6 +24,7 @@ public static class ServiceRegistration
             .AddWorkflow<PullRequestUpdateWorkflow>()
             .AddWorkflow<PullRequestReviewWorkflow>()
             .AddWorkflow<DocsWorkflow>()
+            .AddWorkflow<AskWorkflow>()
             .AddWorkflow<ImprovementWorkflow>()
             .AddWorkflow<QaWorkflow>();
 
