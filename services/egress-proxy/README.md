@@ -23,7 +23,7 @@ proxy address on its own network, so it cannot pick another profile.
 | a port other than the allowed ones (443) | 403 |
 | an IP address instead of a name | 403 |
 | a listed name that resolves to a private, loopback, link-local (cloud metadata), carrier-grade NAT or reserved address | 403 |
-| anything but `CONNECT` (plain HTTP is not proxied) | 405 |
+| anything but `CONNECT` (plain HTTP is not proxied) | 405, logged with the host the request was aimed at (a tool's plain HTTP requests, such as .NET's certificate revocation checks to `ocsp.digicert.com`, are expected and harmless; the weekly report counts them apart) |
 | a malformed or oversized request | 400 / 431 |
 | a connection to an address that belongs to no profile | 403 |
 | more than 256 open connections | 503 |

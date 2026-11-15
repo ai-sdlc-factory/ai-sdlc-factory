@@ -348,6 +348,8 @@ Some failures say nothing about the ticket or the agent's work: a sandbox stoppe
 
 For these the ticket comment says it is a problem with the factory itself, not with the ticket, and the run ends with the status `infrastructure_failed`. Code written so far is saved to the work-in-progress branch like for any other stop. A check that cannot run for this reason also ends the run at once; it is not sent to the developer as feedback, which would only cost a build round and tokens.
 
+**A failed agent run that is repeated says so.** When an agent run crashes, is killed (a sandbox that was stopped) or returns nothing, and the factory runs it once more (at most one more run), the ticket gets one line: "The developer's run did not finish (…), so I am running it once more. The failed run's tokens are spent either way." The last attempt says nothing of the kind; the failure comment follows. Exit codes 134 and 137 say the sandbox ran out of processes or memory and name the setting (`SANDBOX_PIDS_LIMIT`, `SANDBOX_MEMORY_BYTES`).
+
 Comment **`/retry`** on the ticket to run it again. It needs the ticket to be open and the earlier run to have finished; while a run is still active the person gets one notice instead. A feature or bug run [carries on from the stages the earlier run finished](#resuming-a-run-with-retry), so a failure of the factory itself costs only the stage that was running. The factory never retries by itself: a second try can spend tokens twice, so a person decides.
 
 ### Resuming a run with `/retry`
