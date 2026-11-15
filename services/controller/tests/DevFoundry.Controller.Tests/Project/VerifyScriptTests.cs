@@ -130,13 +130,32 @@ public sealed class VerifyScriptTests
         }
     }
 
+    /// <summary>
+    /// Stops and disposes a listener. Under load <c>HttpListener.Close</c> can throw "Address already in use" while it removes its prefix (the port is taken again as it lets go),
+    /// which says nothing about what the test checks, so it is not allowed to fail the test.
+    /// </summary>
+    private static void CloseQuietly(System.Net.HttpListener listener)
+    {
+        try
+        {
+            listener.Stop();
+            listener.Close();
+        }
+        catch (System.Net.HttpListenerException)
+        {
+            // see above
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
     [SkippableFact]
     public void The_script_really_waits_for_the_application_and_returns_the_suites_exit_code()
     {
         Skip.IfNot(Has("curl"), "needs curl");
         // The "application" is a listener in this process; the started command only has to stay alive until the script stops it.
         var (listener, port) = StartListenerOnFreePort();
-        using var _ = listener;
         var serving = Task.Run(async () =>
         {
             while (listener.IsListening)
@@ -156,7 +175,7 @@ public sealed class VerifyScriptTests
         var verify = Config($$$"""{"start":["sleep","30"],"ready":"http://127.0.0.1:{{{port}}}/","startup_timeout_seconds":20,"tests":"e2e","suites":[{"name":"api","command":["sh","-c","curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:{{{port}}}/ | grep -q 200 && exit 3"]}]}""");
 
         var (code, _) = Run(VerifyScript.Command(verify, verify.Suites[0]));
-        listener.Stop();
+        CloseQuietly(listener);
 
         Assert.Equal(3, code); // the suite ran once the application answered, and its own exit code came back
     }
