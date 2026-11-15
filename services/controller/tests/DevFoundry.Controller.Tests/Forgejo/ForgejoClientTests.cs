@@ -90,6 +90,44 @@ public sealed class ForgejoClientTests
             endpoints.Requests);
     }
 
+    /// <summary>A pull request of the factory: its run record first (.factory sorts first), then the real change.</summary>
+    private sealed class RecordedPull : HttpMessageHandler
+    {
+        public static readonly string Diff =
+            "diff --git a/.factory/runs/issue-3-ab/001-analyst.md b/.factory/runs/issue-3-ab/001-analyst.md\nnew file mode 100644\n+" + new string('r', 150_000) + "\n" +
+            "diff --git a/src/app.py b/src/app.py\n--- a/src/app.py\n+++ b/src/app.py\n+real change\n";
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith(".diff"))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Diff) });
+            }
+            var files = new object[]
+            {
+                new { filename = ".factory/runs/issue-3-ab/001-analyst.md", previous_filename = "", status = "added", additions = 40, deletions = 0 },
+                new { filename = ".factory/runs/issue-3-ab/usage.json", previous_filename = "", status = "added", additions = 20, deletions = 0 },
+                new { filename = "src/app.py", previous_filename = "", status = "modified", additions = 1, deletions = 0 },
+            };
+            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(files)) };
+            response.Headers.Add("X-Total-Count", "3");
+            return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public async Task The_factorys_own_run_records_are_not_part_of_what_a_pull_request_changes_and_do_not_crowd_the_code_out_of_the_diff()
+    {
+        var changes = await new ForgejoClient(new HttpClient(new RecordedPull()) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" })
+            .GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+
+        Assert.Equal(["src/app.py"], changes.Files.Select(file => file.Path));
+        Assert.Equal(1, changes.TotalFiles);
+        Assert.Contains("+real change", changes.Diff);
+        Assert.DoesNotContain(".factory/runs", changes.Diff);
+        Assert.False(changes.DiffCut);
+    }
+
     [Fact]
     public async Task A_pull_request_with_very_many_files_is_cut_at_the_limit_but_its_real_size_is_kept()
     {
@@ -208,6 +246,29 @@ public sealed class ForgejoClientTests
     }
 
     [Fact]
+    public async Task A_unique_notice_is_not_repeated_however_far_back_the_same_text_is()
+    {
+        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA setting I do not know.", .. Enumerable.Range(1, 60).Select(i => $"comment {i}")]);
+
+        var posted = await WithComments(conversation).PostNoticeUniqueAsync("acme", "shop", 7, "A setting I do not know.", CancellationToken.None);
+
+        Assert.False(posted);
+        Assert.DoesNotContain(conversation.Calls, call => call.Method == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task A_unique_notice_with_different_text_is_posted()
+    {
+        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA setting I do not know: recrod.", "comment"]);
+
+        var posted = await WithComments(conversation).PostNoticeUniqueAsync("acme", "shop", 7, "A setting I do not know: reviewrs.", CancellationToken.None);
+
+        Assert.True(posted);
+        var post = Assert.Single(conversation.Calls, call => call.Method == HttpMethod.Post);
+        Assert.Contains(TicketComments.NoticeMarker, JsonDocument.Parse(post.Body!).RootElement.GetProperty("body").GetString()!);
+    }
+
+    [Fact]
     public async Task Comment_is_posted_with_the_token_and_the_bot_marker()
     {
         var (client, handler) = Create();
@@ -245,29 +306,6 @@ public sealed class ForgejoClientTests
         Assert.Equal(nonRetryable, error.NonRetryable);
         Assert.DoesNotContain("secret-token", error.Message);
     }
-    [Fact]
-    public async Task A_unique_notice_is_not_repeated_however_far_back_the_same_text_is()
-    {
-        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA setting I do not know.", .. Enumerable.Range(1, 60).Select(i => $"comment {i}")]);
-
-        var posted = await WithComments(conversation).PostNoticeUniqueAsync("acme", "shop", 7, "A setting I do not know.", CancellationToken.None);
-
-        Assert.False(posted);
-        Assert.DoesNotContain(conversation.Calls, call => call.Method == HttpMethod.Post);
-    }
-
-    [Fact]
-    public async Task A_unique_notice_with_different_text_is_posted()
-    {
-        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA setting I do not know: recrod.", "comment"]);
-
-        var posted = await WithComments(conversation).PostNoticeUniqueAsync("acme", "shop", 7, "A setting I do not know: reviewrs.", CancellationToken.None);
-
-        Assert.True(posted);
-        var post = Assert.Single(conversation.Calls, call => call.Method == HttpMethod.Post);
-        Assert.Contains(TicketComments.NoticeMarker, JsonDocument.Parse(post.Body!).RootElement.GetProperty("body").GetString()!);
-    }
-
 }
 
 public sealed class CreateIssueTests

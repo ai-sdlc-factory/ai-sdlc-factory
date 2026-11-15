@@ -113,6 +113,7 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
 
     public const int MaxChangedFiles = 300;
     public const int MaxDiffBytes = 120_000;
+    private const int MaxRawDiffBytes = 4 * 1024 * 1024;
     private const int FilesPerPage = 50;
 
     /// <summary>
@@ -125,6 +126,7 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         var path = $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/pulls/{number}";
         var files = new List<ChangedFile>();
         var total = 0;
+        var records = 0; // the factory's own run record files, which are not part of what the pull request changes
         for (var page = 1; files.Count < MaxChangedFiles; page++)
         {
             using var request = Authorized(HttpMethod.Get, $"{path}/files?page={page}&limit={FilesPerPage}");
@@ -146,6 +148,11 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
             foreach (var item in document.RootElement.EnumerateArray())
             {
                 listed++;
+                if (RunRecords.IsRunRecord(Text(item, "filename")))
+                {
+                    records++;
+                    continue;
+                }
                 if (files.Count < MaxChangedFiles)
                 {
                     files.Add(new ChangedFile(
@@ -158,7 +165,7 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
                 break;
             }
         }
-        total = Math.Max(total, files.Count);
+        total = Math.Max(total - records, files.Count);
 
         using var diffRequest = Authorized(HttpMethod.Get, $"{path}.diff");
         using var diffResponse = await http.SendAsync(diffRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -167,7 +174,8 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
             throw Failure("diff", diffResponse.StatusCode, diffResponse.ReasonPhrase);
         }
         await using var stream = await diffResponse.Content.ReadAsStreamAsync(cancellationToken);
-        var buffer = new byte[MaxDiffBytes + 1];
+        // Read far enough to find the code after any run records at the top of the diff (.factory sorts first), but never an unbounded amount.
+        var buffer = new byte[MaxRawDiffBytes + 1];
         var read = 0;
         while (read < buffer.Length)
         {
@@ -178,8 +186,9 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
             }
             read += count;
         }
-        var cut = read > MaxDiffBytes;
-        return new PullChanges(files, total, System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxDiffBytes)), cut);
+        var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxRawDiffBytes)));
+        var cut = read > MaxRawDiffBytes || text.Length > MaxDiffBytes;
+        return new PullChanges(files, total, text.Length > MaxDiffBytes ? text[..MaxDiffBytes] : text, cut);
     }
 
     private static int Count(JsonElement element, string name) =>
@@ -362,15 +371,6 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
     }
 
     /// <summary>
-    /// Opens a pull request for a pushed branch. If one already exists for the branch (a retried attempt
-    /// after the first one succeeded), that one is returned instead of failing.
-    /// <summary>Repositories the bot can push to: the only ones it makes branches in, and so the only ones the janitor looks at.</summary>
-    public async Task<IReadOnlyList<(string Owner, string Repo)>> ListWritableRepositoriesAsync(CancellationToken cancellationToken)
-    {
-        RequireToken();
-        var result = new List<(string, string)>();
-        await foreach (var repository in PagedAsync("api/v1/repos/search", "repository list", "data", cancellationToken))
-    /// <summary>
     /// Posts a notice unless a comment with exactly this text is anywhere on the ticket (the last 200 comments), so a notice about something that has not changed is said once
     /// per ticket and not again by every later run. Different text (a changed list) is a new notice. Returns whether it was posted.
     /// </summary>
@@ -386,6 +386,15 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         return true;
     }
 
+    /// <summary>
+    /// Opens a pull request for a pushed branch. If one already exists for the branch (a retried attempt
+    /// after the first one succeeded), that one is returned instead of failing.
+    /// <summary>Repositories the bot can push to: the only ones it makes branches in, and so the only ones the janitor looks at.</summary>
+    public async Task<IReadOnlyList<(string Owner, string Repo)>> ListWritableRepositoriesAsync(CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var result = new List<(string, string)>();
+        await foreach (var repository in PagedAsync("api/v1/repos/search", "repository list", "data", cancellationToken))
         {
             var canPush = Child(repository, "permissions") is { ValueKind: JsonValueKind.Object } permissions
                 && permissions.TryGetProperty("push", out var push) && push.ValueKind == JsonValueKind.True;

@@ -27,6 +27,20 @@ public sealed class QaUiGapTests
     }
 
     [Fact]
+    public void The_factorys_own_run_record_in_the_pull_request_does_not_hide_a_ui_only_change()
+    {
+        var text = QaUiGap.Describe(Changes("web/app.tsx", ".factory/runs/issue-3-ab/001-analyst.md", ".factory/runs/issue-3-ab/usage.json"), Ui, Verify("api"), null);
+
+        Assert.StartsWith("The one file this pull request changes is a UI file", text);
+    }
+
+    [Fact]
+    public void A_pull_request_that_holds_only_a_run_record_says_nothing()
+    {
+        Assert.Null(QaUiGap.Describe(Changes(".factory/runs/issue-3-ab/usage.json"), Ui, Verify("api"), null));
+    }
+
+    [Fact]
     public void One_file_is_said_in_the_singular() =>
         Assert.StartsWith("The one file this pull request changes is a UI file", QaUiGap.Describe(Changes("web/app.tsx"), Ui, Verify("api"), null));
 

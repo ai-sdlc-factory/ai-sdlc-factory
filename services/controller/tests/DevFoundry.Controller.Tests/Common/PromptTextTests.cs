@@ -66,3 +66,33 @@ public sealed class CriterionLengthTests
         Assert.Equal(PromptText.MaxCriterion, criteria[1].Criterion.Length);
     }
 }
+
+public sealed class RunRecordsTests
+{
+    [Theory]
+    [InlineData(".factory/runs/issue-3-ab/usage.json", true)]
+    [InlineData(".factory/project.json", false)]
+    [InlineData("src/.factory/runs/x", false)]
+    [InlineData("", false)]
+    public void Only_files_under_the_run_record_folder_are_run_records(string path, bool expected) =>
+        Assert.Equal(expected, RunRecords.IsRunRecord(path));
+
+    [Fact]
+    public void Sections_of_run_records_are_taken_out_of_a_diff_and_the_others_are_kept_as_they_were()
+    {
+        var diff = "diff --git a/.factory/runs/x/a.md b/.factory/runs/x/a.md\n+record\n" +
+                   "diff --git a/src/a.py b/src/a.py\n+code a\n" +
+                   "diff --git a/.factory/runs/x/b.md b/.factory/runs/x/b.md\n+record\n" +
+                   "diff --git a/docs/.factory/runs/note.md b/docs/.factory/runs/note.md\n+not a record\n";
+
+        Assert.Equal("diff --git a/src/a.py b/src/a.py\n+code a\ndiff --git a/docs/.factory/runs/note.md b/docs/.factory/runs/note.md\n+not a record\n", RunRecords.WithoutRecords(diff));
+    }
+
+    [Fact]
+    public void A_diff_without_records_is_returned_untouched()
+    {
+        const string diff = "diff --git a/src/a.py b/src/a.py\n+code\n";
+
+        Assert.Same(diff, RunRecords.WithoutRecords(diff));
+    }
+}

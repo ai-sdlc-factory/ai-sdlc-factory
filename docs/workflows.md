@@ -225,6 +225,8 @@ With `"record": true` the revision's [run record](#the-run-record) is committed 
 
 ## Reviewing a pull request
 
+> The factory's own run record (`.factory/runs/**`, committed with a pull request when a project sets `record`) is left out of the files and the diff that a review, a [QA run](#qa-run) and the "UI-only change" check look at: it is the account of how the change was made, not part of the change.
+
 A person comments **`/review`** (a line with only that) on a pull request, **anyone's, not only the factory's**, and the project's reviewers read it and post their findings on it. It writes nothing: no commit, no branch, no merge. Nothing starts by itself when a pull request is opened, because every review spends tokens; a person asks.
 
 | Step | Who | What is checked |

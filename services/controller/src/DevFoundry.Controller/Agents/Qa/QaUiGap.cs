@@ -12,13 +12,15 @@ public static class QaUiGap
     /// </summary>
     public static string? Describe(PullChanges? changes, UiConfig? ui, VerifyConfig verify, string? requestedSuite)
     {
-        if (requestedSuite is not null || ui is null || changes is null || changes.Files.Count == 0 || changes.TotalFiles > changes.Files.Count
+        // The factory's own run record travels with every pull request of a project that records its runs; it is not something the change touches.
+        var files = changes?.Files.Where(file => !RunRecords.IsRunRecord(file.Path)).ToList();
+        if (requestedSuite is not null || ui is null || changes is null || files is not { Count: > 0 } || changes.TotalFiles > changes.Files.Count
             || verify.Suites.Any(suite => suite.Name == VerifyConfig.Ui)
-            || changes.Files.Any(file => !Globs.IsMatchAny(file.Path, ui.Paths)))
+            || files.Any(file => !Globs.IsMatchAny(file.Path, ui.Paths)))
         {
             return null;
         }
-        var count = changes.Files.Count;
+        var count = files.Count;
         return $"{(count == 1 ? "The one file" : $"All {count} files")} this pull request changes {(count == 1 ? "is a UI file" : "are UI files")} (`ui.paths`), " +
             "and this project has no `ui` suite in `verify.suites`, so the tests can only exercise the API and not what changed. " +
             "A report of \"no problems found\" would not say the UI was tested. To test the UI, add a `ui` suite.";
