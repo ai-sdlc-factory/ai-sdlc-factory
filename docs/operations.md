@@ -90,7 +90,7 @@ docker compose up -d
 | What | How |
 | --- | --- |
 | a service's unit tests | from the repository root: `docker build --target test -f services/<service>/Dockerfile -t t .` then `docker run --rm t` (`api`, `controller`, `sandbox-launcher`, `egress-proxy`) |
-| workflow scenarios | part of the controller tests: they run the real workflows on a Temporal dev server with scripted agents and fake activities |
+| workflow scenarios | part of the controller tests: they run the real workflows on a Temporal dev server with scripted agents and fake activities. `python3 tools/run-scenarios.py` runs them in several containers at once (about 2 minutes instead of 7) and checks that no scenario class is left out |
 | the deployed pipeline | `docker compose --profile test run --build --rm --no-deps integration-tests` ([guide](../tests/integration/README.md)) |
 | documentation links and settings | `python3 tools/check-docs.py` ([below](#keeping-the-documentation-correct)) |
 | CI | `bitbucket-pipelines.yml` runs the service tests, a vulnerable-package check, the documentation check and the integration tests |
