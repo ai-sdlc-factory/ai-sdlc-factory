@@ -97,7 +97,7 @@ public static class PlanComments
         text.AppendLine();
         foreach (var item in now)
         {
-            text.AppendLine($"- {item.PlanNumber}. {Inert(plan.Tickets[item.PlanNumber - 1].Title)}: #{item.IssueNumber} {item.Url}");
+            text.AppendLine($"- Item {item.PlanNumber}: {Inert(plan.Tickets[item.PlanNumber - 1].Title)}: {item.Url}");
         }
         text.AppendLine();
         text.AppendLine("Each ticket carries the `feature` label, so the feature workflow starts on it. A person still reviews and merges every pull request.");
@@ -105,7 +105,18 @@ public static class PlanComments
         if (waiting.Count > 0)
         {
             text.AppendLine();
-            text.Append($"Not created yet: {string.Join(", ", waiting)}. Reply `/approve {waiting[0]}` (and so on) when the ticket it waits for is merged, or close this ticket to stop.");
+            var free = waiting.Where(n => plan.Tickets[n - 1].DependsOn.Count == 0).ToList();
+            var blocked = waiting.Except(free).ToList();
+            text.Append($"Not created yet: {string.Join(", ", waiting)}.");
+            if (free.Count > 0)
+            {
+                text.Append($" Reply `/approve` (or `/approve {free[0]}`) to create {(free.Count == 1 ? "the one" : "those")} that wait{(free.Count == 1 ? "s" : "")} for nothing.");
+            }
+            if (blocked.Count > 0)
+            {
+                text.Append($" Reply `/approve {blocked[0]}` (and so on) when the ticket it waits for is merged.");
+            }
+            text.Append(" Close this ticket to stop.");
         }
         return text.ToString().TrimEnd();
     }

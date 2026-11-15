@@ -150,4 +150,17 @@ public sealed class PlanCommentTests
         Assert.DoesNotContain("`", title);
         Assert.DoesNotContain("@admin", body);
     }
+
+    [Fact]
+    public void After_a_partial_approval_a_ticket_that_waits_for_nothing_is_not_said_to_wait()
+    {
+        Assert.True(PlanParser.TryParse(Answers.Plan(), out var plan, out var error), error);
+        var made = new Dictionary<int, CreatedTicket> { [2] = new CreatedTicket(2, 92, "http://forgejo/issues/92") };
+
+        var text = PlanComments.Created([made[2]], plan, made);
+
+        Assert.Contains("Not created yet: 1, 3.", text);
+        Assert.Contains("Reply `/approve` (or `/approve 1`) to create the one that waits for nothing.", text);
+        Assert.Contains("Reply `/approve 3` (and so on) when the ticket it waits for is merged.", text);
+    }
 }
