@@ -42,7 +42,7 @@ public sealed class SandboxSettings
 
     public long MemoryBytes { get; init; } = 2L * 1024 * 1024 * 1024;
     public double Cpus { get; init; } = 2;
-    public int PidsLimit { get; init; } = 256;
+    public int PidsLimit { get; init; } = 1024;
     public int MaxRunSeconds { get; init; } = 1800;
     public int MaxConcurrentRuns { get; init; } = 2;
     public int MaxOutputBytes { get; init; } = 512 * 1024;
@@ -97,7 +97,7 @@ public sealed class SandboxSettings
             GroupId = configuration.GetValue("SANDBOX_GID", 1000),
             MemoryBytes = configuration.GetValue("SANDBOX_MEMORY_BYTES", 2L * 1024 * 1024 * 1024),
             Cpus = configuration.GetValue("SANDBOX_CPUS", 2d),
-            PidsLimit = configuration.GetValue("SANDBOX_PIDS_LIMIT", 256),
+            PidsLimit = configuration.GetValue("SANDBOX_PIDS_LIMIT", 1024),
             MaxRunSeconds = configuration.GetValue("SANDBOX_MAX_RUN_SECONDS", 1800),
             MaxConcurrentRuns = configuration.GetValue("SANDBOX_MAX_CONCURRENT", 2),
             GlobalConfigPath = NullIfEmpty(configuration["FACTORY_GLOBAL_CONFIG"]),

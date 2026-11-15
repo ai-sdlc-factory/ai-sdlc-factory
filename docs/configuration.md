@@ -146,7 +146,7 @@ The service that turns monitoring alerts into tickets ([its README](../services/
 | `SANDBOX_UID`, `SANDBOX_GID` | `1000` | the user the sandbox runs as (from `FACTORY_UID`/`FACTORY_GID`); must not be root |
 | `SANDBOX_MEMORY_BYTES` | 2 GiB | memory limit per sandbox (swap equal, so no swapping) |
 | `SANDBOX_CPUS` | `2` | CPU limit per sandbox |
-| `SANDBOX_PIDS_LIMIT` | `256` | process limit per sandbox |
+| `SANDBOX_PIDS_LIMIT` | `1024` | process and thread limit per sandbox (a browser, an application and the agent together need several hundred; too low and a QA run dies with exit code 134) |
 | `SANDBOX_MAX_RUN_SECONDS` | `1800` | the longest a single run may take; a request's own timeout is capped by it |
 | `SANDBOX_MAX_CONCURRENT` | `2` | sandboxes running at once; others wait |
 | `SANDBOX_TASK_QUEUE` | `sandbox` | the Temporal queue the launcher polls |
