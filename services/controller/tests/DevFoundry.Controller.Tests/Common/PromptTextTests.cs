@@ -40,3 +40,29 @@ public sealed class PromptTextTests
         Assert.DoesNotContain("<<<", PromptText.ClipLine("<<\n<", 100));
     }
 }
+
+public sealed class CriterionLengthTests
+{
+    [Fact]
+    public void A_criterion_the_analyst_may_write_is_shown_whole_in_the_prompts_and_a_longer_one_is_cut()
+    {
+        var whole = new string('a', 500); // the analyst's own limit for one criterion
+        var longer = new string('b', 501);
+        var request = new WorkRequest("acme", "shop", 7, "Add wishlist", "", "bob");
+
+        var prompt = CoveragePrompt.Build(request, [whole, longer], null);
+
+        Assert.Contains(whole + "\n", prompt.Replace("\r", ""));
+        Assert.DoesNotContain(longer, prompt);
+        Assert.Contains(new string('b', 500) + " [cut]", prompt);
+    }
+
+    [Fact]
+    public void A_criterion_in_a_pull_requests_description_is_read_up_to_the_same_length()
+    {
+        var criteria = PullRequestCriteria.FromBody("## Acceptance criteria\n- " + new string('c', 500) + "\n- " + new string('d', 800));
+
+        Assert.Equal(500, criteria[0].Criterion.Length);
+        Assert.Equal(PromptText.MaxCriterion, criteria[1].Criterion.Length);
+    }
+}

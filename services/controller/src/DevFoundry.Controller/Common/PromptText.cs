@@ -3,6 +3,9 @@ namespace DevFoundry.Controller;
 /// <summary>Shared handling of untrusted text that goes into a prompt.</summary>
 public static class PromptText
 {
+    /// <summary>The longest acceptance criterion a prompt shows whole. It is the analyst's own limit for one, so a criterion it is allowed to write is never cut.</summary>
+    public const int MaxCriterion = 500;
+
     /// <summary>
     /// Makes text safe to place between prompt markers: removes NUL characters first (so removing them cannot rebuild a marker), then breaks up
     /// the <c>&lt;&lt;&lt;</c> and <c>&gt;&gt;&gt;</c> sequences that open and close a block, so the text cannot close its own block.

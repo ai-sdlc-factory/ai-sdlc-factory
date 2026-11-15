@@ -31,7 +31,7 @@ public static class TesterPrompt
             text.AppendLine("<<<CRITERIA");
             foreach (var criterion in criteria)
             {
-                text.AppendLine($"{criterion.Index}. {PromptText.ClipLine(criterion.Criterion, 240)}");
+                text.AppendLine($"{criterion.Index}. {PromptText.ClipLine(criterion.Criterion, PromptText.MaxCriterion)}");
             }
             text.AppendLine("CRITERIA>>>");
         }

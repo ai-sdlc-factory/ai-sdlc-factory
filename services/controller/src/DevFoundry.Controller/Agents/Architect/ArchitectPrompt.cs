@@ -5,9 +5,9 @@ namespace DevFoundry.Controller;
 /// <summary>The case for the architect. Its role (and answer format) is in agents/agents/architect.md.</summary>
 public static class ArchitectPrompt
 {
-    public const int MaxLength = 14_000;
+    public const int MaxLength = 22_000;
     private const int MaxTitle = 200;
-    private const int MaxCriterion = 240;
+    private const int MaxCriterion = PromptText.MaxCriterion;
     private const int MaxNote = 150;
     private const int MaxReason = 160;
     private const int MaxReply = 600;

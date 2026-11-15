@@ -7,7 +7,7 @@ namespace DevFoundry.Controller;
 public static class PullRequestCriteria
 {
     public const int MaxCriteria = 20;
-    public const int MaxLength = 240;
+    public const int MaxLength = PromptText.MaxCriterion;
 
     public static IReadOnlyList<CriterionCoverage> FromBody(string? body)
     {

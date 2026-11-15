@@ -7,7 +7,7 @@ public static class CoveragePrompt
 {
     public const int MaxLength = 12_000;
     private const int MaxTitle = 200;
-    private const int MaxCriterion = 240;
+    private const int MaxCriterion = PromptText.MaxCriterion;
 
     public static string Build(WorkRequest request, IReadOnlyList<string> criteria, string? previousProblem)
     {

@@ -9,9 +9,9 @@ namespace DevFoundry.Controller;
 /// </summary>
 public static class DeveloperPrompt
 {
-    public const int MaxLength = 24_000;
+    public const int MaxLength = 30_000;
     private const int MaxBody = 2500;
-    private const int MaxCriterion = 240;
+    private const int MaxCriterion = PromptText.MaxCriterion;
     private const int MaxDesign = 4000;
     private const int MaxFeedback = 7000;
 

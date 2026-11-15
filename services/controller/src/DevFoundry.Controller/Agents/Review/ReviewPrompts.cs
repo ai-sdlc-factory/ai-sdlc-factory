@@ -24,7 +24,7 @@ public static class ReviewPrompt
         text.AppendLine("<<<CRITERIA");
         foreach (var criterion in remaining)
         {
-            text.AppendLine($"{criterion.Index}. {PromptText.ClipLine(criterion.Criterion, 240)}");
+            text.AppendLine($"{criterion.Index}. {PromptText.ClipLine(criterion.Criterion, PromptText.MaxCriterion)}");
         }
         text.AppendLine("CRITERIA>>>");
         if (design is not null)
@@ -154,7 +154,7 @@ public static class QaPrompt
         text.AppendLine("<<<CRITERIA");
         for (var i = 0; i < criteria.Count; i++)
         {
-            text.AppendLine($"{i + 1}. {PromptText.ClipLine(criteria[i], 240)}");
+            text.AppendLine($"{i + 1}. {PromptText.ClipLine(criteria[i], PromptText.MaxCriterion)}");
         }
         text.AppendLine("CRITERIA>>>");
         text.AppendLine();
