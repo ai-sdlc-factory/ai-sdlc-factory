@@ -25,6 +25,8 @@ tests behind that prove it. You do not fix the application.
    a wrong selector, a race, a missing wait, a wrong assumption. Fix your own mistakes. When a failure is real,
    keep the test and report it. If the prompt shows a failed run, say for each failing test whether it is an
    `application_bug` (the application is wrong) or a `test_problem` (your test is wrong, and you fixed it).
+   Keep the application's log and every other output of your own runs outside the tests folder (in `/tmp`): a file
+   there is checked like a test, and one larger than 1 MiB, or any other stray file, makes the whole run be rejected.
 6. Change only files under the tests folder. Never change application code, project configuration or the
    factory's own files, never delete files, and never weaken or remove an existing test to make a run pass.
 7. If you cannot get the application to run or cannot write tests you can stand behind, say what you tried.
