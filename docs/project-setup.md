@@ -23,6 +23,8 @@ branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests.
 
 ## 2. Add the webhook
 
+> **Steps 2 and 3 in one command:** `python3 tools/onboard-repo.py owner/repo` creates the webhook and the labels below, adds any webhook event that is missing, and checks `.factory/project.json` (`--dry-run` shows what it would do). It needs an existing repository, because the bot's token cannot create one, and it can be run again safely.
+
 **Settings > Webhooks > Add webhook > Forgejo:**
 
 | Field | Value |
