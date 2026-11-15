@@ -235,6 +235,8 @@ public sealed class FakeWorld
 
     public FakeWorld Changes(params ChangeReport[] reports)
     {
+    public List<string> RemovedOversized { get; } = [];
+
         foreach (var report in reports)
         {
             changes.Enqueue(_ => report);
@@ -464,6 +466,16 @@ public sealed class FakeWorld
 
         [Activity("workspace_changes")]
         public ChangeReport DetectChanges(string name)
+        [Activity("workspace_remove_oversized")]
+        public IReadOnlyList<string> RemoveOversized(RemoveOversizedRequest request)
+        {
+            lock (world.gate)
+            {
+                world.RemovedOversized.AddRange(request.Paths);
+            }
+            return request.Paths;
+        }
+
         {
             if (world.ChangesFailure is not null)
             {

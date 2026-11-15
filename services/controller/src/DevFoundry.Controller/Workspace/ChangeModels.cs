@@ -9,7 +9,14 @@ public sealed record FileChange(string Path, string Kind)
 }
 
 /// <summary>What the agent changed in its workspace, and everything that stops those changes from being published.</summary>
-public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList<string> Violations);
+public sealed record ChangeReport(IReadOnlyList<FileChange> Files, IReadOnlyList<string> Violations, IReadOnlyList<string>? OversizedNew = null)
+{
+    /// <summary>New files (not changes to tracked ones) that are too large to publish or to scan, such as a log or a recording a tool left behind.</summary>
+    public IReadOnlyList<string> Oversized => OversizedNew ?? [];
+}
+
+/// <summary>Asks the controller to remove files that are too large; it removes only files that really are, so it cannot be used to delete anything else.</summary>
+public sealed record RemoveOversizedRequest(string Name, IReadOnlyList<string> Paths);
 
 /// <summary><see cref="UpdateExistingBranch"/> pushes the commit onto the branch the checkout started from (a pull request being revised), never forcing and never choosing a new name.</summary>
 public sealed record PublishRequest(string Name, string Message, RunRecordSpec? Record = null, bool UpdateExistingBranch = false);

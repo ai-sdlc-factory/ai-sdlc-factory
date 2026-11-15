@@ -9,7 +9,9 @@ namespace DevFoundry.Controller;
 /// </summary>
 public static partial class SecretScan
 {
-    private const int MaxScanBytes = 1024 * 1024;
+    public const int MaxScanBytes = 1024 * 1024;
+
+    public static string OversizeMessage(string path) => $"{path} is larger than {MaxScanBytes / 1024 / 1024} MiB and was not scanned for secrets";
 
     private static readonly (string Rule, Regex Pattern)[] Rules =
     [
@@ -58,7 +60,7 @@ public static partial class SecretScan
     {
         if (content.Length > MaxScanBytes)
         {
-            yield return $"{path} is larger than {MaxScanBytes / 1024 / 1024} MiB and was not scanned for secrets";
+            yield return OversizeMessage(path);
             yield break;
         }
         if (Array.IndexOf(content, (byte)0, 0, Math.Min(content.Length, 8192)) >= 0)

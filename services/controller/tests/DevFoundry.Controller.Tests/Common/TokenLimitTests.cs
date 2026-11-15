@@ -5,6 +5,18 @@ namespace DevFoundry.Controller.Tests;
 public sealed class ProviderLimitTests
 {
     [Theory]
+    [InlineData(134, "SANDBOX_PIDS_LIMIT")]
+    [InlineData(137, "SANDBOX_MEMORY_BYTES")]
+    [InlineData(1, "")]
+    public void An_exit_code_that_means_a_sandbox_limit_is_explained(int code, string mentions)
+    {
+        var hint = FactoryWorkflowBase.ExitHint(code);
+
+        Assert.Equal(mentions.Length == 0, hint.Length == 0);
+        Assert.Contains(mentions, hint);
+    }
+
+    [Theory]
     [InlineData("Error: You have hit your usage limit. Try again in 3 hours.")]
     [InlineData("You've reached your plan's usage limit for GPT.")]
     [InlineData("429 Too Many Requests")]
@@ -19,6 +31,20 @@ public sealed class ProviderLimitTests
 
         Assert.NotNull(said);
         Assert.DoesNotContain('\n', said);
+    }
+
+    [Fact]
+    public void What_OpenCode_1_19_really_prints_for_a_429_is_recognised()
+    {
+        // Captured from the real opencode run --format json against a provider that answers 429 insufficient_quota (2026-11-15).
+        var output = """
+{"type":"error","timestamp":1794744929352,"sessionID":"ses_e20deb9d4ffeq9o0PvWGNPjdxK","error":{"name":"APIError","data":{"message":"You exceeded your current quota, please check your plan and billing details.","statusCode":429,"isRetryable":true,"responseHeaders":{"content-length":"162","content-type":"application/json","date":"Sun, 15 Nov 2026 12:15:29 GMT","server":"BaseHTTP/0.6 Python/3.12.3"},"responseBody":"{\"error\": {\"message\": \"You exceeded your current quota, please check your plan and billing details.\", \"type\": \"insufficient_quota\", \"code\": \"insufficient_quota\"}}","metadata":{"url":"http://host.docker.internal:9429/v1/responses"}}}}
+""";
+
+        var said = ProviderLimit.Detect(output, "");
+
+        Assert.NotNull(said);
+        Assert.Contains("quota", said, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

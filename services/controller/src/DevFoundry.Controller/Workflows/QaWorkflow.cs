@@ -83,6 +83,7 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
         TesterReport? tester = null;
         IReadOnlyList<QaSuiteRun> runs = [];
         string? feedback = null;
+        string? lastRefusal = null;
         var attempts = 0;
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
@@ -109,13 +110,33 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
                 return new WorkResult(Statuses.QaBlocked);
             }
 
-            feedback = await ProblemWithTestChangesAsync(workspace, verify);
+            var made = await DetectChangesAsync(workspace);
+            if (made.Oversized.Count > 0)
+            {
+                var dropped = await Workflow.ExecuteActivityAsync(
+                    (WorkspaceActivities activities) => activities.RemoveOversizedAsync(new RemoveOversizedRequest(workspace.Name, made.Oversized)),
+                    ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
+                if (dropped.Count > 0)
+                {
+                    await CommentAsync(request, $"QA attempt {attempt}: left out {dropped.Count} file(s) the tester wrote that are too large to publish or check ({string.Join(", ", dropped.Take(5).Select(TicketComments.Inert))}). Logs and recordings belong in /tmp.");
+                    made = await DetectChangesAsync(workspace);
+                }
+            }
+            feedback = ProblemWithTestChanges(made, verify);
             if (feedback is not null)
             {
                 await CommentAsync(request, $"QA attempt {attempt}: the tester's changes were not accepted: {TicketComments.Inert(Short(feedback))}");
                 runs = [];
+                if (feedback == lastRefusal)
+                {
+                    // The same refusal twice in a row: another attempt would cost tokens and end the same way.
+                    await CommentAsync(request, "The tester was refused for the same reason twice, so I stop here instead of spending another attempt.");
+                    break;
+                }
+                lastRefusal = feedback;
                 continue;
             }
+            lastRefusal = null;
 
             var results = new List<QaSuiteRun>();
             foreach (var suite in suites)
@@ -147,9 +168,8 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
     }
 
     /// <summary>The tester may change only files under the tests folder. Anything else, a deletion, a secret or a protected file goes back to it.</summary>
-    private static async Task<string?> ProblemWithTestChangesAsync(WorkspaceInfo workspace, VerifyConfig verify)
+    private static string? ProblemWithTestChanges(ChangeReport changes, VerifyConfig verify)
     {
-        var changes = await DetectChangesAsync(workspace);
         if (changes.Violations.Count > 0)
         {
             return BuildFeedback.FromViolations(changes.Violations);

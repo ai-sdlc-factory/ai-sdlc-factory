@@ -15,7 +15,39 @@ public sealed partial class GitWorkspace
         var inspection = await InspectAsync(name, cancellationToken);
         return new ChangeReport(
             inspection.Entries.Where(entry => entry.Listed).Select(entry => new FileChange(entry.Path, entry.Kind)).ToList(),
-            inspection.Entries.SelectMany(entry => entry.Problems).Concat(inspection.Global).ToList());
+            inspection.Entries.SelectMany(entry => entry.Problems).Concat(inspection.Global).ToList(),
+            inspection.Entries.Where(entry => entry.Listed && entry.Kind == FileChange.Added && entry.Reason.StartsWith(TooLarge, StringComparison.Ordinal)).Select(entry => entry.Path).ToList());
+    }
+
+    private const string TooLarge = "larger than";
+
+    /// <summary>
+    /// Removes new files from the agent's copy that are over the scan limit (a log or recording a tool left behind), so they do not cost the agent an attempt.
+    /// It checks every path itself (plain, not protected, no link on the way, not a file the repository already has, still a regular file over the limit), so nothing else can be deleted through it. Returns the paths removed.
+    /// </summary>
+    public IReadOnlyList<string> RemoveOversized(RemoveOversizedRequest request)
+    {
+        var root = RequireRoot();
+        RequireName(request.Name);
+        var work = WorkPath(root, request.Name);
+        var basePath = BasePath(root, request.Name);
+        var protectedPaths = ReadProtectedPaths(basePath);
+        var removed = new List<string>();
+        foreach (var path in request.Paths.Take(MaxChangedFiles))
+        {
+            // A file the repository already has (it exists in the pristine clone) is never removed here, only what the agent added.
+            if (!IsPlainRelative(path) || ProtectedPaths.IsProtected(path, protectedPaths) || HasSymlinkOnPath(work, path) || File.Exists($"{basePath}/{path}"))
+            {
+                continue;
+            }
+            var info = new FileInfo($"{work}/{path}");
+            if (info.Exists && info.LinkTarget is null && info.Length > SecretScan.MaxScanBytes)
+            {
+                info.Delete();
+                removed.Add(path);
+            }
+        }
+        return removed;
     }
 
     private async Task ResetBaseAsync(string basePath, CancellationToken cancellationToken)
@@ -138,7 +170,12 @@ public sealed partial class GitWorkspace
         if (info.Length > MaxFileBytes)
         {
             entry.Problems.Add($"{path} is {info.Length / 1024} KiB, more than the {MaxFileBytes / 1024} KiB limit per file");
-            return entry with { Reason = $"larger than {MaxFileBytes / 1024 / 1024} MiB" };
+            return entry with { Reason = $"{TooLarge} {MaxFileBytes / 1024 / 1024} MiB" };
+        }
+        if (info.Length > SecretScan.MaxScanBytes)
+        {
+            entry.Problems.Add(SecretScan.OversizeMessage(path));
+            return entry with { Reason = $"{TooLarge} {SecretScan.MaxScanBytes / 1024 / 1024} MiB" };
         }
         var secrets = SecretScan.Scan(path, File.ReadAllBytes(info.FullName), knownSecrets).ToList();
         if (secrets.Count > 0)

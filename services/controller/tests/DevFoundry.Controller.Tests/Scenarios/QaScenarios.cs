@@ -240,6 +240,44 @@ public sealed class QaScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_large_file_the_tester_left_behind_is_removed_by_the_factory_and_does_not_cost_an_attempt()
+    {
+        var withLog = new ChangeReport(
+            [new FileChange("e2e/api/goodbye.test", FileChange.Added), new FileChange("e2e/api-run.log", FileChange.Added)],
+            ["e2e/api-run.log is larger than 1 MiB and was not scanned for secrets"],
+            ["e2e/api-run.log"]);
+        var world = new FakeWorld { ProjectConfig = ApiConfig }
+            .Agent("e2e-tester", Reply(Answers.Tester()))
+            .Changes(withLog, Tests("e2e/api/goodbye.test"), Tests("e2e/api/goodbye.test"));
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal("qa_reported", result.Status);
+        Assert.Equal(["e2e/api-run.log"], world.RemovedOversized);
+        Assert.Single(world.Calls("e2e-tester")); // no second attempt was needed
+        Assert.Contains(world.Comments, c => c.Contains("left out 1 file(s)") && c.Contains("e2e/api-run.log") && c.Contains("/tmp"));
+        Assert.DoesNotContain(world.Comments, c => c.Contains("were not accepted"));
+        Assert.Single(world.Publishes);
+    }
+
+    [SkippableFact]
+    public async Task The_same_refusal_twice_in_a_row_stops_the_run_instead_of_spending_a_third_attempt()
+    {
+        var outside = new ChangeReport([new FileChange("e2e/api/goodbye.test", FileChange.Added), new FileChange("src/app.js", FileChange.Modified)], []);
+        var world = new FakeWorld { ProjectConfig = ApiConfig }
+            .Agent("e2e-tester", Reply(Answers.Tester()), Reply(Answers.Tester()), Reply(Answers.Tester()))
+            .Changes(outside, outside, outside);
+
+        var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
+
+        Assert.Equal(2, world.Calls("e2e-tester").Count());
+        Assert.Contains(world.Comments, c => c.Contains("refused for the same reason twice"));
+        Assert.Empty(world.Publishes);
+        Assert.DoesNotContain(world.Snapshot(world.CheckCalls), c => c.StartsWith("npm run e2e"));
+        Assert.NotNull(result.Status);
+    }
+
+    [SkippableFact]
     public async Task A_tester_that_cannot_write_tests_says_so_and_nothing_is_run()
     {
         var world = Api().Agent("e2e-tester", Reply(Answers.Tester("blocked")));

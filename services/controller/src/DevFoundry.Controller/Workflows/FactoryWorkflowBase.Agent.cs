@@ -92,7 +92,7 @@ public abstract partial class FactoryWorkflowBase
             }
             if (result.ExitCode != 0)
             {
-                problem = $"OpenCode exited with code {result.ExitCode}: {Short(result.Stderr)}";
+                problem = $"OpenCode exited with code {result.ExitCode}{ExitHint(result.ExitCode)}: {Short(result.Stderr)}";
                 NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = problem, Usage = spent });
                 continue;
@@ -125,4 +125,12 @@ public abstract partial class FactoryWorkflowBase
         }
         return new AgentOutcome<T>(null, false, problem);
     }
+
+    /// <summary>A short explanation for the exit codes that mean the sandbox, not the agent, ran into a limit.</summary>
+    public static string ExitHint(long code) => code switch
+    {
+        134 => " (the process aborted, usually because the sandbox ran out of processes or threads; see SANDBOX_PIDS_LIMIT)",
+        137 => " (the process was killed, usually because the sandbox ran out of memory; see SANDBOX_MEMORY_BYTES)",
+        _ => "",
+    };
 }

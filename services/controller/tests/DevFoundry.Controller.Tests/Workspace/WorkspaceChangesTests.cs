@@ -147,6 +147,29 @@ public sealed class WorkspaceChangesTests : IDisposable
     }
 
     [Fact]
+    public async Task A_new_file_over_the_scan_limit_is_reported_as_oversized_and_only_such_a_file_can_be_removed()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace);
+        File.WriteAllBytes($"{info.Path}/run.out", new byte[1536 * 1024]);          // new, 1.5 MiB: over the scan limit
+        File.WriteAllText($"{info.Path}/small.py", "x = 1\n");                       // new and small
+        File.WriteAllBytes($"{info.Path}/app.py", new byte[1536 * 1024]);             // tracked, modified, large: not removable through this
+
+        var report = await workspace.DetectChangesAsync(info.Name, CancellationToken.None);
+
+        Assert.Equal(["run.out"], report.Oversized);
+        Assert.Contains(report.Violations, v => v.Contains("run.out is larger than 1 MiB and was not scanned"));
+
+        var removed = workspace.RemoveOversized(new RemoveOversizedRequest(info.Name, ["run.out", "small.py", "app.py", "../escape", ".git/config"]));
+
+        Assert.Equal(["run.out"], removed);
+        Assert.False(File.Exists($"{info.Path}/run.out"));
+        Assert.True(File.Exists($"{info.Path}/small.py"));
+        Assert.True(File.Exists($"{info.Path}/app.py"));
+        Assert.Empty((await workspace.DetectChangesAsync(info.Name, CancellationToken.None)).Oversized);
+    }
+
+    [Fact]
     public async Task Ignored_files_are_not_changes()
     {
         var workspace = Workspace();
