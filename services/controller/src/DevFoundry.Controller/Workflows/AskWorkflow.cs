@@ -14,44 +14,51 @@ public sealed class AskWorkflow : FactoryWorkflowBase
     [WorkflowRun]
     public async Task<WorkResult> RunAsync(AskRequest ask)
     {
-        var request = ask.ToWorkRequest();
         if (ask.Question.Length == 0)
         {
-            await CommentAsync(request, AskComments.Usage);
+            await CommentAsync(ask.ToWorkRequest(), AskComments.Usage);
             return new WorkResult("ignored");
         }
 
-        string? changedFiles = null;
-        string? diff = null;
-        if (ask.OnPullRequest)
+        var pull = ask.OnPullRequest ? await ReadPullContextAsync(ask) : null;
+        if (pull is not null)
         {
-            try
-            {
-                var context = await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.ReadReviewContextAsync(new PullReviewRequest(ask.Owner, ask.Repo, ask.Number, ask.Author)),
-                    ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
-                request = request with { Title = context.Pull.Title, Body = context.Pull.Body };
-                if (context.Changes is { } changes)
-                {
-                    changedFiles = string.Join('\n', changes.Files.Take(60).Select(file => $"{file.Status} {file.Path} (+{file.Additions} -{file.Deletions})"));
-                    diff = changes.Diff;
-                }
-            }
-            catch (ActivityFailureException)
-            {
-                // The question can still be answered from the repository itself.
-            }
+            ask = ask with { Title = pull.Title, Body = pull.Body };
         }
 
         return await RunPipelineAsync(
-            request, "question",
-            work => StagesAsync(work, ask with { Title = request.Title, Body = request.Body }, changedFiles, diff),
+            ask.ToWorkRequest(), "question",
+            work => StagesAsync(work, ask, pull),
             // A throwaway local branch off the default branch, never pushed: the agent reads and nothing is written.
             workspaceFor: r => new WorkspaceRequest(r.Owner, r.Repo, r.WorkflowId, $"factory/ask-{ask.Number}"),
             startMessage: AskComments.Started(ask.OnPullRequest));
     }
 
-    private async Task<WorkResult> StagesAsync(WorkContext work, AskRequest ask, string? changedFiles, string? diff)
+    /// <summary>What a question on a pull request is told about it. The changed files and the diff are null when Forgejo could not give them.</summary>
+    private sealed record PullContext(string Title, string Body, string? ChangedFiles, string? Diff);
+
+    private const int MaxFilesListed = 60;
+
+    /// <summary>The pull request's description and what it changes, or null when Forgejo cannot be read: the question can still be answered from the repository itself.</summary>
+    private static async Task<PullContext?> ReadPullContextAsync(AskRequest ask)
+    {
+        try
+        {
+            var context = await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.ReadReviewContextAsync(new PullReviewRequest(ask.Owner, ask.Repo, ask.Number, ask.Author)),
+                ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
+            var changed = context.Changes is { } changes
+                ? string.Join('\n', changes.Files.Take(MaxFilesListed).Select(file => $"{file.Status} {file.Path} (+{file.Additions} -{file.Deletions})"))
+                : null;
+            return new PullContext(context.Pull.Title, context.Pull.Body, changed, context.Changes?.Diff);
+        }
+        catch (ActivityFailureException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<WorkResult> StagesAsync(WorkContext work, AskRequest ask, PullContext? pull)
     {
         var (request, workspace, project) = work;
         // No stage here asks a person a question.
@@ -59,7 +66,7 @@ public sealed class AskWorkflow : FactoryWorkflowBase
 
         var outcome = await RunAgentAsync<AskAnswer>(
             "asker", project.Image, workspace,
-            problem => AskPrompts.Build(ask, changedFiles, diff, problem),
+            problem => AskPrompts.Build(ask, pull?.ChangedFiles, pull?.Diff, problem),
             text => AskParser.TryParse(text, out var value, out var error) ? (value, null) : (null, error));
         if (outcome.NotSignedIn)
         {

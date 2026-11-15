@@ -110,18 +110,7 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
                 return new WorkResult(Statuses.QaBlocked);
             }
 
-            var made = await DetectChangesAsync(workspace);
-            if (made.Oversized.Count > 0)
-            {
-                var dropped = await Workflow.ExecuteActivityAsync(
-                    (WorkspaceActivities activities) => activities.RemoveOversizedAsync(new RemoveOversizedRequest(workspace.Name, made.Oversized)),
-                    ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
-                if (dropped.Count > 0)
-                {
-                    await CommentAsync(request, $"QA attempt {attempt}: left out {dropped.Count} file(s) the tester wrote that are too large to publish or check ({string.Join(", ", dropped.Take(5).Select(TicketComments.Inert))}). Logs and recordings belong in /tmp.");
-                    made = await DetectChangesAsync(workspace);
-                }
-            }
+            var made = await DropOversizedFilesAsync(request, workspace, attempt, await DetectChangesAsync(workspace));
             feedback = ProblemWithTestChanges(made, verify);
             if (feedback is not null)
             {
@@ -156,8 +145,9 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
             runs = results;
             await CommentAsync(request, $"QA attempt {attempt}: " + string.Join(", ", results.Select(r => $"{r.Suite} {(r.AppDidNotStart ? "app did not start" : r.Passed ? "passed" : "failed")}")) + ".");
 
-            if (results.All(r => r.Passed) || results.Any(r => r.AppDidNotStart) || attempt == MaxAttempts
-                || (attempt > 1 && report.BlamesOnlyTheApplication))
+            var nothingMoreToFix = results.All(r => r.Passed) || results.Any(r => r.AppDidNotStart);
+            var testerBlamesTheApplication = attempt > 1 && report.BlamesOnlyTheApplication;
+            if (nothingMoreToFix || testerBlamesTheApplication || attempt == MaxAttempts)
             {
                 break;
             }
@@ -165,6 +155,27 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
         }
 
         return await FinishAsync(work, qa, pull, verify, image, criteria, tester, runs, attempts, feedback);
+    }
+
+    /// <summary>
+    /// New files too large to publish or check (an application log, a recording) are removed here and named on the ticket, instead of being sent back to the tester,
+    /// which would cost an attempt. Returns the changes as they are afterwards.
+    /// </summary>
+    private async Task<ChangeReport> DropOversizedFilesAsync(WorkRequest request, WorkspaceInfo workspace, int attempt, ChangeReport made)
+    {
+        if (made.Oversized.Count == 0)
+        {
+            return made;
+        }
+        var dropped = await Workflow.ExecuteActivityAsync(
+            (WorkspaceActivities activities) => activities.RemoveOversizedAsync(new RemoveOversizedRequest(workspace.Name, made.Oversized)),
+            ActivityPolicy.Local(TimeSpan.FromMinutes(3), 2));
+        if (dropped.Count == 0)
+        {
+            return made;
+        }
+        await CommentAsync(request, $"QA attempt {attempt}: left out {dropped.Count} file(s) the tester wrote that are too large to publish or check ({string.Join(", ", dropped.Take(5).Select(TicketComments.Inert))}). Logs and recordings belong in /tmp.");
+        return await DetectChangesAsync(workspace);
     }
 
     /// <summary>The tester may change only files under the tests folder. Anything else, a deletion, a secret or a protected file goes back to it.</summary>

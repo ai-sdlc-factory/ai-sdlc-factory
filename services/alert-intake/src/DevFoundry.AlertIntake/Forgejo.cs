@@ -30,9 +30,18 @@ public sealed class ForgejoClient(HttpClient http) : IForgejo
 
     private static string RepoPath(string owner, string repo) => $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}";
 
-    public async Task<int?> FindOpenTicketAsync(string owner, string repo, string key, CancellationToken cancellationToken)
+    public Task<int?> FindOpenTicketAsync(string owner, string repo, string key, CancellationToken cancellationToken)
     {
         var marker = TicketText.Marker(key);
+        return FindOpenAsync(owner, repo, issue => BodyContains(issue, marker), cancellationToken);
+    }
+
+    public Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken) =>
+        FindOpenAsync(owner, repo, issue => BodyContains(issue, groupMarker) && CreatedAtOrAfter(issue, notBefore), cancellationToken);
+
+    /// <summary>The number of the first open ticket (in Forgejo's order) that <paramref name="matches"/>, reading at most <see cref="MaxPages"/> pages.</summary>
+    private async Task<int?> FindOpenAsync(string owner, string repo, Func<JsonElement, bool> matches, CancellationToken cancellationToken)
+    {
         for (var page = 1; page <= MaxPages; page++)
         {
             using var response = await http.GetAsync($"{RepoPath(owner, repo)}/issues?state=open&type=issues&limit={PageSize}&page={page}", cancellationToken);
@@ -44,8 +53,7 @@ public sealed class ForgejoClient(HttpClient http) : IForgejo
             }
             foreach (var issue in document.RootElement.EnumerateArray())
             {
-                if (issue.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
-                    && body.GetString()!.Contains(marker, StringComparison.Ordinal) && issue.TryGetProperty("number", out var number))
+                if (matches(issue) && issue.TryGetProperty("number", out var number))
                 {
                     return number.GetInt32();
                 }
@@ -54,30 +62,11 @@ public sealed class ForgejoClient(HttpClient http) : IForgejo
         return null;
     }
 
-    public async Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken)
-    {
-        for (var page = 1; page <= MaxPages; page++)
-        {
-            using var response = await http.GetAsync($"{RepoPath(owner, repo)}/issues?state=open&type=issues&limit={PageSize}&page={page}", cancellationToken);
-            await EnsureAsync(response, "ticket list", cancellationToken);
-            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
-            {
-                return null;
-            }
-            foreach (var issue in document.RootElement.EnumerateArray())
-            {
-                if (issue.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
-                    && body.GetString()!.Contains(groupMarker, StringComparison.Ordinal)
-                    && issue.TryGetProperty("created_at", out var created) && created.TryGetDateTimeOffset(out var at) && at >= notBefore
-                    && issue.TryGetProperty("number", out var number))
-                {
-                    return number.GetInt32();
-                }
-            }
-        }
-        return null;
-    }
+    private static bool BodyContains(JsonElement issue, string marker) =>
+        issue.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String && body.GetString()!.Contains(marker, StringComparison.Ordinal);
+
+    private static bool CreatedAtOrAfter(JsonElement issue, DateTimeOffset notBefore) =>
+        issue.TryGetProperty("created_at", out var created) && created.TryGetDateTimeOffset(out var at) && at >= notBefore;
 
     public async Task AddMarkerAsync(string owner, string repo, int number, string marker, CancellationToken cancellationToken)
     {

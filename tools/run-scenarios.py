@@ -16,23 +16,35 @@ import re
 import subprocess
 import sys
 import time
+from typing import NamedTuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS = os.path.join(ROOT, "services", "controller", "tests", "DevFoundry.Controller.Tests")
 TEST_ATTRIBUTE = re.compile(r"\[(?:Skippable)?(?:Fact|Theory)\b")
+SCENARIO_TRAIT = 'Trait("Category", "Scenario")'
+NO_RESULT = "no result line (the container failed to run the tests)"
+
+
+class Result(NamedTuple):
+    index: int
+    seconds: float
+    summary: str   # the "Passed!"/"Failed!" line of the test run, or NO_RESULT
+    ok: bool
+    output: str
+    is_rest: bool  # the container that runs everything the groups did not name
 
 
 def scenario_classes():
     """(class name, number of tests) of every class with the Scenario trait, anywhere in the test project, including a second or third class in one file."""
     result = []
-    for folder, _, files in os.walk(TESTS):
-        if os.sep + "bin" in folder or os.sep + "obj" in folder:
-            continue
+    for folder, directories, files in os.walk(TESTS):
+        directories[:] = [directory for directory in directories if directory not in ("bin", "obj")]
         for name in files:
             if not name.endswith(".cs"):
                 continue
-            text = open(os.path.join(folder, name), encoding="utf-8").read()
-            if 'Trait("Category", "Scenario")' not in text:
+            with open(os.path.join(folder, name), encoding="utf-8") as source:
+                text = source.read()
+            if SCENARIO_TRAIT not in text:
                 continue
             # A class's tests are the test attributes between its declaration and the next class declaration.
             declarations = list(re.finditer(r"^public (?:sealed |static |abstract )*class (\w+)", text, re.MULTILINE))
@@ -40,7 +52,7 @@ def scenario_classes():
                 end = declarations[position + 1].start() if position + 1 < len(declarations) else len(text)
                 # The trait sits just above the declaration (with other attributes between them at most).
                 lead = text[max(0, declaration.start() - 200):declaration.start()]
-                if 'Trait("Category", "Scenario")' in lead:
+                if SCENARIO_TRAIT in lead:
                     result.append((declaration.group(1), max(1, len(TEST_ATTRIBUTE.findall(text[declaration.start():end])))))
     return result
 
@@ -55,15 +67,31 @@ def partition(classes, groups):
     return [b[1] for b in bins if b[1]]
 
 
-def run(index, names, image, rest=False):
-    if rest:
+def run(index, names, image, is_rest=False):
+    if is_rest:
         # Everything with the Scenario trait that no group names, so a class the discovery missed is still run.
         filter_text = "Category=Scenario&" + "&".join(f"FullyQualifiedName!~.{name}." for name in names)
     else:
         filter_text = "Category=Scenario&(" + "|".join(f"FullyQualifiedName~.{name}." for name in names) + ")"
     started = time.time()
     process = subprocess.run(["docker", "run", "--rm", "-e", f"TEST_FILTER={filter_text}", image], capture_output=True, text=True)
-    return index, names, process.returncode, process.stdout + process.stderr, time.time() - started, rest
+    output = process.stdout + process.stderr
+    summary = next((line.strip() for line in output.splitlines() if re.match(r"\s*(Passed|Failed)!", line)), NO_RESULT)
+    if is_rest and "No test matches" in output:
+        return Result(index, time.time() - started, "nothing else carries the Scenario trait (as expected)", True, output, is_rest)
+    return Result(index, time.time() - started, summary, process.returncode == 0 and summary != NO_RESULT, output, is_rest)
+
+
+def report(result):
+    """One line for the container, and the failing tests (or the end of its output when it produced no result) when it did not pass."""
+    print(f"[{result.index}]{' (the rest)' if result.is_rest else ''} {result.seconds:5.0f}s  {result.summary}", flush=True)
+    if result.ok:
+        return
+    for line in result.output.splitlines():
+        if re.match(r"\s+Failed ", line) or "Error Message" in line:
+            print("      " + line.strip())
+    if result.summary == NO_RESULT:
+        print(result.output[-1500:])
 
 
 def main():
@@ -87,21 +115,12 @@ def main():
     started = time.time()
     failed = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(groups) + 1) as pool:
-        jobs = [pool.submit(run, i, g, arguments.image) for i, g in enumerate(groups, 1)]
+        jobs = [pool.submit(run, i, names, arguments.image) for i, names in enumerate(groups, 1)]
         jobs.append(pool.submit(run, len(groups) + 1, [name for name, _ in classes], arguments.image, True))
-        for index, names, code, output, seconds, rest in (f.result() for f in concurrent.futures.as_completed(jobs)):
-            summary = next((line.strip() for line in output.splitlines() if re.match(r"\s*(Passed|Failed)!", line)), "no result line (the container failed to run the tests)")
-            if rest and "No test matches" in output:
-                summary = "nothing else carries the Scenario trait (as expected)"
-                code = 0
-            print(f"[{index}]{' (the rest)' if rest else ''} {seconds:5.0f}s  {summary}", flush=True)
-            if code != 0 or summary.startswith("no result"):
-                failed = True
-                for line in output.splitlines():
-                    if re.match(r"\s+Failed ", line) or "Error Message" in line:
-                        print("      " + line.strip())
-                if summary.startswith("no result"):
-                    print(output[-1500:])
+        for finished in concurrent.futures.as_completed(jobs):
+            result = finished.result()
+            report(result)
+            failed = failed or not result.ok
     print(f"Done in {time.time() - started:.0f}s: {'FAILED' if failed else 'all scenarios passed'}.")
     sys.exit(1 if failed else 0)
 

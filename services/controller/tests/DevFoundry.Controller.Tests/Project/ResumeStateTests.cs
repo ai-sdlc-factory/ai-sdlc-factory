@@ -46,6 +46,7 @@ public sealed class ResumeStateTests
     [InlineData("AGENTS.md", false)]
     [InlineData("docs/agents.md", false)] // the same name as AGENTS.md, so treated as it: when in doubt, start over
     [InlineData("sub/AGENTS.md", false)]
+    [InlineData("CLAUDE.md", false)]
     [InlineData(".factory/notes.md", false)]
     [InlineData(".factory/project.json", false)]
     [InlineData("src/app.py", false)]

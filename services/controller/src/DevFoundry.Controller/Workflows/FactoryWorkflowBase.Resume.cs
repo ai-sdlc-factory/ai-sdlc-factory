@@ -46,7 +46,7 @@ public abstract partial class FactoryWorkflowBase
             }
             catch (ActivityFailureException)
             {
-                changedSince = null;
+                // Not known: the new commits count as relevant and the run starts over.
             }
         }
         if (saved.WhyNot(request, workspace, changedSince) is { } why)

@@ -15,11 +15,11 @@ public sealed partial class GitWorkspace
         var inspection = await InspectAsync(name, cancellationToken);
         return new ChangeReport(
             inspection.Entries.Where(entry => entry.Listed).Select(entry => new FileChange(entry.Path, entry.Kind)).ToList(),
-            inspection.Entries.SelectMany(entry => entry.Problems).Concat(inspection.Global).ToList(),
-            inspection.Entries.Where(entry => entry.Listed && entry.Kind == FileChange.Added && entry.Reason.StartsWith(TooLarge, StringComparison.Ordinal)).Select(entry => entry.Path).ToList());
+            inspection.Entries.SelectMany(entry => entry.Problems).Concat(inspection.Global).ToList())
+        {
+            Oversized = inspection.Entries.Where(entry => entry.Listed && entry.Oversized && entry.Kind == FileChange.Added).Select(entry => entry.Path).ToList(),
+        };
     }
-
-    private const string TooLarge = "larger than";
 
     /// <summary>
     /// The paths the default branch changed between an earlier commit and the one the clone is at now, read in the trusted clone, or null when that cannot be said (the commit is not
@@ -90,8 +90,8 @@ public sealed partial class GitWorkspace
         await GitAsync(["clean", "--force", "-d", "-x", "--quiet"], basePath, useToken: false, cancellationToken);
     }
 
-    /// <summary>One changed path and everything wrong with it. <see cref="Listed"/> files are part of the change report.</summary>
-    private sealed record Entry(string Path, string Kind, bool Listed, string Reason, List<string> Problems);
+    /// <summary>One changed path and everything wrong with it. <see cref="Listed"/> files are part of the change report; <see cref="Oversized"/> ones are over the size or scan limit.</summary>
+    private sealed record Entry(string Path, string Kind, bool Listed, string Reason, List<string> Problems, bool Oversized = false);
 
     private sealed record Inspection(List<Entry> Entries, List<string> Global, int ListedCount, long TotalBytes);
 
@@ -200,12 +200,12 @@ public sealed partial class GitWorkspace
         if (info.Length > MaxFileBytes)
         {
             entry.Problems.Add($"{path} is {info.Length / 1024} KiB, more than the {MaxFileBytes / 1024} KiB limit per file");
-            return entry with { Reason = $"{TooLarge} {MaxFileBytes / 1024 / 1024} MiB" };
+            return entry with { Reason = $"larger than {MaxFileBytes / 1024 / 1024} MiB", Oversized = true };
         }
         if (info.Length > SecretScan.MaxScanBytes)
         {
             entry.Problems.Add(SecretScan.OversizeMessage(path));
-            return entry with { Reason = $"{TooLarge} {SecretScan.MaxScanBytes / 1024 / 1024} MiB" };
+            return entry with { Reason = $"larger than {SecretScan.MaxScanBytes / 1024 / 1024} MiB", Oversized = true };
         }
         var secrets = SecretScan.Scan(path, File.ReadAllBytes(info.FullName), knownSecrets).ToList();
         if (secrets.Count > 0)

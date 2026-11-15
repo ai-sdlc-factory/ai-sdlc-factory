@@ -246,8 +246,9 @@ public static class ImprovementReportBuilder
         }
         // Plain HTTP requests (the proxy only tunnels HTTPS) are not a decision about a host: build tools make hundreds of them per build, mostly .NET's certificate
         // revocation checks (ocsp.digicert.com and the like), which fail softly. Counted on one line, never flagged, so nobody is led to allow hosts that cannot be proxied anyway.
-        var plain = denied.Where(item => item.Reason.StartsWith(PlainHttpReason, StringComparison.Ordinal)).ToList();
-        denied = denied.Where(item => !item.Reason.StartsWith(PlainHttpReason, StringComparison.Ordinal)).ToList();
+        var split = denied.ToLookup(item => item.Reason.StartsWith(PlainHttpReason, StringComparison.Ordinal));
+        var plain = split[true].ToList();
+        denied = split[false].ToList();
         if (denied.Count == 0 && plain.Count == 0)
         {
             text.AppendLine("No sandbox was refused a host this week.");

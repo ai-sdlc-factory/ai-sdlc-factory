@@ -244,8 +244,10 @@ public sealed class QaScenarios(TemporalFixture fixture)
     {
         var withLog = new ChangeReport(
             [new FileChange("e2e/api/goodbye.test", FileChange.Added), new FileChange("e2e/api-run.log", FileChange.Added)],
-            ["e2e/api-run.log is larger than 1 MiB and was not scanned for secrets"],
-            ["e2e/api-run.log"]);
+            ["e2e/api-run.log is larger than 1 MiB and was not scanned for secrets"])
+        {
+            Oversized = ["e2e/api-run.log"],
+        };
         var world = new FakeWorld { ProjectConfig = ApiConfig }
             .Agent("e2e-tester", Reply(Answers.Tester()))
             .Changes(withLog, Tests("e2e/api/goodbye.test"), Tests("e2e/api/goodbye.test"));

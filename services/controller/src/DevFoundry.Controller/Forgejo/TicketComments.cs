@@ -443,7 +443,10 @@ public static class TicketComments
 
     /// <summary>Stops text from notifying people (@name) or starting its own lines/blocks.</summary>
     public static string Inert(string value) =>
-        value.Replace("@", "@​").Replace("\r", " ").Replace("\n", " ").Replace("`", "'").Trim();
+        NoMentions(value).Replace("\r", " ").Replace("\n", " ").Replace("`", "'").Trim();
+
+    /// <summary>Puts a zero-width space after every <c>@</c>, so text from outside cannot notify a person. Line breaks and code formatting are kept.</summary>
+    public static string NoMentions(string value) => value.Replace("@", "@\u200b");
 
     private static string YesNo(bool value) => value ? "yes" : "no";
 }

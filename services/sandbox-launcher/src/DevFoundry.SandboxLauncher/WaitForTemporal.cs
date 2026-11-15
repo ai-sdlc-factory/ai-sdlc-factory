@@ -74,7 +74,7 @@ public sealed class WaitForTemporal(string address, ILogger<WaitForTemporal> log
             await client.ConnectAsync(host, port, timeout.Token);
             return true;
         }
-        catch (Exception error) when (error is SocketException or OperationCanceledException or IOException && !cancellationToken.IsCancellationRequested)
+        catch (Exception error) when ((error is SocketException or OperationCanceledException or IOException) && !cancellationToken.IsCancellationRequested)
         {
             return false;
         }

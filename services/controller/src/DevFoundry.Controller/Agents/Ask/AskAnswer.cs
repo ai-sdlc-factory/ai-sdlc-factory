@@ -18,6 +18,9 @@ public static partial class AskParser
     [System.Text.RegularExpressions.GeneratedRegex(@"\A[A-Za-z0-9._][A-Za-z0-9._/-]{0,199}\z")]
     private static partial System.Text.RegularExpressions.Regex PlainFile();
 
+    /// <summary>A relative file path in plain characters. Unlike <see cref="ImprovementParser.IsPlainPath"/> it may start with a dot (<c>.factory/project.json</c>), because answers cite such files.</summary>
+    private static bool IsUsablePath(string path) => PlainFile().IsMatch(path) && !path.Contains("..") && !path.Contains("//");
+
     public const int MaxAnswer = 6000;
     public const int MaxFiles = 10;
 
@@ -41,18 +44,9 @@ public static partial class AskParser
         }
         // The files are only a list of what was read, and each one is checked to exist before it is shown, so an entry that is not a usable path is dropped
         // instead of throwing away a good answer (and the tokens it cost).
-        var files = new List<string>();
-        if (root.TryGetProperty("files", out var array) && array.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in array.EnumerateArray())
-            {
-                var path = item.ValueKind == JsonValueKind.String ? item.GetString()?.Trim() : null;
-                if (path is not null && PlainFile().IsMatch(path) && !path.Contains("..") && !path.Contains("//"))
-                {
-                    files.Add(path);
-                }
-            }
-        }
+        var files = root.TryGetProperty("files", out var array) && array.ValueKind == JsonValueKind.Array
+            ? array.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!.Trim()).Where(IsUsablePath)
+            : [];
         result = new AskAnswer(verdict, answer, files.Distinct().Take(MaxFiles).ToList());
         error = "";
         return true;
@@ -61,9 +55,10 @@ public static partial class AskParser
 
 public static class AskPrompts
 {
+    private const int MaxTitle = 300;
     private const int MaxContext = 4_000;
+    private const int MaxChangedFiles = 1_500;
     private const int MaxDiff = 12_000;
-    private const int MaxFeedback = 2_000;
 
     public static string Build(AskRequest ask, string? changedFiles, string? diff, string? previousProblem)
     {
@@ -79,7 +74,7 @@ public static class AskPrompts
             text.AppendLine();
             text.AppendLine($"The question was asked on {(ask.OnPullRequest ? "pull request" : "ticket")} #{ask.Number}. What it says (data):");
             text.AppendLine("<<<CONTEXT");
-            text.AppendLine(PromptText.ClipLine(ask.Title, 300));
+            text.AppendLine(PromptText.ClipLine(ask.Title, MaxTitle));
             text.AppendLine(PromptText.Clip(ask.Body, MaxContext));
             text.AppendLine("CONTEXT>>>");
         }
@@ -87,7 +82,7 @@ public static class AskPrompts
         {
             text.AppendLine();
             text.AppendLine("The pull request changes these files (the checkout is the default branch, so it does not contain the change; the diff below shows it):");
-            text.AppendLine(PromptText.Clip(changedFiles, 1_500));
+            text.AppendLine(PromptText.Clip(changedFiles, MaxChangedFiles));
             text.AppendLine("<<<DIFF");
             text.AppendLine(PromptText.Clip(diff, MaxDiff));
             text.AppendLine("DIFF>>>");
@@ -119,7 +114,7 @@ public static class AskComments
         var text = new StringBuilder();
         text.AppendLine(answer.Verdict == AskAnswer.Answered ? "**Answer**" : "**I could not answer this from the repository**");
         text.AppendLine();
-        text.AppendLine(SecretScan.Redact(answer.Answer, []).Replace("@", "@​"));
+        text.AppendLine(TicketComments.NoMentions(SecretScan.Redact(answer.Answer, [])));
         if (readFiles.Count > 0)
         {
             text.AppendLine();

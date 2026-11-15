@@ -17,7 +17,7 @@ public static partial class RunRecords
     [GeneratedRegex(@"(?m)^(?=diff --git )")]
     private static partial Regex Sections();
 
-    /// <summary>The diff without the sections of run record files. Text before the first section (there is none in a git diff) is kept.</summary>
+    /// <summary>The diff without the sections of run record files.</summary>
     public static string WithoutRecords(string diff)
     {
         if (!diff.Contains(Folder, StringComparison.Ordinal))

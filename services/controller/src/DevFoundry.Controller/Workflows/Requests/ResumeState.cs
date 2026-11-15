@@ -41,19 +41,31 @@ public sealed record ResumeState(
     /// <summary>Null when this record may be used for this run; otherwise why not (a sentence that continues "I start from the beginning, because ...").</summary>
     /// <param name="changedSince">The files the default branch changed since the earlier run (null when that could not be found out). New commits that only touched
     /// files the stages do not read (see <see cref="IsUnrelated"/>) do not make the saved results stale.</param>
-    public string? WhyNot(WorkRequest request, WorkspaceInfo workspace, IReadOnlyList<string>? changedSince = null) =>
-        Version != CurrentVersion ? "the earlier run was saved by another version of the factory"
-        : Fingerprint != FingerprintOf(request) ? "the ticket's text or labels changed since the earlier run"
-        : HeadCommit != workspace.HeadCommit && !(changedSince is { Count: > 0 } && changedSince.All(IsUnrelated))
+    public string? WhyNot(WorkRequest request, WorkspaceInfo workspace, IReadOnlyList<string>? changedSince = null)
+    {
+        if (Version != CurrentVersion)
+        {
+            return "the earlier run was saved by another version of the factory";
+        }
+        if (Fingerprint != FingerprintOf(request))
+        {
+            return "the ticket's text or labels changed since the earlier run";
+        }
+        var newCommits = HeadCommit != workspace.HeadCommit;
+        var onlyUnrelatedFilesChanged = changedSince is { Count: > 0 } && changedSince.All(IsUnrelated);
+        return newCommits && !onlyUnrelatedFilesChanged
             ? "the default branch has new commits since the earlier run, so what it found may be out of date"
-        : null;
+            : null;
+    }
 
     /// <summary>
-    /// A file whose change cannot make an earlier analysis, coverage check or design out of date: a Markdown document other than <c>AGENTS.md</c> (which the agents are told to
-    /// read as the project's rules) and nothing under <c>.factory/</c> (the project's settings). Code, tests, configuration and everything else count.
+    /// A file whose change cannot make an earlier analysis, coverage check or design out of date: a Markdown document other than <c>AGENTS.md</c> or <c>CLAUDE.md</c> (which the
+    /// agents read as the project's rules) and nothing under <c>.factory/</c> (the project's settings). Code, tests, configuration and everything else count.
     /// </summary>
     public static bool IsUnrelated(string path) =>
         path.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
         && !path.StartsWith(".factory/", StringComparison.Ordinal)
-        && !string.Equals(System.IO.Path.GetFileName(path), "AGENTS.md", StringComparison.OrdinalIgnoreCase);
+        && !RulesFiles.Contains(System.IO.Path.GetFileName(path), StringComparer.OrdinalIgnoreCase);
+
+    private static readonly string[] RulesFiles = ["AGENTS.md", "CLAUDE.md"];
 }

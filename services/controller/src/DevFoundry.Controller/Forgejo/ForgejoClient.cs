@@ -175,20 +175,27 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         }
         await using var stream = await diffResponse.Content.ReadAsStreamAsync(cancellationToken);
         // Read far enough to find the code after any run records at the top of the diff (.factory sorts first), but never an unbounded amount.
-        var buffer = new byte[MaxRawDiffBytes + 1];
-        var read = 0;
-        while (read < buffer.Length)
+        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(MaxRawDiffBytes + 1);
+        try
         {
-            var count = await stream.ReadAsync(buffer.AsMemory(read), cancellationToken);
-            if (count == 0)
+            var read = 0;
+            while (read <= MaxRawDiffBytes)
             {
-                break;
+                var count = await stream.ReadAsync(buffer.AsMemory(read, MaxRawDiffBytes + 1 - read), cancellationToken);
+                if (count == 0)
+                {
+                    break;
+                }
+                read += count;
             }
-            read += count;
+            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxRawDiffBytes)));
+            var cut = read > MaxRawDiffBytes || text.Length > MaxDiffBytes;
+            return new PullChanges(files, total, text.Length > MaxDiffBytes ? text[..MaxDiffBytes] : text, cut);
         }
-        var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxRawDiffBytes)));
-        var cut = read > MaxRawDiffBytes || text.Length > MaxDiffBytes;
-        return new PullChanges(files, total, text.Length > MaxDiffBytes ? text[..MaxDiffBytes] : text, cut);
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private static int Count(JsonElement element, string name) =>
@@ -366,9 +373,13 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         {
             return false;
         }
-        await PostIssueCommentAsync(owner, repo, issueNumber, $"{TicketComments.NoticeMarker}\n{body}", cancellationToken);
+        await PostNoticeAsync(owner, repo, issueNumber, body, cancellationToken);
         return true;
     }
+
+    /// <summary>Posts the notice with the marker that tells it from a person's comment. The callers decide whether to.</summary>
+    private Task PostNoticeAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken) =>
+        PostIssueCommentAsync(owner, repo, issueNumber, $"{TicketComments.NoticeMarker}\n{body}", cancellationToken);
 
     /// <summary>
     /// Posts a notice unless a comment with exactly this text is anywhere on the ticket (the last 200 comments), so a notice about something that has not changed is said once
@@ -382,7 +393,7 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         {
             return false;
         }
-        await PostIssueCommentAsync(owner, repo, issueNumber, $"{TicketComments.NoticeMarker}\n{body}", cancellationToken);
+        await PostNoticeAsync(owner, repo, issueNumber, body, cancellationToken);
         return true;
     }
 
