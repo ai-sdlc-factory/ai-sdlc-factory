@@ -22,6 +22,8 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 If a ticket has several of these labels, `incident` wins over `plan`, which wins over `feature`, which wins over `bug`, which wins over `docs`. The labels `quick`, `full` and
 `needs-architecture` change how a feature or bug run behaves ([Quick mode](#quick-mode)).
 
+> **Looking for what to type?** The [commands and labels cheat sheet](commands.md) lists every label and slash command, where to type it and what it starts. This page explains what happens next.
+
 ## Ticket routing
 
 ![From a Forgejo event to a workflow](images/ticket-routing.svg)
