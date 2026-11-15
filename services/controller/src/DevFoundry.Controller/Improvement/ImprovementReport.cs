@@ -244,12 +244,40 @@ public static class ImprovementReportBuilder
             text.AppendLine();
             return;
         }
-        if (denied.Count == 0)
+        // Plain HTTP requests (the proxy only tunnels HTTPS) are not a decision about a host: build tools make hundreds of them per build, mostly .NET's certificate
+        // revocation checks (ocsp.digicert.com and the like), which fail softly. Counted on one line, never flagged, so nobody is led to allow hosts that cannot be proxied anyway.
+        var plain = denied.Where(item => item.Reason.StartsWith(PlainHttpReason, StringComparison.Ordinal)).ToList();
+        denied = denied.Where(item => !item.Reason.StartsWith(PlainHttpReason, StringComparison.Ordinal)).ToList();
+        if (denied.Count == 0 && plain.Count == 0)
         {
             text.AppendLine("No sandbox was refused a host this week.");
             text.AppendLine();
             return;
         }
+        if (denied.Count == 0)
+        {
+            text.AppendLine("No sandbox was refused a host by the allowlists this week.");
+        }
+        else
+        {
+            AppendRefusalTable(text, findings, denied);
+        }
+        if (plain.Count > 0)
+        {
+            var hosts = plain.Where(item => item.Host != "-").GroupBy(item => item.Host).OrderByDescending(group => group.Count()).Take(5).Select(group => $"`{group.Key}` ({group.Count()})");
+            text.AppendLine();
+            text.AppendLine($"Not counted above: **{plain.Count} plain HTTP request{(plain.Count == 1 ? "" : "s")}** were refused because the proxy only carries HTTPS tunnels" +
+                (hosts.Any() ? $", most to {string.Join(", ", hosts)}" : "") +
+                ". Build tools do this (often certificate revocation checks, which fail softly); it needs no change unless a build stops working.");
+        }
+        text.AppendLine();
+    }
+
+    /// <summary>The reason the proxy gives for a plain HTTP request; see <c>ProxyServer</c> in the egress proxy.</summary>
+    private const string PlainHttpReason = "only CONNECT is supported";
+
+    private static void AppendRefusalTable(StringBuilder text, List<ReportFinding> findings, IReadOnlyList<DeniedHost> denied)
+    {
         text.AppendLine("| host | profile | refused | why |");
         text.AppendLine("| --- | --- | ---: | --- |");
         foreach (var group in denied.GroupBy(item => (item.Host, item.Profile)).OrderByDescending(group => group.Count()).ThenBy(group => group.Key.Host, StringComparer.Ordinal).Take(10))

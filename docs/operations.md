@@ -143,7 +143,7 @@ Once a week (a few minutes after the controller starts and then checked every ho
 | **rounds used**, per kind of run | at least 30% of the runs needed 3 rounds or more |
 | **runs that stopped the same way** | 3 or more runs of a kind ended the same unhealthy way (anything but a pull request, a posted result or a close) |
 | **token outliers** | a run used 3 times the median of its kind (needs 5 runs of the kind) and at least 50,000 tokens |
-| **refused hosts** | the same host was refused 3 or more times (from the proxy's refusal log) |
+| **refused hosts** | the same host was refused 3 or more times (from the proxy's refusal log). **Plain HTTP requests** are not counted here: the proxy only carries HTTPS tunnels, and build tools make hundreds of plain requests per build (.NET's certificate revocation checks to `ocsp.digicert.com` and `crl3.digicert.com`, found in the weather build), which fail softly. The report counts them on one separate line and never flags them |
 
 Without anything to flag, or with no repository set, that is all: a file. To have the factory use it, set `FACTORY_IMPROVEMENT_REPO=owner/name` (usually the factory's own repository on Forgejo; it needs a `.factory/project.json`, because an agent reads it). When the report flags something, the factory then:
 

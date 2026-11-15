@@ -237,6 +237,38 @@ public sealed class ImprovementReportActivityTests : IDisposable
         Assert.Contains("| evil.example | developer | 4 | not on the list |", result.Markdown);
     }
 
+    [Fact]
+    public void Plain_http_requests_are_counted_on_one_line_and_never_flagged_as_refused_hosts()
+    {
+        var denied = Path.Combine(root, "denied.jsonl");
+        string Line(string host, string reason, string profile = "packages") =>
+            $$"""{"time":"2026-11-10T10:00:00+00:00","profile":"{{profile}}","client":"10.250.2.3","host":"{{host}}","port":0,"decision":"deny","reason":"{{reason}}","bytes_up":0,"bytes_down":0,"milliseconds":1}""";
+        const string plain = "only CONNECT is supported (plain HTTP is not proxied)";
+        File.WriteAllLines(denied, [.. Enumerable.Repeat(Line("ocsp.digicert.com", plain), 280), .. Enumerable.Repeat(Line("-", plain), 5), .. Enumerable.Repeat(Line("evil.example", "not on the list", "developer"), 3)]);
+
+        var result = Workspace(denied).BuildImprovementReport(new ImprovementRequest("2026-W46", "2026-11-09", "2026-11-16", null));
+
+        Assert.Contains("| evil.example | developer | 3 | not on the list |", result.Markdown);
+        Assert.DoesNotContain("| ocsp.digicert.com |", result.Markdown);
+        Assert.Contains("**285 plain HTTP requests** were refused", result.Markdown);
+        Assert.Contains("`ocsp.digicert.com` (280)", result.Markdown);
+        Assert.Contains("`evil.example` on the developer profile", result.Markdown); // a real refusal is still flagged
+        Assert.DoesNotContain("`ocsp.digicert.com` on the", result.Markdown);
+    }
+
+    [Fact]
+    public void A_week_with_only_plain_http_refusals_flags_nothing()
+    {
+        var denied = Path.Combine(root, "denied.jsonl");
+        File.WriteAllLines(denied, Enumerable.Repeat("""{"time":"2026-11-10T10:00:00+00:00","profile":"packages","client":"10.250.2.3","host":"crl3.digicert.com","port":0,"decision":"deny","reason":"only CONNECT is supported (plain HTTP is not proxied)","bytes_up":0,"bytes_down":0,"milliseconds":1}""", 50));
+
+        var result = Workspace(denied).BuildImprovementReport(new ImprovementRequest("2026-W46", "2026-11-09", "2026-11-16", null));
+
+        Assert.False(result.HasFindings);
+        Assert.Contains("No sandbox was refused a host by the allowlists this week.", result.Markdown);
+        Assert.Contains("50 plain HTTP requests", result.Markdown);
+    }
+
     [Theory]
     [InlineData("2026-46", "2026-11-09", "2026-11-16")]
     [InlineData("../x", "2026-11-09", "2026-11-16")]
