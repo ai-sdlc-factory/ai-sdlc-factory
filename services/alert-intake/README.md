@@ -8,7 +8,7 @@ The design: agents never get production access, and what monitoring says is **da
 
 | Event | Result |
 | --- | --- |
-| a **firing** alert whose labels match a route | one ticket in the route's repository, with the route's labels, the alert's details and (optionally) recent log lines |
+| a **firing** alert whose labels match a route | one ticket in the route's repository, with the route's labels, the alert's details and (optionally) recent log lines. If that route already has an **open ticket opened in the last 15 minutes** (`ALERT_INTAKE_GROUP_MINUTES`), the alert is added to it as a comment instead (`grouped`): one outage often raises several alerts, and each ticket starts an incident run |
 | the same alert again while its ticket is open | nothing (the ticket carries a hidden marker with the alert's fingerprint; Alertmanager repeats notifications every few hours) |
 | that ticket is closed and the alert fires again | a new ticket |
 | a **resolved** alert | a comment on its open ticket ("the alert has resolved, check whether it can be closed"). The ticket is never closed by the intake |
@@ -50,7 +50,7 @@ The comment on a resolved alert carries the factory's own marker, so the factory
 
 ## Metrics
 
-`GET /metrics` (no token; the port is not published outside the Compose network) gives Prometheus counters only, never text from an alert: `alert_intake_notifications_total`, `alert_intake_alerts_total`, `alert_intake_outcomes_total{action}` (`created`, `duplicate`, `commented`, `rate_limited`, `ignored`, `dry_run`, `failed`), `alert_intake_rejected_total{reason}` (`unauthorized`, `too_large`, `invalid`) and the gauges `alert_intake_dry_run`, `alert_intake_routes` and `alert_intake_max_tickets_per_hour`. Every series exists from the start, so a rate works before the first event. The demo's Overview dashboard and its monitoring alerts use them.
+`GET /metrics` (no token; the port is not published outside the Compose network) gives Prometheus counters only, never text from an alert: `alert_intake_notifications_total`, `alert_intake_alerts_total`, `alert_intake_outcomes_total{action}` (`created`, `duplicate`, `commented`, `grouped`, `rate_limited`, `ignored`, `dry_run`, `failed`), `alert_intake_rejected_total{reason}` (`unauthorized`, `too_large`, `invalid`) and the gauges `alert_intake_dry_run`, `alert_intake_routes` and `alert_intake_max_tickets_per_hour`. Every series exists from the start, so a rate works before the first event. The demo's Overview dashboard and its monitoring alerts use them.
 
 ## Settings
 

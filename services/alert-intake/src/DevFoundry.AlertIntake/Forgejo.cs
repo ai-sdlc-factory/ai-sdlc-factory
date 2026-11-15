@@ -11,6 +11,12 @@ public interface IForgejo
     /// <summary>The number of an open ticket that carries this alert's marker, or null.</summary>
     Task<int?> FindOpenTicketAsync(string owner, string repo, string key, CancellationToken cancellationToken);
 
+    /// <summary>The number of an open ticket that carries this route marker and was opened at or after <paramref name="notBefore"/>, or null.</summary>
+    Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken);
+
+    /// <summary>Adds a hidden marker to a ticket's text, so a later notice for the alert that was added to it finds the ticket by its own marker.</summary>
+    Task AddMarkerAsync(string owner, string repo, int number, string marker, CancellationToken cancellationToken);
+
     Task<IssueRef> CreateTicketAsync(string owner, string repo, string title, string body, IReadOnlyList<string> labels, CancellationToken cancellationToken);
 
     Task CommentAsync(string owner, string repo, int number, string body, CancellationToken cancellationToken);
@@ -46,6 +52,46 @@ public sealed class ForgejoClient(HttpClient http) : IForgejo
             }
         }
         return null;
+    }
+
+    public async Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken)
+    {
+        for (var page = 1; page <= MaxPages; page++)
+        {
+            using var response = await http.GetAsync($"{RepoPath(owner, repo)}/issues?state=open&type=issues&limit={PageSize}&page={page}", cancellationToken);
+            await EnsureAsync(response, "ticket list", cancellationToken);
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
+            {
+                return null;
+            }
+            foreach (var issue in document.RootElement.EnumerateArray())
+            {
+                if (issue.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
+                    && body.GetString()!.Contains(groupMarker, StringComparison.Ordinal)
+                    && issue.TryGetProperty("created_at", out var created) && created.TryGetDateTimeOffset(out var at) && at >= notBefore
+                    && issue.TryGetProperty("number", out var number))
+                {
+                    return number.GetInt32();
+                }
+            }
+        }
+        return null;
+    }
+
+    public async Task AddMarkerAsync(string owner, string repo, int number, string marker, CancellationToken cancellationToken)
+    {
+        using var current = await http.GetAsync($"{RepoPath(owner, repo)}/issues/{number}", cancellationToken);
+        await EnsureAsync(current, "ticket", cancellationToken);
+        using var document = await JsonDocument.ParseAsync(await current.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        var body = document.RootElement.TryGetProperty("body", out var text) && text.ValueKind == JsonValueKind.String ? text.GetString()! : "";
+        if (body.Contains(marker, StringComparison.Ordinal))
+        {
+            return;
+        }
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"{RepoPath(owner, repo)}/issues/{number}") { Content = JsonContent.Create(new { body = body.TrimEnd() + "\n" + marker }) };
+        using var response = await http.SendAsync(request, cancellationToken);
+        await EnsureAsync(response, "ticket update", cancellationToken);
     }
 
     public async Task<IssueRef> CreateTicketAsync(string owner, string repo, string title, string body, IReadOnlyList<string> labels, CancellationToken cancellationToken)

@@ -17,6 +17,9 @@ public sealed class IntakeSettings
     public string LokiUrl { get; init; } = "";
 
     public int MaxTicketsPerHour { get; init; } = 6;
+
+    /// <summary>An alert for a route that already has an open ticket from the last this-many minutes is added to that ticket as a comment, not opened as a new one (one outage often raises several alerts). 0 switches it off.</summary>
+    public int GroupMinutes { get; init; } = 15;
     public int MaxBodyBytes { get; init; } = 262_144;
 
     public static IntakeSettings FromConfiguration(IConfiguration configuration)
@@ -30,6 +33,7 @@ public sealed class IntakeSettings
             DryRun = configuration.GetValue("ALERT_INTAKE_DRY_RUN", true),
             LokiUrl = configuration["ALERT_INTAKE_LOKI_URL"] ?? "",
             MaxTicketsPerHour = configuration.GetValue("ALERT_INTAKE_MAX_TICKETS_PER_HOUR", 6),
+            GroupMinutes = configuration.GetValue("ALERT_INTAKE_GROUP_MINUTES", 15),
             MaxBodyBytes = configuration.GetValue("ALERT_INTAKE_MAX_BODY_BYTES", 262_144),
         };
         settings.Validate();
@@ -57,6 +61,10 @@ public sealed class IntakeSettings
         if (MaxTicketsPerHour is < 1 or > 100)
         {
             throw new InvalidOperationException("ALERT_INTAKE_MAX_TICKETS_PER_HOUR must be between 1 and 100.");
+        }
+        if (GroupMinutes is < 0 or > 1_440)
+        {
+            throw new InvalidOperationException("ALERT_INTAKE_GROUP_MINUTES must be between 0 and 1440.");
         }
         if (MaxBodyBytes is < 1_024 or > 1_048_576)
         {

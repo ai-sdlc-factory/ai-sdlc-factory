@@ -10,7 +10,7 @@ namespace DevFoundry.AlertIntake;
 public sealed class IntakeMetrics(IntakeSettings settings, RouteTable routes)
 {
     public static readonly string[] Actions =
-        [AlertOutcome.Created, AlertOutcome.Duplicate, AlertOutcome.Commented, AlertOutcome.RateLimited, AlertOutcome.Ignored, AlertOutcome.DryRun, AlertOutcome.Failed];
+        [AlertOutcome.Created, AlertOutcome.Duplicate, AlertOutcome.Commented, AlertOutcome.Grouped, AlertOutcome.RateLimited, AlertOutcome.Ignored, AlertOutcome.DryRun, AlertOutcome.Failed];
 
     public static readonly string[] RejectReasons = ["unauthorized", "too_large", "invalid"];
 

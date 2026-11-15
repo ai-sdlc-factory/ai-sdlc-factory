@@ -125,6 +125,7 @@ The service that turns monitoring alerts into tickets ([its README](../services/
 | `ALERT_INTAKE_DRY_RUN` | `true` | `true` writes nothing to Forgejo and only logs the ticket that would be opened |
 | `ALERT_INTAKE_MAPPING_FILE` | `/etc/alert-intake/mapping.json` | the operator's route table: which alert goes to which repository, with which labels and log queries |
 | `ALERT_INTAKE_MAX_TICKETS_PER_HOUR` | `6` | at most this many new tickets in any hour (1 to 100) |
+| `ALERT_INTAKE_GROUP_MINUTES` | `15` | an alert of a route that already has an **open ticket opened in the last this-many minutes** is added to that ticket as a comment instead of opening a second one, so one outage is one ticket and one incident run (0 switches it off, up to 1440). Alerts of different routes are never grouped |
 | `ALERT_INTAKE_MAX_BODY_BYTES` | `262144` | largest accepted notification (1,024 to 1,048,576) |
 | `ALERT_INTAKE_LOKI_URL` | empty | where Loki answers, for the log lines a route adds to its tickets; empty means no log evidence |
 | `FORGEJO_URL` | `http://forgejo:3000` | where Forgejo is (as for the controller) |

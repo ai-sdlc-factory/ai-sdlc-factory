@@ -162,6 +162,100 @@ public sealed class ProcessorTests
         Assert.True(ticket.Body.Length < 4000, ticket.Body.Length.ToString());
         Assert.True(ticket.Title.Length <= 120);
     }
+
+    // ---- one outage, several alerts ---------------------------------------------------------------------
+
+    [Fact]
+    public async Task A_second_alert_of_the_same_route_while_its_ticket_is_recent_is_added_to_that_ticket_as_a_comment()
+    {
+        var forgejo = new FakeForgejo();
+        var processor = Setup.Processor(forgejo, Setup.Settings(group: 15));
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+
+        var outcomes = await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing("WeatherApiUnhealthy", summary: "The container is unhealthy", fingerprint: "ffff000011112222"))), default);
+
+        var outcome = Assert.Single(outcomes);
+        Assert.Equal(AlertOutcome.Grouped, outcome.Action);
+        Assert.Equal(1, outcome.Ticket);
+        var ticket = Assert.Single(forgejo.Tickets); // no second ticket, so no second incident run
+        var comment = Assert.Single(forgejo.Comments);
+        Assert.Contains("**Another alert fired for the same service:** WeatherApiUnhealthy (critical)", comment.Body);
+        Assert.Contains("The container is unhealthy", comment.Body);
+        Assert.StartsWith(TicketText.FactoryMarker, comment.Body); // the factory never takes it for a person's answer
+        Assert.Contains(TicketText.Marker("ffff000011112222"), ticket.Body);
+    }
+
+    [Fact]
+    public async Task A_grouped_alert_firing_again_is_a_duplicate_and_its_resolution_is_told_to_the_same_ticket()
+    {
+        var forgejo = new FakeForgejo();
+        var processor = Setup.Processor(forgejo, Setup.Settings(group: 15));
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+        var second = Setup.Firing("WeatherApiUnhealthy", fingerprint: "ffff000011112222");
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(second)), default);
+
+        var again = await processor.ProcessAsync(Setup.Parse(Setup.Message(second)), default);
+        var resolved = await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Resolved("WeatherApiUnhealthy", fingerprint: "ffff000011112222"))), default);
+
+        Assert.Equal(AlertOutcome.Duplicate, Assert.Single(again).Action);
+        Assert.Equal(AlertOutcome.Commented, Assert.Single(resolved).Action);
+        Assert.Equal(1, Assert.Single(resolved).Ticket);
+        Assert.Single(forgejo.Tickets);
+        Assert.Equal(2, forgejo.Comments.Count); // the grouped alert, then its resolution
+    }
+
+    [Fact]
+    public async Task An_alert_after_the_window_opens_a_ticket_of_its_own()
+    {
+        var forgejo = new FakeForgejo();
+        var clock = new ManualClock();
+        forgejo.Clock = clock;
+        var processor = Setup.Processor(forgejo, Setup.Settings(group: 15), clock: clock);
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+        clock.Advance(TimeSpan.FromMinutes(16));
+
+        var outcomes = await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing("WeatherApiSlow", fingerprint: "1111222233334444"))), default);
+
+        Assert.Equal(AlertOutcome.Created, Assert.Single(outcomes).Action);
+        Assert.Equal(2, forgejo.Tickets.Count);
+    }
+
+    [Fact]
+    public async Task Grouping_can_be_switched_off()
+    {
+        var forgejo = new FakeForgejo();
+        var processor = Setup.Processor(forgejo, Setup.Settings(group: 0));
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing("WeatherApiUnhealthy", fingerprint: "ffff000011112222"))), default);
+
+        Assert.Equal(2, forgejo.Tickets.Count);
+    }
+
+    [Fact]
+    public async Task Alerts_of_different_routes_are_never_grouped()
+    {
+        const string routes = """{"routes":[{"match":{"service":"weather"},"repository":"valters/weather","labels":["incident"]},{"match":{"service":"shop"},"repository":"valters/shop","labels":["incident"]}]}""";
+        var forgejo = new FakeForgejo();
+        var processor = Setup.Processor(forgejo, Setup.Settings(group: 15), routes);
+        await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+
+        var outcomes = await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing("ShopDown", "shop", "9999888877776666"))), default);
+
+        Assert.Equal(AlertOutcome.Created, Assert.Single(outcomes).Action);
+        Assert.Equal(["valters/weather", "valters/shop"], forgejo.Tickets.Select(t => $"{t.Owner}/{t.Repo}"));
+    }
+
+    [Fact]
+    public async Task A_dry_run_groups_nothing()
+    {
+        var forgejo = new FakeForgejo();
+
+        var outcomes = await Setup.Processor(forgejo, Setup.Settings(dryRun: true, group: 15)).ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+
+        Assert.Equal(AlertOutcome.DryRun, Assert.Single(outcomes).Action);
+        Assert.Empty(forgejo.Tickets);
+    }
 }
 
 public sealed class ManualClock : TimeProvider

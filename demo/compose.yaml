@@ -153,6 +153,7 @@ services:
       # Dry run by default: the ticket that would be opened is only written to the log. ./setup.sh --create-tickets turns it off.
       ALERT_INTAKE_DRY_RUN: ${ALERT_INTAKE_DRY_RUN:-true}
       ALERT_INTAKE_MAX_TICKETS_PER_HOUR: ${ALERT_INTAKE_MAX_TICKETS_PER_HOUR:-6}
+      ALERT_INTAKE_GROUP_MINUTES: ${ALERT_INTAKE_GROUP_MINUTES:-15}
       ALERT_INTAKE_LOKI_URL: http://loki:3100
       FORGEJO_URL: http://forgejo:3000
       FORGEJO_BOT_TOKEN: ${INTAKE_FORGEJO_TOKEN:-}

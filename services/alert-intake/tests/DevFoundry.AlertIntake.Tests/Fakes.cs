@@ -6,7 +6,10 @@ namespace DevFoundry.AlertIntake.Tests;
 
 public sealed class FakeForgejo : IForgejo
 {
-    public sealed record Ticket(string Owner, string Repo, int Number, string Title, string Body, IReadOnlyList<string> Labels, bool Open = true);
+    public sealed record Ticket(string Owner, string Repo, int Number, string Title, string Body, IReadOnlyList<string> Labels, bool Open = true, DateTimeOffset CreatedAt = default);
+
+    /// <summary>The time tickets are opened at, so a test can say how long ago one was.</summary>
+    public TimeProvider Clock { get; set; } = TimeProvider.System;
 
     public List<Ticket> Tickets { get; } = [];
     public List<(string Owner, string Repo, int Number, string Body)> Comments { get; } = [];
@@ -19,11 +22,24 @@ public sealed class FakeForgejo : IForgejo
         return Task.FromResult(Tickets.Where(t => t.Open && t.Owner == owner && t.Repo == repo && t.Body.Contains(marker)).Select(t => (int?)t.Number).FirstOrDefault());
     }
 
+    public Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken)
+    {
+        Fail();
+        return Task.FromResult(Tickets.Where(t => t.Open && t.Owner == owner && t.Repo == repo && t.Body.Contains(groupMarker) && t.CreatedAt >= notBefore).Select(t => (int?)t.Number).FirstOrDefault());
+    }
+
+    public Task AddMarkerAsync(string owner, string repo, int number, string marker, CancellationToken cancellationToken)
+    {
+        Fail();
+        Tickets[number - 1] = Tickets[number - 1] with { Body = Tickets[number - 1].Body + "\n" + marker };
+        return Task.CompletedTask;
+    }
+
     public Task<IssueRef> CreateTicketAsync(string owner, string repo, string title, string body, IReadOnlyList<string> labels, CancellationToken cancellationToken)
     {
         Fail();
         var number = Tickets.Count + 1;
-        Tickets.Add(new Ticket(owner, repo, number, title, body, labels));
+        Tickets.Add(new Ticket(owner, repo, number, title, body, labels, true, Clock.GetUtcNow()));
         return Task.FromResult(new IssueRef(number, $"http://forgejo/{owner}/{repo}/issues/{number}"));
     }
 
@@ -68,9 +84,9 @@ public static class Setup
 
     public const string WeatherRoutes = """{"routes":[{"match":{"service":"weather"},"repository":"valters/weather","labels":["incident"]}]}""";
 
-    public static IntakeSettings Settings(bool dryRun = false, int perHour = 6, int maxBody = 262_144) => new()
+    public static IntakeSettings Settings(bool dryRun = false, int perHour = 6, int maxBody = 262_144, int group = 0) => new()
     {
-        Token = Token, ForgejoToken = "forgejo-token", DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody,
+        Token = Token, ForgejoToken = "forgejo-token", DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
     };
 
     public static AlertProcessor Processor(FakeForgejo forgejo, IntakeSettings? settings = null, string routes = WeatherRoutes, TimeProvider? clock = null, ILogSource? logs = null, IntakeMetrics? metrics = null)
@@ -78,7 +94,7 @@ public static class Setup
         settings ??= Settings();
         var table = RouteTable.Parse(routes);
         return new AlertProcessor(settings, table, forgejo, logs ?? new NoLogs(), new RateLimiter(settings.MaxTicketsPerHour, clock ?? TimeProvider.System),
-            metrics ?? new IntakeMetrics(settings, table), NullLogger<AlertProcessor>.Instance);
+            metrics ?? new IntakeMetrics(settings, table), NullLogger<AlertProcessor>.Instance, () => (clock ?? TimeProvider.System).GetUtcNow());
     }
 
     /// <summary>An Alertmanager notification (webhook version 4) with the given alerts.</summary>
