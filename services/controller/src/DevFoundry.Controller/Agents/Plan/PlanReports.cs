@@ -140,6 +140,16 @@ public static partial class PlanCommands
     private static partial Regex Numbers();
 
     /// <summary>
+    /// True when a comment is nothing but lines that start with <c>/approve</c> and are not an approval (<c>/approve please</c>, <c>/approve all</c>). That is a person trying
+    /// to approve and getting the words wrong, not a request to change the plan, so it is answered with how approving works instead of making the planner plan again.
+    /// </summary>
+    public static bool IsOnlyAnUnclearApproval(string? body)
+    {
+        var lines = (body ?? "").Replace("\r", "").Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
+        return lines.Count > 0 && lines.All(line => Line().Match(line) is { Success: true } match && !Numbers().IsMatch(match.Groups["rest"].Value));
+    }
+
+    /// <summary>
     /// The approval in a comment, or null when it has none. A line such as <c>/approve please</c> is not an approval, so it cannot create
     /// tickets by accident; it counts as feedback for the planner.
     /// </summary>

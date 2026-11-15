@@ -120,6 +120,7 @@ public sealed class PlanWorkflow : FactoryWorkflowBase
             var approver = "";
             var approved = false;
             var changes = new List<string>();
+            var unclear = false;
             foreach (var reply in comments)
             {
                 if (PlanCommands.Parse(reply.Body) is { } approval)
@@ -128,10 +129,18 @@ public sealed class PlanWorkflow : FactoryWorkflowBase
                     approver = reply.Author;
                     numbers.AddRange(approval.Numbers);
                 }
+                else if (PlanCommands.IsOnlyAnUnclearApproval(reply.Body))
+                {
+                    unclear = true;
+                }
                 else
                 {
                     changes.Add(reply.Body);
                 }
+            }
+            if (unclear)
+            {
+                await CommentAsync(request, PlanComments.UnclearApproval);
             }
 
             // Asked to change the plan and to approve it in one go: the plan being approved is not the one asked for, so change it first.

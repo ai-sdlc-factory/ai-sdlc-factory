@@ -121,6 +121,10 @@ public static class PlanComments
         return text.ToString().TrimEnd();
     }
 
+    /// <summary>A comment that starts with /approve but is not one (<c>/approve please</c>). The plan is not changed and nothing is created.</summary>
+    public const string UnclearApproval =
+        "I did not understand that as an approval, so I changed nothing and created nothing. Write **`/approve`** alone to create every ticket that waits for nothing, or **`/approve 1 3`** to create exactly those (numbers as in the plan). To change the plan instead, say what to change.";
+
     public static string NothingToApprove(bool allCreated) => allCreated
         ? "Every ticket in this plan was already created."
         : "Every ticket that waits for nothing was already created. Name the number of one that waits, for example `/approve 2`.";

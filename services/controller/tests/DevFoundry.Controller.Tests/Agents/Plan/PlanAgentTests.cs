@@ -92,6 +92,20 @@ public sealed class PlanCommandTests
         Assert.Equal(expected, PlanCommands.Parse(body)!.Numbers);
 
     [Theory]
+    [InlineData("/approve please", true)]
+    [InlineData("/approve all", true)]
+    [InlineData("  /APPROVE them  ", true)]
+    [InlineData("/approve please\n/approve now", true)]
+    [InlineData("/approve", false)]
+    [InlineData("/approve 2", false)]
+    [InlineData("Make it smaller.\n/approve please", false)]
+    [InlineData("please /approve 2", false)]
+    [InlineData("Merge parts 1 and 2.", false)]
+    [InlineData("", false)]
+    public void A_comment_of_only_a_mistyped_approval_is_told_apart_from_a_change_to_the_plan(string body, bool expected) =>
+        Assert.Equal(expected, PlanCommands.IsOnlyAnUnclearApproval(body));
+
+    [Theory]
     [InlineData("/approve please")]
     [InlineData("/approve 2 but rename it")]
     [InlineData("please /approve 2")]

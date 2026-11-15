@@ -151,6 +151,29 @@ public sealed class PlanScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_comment_that_tries_to_approve_and_gets_it_wrong_is_explained_and_does_not_make_the_planner_plan_again()
+    {
+        var world = Planning();
+
+        var result = await world.RunAsync(fixture, async context =>
+        {
+            var handle = await context.StartPlanAsync(PlanTicket());
+            await WaitForCountAsync(world, "**Plan: proposed tickets**", 1);
+            await Say_(handle, "/approve please");
+            await WaitForCountAsync(world, "I did not understand that as an approval", 1);
+            await Say_(handle, "/approve");
+            await WaitForCountAsync(world, "Created 2 tickets from this plan", 1);
+            await Say_(handle, "/approve 3");
+            return await ScenarioContext.ResultAsync(handle);
+        });
+
+        Assert.Equal("plan_created", result.Status);
+        Assert.Single(world.Calls("planner")); // no second plan was made for "/approve please"
+        Assert.Equal(["Part 1", "Part 2", "Part 3"], world.CreatedIssues.Select(i => i.Title));
+        Assert.Equal(1, Count(world, "I did not understand that as an approval"));
+    }
+
+    [SkippableFact]
     public async Task Once_a_ticket_exists_the_plan_is_final_and_a_change_gets_one_notice()
     {
         var world = Planning();
