@@ -36,7 +36,8 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
     private static Task Say_(WorkflowHandle<IncidentWorkflow, WorkResult> handle, string text, string who = "bob") =>
         handle.SignalAsync(w => w.OnHumanReplyAsync(new HumanReply(who, text)));
 
-    private static string PostmortemPath(int issue = 1) => $"docs/postmortems/{DateTime.UtcNow:yyyy-MM-dd}-incident-{issue}.md";
+    /// <summary>The postmortem's file name has the date the workflow ran on, which a test must not guess (it could be the other side of midnight UTC): it is read from what the writer was told.</summary>
+    private static ChangeReport WroteThePostmortem(FakeWorld world) => WroteOnly(world.WriterPath ?? throw new InvalidOperationException("the postmortem writer was never asked"));
 
     private static ChangeReport WroteOnly(string path) => new([new FileChange(path, FileChange.Added)], []);
 
@@ -66,7 +67,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task The_investigator_cannot_write_and_the_postmortem_writer_can()
     {
-        var world = Advising().Agent("postmortem-writer", Say(Answers.Postmortem())).Changes(WroteOnly(PostmortemPath()));
+        var world = Advising().Agent("postmortem-writer", Say(Answers.Postmortem())).ChangesFrom(WroteThePostmortem);
 
         await world.RunAsync(fixture, async context =>
         {
@@ -86,7 +87,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task A_person_gets_the_checklist_for_an_option_and_then_a_draft_postmortem_as_a_pull_request()
     {
-        var world = Advising().Agent("postmortem-writer", Say(Answers.Postmortem())).Changes(WroteOnly(PostmortemPath()));
+        var world = Advising().Agent("postmortem-writer", Say(Answers.Postmortem())).ChangesFrom(WroteThePostmortem);
 
         var result = await world.RunAsync(fixture, async context =>
         {
@@ -114,7 +115,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
 
         // The postmortem writer is given the record of the ticket, in order, and the one file it may write.
         var prompt = world.Calls("postmortem-writer").Single().Prompt;
-        Assert.Contains($"Write exactly one new file: {PostmortemPath()}", prompt);
+        Assert.Matches(@"Write exactly one new file: docs/postmortems/\d{4}-\d{2}-\d{2}-incident-1\.md", prompt);
         Assert.Contains("bob: /option 2", prompt);
         Assert.Contains("factory: Checklist given for option 2.", prompt);
         Assert.Contains("Rolled back at 11:05, errors are gone.", prompt);
@@ -303,7 +304,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
     {
         var world = Advising()
             .Agent("postmortem-writer", Say(Answers.Postmortem()), Say(Answers.Postmortem()))
-            .Changes(WroteOnly("docs/notes.md"), WroteOnly(PostmortemPath()));
+            .ChangesFrom(_ => WroteOnly("docs/notes.md"), WroteThePostmortem);
 
         var result = await world.RunAsync(fixture, async context =>
         {
@@ -361,7 +362,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task The_incident_is_recorded_when_the_project_keeps_a_record()
     {
-        var world = Advising().Agent("postmortem-writer", Say(Answers.Postmortem())).Changes(WroteOnly(PostmortemPath()));
+        var world = Advising().Agent("postmortem-writer", Say(Answers.Postmortem())).ChangesFrom(WroteThePostmortem);
         world.ProjectConfig = """{"image":"python","record":true,"gates":[{"name":"test","command":["python","-m","pytest","-q"]}]}""";
 
         await world.RunAsync(fixture, async context =>

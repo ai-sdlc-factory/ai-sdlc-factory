@@ -97,15 +97,46 @@ public sealed class VerifyScriptTests
         return (process.ExitCode, output.Result + error.Result);
     }
 
+    /// <summary>
+    /// A listener on a port the operating system just said was free. A port worked out from the process id sat in the range outgoing connections use, so it could
+    /// be taken by another test's socket; and even a free port can be taken between asking and listening, so a failed start tries another.
+    /// </summary>
+    private static (System.Net.HttpListener Listener, int Port) StartListenerOnFreePort()
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            probe.Start();
+            var port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+            probe.Stop();
+            var listener = new System.Net.HttpListener();
+            listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+            try
+            {
+                listener.Start();
+                return (listener, port);
+            }
+            catch (System.Net.HttpListenerException) when (attempt < 10)
+            {
+                try
+                {
+                    listener.Close();
+                }
+                catch (System.Net.HttpListenerException)
+                {
+                    // Closing a listener that never started can fail the same way; the next try uses another port.
+                }
+            }
+        }
+    }
+
     [SkippableFact]
     public void The_script_really_waits_for_the_application_and_returns_the_suites_exit_code()
     {
         Skip.IfNot(Has("curl"), "needs curl");
         // The "application" is a listener in this process; the started command only has to stay alive until the script stops it.
-        var port = 20_000 + Environment.ProcessId % 20_000;
-        using var listener = new System.Net.HttpListener();
-        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
-        listener.Start();
+        var (listener, port) = StartListenerOnFreePort();
+        using var _ = listener;
         var serving = Task.Run(async () =>
         {
             while (listener.IsListening)

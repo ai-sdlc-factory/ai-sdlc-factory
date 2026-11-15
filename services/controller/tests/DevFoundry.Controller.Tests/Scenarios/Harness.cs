@@ -80,7 +80,7 @@ public sealed class FakeWorld
     private readonly Dictionary<string, Queue<AgentReply>> agents = [];
     private readonly Dictionary<string, Queue<SandboxRunResult>> checks = [];
     private readonly Dictionary<string, Exception> checkFailures = [];
-    private readonly Queue<ChangeReport> changes = [];
+    private readonly Queue<Func<FakeWorld, ChangeReport>> changes = [];
 
     public List<string> Comments { get; } = [];
     public List<AgentCall> AgentCalls { get; } = [];
@@ -237,10 +237,26 @@ public sealed class FakeWorld
     {
         foreach (var report in reports)
         {
-            changes.Enqueue(report);
+            changes.Enqueue(_ => report);
         }
         return this;
     }
+
+    /// <summary>
+    /// What the next checks of the workspace find, worked out when they run, from what the workflow has told the agents so far. For a result that depends on the
+    /// workflow's own clock (the postmortem's file name has today's date in it) this is the only way a test cannot be wrong around midnight.
+    /// </summary>
+    public FakeWorld ChangesFrom(params Func<FakeWorld, ChangeReport>[] makers)
+    {
+        foreach (var maker in makers)
+        {
+            changes.Enqueue(maker);
+        }
+        return this;
+    }
+
+    /// <summary>The file the workflow last told the postmortem writer to write, as the prompt names it; null before the writer has been asked.</summary>
+    public string? WriterPath { get; private set; }
 
     /// <summary>What the reproducer changed: a new test file, plus anything else the test wants to show.</summary>
     public static ChangeReport TestOnly(params string[] others) =>
@@ -456,7 +472,7 @@ public sealed class FakeWorld
             lock (world.gate)
             {
                 world.ChangeChecks++;
-                return world.changes.Count > 0 ? world.changes.Dequeue() : OneFile();
+                return world.changes.Count > 0 ? world.changes.Dequeue()(world) : OneFile();
             }
         }
 
@@ -508,6 +524,10 @@ public sealed class FakeWorld
             {
                 var role = command[command.ToList().IndexOf("--agent") + 1];
                 BeforeAgent?.Invoke(role);
+                if (role == "postmortem-writer" && System.Text.RegularExpressions.Regex.Match(command[^1], @"docs/postmortems/[A-Za-z0-9._-]+\.md") is { Success: true } named)
+                {
+                    WriterPath = named.Value;
+                }
                 AgentCalls.Add(new AgentCall(role, command[^1], request.Image, request.WorkspaceWritable, request.NeedsModelAuth, request.Network));
                 if (agents.TryGetValue(role, out var queue) && queue.Count > 0)
                 {
