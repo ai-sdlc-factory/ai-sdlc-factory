@@ -14,7 +14,7 @@ public sealed class ResumeScenarios(TemporalFixture fixture)
     private static FakeWorld TwoRuns(bool design = false, int analystAnswers = 1)
     {
         var world = new FakeWorld()
-            .Agent("analyst", Enumerable.Repeat(Say(Answers.Analyst(api: design)), analystAnswers).ToArray())
+            .Agent("analyst", Enumerable.Repeat(Say(Answers.Analyst(files: design ? 4 : 2, api: design)), analystAnswers).ToArray())
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("developer", Say(Answers.Developer("blocked")), Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))

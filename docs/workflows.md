@@ -79,7 +79,7 @@ it decides with stated assumptions.
    (`covered` becomes `partial`, `partial` becomes `missing`), and a failed check can only weaken a claim. If everything is covered the
    run stops with `already_implemented`.
 4. **Triage** (code, no model). Asks for a design review if any of these hold: the ticket has the `needs-architecture` label, the analyst
-   estimates more than 5 files, more than one project is affected, a public API changes, the data model changes, or a new dependency is needed.
+   estimates more than 5 files, more than one project is affected, a public API changes **and more than 2 files are affected** (one more route or field does not need a design), the data model changes, or a new dependency is needed.
    The comment lists the reasons.
 5. **Architect** (read-only, only when triage asked). Returns an approach, the components that change (safe paths and what changes), risks
    and guidance. `needs_decision` asks the ticket (up to 3 rounds, fewer if the project lowers `clarification_rounds`); `reject` stops with `design_rejected`.

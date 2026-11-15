@@ -11,6 +11,12 @@ public static class Triage
     /// <summary>More files than this is treated as a change big enough to need a design.</summary>
     public const int MaxFilesWithoutArchitect = 5;
 
+    /// <summary>
+    /// A change to a public API alone, touching this many files or fewer, is small enough to build without a design review: one more route or one more field.
+    /// A larger API change, and any change that also touches the data model or adds a dependency, still gets one.
+    /// </summary>
+    public const int MaxFilesForSmallApiChange = 2;
+
     /// <summary>Label a person adds to force a design review.</summary>
     public const string ForceLabel = "needs-architecture";
 
@@ -29,9 +35,9 @@ public static class Triage
         {
             reasons.Add("more than one project is affected");
         }
-        if (complexity.PublicApiChange)
+        if (complexity.PublicApiChange && complexity.FilesEstimate > MaxFilesForSmallApiChange)
         {
-            reasons.Add("a public API changes");
+            reasons.Add($"a public API changes and about {complexity.FilesEstimate} files are affected (more than {MaxFilesForSmallApiChange})");
         }
         if (complexity.DataModelChange)
         {

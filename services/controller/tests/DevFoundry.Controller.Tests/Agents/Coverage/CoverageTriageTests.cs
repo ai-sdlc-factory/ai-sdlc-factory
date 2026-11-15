@@ -180,7 +180,7 @@ public sealed class TriageTests
     [Theory]
     [InlineData(6, false, false, false, false, "6 files")]
     [InlineData(1, true, false, false, false, "more than one project")]
-    [InlineData(1, false, true, false, false, "public API")]
+    [InlineData(3, false, true, false, false, "public API")]
     [InlineData(1, false, false, true, false, "data model")]
     [InlineData(1, false, false, false, true, "dependency")]
     public void Each_rule_asks_for_an_architect_and_names_its_reason(
@@ -190,6 +190,19 @@ public sealed class TriageTests
 
         Assert.True(decision.NeedsArchitect);
         Assert.Contains(decision.Reasons, r => r.Contains(reason));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void A_small_public_api_change_alone_needs_no_architect(int files) =>
+        Assert.False(Triage.Decide(new Complexity(files, false, true, false, false), ["feature"]).NeedsArchitect);
+
+    [Fact]
+    public void A_small_public_api_change_that_also_changes_the_data_model_or_adds_a_dependency_still_does()
+    {
+        Assert.True(Triage.Decide(new Complexity(1, false, true, true, false), []).NeedsArchitect);
+        Assert.True(Triage.Decide(new Complexity(1, false, true, false, true), []).NeedsArchitect);
     }
 
     [Fact]

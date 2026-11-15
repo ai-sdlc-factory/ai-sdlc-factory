@@ -17,7 +17,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     private static FakeWorld ToBuild(bool design = false)
     {
         var world = new FakeWorld()
-            .Agent("analyst", Say(Answers.Analyst(api: design)))
+            .Agent("analyst", Say(Answers.Analyst(files: design ? 4 : 2, api: design)))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("reviewer", Say(Answers.Review()))
             .Agent("acceptance", Say(Answers.Qa("met", "met")));
@@ -385,7 +385,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     public async Task The_architect_asks_a_decision_waits_and_designs_with_the_answer()
     {
         var world = new FakeWorld()
-            .Agent("analyst", Say(Answers.Analyst(api: true)))
+            .Agent("analyst", Say(Answers.Analyst(files: 4, api: true)))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("architect", Say(Answers.Architect("needs_decision")), Say(Answers.Architect()))
             .Agent("developer", Say(Answers.Developer()))
@@ -409,7 +409,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     public async Task The_architect_can_decline_and_nothing_is_built()
     {
         var world = new FakeWorld()
-            .Agent("analyst", Say(Answers.Analyst(api: true)))
+            .Agent("analyst", Say(Answers.Analyst(files: 4, api: true)))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("architect", Say(Answers.Architect("reject")));
 
@@ -424,7 +424,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     public async Task An_unusable_design_after_the_retry_is_handed_to_a_person()
     {
         var world = new FakeWorld()
-            .Agent("analyst", Say(Answers.Analyst(api: true)))
+            .Agent("analyst", Say(Answers.Analyst(files: 4, api: true)))
             .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
             .Agent("architect", Say("{\"verdict\":\"pass\"}"), Say("{\"verdict\":\"pass\"}"));
 
@@ -661,7 +661,7 @@ public sealed class NetworkScenarios(TemporalFixture fixture)
     private static AgentReply Say(string text) => AgentReply.Says(text);
 
     private static FakeWorld Everything(bool design) => new FakeWorld()
-        .Agent("analyst", Say(Answers.Analyst(api: design)))
+        .Agent("analyst", Say(Answers.Analyst(files: design ? 4 : 2, api: design)))
         .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
         .Agent("architect", Say(Answers.Architect()))
         .Agent("developer", Say(Answers.Developer()))

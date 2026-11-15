@@ -55,7 +55,7 @@ public sealed class QuickModeScenarios(TemporalFixture fixture)
     public async Task A_design_review_triage_would_have_asked_for_is_skipped_and_the_ticket_says_so()
     {
         var world = new FakeWorld { ProjectConfig = Project() }
-            .Agent("analyst", Say(Answers.Analyst(api: true, dependency: true)))
+            .Agent("analyst", Say(Answers.Analyst(files: 4, api: true, dependency: true)))
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()));
 
@@ -63,7 +63,7 @@ public sealed class QuickModeScenarios(TemporalFixture fixture)
 
         Assert.Equal("pr_opened", result.Status);
         Assert.DoesNotContain("architect", Roles(world));
-        Assert.Contains(world.Comments, c => c.Contains("Triage would have asked for a design review (a public API changes; a new dependency is needed)"));
+        Assert.Contains(world.Comments, c => c.Contains("Triage would have asked for a design review (a public API changes and about 4 files are affected (more than 2); a new dependency is needed)"));
     }
 
     [SkippableFact]
