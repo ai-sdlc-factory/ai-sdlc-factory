@@ -95,6 +95,7 @@ public abstract partial class FactoryWorkflowBase
                 problem = $"OpenCode exited with code {result.ExitCode}{ExitHint(result.ExitCode)}: {Short(result.Stderr)}";
                 NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = problem, Usage = spent });
+                await SayRunIsRepeatedAsync(role, problem, attempt);
                 continue;
             }
 
@@ -110,6 +111,7 @@ public abstract partial class FactoryWorkflowBase
                 problem = result.OutputTruncated ? "the output was too long to contain the answer" : "OpenCode returned no answer";
                 NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stdout, Problem = problem, Usage = spent });
+                await SayRunIsRepeatedAsync(role, problem, attempt);
                 continue;
             }
             var (value, error2) = parse(text);
@@ -124,6 +126,18 @@ public abstract partial class FactoryWorkflowBase
             await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "answer rejected", promptText) with { ExitCode = result.ExitCode, Output = text, Problem = problem, Usage = spent });
         }
         return new AgentOutcome<T>(null, false, problem);
+    }
+
+    /// <summary>
+    /// When an agent's run fails (it crashed, was killed, or returned nothing) and the factory runs it once more, the ticket says so: otherwise a step that took twice as long, and
+    /// used its tokens twice, looks like a slow one. Said only when another attempt will follow.
+    /// </summary>
+    private async Task SayRunIsRepeatedAsync(string role, string problem, int attempt)
+    {
+        if (current is not null && attempt < MaxAgentAttempts)
+        {
+            await CommentAsync(current, TicketComments.AgentRunRepeated(role, problem));
+        }
     }
 
     /// <summary>A short explanation for the exit codes that mean the sandbox, not the agent, ran into a limit.</summary>

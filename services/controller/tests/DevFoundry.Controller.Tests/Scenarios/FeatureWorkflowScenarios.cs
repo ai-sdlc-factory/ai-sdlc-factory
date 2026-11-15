@@ -406,6 +406,29 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_crashed_agent_run_that_is_repeated_says_so_on_the_ticket()
+    {
+        var world = ToBuild().Agent("developer", AgentReply.Crashes, Say(Answers.Developer()));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        var notice = Assert.Single(world.Comments, c => c.Contains("run did not finish"));
+        Assert.Contains("developer", notice);
+        Assert.Contains("running it once more", notice);
+    }
+
+    [SkippableFact]
+    public async Task The_last_failed_attempt_does_not_claim_another_one_will_follow()
+    {
+        var world = new FakeWorld().Agent("analyst", AgentReply.Crashes, AgentReply.Crashes);
+
+        await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Single(world.Comments, c => c.Contains("run did not finish"));
+    }
+
+    [SkippableFact]
     public async Task The_architect_can_decline_and_nothing_is_built()
     {
         var world = new FakeWorld()

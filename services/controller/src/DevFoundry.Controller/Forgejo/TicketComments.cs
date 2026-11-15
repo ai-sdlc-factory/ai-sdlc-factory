@@ -389,6 +389,10 @@ public static class TicketComments
     public static string DailyLimitWaiting(bool allRepositories, string repository, DateTimeOffset resume) =>
         $"**Daily token limit reached**\n\nThe factory has used its token limit for today ({(allRepositories ? "for all repositories" : $"for `{Inert(repository)}`")}), so I am waiting and will carry on after {resume:HH:mm} UTC on {resume:yyyy-MM-dd}. Close the ticket to stop the run.";
 
+    /// <summary>An agent's run failed and is being run once more; the tokens of the failed run are spent either way.</summary>
+    public static string AgentRunRepeated(string role, string problem) =>
+        $"The {Inert(role)}'s run did not finish ({Inert(problem.Length > 160 ? problem[..160] + "..." : problem)}), so I am running it once more. The failed run's tokens are spent either way.";
+
     /// <summary>The model provider says its usage limit is reached; the run stopped instead of asking again.</summary>
     public static string ProviderLimitReached(string role, string said) =>
         $"**The model provider's usage limit is reached**\n\nThe {Inert(role)}'s run failed with: `{Inert(said.Length > 300 ? said[..300] : said)}`. Nothing is wrong with the ticket. I stopped instead of asking again; comment `/retry` once the limit has reset.";
