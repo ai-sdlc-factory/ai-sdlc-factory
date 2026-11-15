@@ -66,7 +66,7 @@ network=${network:-dev-foundry_forge}
 docker network inspect "$network" >/dev/null 2>&1 || fail "The Docker network $network does not exist. Start the factory first: cd ../infra && docker compose up -d"
 
 say "4/6 Starting the monitoring stack and the alert intake"
-docker compose up -d --build prometheus alertmanager blackbox cadvisor loki promtail grafana alert-intake
+docker compose up -d --build prometheus alertmanager blackbox container-stats loki promtail grafana alert-intake
 
 say "5/6 Delivering the application (building it from the default branch)"
 ./deploy.sh --force
