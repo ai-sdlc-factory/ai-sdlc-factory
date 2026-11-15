@@ -8,6 +8,8 @@ builder.Services.AddSingleton(settings);
 builder.Services.AddSingleton<IDockerClient>(DockerClient.FromSocket(settings.DockerSocket));
 builder.Services.AddSingleton(sp => new SandboxRunner(sp.GetRequiredService<IDockerClient>(), settings));
 builder.Services.AddSingleton(sp => new RepoImageBuilder(sp.GetRequiredService<IDockerClient>(), settings));
+// Registered before the worker, so it runs first: the worker does not survive starting while Temporal cannot be reached.
+builder.Services.AddHostedService(sp => new WaitForTemporal(settings.TemporalAddress, sp.GetRequiredService<ILogger<WaitForTemporal>>()));
 builder.Services
     .AddHostedTemporalWorker(settings.TemporalAddress, settings.TemporalNamespace, settings.TaskQueue)
     .ConfigureOptions(options => options.MaxConcurrentActivities = settings.MaxConcurrentRuns)
