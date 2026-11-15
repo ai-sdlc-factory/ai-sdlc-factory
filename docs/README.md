@@ -21,6 +21,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | sign the agents in with ChatGPT | [OpenCode login](opencode-login.md) |
 | run a **demo "production"** with monitoring (Prometheus, Grafana, Loki) where alerts open tickets | [Demo and monitoring](../demo/README.md) |
 | know the **limits** of what is built | [Known limitations](operations.md#known-limitations) |
+| see **what could be built next** and why (designs, not promises) | [Ideas for later](ideas.md) |
 
 ## Guides by component
 
