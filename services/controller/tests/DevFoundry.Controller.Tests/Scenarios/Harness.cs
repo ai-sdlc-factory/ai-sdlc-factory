@@ -427,6 +427,21 @@ public sealed class FakeWorld
             }
         }
 
+        [Activity("forgejo_post_notice_unique")]
+        public bool PostUniqueNotice(CommentRequest request)
+        {
+            lock (world.gate)
+            {
+                if (world.Comments.Any(c => c.Contains(request.Body, StringComparison.Ordinal)))
+                {
+                    return false; // the real activity skips a notice whose exact text is anywhere on the ticket
+                }
+                world.Notices.Add(request.Body);
+                world.Comments.Add(request.Body);
+                return true;
+            }
+        }
+
         [Activity("forgejo_create_pull_request")]
         public PullRequestInfo CreatePullRequest(PullRequestRequest request)
         {

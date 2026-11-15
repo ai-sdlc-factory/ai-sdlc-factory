@@ -25,6 +25,12 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
             request.Owner, request.Repo, request.IssueNumber, request.Body,
             ActivityExecutionContext.Current.CancellationToken);
 
+    [Activity("forgejo_post_notice_unique")]
+    public Task<bool> PostNoticeUniqueAsync(CommentRequest request) =>
+        forgejo.PostNoticeUniqueAsync(
+            request.Owner, request.Repo, request.IssueNumber, request.Body,
+            ActivityExecutionContext.Current.CancellationToken);
+
     [Activity("forgejo_create_issue")]
     public Task<IssueInfo> CreateIssueAsync(CreateIssueRequest request) =>
         forgejo.CreateIssueAsync(

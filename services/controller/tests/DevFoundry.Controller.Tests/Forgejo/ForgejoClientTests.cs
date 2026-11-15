@@ -245,6 +245,29 @@ public sealed class ForgejoClientTests
         Assert.Equal(nonRetryable, error.NonRetryable);
         Assert.DoesNotContain("secret-token", error.Message);
     }
+    [Fact]
+    public async Task A_unique_notice_is_not_repeated_however_far_back_the_same_text_is()
+    {
+        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA setting I do not know.", .. Enumerable.Range(1, 60).Select(i => $"comment {i}")]);
+
+        var posted = await WithComments(conversation).PostNoticeUniqueAsync("acme", "shop", 7, "A setting I do not know.", CancellationToken.None);
+
+        Assert.False(posted);
+        Assert.DoesNotContain(conversation.Calls, call => call.Method == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task A_unique_notice_with_different_text_is_posted()
+    {
+        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA setting I do not know: recrod.", "comment"]);
+
+        var posted = await WithComments(conversation).PostNoticeUniqueAsync("acme", "shop", 7, "A setting I do not know: reviewrs.", CancellationToken.None);
+
+        Assert.True(posted);
+        var post = Assert.Single(conversation.Calls, call => call.Method == HttpMethod.Post);
+        Assert.Contains(TicketComments.NoticeMarker, JsonDocument.Parse(post.Body!).RootElement.GetProperty("body").GetString()!);
+    }
+
 }
 
 public sealed class CreateIssueTests

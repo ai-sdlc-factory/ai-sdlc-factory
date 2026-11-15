@@ -93,9 +93,9 @@ public abstract partial class FactoryWorkflowBase
 
             if (project.Warnings is { Count: > 0 } warnings)
             {
-                // Said once while it is still among the latest comments, so a retry or a revision does not repeat it.
+                // Said once per ticket (the same text is not posted again by a retry, a revision or any later run); a changed list is a new notice.
                 await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    (ForgejoActivities activities) => activities.PostNoticeUniqueAsync(
                         new CommentRequest(request.Owner, request.Repo, request.IssueNumber, TicketComments.UnknownProjectKeys(warnings))),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
             }

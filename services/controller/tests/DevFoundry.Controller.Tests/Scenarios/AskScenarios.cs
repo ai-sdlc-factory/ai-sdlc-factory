@@ -143,4 +143,18 @@ public sealed class AskScenarios(TemporalFixture fixture)
         Assert.Equal("needs_config", result.Status);
         Assert.Empty(world.Snapshot(world.AgentCalls));
     }
+
+    [SkippableFact]
+    public async Task A_notice_about_an_unknown_setting_is_posted_once_per_ticket_however_many_runs_there_are()
+    {
+        var world = Asking(Answers.Ask(), Answers.Ask());
+        world.ProjectConfig = """{"image":"python","gates":[{"name":"test","command":["python","-m","pytest","-q"]}],"mystery_key":1}""";
+        var request = ScenarioContext.Ask();
+
+        await world.RunAsync(fixture, context => context.RunAskAsync(request));
+        await world.RunAsync(fixture, context => context.RunAskAsync(request with { Question = "And the second question?" }));
+
+        Assert.Single(world.Comments, c => c.Contains("`mystery_key` is not a setting the factory knows"));
+        Assert.Equal(2, world.Comments.Count(c => c.StartsWith("**Answer**")));
+    }
 }

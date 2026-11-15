@@ -370,6 +370,22 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         RequireToken();
         var result = new List<(string, string)>();
         await foreach (var repository in PagedAsync("api/v1/repos/search", "repository list", "data", cancellationToken))
+    /// <summary>
+    /// Posts a notice unless a comment with exactly this text is anywhere on the ticket (the last 200 comments), so a notice about something that has not changed is said once
+    /// per ticket and not again by every later run. Different text (a changed list) is a new notice. Returns whether it was posted.
+    /// </summary>
+    public async Task<bool> PostNoticeUniqueAsync(
+        string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
+    {
+        var comments = await RecentCommentBodiesAsync(owner, repo, issueNumber, 200, cancellationToken);
+        if (comments.Any(comment => comment.Contains(body, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+        await PostIssueCommentAsync(owner, repo, issueNumber, $"{TicketComments.NoticeMarker}\n{body}", cancellationToken);
+        return true;
+    }
+
         {
             var canPush = Child(repository, "permissions") is { ValueKind: JsonValueKind.Object } permissions
                 && permissions.TryGetProperty("push", out var push) && push.ValueKind == JsonValueKind.True;
