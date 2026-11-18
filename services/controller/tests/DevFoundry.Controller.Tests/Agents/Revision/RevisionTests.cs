@@ -174,12 +174,23 @@ public sealed class RevisionRulesTests
     [InlineData("main", "factory-bot", "acme/shop")]
     [InlineData("factory/issue-7", "alice", "acme/shop")]
     [InlineData("factory/issue-7", "factory-bot", "someone/shop")]
-    public void A_pull_request_that_is_not_the_factorys_is_left_alone_without_a_word(string branch, string author, string headRepo)
+    public void A_review_on_a_pull_request_that_is_not_the_factorys_is_left_alone_without_a_word(string branch, string author, string headRepo)
     {
         var refusal = RevisionRules.Refuse(Request(), FakeWorld.FactoryPullRequest(headRef: branch, author: author, headRepo: headRepo));
 
         Assert.Equal("ignored", refusal!.Status);
         Assert.Null(refusal.Message);
+    }
+
+    [Fact]
+    public void A_fix_command_on_a_pull_request_that_is_not_the_factorys_gets_a_reason()
+    {
+        var command = new RevisionRequest("acme", "shop", 7, RevisionRequest.ByCommand, "rename it", "bob");
+
+        var refusal = RevisionRules.Refuse(command, FakeWorld.FactoryPullRequest(author: "alice"));
+
+        Assert.Equal("ignored", refusal!.Status);
+        Assert.Equal(TicketComments.RevisionNotFactorys, refusal.Message);
     }
 
     [Fact]

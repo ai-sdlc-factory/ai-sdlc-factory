@@ -174,16 +174,22 @@ public sealed class UpdateRulesTests
         Assert.Equal(TicketComments.UpdateNoPullRequest, refusal.Message);
     }
 
-    [Theory]
-    [InlineData(true, null)]
-    [InlineData(false, "said")]
-    public void Somebody_elses_pull_request_is_ignored_on_the_pull_request_and_explained_on_a_ticket(bool onPullRequest, string? said)
+    [Fact]
+    public void Somebody_elses_pull_request_is_explained_when_the_command_is_on_the_pull_request()
     {
-        var context = new UpdateContext(FakeWorld.FactoryPullRequest(author: "alice").Pull, "factory-bot");
+        var refusal = UpdateRules.Refuse(Request(true), new UpdateContext(FakeWorld.FactoryPullRequest(author: "alice").Pull, "factory-bot"));
 
-        var refusal = UpdateRules.Refuse(Request(onPullRequest), context);
+        Assert.Equal("ignored", refusal!.Status);
+        Assert.Equal(TicketComments.UpdateNotFactorys, refusal.Message);
+    }
 
-        Assert.Equal(said is null, refusal!.Message is null);
+    [Fact]
+    public void Somebody_elses_pull_request_found_from_a_ticket_is_reported_as_no_pull_request_of_the_factory()
+    {
+        var refusal = UpdateRules.Refuse(Request(false), new UpdateContext(FakeWorld.FactoryPullRequest(author: "alice").Pull, "factory-bot"));
+
+        Assert.Equal(Statuses.UpdateNoPullRequest, refusal!.Status);
+        Assert.Equal(TicketComments.UpdateNoPullRequest, refusal.Message);
     }
 
     [Fact]

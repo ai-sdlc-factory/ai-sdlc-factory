@@ -238,14 +238,14 @@ public sealed class UpdateScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task Somebody_elses_pull_request_is_ignored_without_a_word()
+    public async Task Somebody_elses_pull_request_is_told_why_nothing_was_updated()
     {
         var world = new FakeWorld { UpdateContext = new UpdateContext(FakeWorld.FactoryPullRequest(author: "alice").Pull, "factory-bot") };
 
         var result = await world.RunAsync(fixture, context => context.RunUpdateAsync(ScenarioContext.Update()));
 
         Assert.Equal("ignored", result.Status);
-        Assert.Empty(world.Comments);
+        Assert.Equal([TicketComments.UpdateNotFactorys], world.Comments);
         Assert.Empty(world.PrepareRequests);
     }
 

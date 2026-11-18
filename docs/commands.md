@@ -59,7 +59,7 @@ Closing a ticket stops its run, but only between two steps. If you reopen it bef
 
 ### On a pull request, or on the ticket that has one
 
-These work only on **the factory's own pull request** (branch `factory/issue-<n>`, authored by the bot, still open). On a ticket they find the ticket's open pull request.
+These work only on **the factory's own pull request** (branch `factory/issue-<n>`, authored by the bot, still open); on anyone else's pull request `/fix` and `/update` answer with a short note that they changed nothing. `/update` and `/qa` can also be typed on the **ticket**, and find the ticket's open pull request. `/fix` is typed on the **pull request**: on a ticket it is only a comment (it may be the answer to a question the factory asked there).
 
 | Command | Type it on | What it does | Needs |
 | --- | --- | --- | --- |

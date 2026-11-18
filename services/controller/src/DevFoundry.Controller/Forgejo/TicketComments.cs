@@ -376,6 +376,14 @@ public static class TicketComments
 
     public const string UpdateClosed = "This pull request is closed or merged, so I did not update it.";
 
+    /// <summary>`/update` on a pull request the factory did not open.</summary>
+    public const string UpdateNotFactorys =
+        "`/update` works only on pull requests the factory opened itself (a `factory/issue-<n>` branch in this repository, authored by the factory's bot). This one is not, so I changed nothing.";
+
+    /// <summary>`/fix` on a pull request the factory did not open.</summary>
+    public const string RevisionNotFactorys =
+        "`/fix` works only on pull requests the factory opened itself (a `factory/issue-<n>` branch in this repository, authored by the factory's bot). This one is not, so I changed nothing.";
+
     /// <summary>`/update` while an update for the same ticket or pull request is still going.</summary>
     public const string UpdateBusy =
         "An update of this pull request is already going. What it did will be posted here when it is done; comment `/update` again after that if the branch is still behind.";

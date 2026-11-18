@@ -7,7 +7,7 @@ digraph pr_revision {
   start  [label="A person requests changes on a pull request\nthe factory opened, or comments /fix", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
   read   [label="Read the pull request and the latest review\nfrom Forgejo: its comments, line by line", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   rules  [label="Is it the factory's own pull request?\nopen · same repository · fewer than 3 revisions\nsomething to act on?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  refuse [label="ignored without a word (not the factory's)\nor a short note: closed · limit reached · nothing to do", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  refuse [label="a short note (not the factory's · closed · limit reached · nothing to do)\nor nothing at all for a review on someone else's pull request", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
   intake [label="Check out the pull request's own branch\nread .factory/project.json", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
 
   subgraph cluster_loop {

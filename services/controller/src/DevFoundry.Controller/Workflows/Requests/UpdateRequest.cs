@@ -26,8 +26,10 @@ public static class UpdateRules
         if (!RevisionRules.FactoryBranch().IsMatch(pull.HeadRef) || !string.Equals(pull.Author, context.BotLogin, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(pull.HeadRepository, pull.BaseRepository, StringComparison.OrdinalIgnoreCase))
         {
-            // A comment on somebody else's pull request is none of the factory's business.
-            return new RevisionRefusal(request.OnPullRequest ? "ignored" : Statuses.UpdateNoPullRequest, request.OnPullRequest ? null : TicketComments.UpdateNoPullRequest);
+            // On a ticket there is no pull request of the factory to update; on somebody else's pull request the person is told why nothing happens.
+            return request.OnPullRequest
+                ? new RevisionRefusal("ignored", TicketComments.UpdateNotFactorys)
+                : new RevisionRefusal(Statuses.UpdateNoPullRequest, TicketComments.UpdateNoPullRequest);
         }
         if (pull.Merged || !string.Equals(pull.State, "open", StringComparison.OrdinalIgnoreCase))
         {

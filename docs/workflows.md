@@ -210,7 +210,7 @@ After the factory opens a pull request, a person reviews it. If they want change
   Dismissed reviews, conversations a person marked resolved, and reviews older than the factory's last reply are skipped.
 
 The factory revises **only its own pull requests**: the branch must be one it created (`factory/issue-<n>`), the pull request must be authored by the bot, from the same repository, and still open.
-Anything else is left alone without a word. At most **three revisions per pull request** by default (`limits.revisions_per_pull_request`), **one at a time**. A review or `/fix` that arrives while one is running is not lost: the factory says it is queued, and when the running revision has pushed or replied it starts a follow-up that reads what came in meanwhile.
+Anything else gets no revision: a `/fix` on such a pull request is answered with a short note saying why, a review that requests changes on it is ignored without a word. At most **three revisions per pull request** by default (`limits.revisions_per_pull_request`), **one at a time**. A review or `/fix` that arrives while one is running is not lost: the factory says it is queued, and when the running revision has pushed or replied it starts a follow-up that reads what came in meanwhile.
 
 | Step | Who | What the factory checks itself |
 | --- | --- | --- |
@@ -452,7 +452,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `revision_pushed`, `revision_replied` | revision: the new commit is on the pull request, or the comments were answered with nothing to change |
 | `revision_limit` | revision: the project's limit of revisions (3 by default) was already reached on this pull request |
 | `nothing_to_do` | revision: a `/fix` with no text and no review to act on |
-| `ignored` | revision: not the factory's pull request (no comment), or the pull request is closed or merged (with a note) |
+| `ignored` | revision: not the factory's pull request (a `/fix` gets a note saying so, a review that requests changes gets no comment), or the pull request is closed or merged (with a note); update: not the factory's pull request (a note says so) |
 | `cannot_reproduce` | bug: no test that fails because of the bug was produced in 3 attempts |
 | `needs_config` | the repository has no usable `.factory/project.json` |
 | `setup_failed` | the workspace could not be prepared |

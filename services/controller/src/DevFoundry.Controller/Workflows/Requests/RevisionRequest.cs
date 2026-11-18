@@ -45,7 +45,8 @@ public static partial class RevisionRules
         if (!FactoryBranch().IsMatch(pull.HeadRef) || !string.Equals(pull.Author, context.BotLogin, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(pull.HeadRepository, pull.BaseRepository, StringComparison.OrdinalIgnoreCase))
         {
-            return new RevisionRefusal("ignored", null);
+            // A review on somebody else's pull request is ordinary activity and gets no answer; a /fix typed there asks the factory for something, so it is told why not.
+            return new RevisionRefusal("ignored", request.Trigger == RevisionRequest.ByCommand ? TicketComments.RevisionNotFactorys : null);
         }
         if (pull.Merged || !string.Equals(pull.State, "open", StringComparison.OrdinalIgnoreCase))
         {

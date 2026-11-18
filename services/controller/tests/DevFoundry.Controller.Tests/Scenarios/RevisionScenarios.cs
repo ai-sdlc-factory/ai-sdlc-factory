@@ -193,7 +193,7 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task A_pull_request_the_factory_did_not_open_is_left_alone_without_a_word()
+    public async Task A_review_on_a_pull_request_the_factory_did_not_open_is_left_alone_without_a_word()
     {
         var world = Reviewing();
         world.RevisionContext = FakeWorld.FactoryPullRequest(headRef: "feature/my-change");
@@ -202,6 +202,20 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
 
         Assert.Equal("ignored", result.Status);
         Assert.Empty(world.Comments);
+        Assert.Empty(world.PrepareRequests);
+        Assert.Empty(world.AgentCalls);
+    }
+
+    [SkippableFact]
+    public async Task A_fix_command_on_a_pull_request_the_factory_did_not_open_says_why_nothing_changed()
+    {
+        var world = Reviewing();
+        world.RevisionContext = FakeWorld.FactoryPullRequest(headRef: "feature/my-change");
+
+        var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision(RevisionRequest.ByCommand, "rename it")));
+
+        Assert.Equal("ignored", result.Status);
+        Assert.Equal([TicketComments.RevisionNotFactorys], world.Comments);
         Assert.Empty(world.PrepareRequests);
         Assert.Empty(world.AgentCalls);
     }
