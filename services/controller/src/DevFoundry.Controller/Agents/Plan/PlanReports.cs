@@ -51,7 +51,10 @@ public static class PlanParser
             error = $"\"summary\" must be a non-empty string of at most {MaxSummary} characters";
             return false;
         }
-        if (!TextList(root, "questions", out var questions, out error, 5))
+        // A plan with nothing to ask is often answered without the field; that means no questions. A field that is there but not a list of strings is still refused.
+        IReadOnlyList<string> questions = [];
+        error = "";
+        if (root.TryGetProperty("questions", out _) && !TextList(root, "questions", out questions, out error, 5))
         {
             return false;
         }

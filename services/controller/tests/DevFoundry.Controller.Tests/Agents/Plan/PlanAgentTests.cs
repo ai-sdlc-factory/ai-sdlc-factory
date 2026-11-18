@@ -29,6 +29,24 @@ public sealed class PlanParserTests
     }
 
     [Fact]
+    public void A_plan_without_the_questions_field_means_no_questions()
+    {
+        const string withoutQuestions = """{"verdict":"pass","summary":"s","tickets":[{"title":"A","summary":"a","acceptance_criteria":["x"],"depends_on":[]}]}""";
+
+        Assert.True(PlanParser.TryParse(withoutQuestions, out var plan, out var error), error);
+        Assert.Empty(plan.Questions);
+    }
+
+    [Fact]
+    public void A_questions_field_that_is_not_a_list_of_strings_is_still_refused()
+    {
+        const string wrong = """{"verdict":"pass","summary":"s","questions":"none","tickets":[{"title":"A","summary":"a","acceptance_criteria":["x"],"depends_on":[]}]}""";
+
+        Assert.False(PlanParser.TryParse(wrong, out _, out var error));
+        Assert.Contains("questions", error);
+    }
+
+    [Fact]
     public void A_question_is_required_when_the_planner_needs_clarification()
     {
         Assert.True(PlanParser.TryParse(Answers.Plan("needs_clarification"), out var plan, out var error), error);
