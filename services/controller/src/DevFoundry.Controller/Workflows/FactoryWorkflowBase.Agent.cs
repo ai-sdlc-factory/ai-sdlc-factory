@@ -77,6 +77,14 @@ public abstract partial class FactoryWorkflowBase
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "not signed in", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = "OpenCode is not signed in" });
                 return new AgentOutcome<T>(null, true, null);
             }
+            if (MissingAgentRole.IsReported(result.Stderr, role))
+            {
+                // Asking again cannot help: the role file is not there, so the next run would be just as wrong.
+                var missing = MissingAgentRole.Describe(role);
+                NoteAttempt(role, "failed", spent);
+                await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = missing, Usage = spent });
+                return new AgentOutcome<T>(null, false, missing, Infrastructure: true);
+            }
             if (result.TimedOut)
             {
                 problem = $"the {role} ran out of time";

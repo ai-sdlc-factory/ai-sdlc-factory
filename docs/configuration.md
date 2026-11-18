@@ -49,7 +49,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | `FACTORY_JANITOR_WIP_DAYS` | a work-in-progress branch (`factory/issue-<n>-wip`) is listed in the controller log once its last commit is this many days old, 1 to 365 | `30` |
 | `FACTORY_JANITOR_DELETE_WIP` | `true` lets the janitor **delete** those branches, but only when their ticket is closed and no open pull request uses them. Off: they are only listed | `false` |
 | `FORGEJO_BOT_TOKEN` | the factory bot's access token (scopes `write:issue`, `write:repository`). Only the controller receives it. Empty disables all ticket actions | empty |
-| `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
+| `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. Point it at the repository's own folder: a **copy** must be refreshed after every update, because a role added since the copy was made is missing and its agent then runs without its instructions (the run stops with "the role file ... is missing"). The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
 
 **Example: tune the defaults for every project at once** (in `infra/.env`, then `docker compose up -d --force-recreate controller`). A project's own `limits` in `.factory/project.json` still win, within the same ranges:
 

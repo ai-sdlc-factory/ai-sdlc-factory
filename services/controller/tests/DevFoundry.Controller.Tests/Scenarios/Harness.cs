@@ -58,6 +58,9 @@ public sealed record AgentReply(SandboxRunResult Result, Exception? Failure = nu
 
     public static AgentReply Crashes { get; } = new(new SandboxRunResult(1, false, "", "boom", false));
 
+    /// <summary>OpenCode could not find the role file: it warns, exits 0 and answers as its default agent (here with a reply the parser would reject).</summary>
+    public static AgentReply RoleMissing(string role) => new(new SandboxRunResult(0, false, Events("{\"verdict\":\"ready\"}"), $"!  agent \"{role}\" not found. Falling back to default agent", false));
+
     private static string Events(string text, long input = 100) => string.Join('\n',
         JsonSerializer.Serialize(new { type = "step_start" }),
         JsonSerializer.Serialize(new { type = "text", part = new { messageID = "m1", text } }),

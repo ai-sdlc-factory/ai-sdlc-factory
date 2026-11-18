@@ -10,6 +10,8 @@ COPY libs ./libs
 COPY services/controller ./services/controller
 # The templates are parsed by a test, so a template can never ship settings the factory would refuse.
 COPY templates ./templates
+# The role files, so a test can keep the controller's list of roles equal to the folder.
+COPY agents ./agents
 RUN dotnet publish services/controller/src/DevFoundry.Controller -c Release --no-restore -o /out
 
 FROM build AS test

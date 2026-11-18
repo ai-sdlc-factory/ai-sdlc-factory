@@ -474,7 +474,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `qa_failed` | qa: the tester's answer stayed unusable after the retry |
 | `qa_not_configured` | qa: the project has no `verify` settings, or not the suite that was asked for |
 | `qa_no_pull_request` | qa: there is no open pull request of the factory for this ticket |
-| `infrastructure_failed` | a part of the factory's own machinery failed (a sandbox stopped reporting progress, the launcher or Docker was unavailable); the ticket says so and that `/retry` runs it again (saved if code existed) |
+| `infrastructure_failed` | a part of the factory's own machinery failed (a sandbox stopped reporting progress, the launcher or Docker was unavailable, or an agent's role file is missing from the agents folder the sandboxes get); the ticket says so and that `/retry` runs it again (saved if code existed) |
 | `image_failed` | the repository's own `.factory/Dockerfile` could not be read or built (see [a project's own image](project-setup.md#a-projects-own-image)) |
 | `analysis_failed`, `assessment_failed`, `coverage_failed`, `design_failed`, `diagnosis_failed`, `reproduction_failed`, `investigation_failed`, `mitigation_failed`, `plan_failed`, `postmortem_failed` | an agent's answer stayed unusable after the retry (or, for the postmortem, the file was wrong twice); the reason is on the ticket |
 | `build_failed` | the build rounds (3 by default) did not get through the checks and review (work saved to a `-wip` branch) |

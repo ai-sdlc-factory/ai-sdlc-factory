@@ -133,6 +133,20 @@ public sealed class AskScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_missing_role_file_stops_the_run_at_once_and_says_so_instead_of_asking_again()
+    {
+        var world = new FakeWorld().Agent("asker", AgentReply.RoleMissing("asker"), AgentReply.RoleMissing("asker"));
+
+        var result = await world.RunAsync(fixture, context => context.RunAskAsync(ScenarioContext.Ask()));
+
+        Assert.Equal("infrastructure_failed", result.Status);
+        Assert.Single(world.Calls("asker")); // a second run could not do better
+        var comment = Assert.Single(world.Comments, c => c.StartsWith("I could not answer:"));
+        Assert.Contains("role file for \"asker\" is missing", comment);
+        Assert.Contains("/retry", comment);
+    }
+
+    [SkippableFact]
     public async Task A_project_without_settings_is_told_to_add_them()
     {
         var world = Asking();

@@ -42,6 +42,7 @@ public static class ServiceRegistration
         services.AddSingleton<JanitorRunner>();
         services.AddHostedService<JanitorService>();
         services.AddHostedService<ImprovementService>();
+        services.AddHostedService<AgentFolderCheck>();
         // Registered after the worker, so it stops first and the readiness file disappears before shutdown.
         services.AddHostedService<ReadinessFile>();
         return services;
