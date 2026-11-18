@@ -419,6 +419,15 @@ public static class TicketComments
     public const string RetryWhileRunning =
         "A factory run is still active for this ticket, so `/retry` was not needed. It works once the run has finished.";
 
+    /// <summary>`/retry` on a ticket that already has an open pull request: a new run would open a second one.</summary>
+    public static string RetryHasPullRequest(int pullNumber) =>
+        $"This ticket already has an open pull request (#{pullNumber}), so I did not start another run: it would open a second pull request. " +
+        "To change that pull request, comment `/fix <what to change>` on it. To start over anyway, comment `/retry restart`.";
+
+    /// <summary>A ticket was reopened, but its earlier run did not finish stopping in time, so no new run was started.</summary>
+    public const string ReopenStillStopping =
+        "This ticket was reopened, but its earlier run was still going and did not stop in time, so I did not start a new one. Comment `/retry restart` once the earlier run has finished.";
+
     /// <summary>Posted instead of the triage comment when a ticket runs in quick mode.</summary>
     public static string QuickMode(string reason, IReadOnlyList<string> skippedDesignReasons)
     {

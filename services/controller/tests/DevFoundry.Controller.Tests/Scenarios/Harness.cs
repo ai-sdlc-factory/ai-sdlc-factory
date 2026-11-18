@@ -112,6 +112,9 @@ public sealed class FakeWorld
     /// <summary>What Forgejo says about the pull request a /qa run is for; the default is a pull request the factory opened for ticket 7.</summary>
     public QaContext QaContext { get; set; } = new(FactoryPullRequest(body: "## Acceptance criteria\n- goodbye() returns the text.\n- bye selects it.\n").Pull, "factory-bot");
 
+    /// <summary>The newest open pull request of the factory for the ticket (what Forgejo would find); null means the ticket has none.</summary>
+    public int? OpenFactoryPull { get; set; }
+
     /// <summary>What Forgejo says about the pull request an /update is for; the default is a pull request the factory opened for ticket 7, based on main.</summary>
     public UpdateContext UpdateContext { get; set; } = new(FactoryPullRequest().Pull, "factory-bot");
 
@@ -330,6 +333,9 @@ public sealed class FakeWorld
 
         [Activity("forgejo_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
+
+        [Activity("forgejo_find_factory_pull_request")]
+        public int? FindFactoryPullRequest(TicketReference ticket) => world.OpenFactoryPull;
 
         [Activity("workspace_improvement_report")]
         public ImprovementReportResult BuildImprovementReport(ImprovementRequest request)

@@ -38,7 +38,7 @@ public sealed class ForgejoEventWorkflow
         var decision = EventRouter.Decide(input);
         return decision.Action switch
         {
-            RoutingAction.StartFeature => StartTicketWorkflowAsync(decision),
+            RoutingAction.StartFeature => StartFromTicketEventAsync(decision),
             RoutingAction.RevisePullRequest => RevisePullRequestAsync(decision.Revision!),
             RoutingAction.RetryFeature => RetryTicketAsync(decision),
             RoutingAction.RunQa => StartQaAsync(decision.Qa!),
@@ -92,14 +92,66 @@ public sealed class ForgejoEventWorkflow
         }
     }
 
-    /// <summary>`/retry`: starts the ticket's run again when the last one has finished; while one is running, says so once.</summary>
+    /// <summary>
+    /// A ticket was opened, labelled or reopened. A reopened ticket whose earlier run is still stopping (it was closed a moment ago, and a run only
+    /// notices that between its steps) waits for that run to end and then starts a new one, instead of the reopening being lost.
+    /// </summary>
+    private static async Task StartFromTicketEventAsync(RoutingDecision decision)
+    {
+        if (await StartTicketWorkflowAsync(decision) || !decision.Restart)
+        {
+            return;
+        }
+        for (var attempt = 1; attempt <= MaxReopenWaits; attempt++)
+        {
+            await Workflow.DelayAsync(TimeSpan.FromSeconds(Math.Min(15, 1 << Math.Min(attempt - 1, 4))));
+            if (await StartTicketWorkflowAsync(decision))
+            {
+                return;
+            }
+        }
+        var feature = decision.Feature!;
+        await Workflow.ExecuteActivityAsync(
+            (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.ReopenStillStopping)),
+            ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+    }
+
+    /// <summary>About 30 minutes: longer than the longest step a closed run can be in the middle of.</summary>
+    private const int MaxReopenWaits = 120;
+
+    /// <summary>The factory's open pull request for a ticket, or null when it has none (or Forgejo cannot say).</summary>
+    private static async Task<int?> FindOpenPullRequestAsync(string owner, string repo, int ticket)
+    {
+        try
+        {
+            return await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.FindFactoryPullRequestAsync(new TicketReference(owner, repo, ticket)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+        catch (ActivityFailureException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>`/retry`: starts the ticket's run again when the last one has finished; while one is running, or the ticket has an open pull request, says so once.</summary>
     private static async Task RetryTicketAsync(RoutingDecision decision)
     {
+        var feature = decision.Feature!;
+        // A plain /retry carries on the earlier run, so a pull request that run already opened would get a twin. /retry restart is the person's explicit choice.
+        if (feature.Resume && await FindOpenPullRequestAsync(feature.Owner, feature.Repo, feature.IssueNumber) is { } pull)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.RetryHasPullRequest(pull))),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+            return;
+        }
         if (await StartTicketWorkflowAsync(decision))
         {
             return;
         }
-        var feature = decision.Feature!;
         await Workflow.ExecuteActivityAsync(
             (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                 new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.RetryWhileRunning)),

@@ -11,8 +11,16 @@ public sealed record ReviewRequestInput(string Owner, string Repo, int PullNumbe
 
 public sealed record PullRequestRequest(string Owner, string Repo, string Head, string Base, string Title, string Body);
 
+/// <summary>A ticket, by number, whose open pull request of the factory is wanted.</summary>
+public sealed record TicketReference(string Owner, string Repo, int Number);
+
 public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings settings)
 {
+    /// <summary>The number of the factory's newest open pull request for the ticket, or null when it has none.</summary>
+    [Activity("forgejo_find_factory_pull_request")]
+    public Task<int?> FindFactoryPullRequestAsync(TicketReference ticket) =>
+        forgejo.FindFactoryPullRequestAsync(ticket.Owner, ticket.Repo, ticket.Number, ActivityExecutionContext.Current.CancellationToken);
+
     [Activity("forgejo_post_issue_comment")]
     public Task PostIssueCommentAsync(CommentRequest request) =>
         forgejo.PostIssueCommentAsync(

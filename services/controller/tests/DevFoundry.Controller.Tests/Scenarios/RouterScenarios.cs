@@ -167,6 +167,70 @@ public sealed class RouterScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task Retry_on_a_ticket_that_already_has_an_open_pull_request_says_so_and_starts_nothing()
+    {
+        var world = new FakeWorld().Agent("analyst", AgentReply.Says(Answers.Analyst("reject")), AgentReply.Says(Answers.Analyst("reject")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", repo));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 1);
+
+            world.OpenFactoryPull = 12;
+            await Route(context, Event("issue_comment", "created", repo, comment: "/retry"));
+            return 0;
+        });
+
+        Assert.Single(world.Calls("analyst"));
+        Assert.Equal(TicketComments.RetryHasPullRequest(12), Assert.Single(world.Snapshot(world.Notices)));
+    }
+
+    [SkippableFact]
+    public async Task Retry_restart_starts_a_new_run_even_when_the_ticket_has_an_open_pull_request()
+    {
+        var world = new FakeWorld().Agent("analyst", AgentReply.Says(Answers.Analyst("reject")), AgentReply.Says(Answers.Analyst("reject")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", repo));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 1);
+
+            world.OpenFactoryPull = 12;
+            await Route(context, Event("issue_comment", "created", repo, comment: "/retry restart"));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 2);
+            return 0;
+        });
+
+        Assert.Equal(2, world.Calls("analyst").Count());
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
+
+    [SkippableFact]
+    public async Task Reopening_a_ticket_right_after_closing_it_starts_a_new_run_once_the_old_one_has_stopped()
+    {
+        var world = new FakeWorld().Agent("analyst",
+            AgentReply.Says(Answers.Analyst("needs_clarification")), AgentReply.Says(Answers.Analyst("reject")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", repo));
+            await world.WaitForCommentAsync(c => c.Contains("I need answers before building"));
+
+            // The first run is still waiting for an answer when the ticket is closed and at once reopened.
+            await Route(context, Event("issues", "closed", repo, state: "closed"));
+            await Route(context, Event("issues", "reopened", repo));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 2);
+            return 0;
+        });
+
+        Assert.Equal(2, world.Calls("analyst").Count());
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
+
+    [SkippableFact]
     public async Task A_comment_on_the_ticket_reaches_the_waiting_run()
     {
         var world = new FakeWorld().Agent("analyst",
