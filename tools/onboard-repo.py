@@ -116,7 +116,8 @@ def ensure_webhook(forgejo, repo, secret, dry):
 def check_project_json(forgejo, repo, branch):
     """Says whether .factory/project.json is on the default branch and usable. Changes nothing."""
     status, file = forgejo.call("GET", f"repos/{repo}/contents/.factory/project.json?ref={branch}")
-    if status != 200:
+    # An empty repository (no commit yet) answers 200 with a list, not a file object.
+    if status != 200 or not isinstance(file, dict) or "content" not in file:
         print(f"  .factory/project.json: MISSING on {branch}. Add one (docs/project-setup.md#4-add-factoryprojectjson, or copy a template from templates/); without it every run stops with a note.")
         return
     try:
