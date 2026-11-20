@@ -24,18 +24,39 @@ public sealed class ContractTests
         var payload = JsonPayload(
             $$$"""{"delivery_id":"{{{DeliveryId}}}","event":"issues","payload":{"repository":{"full_name":"test/contract"},"action":"opened"}}""");
 
-        var input = DataConverter.Default.PayloadConverter.ToValue<ForgejoEvent>(payload);
-        var receipt = await new ForgejoEventWorkflow().RunAsync(input);
+        var input = DataConverter.Default.PayloadConverter.ToValue<WebhookDelivery>(payload);
+        var receipt = await new RepoEventWorkflow().RunAsync(input);
 
-        Assert.Equal(new ForgejoReceipt(DeliveryId, "issues", "test/contract", "opened", null), receipt);
+        Assert.Equal(new EventReceipt(DeliveryId, "issues", "test/contract", "opened", null), receipt);
+    }
+
+    [Fact]
+    public async Task A_delivery_from_a_host_without_an_adapter_fails_instead_of_being_guessed_at()
+    {
+        var input = new WebhookDelivery(DeliveryId, "issues", JsonDocument.Parse("{}").RootElement, Host: "nowhere");
+
+        var error = await Assert.ThrowsAsync<Temporalio.Exceptions.ApplicationFailureException>(() => new RepoEventWorkflow().RunAsync(input));
+
+        Assert.Contains("nowhere", error.Message);
+    }
+
+    [Fact]
+    public void A_delivery_written_before_hosts_existed_reads_as_forgejos_and_a_new_one_says_its_host()
+    {
+        var old = DataConverter.Default.PayloadConverter.ToValue<WebhookDelivery>(JsonPayload($$$"""{"delivery_id":"{{{DeliveryId}}}","event":"issues","payload":{}}"""));
+        var encoded = DataConverter.Default.PayloadConverter.ToPayload(old);
+        using var json = JsonDocument.Parse(encoded.Data.ToByteArray());
+
+        Assert.Equal("forgejo", old.Host);
+        Assert.Equal(["delivery_id", "event", "payload", "host"], json.RootElement.EnumerateObject().Select(property => property.Name));
     }
 
     [Fact]
     public async Task Receipt_serializes_with_the_existing_field_names()
     {
-        var input = new ForgejoEvent(
+        var input = new WebhookDelivery(
             DeliveryId, "push", JsonDocument.Parse("""{"ref":"refs/heads/main"}""").RootElement);
-        var receipt = await new ForgejoEventWorkflow().RunAsync(input);
+        var receipt = await new RepoEventWorkflow().RunAsync(input);
 
         var encoded = DataConverter.Default.PayloadConverter.ToPayload(receipt);
         using var json = JsonDocument.Parse(encoded.Data.ToByteArray());
@@ -49,11 +70,11 @@ public sealed class ContractTests
     [Fact]
     public async Task Unexpected_payload_shapes_produce_empty_fields()
     {
-        var input = new ForgejoEvent(
+        var input = new WebhookDelivery(
             DeliveryId, "push", JsonDocument.Parse("""{"repository":"text","action":7}""").RootElement);
-        var receipt = await new ForgejoEventWorkflow().RunAsync(input);
+        var receipt = await new RepoEventWorkflow().RunAsync(input);
 
-        Assert.Equal(new ForgejoReceipt(DeliveryId, "push", null, null, null), receipt);
+        Assert.Equal(new EventReceipt(DeliveryId, "push", null, null, null), receipt);
     }
 
     [Fact]

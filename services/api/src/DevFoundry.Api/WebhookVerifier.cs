@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-
 namespace DevFoundry.Api;
 
 /// <summary>
@@ -10,7 +7,7 @@ namespace DevFoundry.Api;
 public static class WebhookVerifier
 {
     /// <summary>True when the header looks like a 64-character hex SHA-256 digest.</summary>
-    public static bool IsWellFormedSignature(string signature) => Patterns.Signature().IsMatch(signature);
+    public static bool IsWellFormedSignature(string signature) => HmacSignature.IsWellFormed(signature);
 
     /// <summary>
     /// Reads the whole stream, or returns null as soon as it exceeds <paramref name="maxBytes"/>.
@@ -34,9 +31,5 @@ public static class WebhookVerifier
     }
 
     /// <summary>Constant-time check of a hex HMAC-SHA256 signature; the header must be well formed.</summary>
-    public static bool IsValidSignature(string secret, byte[] body, string signatureHex)
-    {
-        var expected = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), body);
-        return CryptographicOperations.FixedTimeEquals(expected, Convert.FromHexString(signatureHex));
-    }
+    public static bool IsValidSignature(string secret, byte[] body, string signatureHex) => HmacSignature.IsValid(secret, body, signatureHex);
 }

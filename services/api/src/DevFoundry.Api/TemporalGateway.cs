@@ -12,21 +12,21 @@ public sealed class TemporalUnavailableException(Exception inner)
 public interface ITemporalGateway
 {
     /// <summary>Starts the workflow; returns false when the delivery was already recorded.</summary>
-    Task<bool> StartForgejoWorkflowAsync(
-        string workflowId, ForgejoEvent envelope, CancellationToken cancellationToken);
+    Task<bool> StartEventWorkflowAsync(
+        string workflowId, WebhookDelivery envelope, CancellationToken cancellationToken);
 
     Task CheckReadyAsync(CancellationToken cancellationToken);
 }
 
 public sealed class TemporalGateway(ITemporalClient client, ApiSettings settings) : ITemporalGateway
 {
-    public async Task<bool> StartForgejoWorkflowAsync(
-        string workflowId, ForgejoEvent envelope, CancellationToken cancellationToken)
+    public async Task<bool> StartEventWorkflowAsync(
+        string workflowId, WebhookDelivery envelope, CancellationToken cancellationToken)
     {
         try
         {
             await client.StartWorkflowAsync(
-                "ForgejoEventWorkflow",
+                "RepoEventWorkflow",
                 [envelope],
                 new WorkflowOptions(workflowId, settings.TemporalTaskQueue)
                 {

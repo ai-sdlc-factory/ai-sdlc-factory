@@ -14,13 +14,13 @@ namespace DevFoundry.Api.Tests;
 
 public sealed class FakeGateway : ITemporalGateway
 {
-    public List<(string WorkflowId, ForgejoEvent Envelope)> Started { get; } = [];
+    public List<(string WorkflowId, WebhookDelivery Envelope)> Started { get; } = [];
     public Exception? StartFailure { get; set; }
     public bool StartReturns { get; set; } = true;
     public Exception? ReadyFailure { get; set; }
 
-    public Task<bool> StartForgejoWorkflowAsync(
-        string workflowId, ForgejoEvent envelope, CancellationToken cancellationToken)
+    public Task<bool> StartEventWorkflowAsync(
+        string workflowId, WebhookDelivery envelope, CancellationToken cancellationToken)
     {
         if (StartFailure is not null)
         {
@@ -226,6 +226,15 @@ public sealed class WebhookTests
         gateway.ReadyFailure = new TemporalUnavailableException(new TimeoutException());
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/health/ready")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_host_with_no_adapter_has_no_route()
+    {
+        var response = await CreateClient().PostAsync("/webhooks/github", new StringContent("{}"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Empty(gateway.Started);
     }
 
     [Fact]

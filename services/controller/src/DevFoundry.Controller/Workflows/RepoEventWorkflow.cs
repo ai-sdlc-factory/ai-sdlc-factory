@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Temporalio.Api.Enums.V1;
 using ParentClosePolicy = Temporalio.Workflows.ParentClosePolicy;
 using Temporalio.Common;
@@ -7,33 +6,24 @@ using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
 
-[Workflow("ForgejoEventWorkflow")]
-public sealed class ForgejoEventWorkflow
+[Workflow("RepoEventWorkflow")]
+public sealed class RepoEventWorkflow
 {
     /// <summary>
-    /// Preserves the input in workflow history, produces a small receipt, and routes feature
-    /// tickets to their own long-running workflow. Webhook contents are data; this workflow
-    /// executes no supplied commands.
+    /// Preserves the delivery in workflow history, reads it through its host's adapter, produces a small receipt, and routes tickets to their own long-running
+    /// workflow. Webhook contents are data; this workflow executes no supplied commands.
     /// </summary>
     [WorkflowRun]
-    public async Task<ForgejoReceipt> RunAsync(ForgejoEvent input)
+    public async Task<EventReceipt> RunAsync(WebhookDelivery input)
     {
-        await RouteAsync(input);
-
-        var payload = input.Payload;
-        string? repository = null;
-        if (TryGet(payload, "repository", out var repo) && TryGet(repo, "full_name", out var name))
-        {
-            repository = AsString(name);
-        }
-
-        TryGet(payload, "action", out var action);
-        TryGet(payload, "ref", out var reference);
-        return new ForgejoReceipt(
-            input.DeliveryId, input.Event, repository, AsString(action), AsString(reference));
+        var adapter = WebhookAdapters.Find(input.Host)
+            ?? throw new ApplicationFailureException($"No webhook adapter for the host \"{input.Host}\".", nonRetryable: true);
+        var repoEvent = adapter.Normalise(input);
+        await RouteAsync(repoEvent);
+        return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
     }
 
-    private static Task RouteAsync(ForgejoEvent input)
+    private static Task RouteAsync(RepoEvent input)
     {
         var decision = EventRouter.Decide(input);
         return decision.Action switch
@@ -122,7 +112,7 @@ public sealed class ForgejoEventWorkflow
     /// <summary>About 30 minutes: longer than the longest step a closed run can be in the middle of.</summary>
     private const int MaxReopenWaits = 120;
 
-    /// <summary>The factory's open pull request for a ticket, or null when it has none (or Forgejo cannot say).</summary>
+    /// <summary>The factory's open pull request for a ticket, or null when it has none (or the git host cannot say).</summary>
     private static async Task<int?> FindOpenPullRequestAsync(string owner, string repo, int ticket)
     {
         try
@@ -374,13 +364,4 @@ public sealed class ForgejoEventWorkflow
             return false;
         }
     }
-
-    private static bool TryGet(JsonElement element, string name, out JsonElement value)
-    {
-        value = default;
-        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out value);
-    }
-
-    private static string? AsString(JsonElement element) =>
-        element.ValueKind == JsonValueKind.String ? element.GetString() : null;
 }

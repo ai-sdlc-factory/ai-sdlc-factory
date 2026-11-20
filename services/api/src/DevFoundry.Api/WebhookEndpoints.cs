@@ -6,22 +6,36 @@ public static class WebhookEndpoints
 {
     public static IEndpointRouteBuilder MapWebhookEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/webhooks/forgejo", ReceiveForgejoAsync)
-            .WithTags("Webhooks")
-            .WithSummary("Verify a Forgejo delivery and durably start its receipt workflow");
+        // One route per host the factory has an adapter for, so a host that is not there is an ordinary 404 and the OpenAPI document lists each one.
+        foreach (var adapter in WebhookAdapters.All)
+        {
+            var host = adapter;
+            app.MapPost($"/webhooks/{host.Host}",
+                    (HttpRequest request, ITemporalGateway gateway, ApiSettings settings, ILogger<Program> logger, CancellationToken cancellationToken) =>
+                        ReceiveAsync(host, request, gateway, settings, logger, cancellationToken))
+                .WithTags("Webhooks")
+                .WithSummary($"Verify a {host.Host} delivery and durably start its receipt workflow");
+        }
         return app;
     }
 
     // The order of checks is deliberate: nothing is parsed before the signature is verified.
-    private static async Task<IResult> ReceiveForgejoAsync(
+    private static async Task<IResult> ReceiveAsync(
+        IWebhookAdapter adapter,
         HttpRequest request,
         ITemporalGateway gateway,
         ApiSettings settings,
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
-        var signature = request.Headers["X-Forgejo-Signature"].ToString();
-        if (!WebhookVerifier.IsWellFormedSignature(signature))
+        // A host with an adapter but no secret here is not there: nothing about it is revealed beyond that.
+        if (settings.WebhookSecretFor(adapter.Host) is not { Length: > 0 } secret)
+        {
+            return Responses.Detail(404, "Unknown webhook host");
+        }
+
+        string Header(string name) => request.Headers[name].ToString();
+        if (!adapter.HasWellFormedSignature(Header))
         {
             return Responses.Detail(401, "Missing or invalid webhook signature");
         }
@@ -36,7 +50,7 @@ public static class WebhookEndpoints
             return Responses.Detail(413, "Webhook payload is too large");
         }
 
-        if (!WebhookVerifier.IsValidSignature(settings.ForgejoWebhookSecret, body, signature))
+        if (!adapter.IsValidSignature(Header, body, secret))
         {
             return Responses.Detail(401, "Missing or invalid webhook signature");
         }
@@ -47,16 +61,14 @@ public static class WebhookEndpoints
             return Responses.Detail(415, "Expected application/json");
         }
 
-        var eventName = request.Headers["X-Forgejo-Event"].ToString();
-        if (!Patterns.EventName().IsMatch(eventName))
+        if (adapter.EventName(Header) is not { } eventName)
         {
-            return Responses.Detail(400, "Missing or invalid X-Forgejo-Event");
+            return Responses.Detail(400, $"Missing or invalid {adapter.EventHeader}");
         }
-        if (!Guid.TryParse(request.Headers["X-Forgejo-Delivery"].ToString(), out var delivery))
+        if (adapter.DeliveryId(Header) is not { } deliveryId)
         {
-            return Responses.Detail(400, "Missing or invalid X-Forgejo-Delivery");
+            return Responses.Detail(400, $"Missing or invalid {adapter.DeliveryHeader}");
         }
-        var deliveryId = delivery.ToString();
 
         JsonDocument document;
         try
@@ -74,23 +86,23 @@ public static class WebhookEndpoints
                 return Responses.Detail(400, "Expected a JSON object");
             }
 
-            var workflowId = $"forgejo-{deliveryId}";
+            var workflowId = $"{adapter.Host}-{deliveryId}";
             bool started;
             try
             {
-                started = await gateway.StartForgejoWorkflowAsync(
+                started = await gateway.StartEventWorkflowAsync(
                     workflowId,
-                    new ForgejoEvent(deliveryId, eventName, document.RootElement),
+                    new WebhookDelivery(deliveryId, eventName, document.RootElement, adapter.Host),
                     cancellationToken);
             }
             catch (TemporalUnavailableException)
             {
-                logger.LogWarning("Temporal did not acknowledge webhook delivery {DeliveryId}", deliveryId);
+                logger.LogWarning("Temporal did not acknowledge {Host} webhook delivery {DeliveryId}", adapter.Host, deliveryId);
                 return Responses.Detail(503, "Temporal is unavailable; retry this delivery");
             }
 
             // The event name is checked against a strict pattern above, so it is safe to log; the payload never is.
-            logger.LogInformation("Forgejo {Event} delivery {DeliveryId}: {Status}", eventName, deliveryId, started ? "accepted" : "duplicate");
+            logger.LogInformation("{Host} {Event} delivery {DeliveryId}: {Status}", adapter.Host, eventName, deliveryId, started ? "accepted" : "duplicate");
             var receipt = new WebhookReceipt(started ? "accepted" : "duplicate", workflowId, deliveryId, eventName);
             return Results.Json(receipt, statusCode: started ? 202 : 200);
         }

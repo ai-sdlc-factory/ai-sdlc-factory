@@ -2,9 +2,9 @@
 
 [Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md) | [Controller](../controller/README.md)
 
-An ASP.NET Core (.NET 10) minimal API verifies signed Forgejo webhooks and starts
+An ASP.NET Core (.NET 10) minimal API verifies signed webhooks (Forgejo's, through its webhook adapter; one route per host) and starts
 Temporal workflows. This service has its own project and Docker image. It sends a JSON envelope to the
-`ForgejoEventWorkflow` workflow type and does not import or run worker code.
+`RepoEventWorkflow` workflow type and does not import or run worker code.
 
 ## Run
 

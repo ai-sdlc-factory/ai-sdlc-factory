@@ -7,7 +7,7 @@ namespace DevFoundry.Controller.Tests.Scenarios;
 [Trait("Category", "Scenario")]
 public sealed class RouterScenarios(TemporalFixture fixture)
 {
-    private static ForgejoEvent Event(string name, string action, string repo, string? comment = null, string state = "open", string label = "feature")
+    private static WebhookDelivery Event(string name, string action, string repo, string? comment = null, string state = "open", string label = "feature")
     {
         var payload = new Dictionary<string, object?>
         {
@@ -23,12 +23,12 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         {
             payload["comment"] = new { body = comment, user = new { login = "bob" } };
         }
-        return new ForgejoEvent(Guid.NewGuid().ToString(), name, JsonDocument.Parse(JsonSerializer.Serialize(payload)).RootElement);
+        return new WebhookDelivery(Guid.NewGuid().ToString(), name, JsonDocument.Parse(JsonSerializer.Serialize(payload)).RootElement);
     }
 
-    private static Task<ForgejoReceipt> Route(ScenarioContext context, ForgejoEvent input) =>
+    private static Task<EventReceipt> Route(ScenarioContext context, WebhookDelivery input) =>
         context.Client.StartWorkflowAsync(
-            (ForgejoEventWorkflow workflow) => workflow.RunAsync(input),
+            (RepoEventWorkflow workflow) => workflow.RunAsync(input),
             new Temporalio.Client.WorkflowOptions($"forgejo-{input.DeliveryId}", context.Queue)).Result.GetResultAsync();
 
     private static async Task WaitUntilAsync(Func<bool> condition)

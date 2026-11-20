@@ -8,6 +8,10 @@ public sealed class ApiSettings
     public required string ForgejoWebhookSecret { get; init; }
     public int MaxWebhookBytes { get; init; } = 1_048_576;
 
+    /// <summary>The secret a host's webhooks are signed with, or null for a host this API has no secret for (its route then answers 404). One setting per host, named after it.</summary>
+    public string? WebhookSecretFor(string host) =>
+        string.Equals(host, ForgejoWebhookAdapter.HostName, StringComparison.OrdinalIgnoreCase) ? ForgejoWebhookSecret : null;
+
     public static ApiSettings FromConfiguration(IConfiguration configuration)
     {
         var settings = new ApiSettings

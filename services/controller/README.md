@@ -11,7 +11,7 @@ What the workflows do for a ticket is described in the [workflows guide](../../d
 
 | Workflow | Started by | Does |
 | --- | --- | --- |
-| `ForgejoEventWorkflow` | the api, one per webhook delivery | records a receipt and **routes**: starts the ticket's workflow, signals a waiting one, or ignores the event ([routing](../../docs/workflows.md#ticket-routing)) |
+| `RepoEventWorkflow` | the api, one per webhook delivery | records a receipt and **routes**: starts the ticket's workflow, signals a waiting one, or ignores the event ([routing](../../docs/workflows.md#ticket-routing)) |
 | `FeatureWorkflow` | a `feature` ticket | [feature workflow](../../docs/workflows.md#feature-workflow) |
 | `BugWorkflow` | a `bug` ticket | [bug workflow](../../docs/workflows.md#bug-workflow) |
 | `IncidentWorkflow` | an `incident` ticket | [incident workflow](../../docs/workflows.md#incident-workflow) |
@@ -50,7 +50,7 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 
 | Folder | What is in it |
 | --- | --- |
-| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), one class per workflow (`FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow`, `DocsWorkflow`, `PullRequestRevisionWorkflow`, `PullRequestUpdateWorkflow`, `PullRequestReviewWorkflow`, `QaWorkflow`, `ImprovementWorkflow`) with their own stage orders, `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `WorkRequest` and the workflow id rules |
+| `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), one class per workflow (`FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow`, `DocsWorkflow`, `PullRequestRevisionWorkflow`, `PullRequestUpdateWorkflow`, `PullRequestReviewWorkflow`, `QaWorkflow`, `ImprovementWorkflow`) with their own stage orders, `RepoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `WorkRequest` and the workflow id rules |
 | `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with the acceptance check and the UX decision, `Bug`, `Incident`, `Plan`, `Revision`, `Qa`, `Update`, `Docs`) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
 | `GitHost/` | the git host port (`IGitHost`), its activities, the models it returns, ticket comment texts |
@@ -71,7 +71,7 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 5. Document it: the role table in [configuration](../../docs/configuration.md#agents-and-models), the stage in [workflows](../../docs/workflows.md), and any new result status. `python3 tools/check-docs.py` fails until the role and statuses are listed.
 
 **A new workflow kind** extends `FactoryWorkflowBase`, defines its signals (when it waits for people; the revision workflow does not) (`human_reply`, `ticket_closed`) and a `RunAsync` that calls `RunPipelineAsync`, and is registered in `ServiceRegistration.cs`, `EventRouter` (the label and the
-`WorkIds` kind) and `ForgejoEventWorkflow` (start and signal).
+`WorkIds` kind) and `RepoEventWorkflow` (start and signal).
 
 ## Tests
 

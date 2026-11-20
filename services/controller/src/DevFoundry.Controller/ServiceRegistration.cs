@@ -15,7 +15,7 @@ public static class ServiceRegistration
             .AddHostedTemporalWorker(settings.TemporalAddress, settings.TemporalNamespace, settings.TemporalTaskQueue)
             .AddScopedActivities<GitHostActivities>()
             .AddScopedActivities<WorkspaceActivities>()
-            .AddWorkflow<ForgejoEventWorkflow>()
+            .AddWorkflow<RepoEventWorkflow>()
             .AddWorkflow<FeatureWorkflow>()
             .AddWorkflow<BugWorkflow>()
             .AddWorkflow<IncidentWorkflow>()

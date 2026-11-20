@@ -37,7 +37,7 @@ digraph architecture {
 
   person -> forgejo [label="tickets, comments,\nPR reviews"];
   forgejo -> api [label="signed webhook\n(issues, comments)"];
-  api -> temporal [label="start\nForgejoEventWorkflow"];
+  api -> temporal [label="start\nRepoEventWorkflow"];
   temporal -> controller [label="task queue\nfactory-events", dir=both];
   controller -> forgejo [label="comments, branches,\npull requests (bot token)"];
   controller -> workspaces [label="clone · copy · inspect\ncommit · push"];

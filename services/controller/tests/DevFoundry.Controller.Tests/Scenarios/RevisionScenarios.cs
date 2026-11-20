@@ -300,7 +300,7 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
 
     // ---- through the router ---------------------------------------------------------------------------------------------
 
-    private static ForgejoEvent PullComment(string repo, string body) =>
+    private static WebhookDelivery PullComment(string repo, string body) =>
         new(Guid.NewGuid().ToString(), "issue_comment", JsonDocument.Parse(JsonSerializer.Serialize(new
         {
             action = "created",
@@ -310,9 +310,9 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
             is_pull = true,
         })).RootElement);
 
-    private static Task Route(ScenarioContext context, ForgejoEvent input) =>
+    private static Task Route(ScenarioContext context, WebhookDelivery input) =>
         context.Client.StartWorkflowAsync(
-            (ForgejoEventWorkflow workflow) => workflow.RunAsync(input),
+            (RepoEventWorkflow workflow) => workflow.RunAsync(input),
             new Temporalio.Client.WorkflowOptions($"forgejo-{input.DeliveryId}", context.Queue)).Result.GetResultAsync();
 
     private static async Task WaitUntilAsync(Func<bool> condition)

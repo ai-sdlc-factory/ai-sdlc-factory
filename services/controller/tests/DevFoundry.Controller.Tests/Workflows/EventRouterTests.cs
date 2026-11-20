@@ -6,8 +6,9 @@ public sealed class EventRouterTests
 {
     private const string Delivery = "12345678-1234-1234-1234-123456789abc";
 
-    private static ForgejoEvent Event(string name, string payloadJson) =>
-        new(Delivery, name, JsonDocument.Parse(payloadJson).RootElement);
+    /// <summary>A Forgejo delivery as the router gets it: read by Forgejo's adapter, so these tests cover the adapter and the router together.</summary>
+    private static RepoEvent Event(string name, string payloadJson) =>
+        new ForgejoWebhookAdapter().Normalise(new WebhookDelivery(Delivery, name, JsonDocument.Parse(payloadJson).RootElement));
 
     /// <summary>Builds a Forgejo-shaped ticket payload; <paramref name="more"/> adds top-level fields.</summary>
     private static string Ticket(

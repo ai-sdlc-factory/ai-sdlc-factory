@@ -6,11 +6,15 @@ namespace DevFoundry.Contracts;
 // The JSON names below are the wire contract between services and are stored in Temporal
 // workflow histories. Changing one is a breaking change for running and replayed workflows.
 
-/// <summary>Workflow input: a verified Forgejo webhook delivery, sent by the API to the controller.</summary>
-public sealed record ForgejoEvent(
+/// <summary>
+/// Workflow input: a verified webhook delivery from a git host, sent by the API to the controller. The payload is the host's own JSON, kept as it came (the router reads it
+/// through the host's <see cref="IWebhookAdapter"/>). <see cref="Host"/> names the adapter; deliveries written before there was one read as Forgejo's.
+/// </summary>
+public sealed record WebhookDelivery(
     [property: JsonPropertyName("delivery_id")] string DeliveryId,
     [property: JsonPropertyName("event")] string Event,
-    [property: JsonPropertyName("payload")] JsonElement Payload);
+    [property: JsonPropertyName("payload")] JsonElement Payload,
+    [property: JsonPropertyName("host")] string Host = ForgejoWebhookAdapter.HostName);
 
 /// <summary>
 /// Asks the sandbox launcher to run one command in a disposable container. The launcher decides

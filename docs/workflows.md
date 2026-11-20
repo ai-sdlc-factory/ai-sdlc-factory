@@ -29,7 +29,7 @@ If a ticket has several of these labels, `incident` wins over `plan`, which wins
 
 ![From a Forgejo event to a workflow](images/ticket-routing.svg)
 
-The router (`ForgejoEventWorkflow`, decisions in `EventRouter`) is a pure function of the event, so the same event always gets the same
+The router (`RepoEventWorkflow`, decisions in `EventRouter`) is a pure function of the event, so the same event always gets the same
 answer:
 
 | Forgejo event | What happens |
