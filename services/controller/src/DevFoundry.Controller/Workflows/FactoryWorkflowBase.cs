@@ -27,6 +27,9 @@ public abstract partial class FactoryWorkflowBase
     protected const int MaxDesignRounds = 3;
     protected const int MaxAgentAttempts = 2;
 
+    /// <summary>The text of <c>.factory/instructions.md</c> for this run, or null; every agent's prompt gets the part that is for its role.</summary>
+    private string? projectInstructions;
+
     protected readonly List<HumanReply> replies = [];
     protected bool ticketClosed;
 
@@ -97,6 +100,19 @@ public abstract partial class FactoryWorkflowBase
                 await Workflow.ExecuteActivityAsync(
                     (ForgejoActivities activities) => activities.PostNoticeUniqueAsync(
                         new CommentRequest(request.Owner, request.Repo, request.IssueNumber, TicketComments.UnknownProjectKeys(warnings))),
+                    ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+            }
+
+            // Read once per run, from the default branch, and kept: RunAgentAsync adds it to every agent's prompt.
+            var instructions = await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.ReadProjectInstructionsAsync(request.WorkflowId),
+                ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
+            projectInstructions = instructions?.Text;
+            if (instructions is { Cut: true })
+            {
+                await Workflow.ExecuteActivityAsync(
+                    (ForgejoActivities activities) => activities.PostNoticeUniqueAsync(
+                        new CommentRequest(request.Owner, request.Repo, request.IssueNumber, TicketComments.InstructionsCut(ProjectInstructions.MaxBytes))),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
             }
 

@@ -71,7 +71,7 @@ it decides with stated assumptions.
 ### Stages
 
 1. **Intake** (code). Clones the repository into a private workspace, makes a copy for the agents, creates the branch
-   `factory/issue-<n>`, and reads `.factory/project.json`. Without a usable file the run stops with `needs_config` and an example
+   `factory/issue-<n>`, and reads `.factory/project.json` and, if there is one, `.factory/instructions.md` (the project's [house rules](project-setup.md#project-instructions-factoryinstructionsmd), added to every agent's prompt). Without a usable `project.json` the run stops with `needs_config` and an example
    in the comment.
 2. **Analyst** (read-only). Decides whether the request is clear enough to build and lists testable acceptance criteria and complexity
    facts. `pass` continues; `needs_clarification` asks on the ticket (up to 3 rounds of questions by default; see [limits](project-setup.md#limits)); `reject` stops. An answer that does not match
@@ -433,6 +433,7 @@ visible as the repository.
 | A project check (gate) | its `timeout_seconds` (default 600, at most 1800) |
 | Changed files / one file / total | 300 / 2 MiB / 10 MiB |
 | `.factory/project.json` | 16 KB |
+| `.factory/instructions.md` | 8 KB (the rest is cut, and the ticket says so) |
 | Agents running at once | 2 (`SANDBOX_MAX_CONCURRENT`) |
 
 ### Result statuses

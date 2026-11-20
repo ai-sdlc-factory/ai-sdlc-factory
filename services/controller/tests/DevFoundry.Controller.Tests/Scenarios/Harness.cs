@@ -199,6 +199,9 @@ public sealed class FakeWorld
     public string? ProjectConfig { get; set; } =
         """{"image":"python","gates":[{"name":"test","command":["python","-m","pytest","-q"]}]}""";
 
+    /// <summary>The project's house rules (<c>.factory/instructions.md</c>); null means it has none.</summary>
+    public InstructionsFile? Instructions { get; set; }
+
     /// <summary>Files that exist in the workspace, for the evidence check. Null means every cited file exists.</summary>
     public HashSet<string>? ExistingFiles { get; set; }
 
@@ -492,6 +495,9 @@ public sealed class FakeWorld
         {
             lock (world.gate) { world.ProtectedPathRequests.Add(request); }
         }
+
+        [Activity("workspace_read_project_instructions")]
+        public InstructionsFile? ReadProjectInstructions(string name) => world.Instructions;
 
         [Activity("workspace_read_project_config")]
         public string? ReadProjectConfig(string name) => world.ProjectConfig;

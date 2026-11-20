@@ -127,6 +127,30 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
     }
 
     /// <summary>
+    /// The project's .factory/instructions.md from the pristine clone (never from the agent's checkout or a pull request's branch), cut to
+    /// <see cref="ProjectInstructions.MaxBytes"/>; null if there is none, it is a link or it is empty.
+    /// </summary>
+    public InstructionsFile? ReadProjectInstructions(string name)
+    {
+        var root = RequireRoot();
+        RequireName(name);
+        var file = new FileInfo($"{BasePath(root, name)}/.factory/instructions.md");
+        if (!file.Exists || file.LinkTarget is not null || file.Length == 0)
+        {
+            return null;
+        }
+        var buffer = new byte[ProjectInstructions.MaxBytes];
+        using var stream = file.OpenRead();
+        var read = 0;
+        while (read < buffer.Length && stream.Read(buffer, read, buffer.Length - read) is > 0 and var n)
+        {
+            read += n;
+        }
+        var text = System.Text.Encoding.UTF8.GetString(buffer, 0, read).TrimEnd('\uFFFD');
+        return string.IsNullOrWhiteSpace(text) ? null : new InstructionsFile(text, file.Length > ProjectInstructions.MaxBytes);
+    }
+
+    /// <summary>
     /// Every per-run folder name under the workspace root (the checkout, the pristine clone and the record folder all carry the run's name) and
     /// when it was last touched: the newest change among the three folders and their direct entries.
     /// </summary>

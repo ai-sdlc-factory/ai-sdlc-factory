@@ -26,6 +26,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     [Activity("workspace_read_project_config")]
     public Task<string?> ReadProjectConfigAsync(string name) => Task.FromResult(workspace.ReadProjectConfig(name));
 
+    /// <summary>The project's house rules (<c>.factory/instructions.md</c>) from the default branch, or null.</summary>
+    [Activity("workspace_read_project_instructions")]
+    public Task<InstructionsFile?> ReadProjectInstructionsAsync(string name) => Task.FromResult(workspace.ReadProjectInstructions(name));
+
     /// <summary>The repository's own sandbox image definition (<c>.factory/Dockerfile</c>), or null.</summary>
     [Activity("workspace_read_project_image")]
     public Task<RepoImageSource?> ReadProjectImageAsync(string name) => Task.FromResult(workspace.ReadProjectImage(name));

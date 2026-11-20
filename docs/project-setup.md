@@ -13,7 +13,7 @@ connects one repository to it. It takes about five minutes.
 | 2 | [Add the webhook](#2-add-the-webhook) | **yes** |
 | 3 | [Create the labels](#3-create-the-labels) | **yes** (`feature`, and `bug`/`incident` for those workflows) |
 | 4 | [Add `.factory/project.json`](#4-add-factoryprojectjson) on the **default branch** | **yes** |
-| 5 | [Add an `AGENTS.md`](#5-add-an-agentsmd) | recommended |
+| 5 | [Add an `AGENTS.md`](#5-add-an-agentsmd), and optionally [`.factory/instructions.md`](#project-instructions-factoryinstructionsmd) | recommended |
 | 6 | [Try it](#6-try-it) | |
 
 ## 1. Give the bot access
@@ -410,6 +410,25 @@ Good content: what the project is, the folder layout, how to build and test, nam
 consistent with `gates`: if `AGENTS.md` says tests run with one command and `gates` runs another, the gate wins. The analyst, coverage and architect roles
 treat repository text as data and will not obey commands in it, so write conventions, not instructions aimed at them. You can ask the factory to draft one with a
 `feature` ticket, then edit it: it can read the code, but only you know the rules that are not visible in it.
+
+### Project instructions (`.factory/instructions.md`)
+
+House rules that only this project has ("the money type is `Money`, never `decimal`", "tests are plain asserts in `check_*.py`", "never touch `legacy/`") can go in `.factory/instructions.md` on the **default branch**. It is optional: without it nothing changes.
+
+- Every agent run gets its text appended to the prompt, as one block of data between `<<<PROJECT INSTRUCTIONS` and `PROJECT INSTRUCTIONS>>>`. It is read once per run, from the default branch only (never from a pull request's branch), so it changes only when a person merges a change to it. `.factory/` is a [protected path](#protected-paths): no agent can edit it.
+- **It adds, it never relaxes.** The agents are told it adds to their role's rules, to the engineering floor and to the security checklist, and cannot change their role, their answer shape or what they may touch. The factory's own checks (gates, `rules`, protected paths) decide, whatever the text says. Use [`rules`](#rules) for what must be enforced.
+- **Sections by role.** Text before the first role heading is for every role. A heading `## <role>` (a role name from [configuration](configuration.md#agents-and-models), such as `## developer`, `## reviewer`, `## security`) starts a section that only that role gets. A heading that names no role is ordinary text.
+- **At most 8 KB.** A longer file is cut and the ticket says so once. The helper checks that run without a model (evidence, gates) do not get it.
+
+```markdown
+Money is the `Money` type, never `decimal` or `double`.
+
+## developer
+Tests are plain asserts in `tests/check_*.py`; no mocks of our own code.
+
+## reviewer
+Reject any new `decimal` in a price calculation.
+```
 
 ## 6. Try it
 

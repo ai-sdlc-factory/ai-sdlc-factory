@@ -86,6 +86,23 @@ public sealed class TemplateTests
 
     [Theory]
     [MemberData(nameof(Names))]
+    public void The_project_instructions_are_read_by_the_factory_and_stay_within_their_limit(string name)
+    {
+        var text = File.ReadAllText(Path.Combine(Templates()!, name, ".factory", "instructions.md"));
+        var sectioned = text.Split('\n').Where(line => line.StartsWith("## ", StringComparison.Ordinal)).Select(line => line[3..].Trim()).ToList();
+
+        Assert.True(text.Length <= ProjectInstructions.MaxBytes, $"{name}: instructions.md is over the limit and would be cut");
+        Assert.NotEmpty(sectioned);
+        foreach (var role in sectioned)
+        {
+            Assert.Contains(role, AgentRoles.All);
+            Assert.NotNull(ProjectInstructions.For(text, role));
+        }
+        Assert.Contains("never relax", ProjectInstructions.Block(text, sectioned[0]));
+    }
+
+    [Theory]
+    [MemberData(nameof(Names))]
     public void Nothing_that_a_build_makes_is_checked_in(string name)
     {
         var root = Path.Combine(Templates()!, name);

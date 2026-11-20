@@ -411,6 +411,10 @@ public static class TicketComments
         string.Join('\n', warnings.Select(warning => $"- {warning}")) +
         "\n\nThe run goes ahead with the file read without " + (warnings.Count == 1 ? "it" : "them") + ". A misspelled setting does nothing, so fix the name on the default branch if it was meant to count.";
 
+    /// <summary>`.factory/instructions.md` is longer than the limit; the agents get the first part.</summary>
+    public static string InstructionsCut(int bytes) =>
+        $"**`.factory/instructions.md` is longer than {bytes / 1024} KB**\n\nThe agents get only its first {bytes / 1024} KB. Shorten the file on the default branch if the rest was meant to count.";
+
     /// <summary>`/retry` found nothing finished from an earlier run.</summary>
     public const string ResumeNothingSaved =
         "Nothing finished in an earlier run was saved for this ticket, so I start from the beginning.";

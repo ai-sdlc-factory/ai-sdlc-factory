@@ -37,7 +37,7 @@ public abstract partial class FactoryWorkflowBase
             // A budget that is used up ends the run here; a daily limit makes it wait. Never in the middle of an agent's run.
             await EnforceTokenLimitsAsync();
             SandboxRunResult result;
-            var promptText = prompt(problem);
+            var promptText = prompt(problem) + ProjectInstructions.Block(projectInstructions, role);
             var started = Workflow.UtcNow;
             try
             {
