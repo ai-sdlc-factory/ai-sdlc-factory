@@ -42,7 +42,7 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
         try
         {
             context = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.ReadQaContextAsync(qa),
+                (GitHostActivities activities) => activities.ReadQaContextAsync(qa),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
         }
         catch (ActivityFailureException error)

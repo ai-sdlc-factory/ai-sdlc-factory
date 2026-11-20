@@ -14,7 +14,7 @@ public enum WipAction
     Delete,
 }
 
-/// <summary>The decisions of the janitor as plain functions, so the cautious rules can be tested without Forgejo or Docker.</summary>
+/// <summary>The decisions of the janitor as plain functions, so the cautious rules can be tested without the git host or Docker.</summary>
 public static partial class JanitorRules
 {
     /// <summary>Only folders the factory itself makes (named after a workflow id) are ever removed; anything else in the root is not ours.</summary>

@@ -43,7 +43,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
         try
         {
             context = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.ReadRevisionContextAsync(revision),
+                (GitHostActivities activities) => activities.ReadRevisionContextAsync(revision),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
         }
         catch (ActivityFailureException error)
@@ -226,7 +226,7 @@ public sealed partial class PullRequestRevisionWorkflow : FactoryWorkflowBase
             if (reviewers.Count > 0)
             {
                 await BestEffortAsync(() => Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.RequestReviewersAsync(new ReviewRequestInput(request.Owner, request.Repo, pull.Number, reviewers)),
+                    (GitHostActivities activities) => activities.RequestReviewersAsync(new ReviewRequestInput(request.Owner, request.Repo, pull.Number, reviewers)),
                     ActivityPolicy.Local(TimeSpan.FromMinutes(1), 2)));
             }
             return new WorkResult(Statuses.RevisionPushed, WorkBranch: published.Branch);

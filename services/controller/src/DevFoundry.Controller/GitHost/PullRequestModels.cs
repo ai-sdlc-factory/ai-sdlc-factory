@@ -15,7 +15,7 @@ public sealed record ReviewComment(
 /// <summary>A review of the pull request: its overall text and the comments attached to lines.</summary>
 public sealed record ReviewDetails(long Id, string Reviewer, string State, string Body, IReadOnlyList<ReviewComment> Comments);
 
-/// <summary>Everything read from Forgejo to decide whether and what to revise.</summary>
+/// <summary>Everything read from the git host to decide whether and what to revise.</summary>
 /// <param name="QaFindings">For a <c>/fix qa</c>: the findings of the latest QA report, one string each; null for any other revision.</param>
 public sealed record RevisionContext(PullRequestDetails Pull, string BotLogin, IReadOnlyList<ReviewDetails> Reviews, int PriorRevisions, IReadOnlyList<string>? QaFindings = null);
 
@@ -23,7 +23,7 @@ public sealed record RevisionContext(PullRequestDetails Pull, string BotLogin, I
 public sealed record ChangedFile(string Path, string Status, int Additions, int Deletions, string? PreviousPath = null);
 
 /// <summary>
-/// What a pull request changes, as Forgejo reports it: the files (at most <see cref="ForgejoClient.MaxChangedFiles"/>), how many there are in all, and the start of the diff
+/// What a pull request changes, as the git host reports it: the files (at most <see cref="ForgejoClient.MaxChangedFiles"/>), how many there are in all, and the start of the diff
 /// (<see cref="DiffCut"/> when it was longer). Text from the repository, so only ever given to an agent as data.
 /// </summary>
 public sealed record PullChanges(IReadOnlyList<ChangedFile> Files, int TotalFiles, string Diff, bool DiffCut);

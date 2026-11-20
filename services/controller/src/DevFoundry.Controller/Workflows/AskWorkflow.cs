@@ -5,7 +5,7 @@ namespace DevFoundry.Controller;
 
 /// <summary>
 /// A person asked a question with <c>/ask</c> in a comment on a ticket or a pull request. The read-only <c>asker</c> reads the default branch (for a pull request it is also given
-/// what the pull request changes, as Forgejo reports it) and its answer is posted as a comment. Nothing is written, pushed or run, and the agent has no shell. The files the answer
+/// what the pull request changes, as the git host reports it) and its answer is posted as a comment. Nothing is written, pushed or run, and the agent has no shell. The files the answer
 /// names are checked to exist before they are shown, so a made-up path is not presented as a source. The question is data: it cannot change what the agent may do.
 /// </summary>
 [Workflow("AskWorkflow")]
@@ -34,18 +34,18 @@ public sealed class AskWorkflow : FactoryWorkflowBase
             startMessage: AskComments.Started(ask.OnPullRequest));
     }
 
-    /// <summary>What a question on a pull request is told about it. The changed files and the diff are null when Forgejo could not give them.</summary>
+    /// <summary>What a question on a pull request is told about it. The changed files and the diff are null when the git host could not give them.</summary>
     private sealed record PullContext(string Title, string Body, string? ChangedFiles, string? Diff);
 
     private const int MaxFilesListed = 60;
 
-    /// <summary>The pull request's description and what it changes, or null when Forgejo cannot be read: the question can still be answered from the repository itself.</summary>
+    /// <summary>The pull request's description and what it changes, or null when the git host cannot be read: the question can still be answered from the repository itself.</summary>
     private static async Task<PullContext?> ReadPullContextAsync(AskRequest ask)
     {
         try
         {
             var context = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.ReadReviewContextAsync(new PullReviewRequest(ask.Owner, ask.Repo, ask.Number, ask.Author)),
+                (GitHostActivities activities) => activities.ReadReviewContextAsync(new PullReviewRequest(ask.Owner, ask.Repo, ask.Number, ask.Author)),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
             var changed = context.Changes is { } changes
                 ? string.Join('\n', changes.Files.Take(MaxFilesListed).Select(file => $"{file.Status} {file.Path} (+{file.Additions} -{file.Deletions})"))

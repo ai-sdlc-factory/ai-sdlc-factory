@@ -26,7 +26,7 @@ What the workflows do for a ticket is described in the [workflows guide](../../d
 All of them but the router share one base class, `FactoryWorkflowBase`: the workspace, the conversation with people, running one agent, the build loop with the project's checks and
 reviewers, token limits, saving unfinished work and the run log. Each concrete workflow only defines its own stage order. Two hosted services run beside the worker: the janitor (`Janitor/`) and `ImprovementService`.
 
-Activities (all in this service, except `sandbox_run`) are in `Workspace/WorkspaceActivities.cs` (`workspace_*`: checkouts, changes, publish, merge, the usage and resume files, the weekly report) and `Forgejo/ForgejoActivities.cs` (`forgejo_*`: comments, tickets, pull requests and what to read from them). The workflows call `sandbox_run` on the
+Activities (all in this service, except `sandbox_run`) are in `Workspace/WorkspaceActivities.cs` (`workspace_*`: checkouts, changes, publish, merge, the usage and resume files, the weekly report) and `GitHost/GitHostActivities.cs` (`githost_*`: comments, tickets, pull requests and what to read from them, through the `IGitHost` port). The workflows call `sandbox_run` on the
 `sandbox` task queue, which the [sandbox launcher](../sandbox-launcher/README.md) serves. The controller itself polls `factory-events`.
 
 ## Run
@@ -53,7 +53,8 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 | `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), one class per workflow (`FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow`, `DocsWorkflow`, `PullRequestRevisionWorkflow`, `PullRequestUpdateWorkflow`, `PullRequestReviewWorkflow`, `QaWorkflow`, `ImprovementWorkflow`) with their own stage orders, `ForgejoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `WorkRequest` and the workflow id rules |
 | `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with the acceptance check and the UX decision, `Bug`, `Incident`, `Plan`, `Revision`, `Qa`, `Update`, `Docs`) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
-| `Forgejo/` | the API client, the comment, ticket and pull request activities, ticket comment texts |
+| `GitHost/` | the git host port (`IGitHost`), its activities, the models it returns, ticket comment texts |
+| `Forgejo/` | the one implementation of that port today: the Forgejo API client |
 | `Project/` | `.factory/project.json` parsing, the known keys (`ProjectKeys`), limits, rules and the `verify` settings |
 | `Improvement/` | the weekly report: reading the logs, the rules that flag what repeats, the improver's answer and prompt, the scheduler |
 | `Janitor/` | removing leftover checkouts and reporting old work-in-progress branches |

@@ -141,7 +141,7 @@ public sealed class PullReportTests
     public void A_week_with_no_pull_requests_and_one_that_could_not_be_read_say_so()
     {
         Assert.Contains("The factory opened no pull request this week.", Report([]).Markdown);
-        Assert.Contains("Forgejo could not be asked", Report(null).Markdown);
+        Assert.Contains("The git host could not be asked", Report(null).Markdown);
         Assert.False(Report(null).HasFindings);
     }
 

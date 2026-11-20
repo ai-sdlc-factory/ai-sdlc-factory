@@ -12,7 +12,7 @@ public sealed record PullReviewRequest(string Owner, string Repo, int Number, st
     public WorkRequest ToWorkRequest(string title, string body = "") => new(Owner, Repo, Number, title, body, Author, Kind: WorkIds.Review);
 }
 
-/// <summary>What a review needs to know before it starts: the pull request, and what it changes (null when Forgejo could not say).</summary>
+/// <summary>What a review needs to know before it starts: the pull request, and what it changes (null when the git host could not say).</summary>
 public sealed record ReviewContext(PullRequestDetails Pull, PullChanges? Changes);
 
 /// <summary>When a review goes ahead: on a pull request that is open.</summary>

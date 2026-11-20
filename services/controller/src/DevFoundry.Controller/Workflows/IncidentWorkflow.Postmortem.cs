@@ -84,7 +84,7 @@ public sealed partial class IncidentWorkflow
                     return new WorkResult(Statuses.PostmortemFailed);
                 }
                 var pullRequest = await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
+                    (GitHostActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                         request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, prTitle, prBody)),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
                 await CommentAsync(request, IncidentComments.PostmortemOpened(pullRequest.Url));

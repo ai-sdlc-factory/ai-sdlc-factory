@@ -24,7 +24,7 @@ public sealed partial class GitWorkspace
     }
 
     /// <summary>
-    /// What the usage log says about the pull requests of a week, so Forgejo can be asked about them: the repositories where a run opened one (<c>pr_opened</c> or <c>postmortem_opened</c>)
+    /// What the usage log says about the pull requests of a week, so the git host can be asked about them: the repositories where a run opened one (<c>pr_opened</c> or <c>postmortem_opened</c>)
     /// that week, the kind of run for each ticket, and how many revisions each pull request has been pushed (<c>revision_pushed</c>, from the whole log). Numbers only.
     /// </summary>
     public PullScope ReadPullScope(ImprovementRequest request)

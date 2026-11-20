@@ -73,7 +73,7 @@ public static class UpdateReply
             text.AppendLine($"- {TicketComments.Inert(note)}");
         }
         text.AppendLine();
-        text.Append("A person should look at the merge commit. Forgejo may take a moment to show that the pull request can be merged. I do not merge the pull request.");
+        text.Append("A person should look at the merge commit. The git host may take a moment to show that the pull request can be merged. I do not merge the pull request.");
         return text.ToString();
     }
 }

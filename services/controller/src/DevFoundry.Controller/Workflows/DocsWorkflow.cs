@@ -134,7 +134,7 @@ public sealed class DocsWorkflow : FactoryWorkflowBase
                     $"{TicketComments.Inert(report.Summary)}\n\nFiles: {string.Join(", ", changes.Files.Select(file => $"`{file.Path}`"))}" +
                     string.Concat(report.Notes.Concat(notes).Select(note => $"\n- {TicketComments.Inert(note)}"));
                 var pullRequest = await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
+                    (GitHostActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                         request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, prTitle, body)),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
                 await CommentAsync(request, $"**Pull request opened:** {pullRequest.Url}\n\n{changes.Files.Count} documentation file{(changes.Files.Count == 1 ? "" : "s")} on branch `{published.Branch}`. A person must read and merge it.");

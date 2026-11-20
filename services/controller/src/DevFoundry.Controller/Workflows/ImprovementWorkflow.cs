@@ -15,7 +15,7 @@ public sealed class ImprovementWorkflow : FactoryWorkflowBase
     [WorkflowRun]
     public async Task<WorkResult> RunAsync(ImprovementRequest request)
     {
-        // What became of the pull requests is asked of Forgejo in an activity (never from workflow code), and read-only. If it cannot be known the report says so and goes on.
+        // What became of the pull requests is asked of the git host in an activity (never from workflow code), and read-only. If it cannot be known the report says so and goes on.
         var outcomes = await ReadPullOutcomesAsync(request);
         ImprovementReportResult report;
         try
@@ -40,7 +40,7 @@ public sealed class ImprovementWorkflow : FactoryWorkflowBase
         try
         {
             issue = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.CreateIssueAsync(new CreateIssueRequest(owner, repo, title, report.Markdown, new List<string>())),
+                (GitHostActivities activities) => activities.CreateIssueAsync(new CreateIssueRequest(owner, repo, title, report.Markdown, new List<string>())),
                 // One attempt: a second after a lost answer would open the same report twice.
                 ActivityPolicy.Local(TimeSpan.FromSeconds(60), 1));
         }
@@ -71,7 +71,7 @@ public sealed class ImprovementWorkflow : FactoryWorkflowBase
                 return [];
             }
             return await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.ReadPullOutcomesAsync(new PullOutcomeRequest(
+                (GitHostActivities activities) => activities.ReadPullOutcomesAsync(new PullOutcomeRequest(
                     scope,
                     DateTimeOffset.ParseExact(request.From, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal),
                     DateTimeOffset.ParseExact(request.To, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal))),

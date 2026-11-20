@@ -186,7 +186,7 @@ public sealed class ForgejoClientTests
     private static Task<QaContext> ReadQaContext(HttpStatusCode files)
     {
         var client = new ForgejoClient(new HttpClient(new WholePullRequest(files)) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
-        var activities = new ForgejoActivities(client, new WorkerSettings { ForgejoToken = "secret-token", ForgejoBotLogin = "factory-bot" });
+        var activities = new GitHostActivities(client, new WorkerSettings { ForgejoToken = "secret-token", ForgejoBotLogin = "factory-bot" });
         return new Temporalio.Testing.ActivityEnvironment().RunAsync(() => activities.ReadQaContextAsync(new QaRequest("acme", "shop", 7, true, null, "bob")));
     }
 

@@ -101,7 +101,7 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     public Task<ImprovementReportResult> BuildImprovementReportAsync(ImprovementRequest request, IReadOnlyList<PullOutcome>? pullOutcomes = null) =>
         Task.FromResult(workspace.BuildImprovementReport(request, pullOutcomes));
 
-    /// <summary>What the usage log says about the week's pull requests (repositories, kinds and revision counts), for the report's question to Forgejo.</summary>
+    /// <summary>What the usage log says about the week's pull requests (repositories, kinds and revision counts), for the report's question to the git host.</summary>
     [Activity("workspace_pull_scope")]
     public Task<PullScope> ReadPullScopeAsync(ImprovementRequest request) => Task.FromResult(workspace.ReadPullScope(request));
 

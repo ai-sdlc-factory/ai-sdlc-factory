@@ -246,7 +246,7 @@ public sealed partial class IncidentWorkflow : FactoryWorkflowBase
         try
         {
             var issue = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.CreateIssueAsync(create),
+                (GitHostActivities activities) => activities.CreateIssueAsync(create),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
             Note("factory", $"Opened bug ticket #{issue.Number}.");
             await CommentAsync(request, IncidentComments.HotfixOpened(issue.Number, issue.Url));

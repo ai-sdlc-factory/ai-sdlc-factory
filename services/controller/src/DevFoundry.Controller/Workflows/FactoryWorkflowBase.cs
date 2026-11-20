@@ -109,7 +109,7 @@ public abstract partial class FactoryWorkflowBase
             {
                 // Said once per ticket (the same text is not posted again by a retry, a revision or any later run); a changed list is a new notice.
                 await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.PostNoticeUniqueAsync(
+                    (GitHostActivities activities) => activities.PostNoticeUniqueAsync(
                         new CommentRequest(request.Owner, request.Repo, request.IssueNumber, TicketComments.UnknownProjectKeys(warnings))),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
             }
@@ -122,7 +122,7 @@ public abstract partial class FactoryWorkflowBase
             if (instructions is { Cut: true })
             {
                 await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.PostNoticeUniqueAsync(
+                    (GitHostActivities activities) => activities.PostNoticeUniqueAsync(
                         new CommentRequest(request.Owner, request.Repo, request.IssueNumber, TicketComments.InstructionsCut(ProjectInstructions.MaxBytes))),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
             }
@@ -342,7 +342,7 @@ public abstract partial class FactoryWorkflowBase
 
     protected static Task CommentAsync(WorkRequest request, string body) =>
         Workflow.ExecuteActivityAsync(
-            (ForgejoActivities activities) => activities.PostIssueCommentAsync(
+            (GitHostActivities activities) => activities.PostIssueCommentAsync(
                 new CommentRequest(request.Owner, request.Repo, request.IssueNumber, body)),
             ActivityPolicy.Local(TimeSpan.FromSeconds(30), 5));
 }

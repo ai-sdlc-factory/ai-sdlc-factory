@@ -347,7 +347,7 @@ public static class TicketComments
         "A review of this pull request is already going. Its findings will be posted here when it is done; comment `/review` again after that if the pull request has changed.";
 
     public const string PullReviewNoChanges =
-        "I could not read what this pull request changes from Forgejo, so I did not review it. Comment `/review` again in a moment.";
+        "I could not read what this pull request changes from the git host, so I did not review it. Comment `/review` again in a moment.";
 
     /// <summary>The comment that ends a <c>/review</c>: what each reviewer concluded, and that nothing was changed.</summary>
     public static string PullReviewDone(int pullNumber, IReadOnlyList<(string Role, ReviewReport Report)> reports, bool diffCut)

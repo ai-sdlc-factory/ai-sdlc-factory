@@ -17,7 +17,7 @@ internal static class ActivityPolicy
     public static readonly TimeSpan SandboxHeartbeat = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// An activity of the controller itself (git, files, Forgejo). <paramref name="attempts"/> bounds the tries; without it Temporal's default
+    /// An activity of the controller itself (git, files, the git host). <paramref name="attempts"/> bounds the tries; without it Temporal's default
     /// retry policy applies (keep trying with growing pauses).
     /// </summary>
     public static ActivityOptions Local(TimeSpan timeout, int? attempts = null) => new()

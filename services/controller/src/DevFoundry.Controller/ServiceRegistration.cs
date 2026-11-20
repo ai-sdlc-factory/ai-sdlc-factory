@@ -13,7 +13,7 @@ public static class ServiceRegistration
     {
         services
             .AddHostedTemporalWorker(settings.TemporalAddress, settings.TemporalNamespace, settings.TemporalTaskQueue)
-            .AddScopedActivities<ForgejoActivities>()
+            .AddScopedActivities<GitHostActivities>()
             .AddScopedActivities<WorkspaceActivities>()
             .AddWorkflow<ForgejoEventWorkflow>()
             .AddWorkflow<FeatureWorkflow>()

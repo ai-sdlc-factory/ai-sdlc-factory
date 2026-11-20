@@ -5,7 +5,7 @@ namespace DevFoundry.Controller;
 
 /// <summary>
 /// A person asked for a review of a pull request: <c>/review</c> in a comment on it, whoever opened it. The project's reviewers (<c>reviewer</c>, and <c>security</c> if the
-/// project lists it) read the pull request's diff, as Forgejo reports it, and post their findings on the pull request. Nothing is written or pushed, and nothing is merged.
+/// project lists it) read the pull request's diff, as the git host reports it, and post their findings on the pull request. Nothing is written or pushed, and nothing is merged.
 /// The checkout is the default branch, so the project's settings and image come from the trusted branch and never from a branch that anybody could have written, and the
 /// reviewers read the code the pull request changes as it was, with the diff in the prompt showing what it becomes. The project's checks are not run.
 /// </summary>
@@ -20,7 +20,7 @@ public sealed class PullRequestReviewWorkflow : FactoryWorkflowBase
         try
         {
             context = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.ReadReviewContextAsync(review),
+                (GitHostActivities activities) => activities.ReadReviewContextAsync(review),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
         }
         catch (ActivityFailureException error)

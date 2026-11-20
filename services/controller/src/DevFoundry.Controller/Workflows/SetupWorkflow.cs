@@ -81,7 +81,7 @@ public sealed class SetupWorkflow : FactoryWorkflowBase
                     workspace.Name, file, $"Add .factory/project.json (#{request.IssueNumber})\n\nProposed by the factory; every check in it passed in the sandbox.")),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(5), 3));
             var pullRequest = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
+                (GitHostActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, "Add .factory/project.json",
                     SetupComments.PullRequestBody(request.IssueNumber, proposal, results, file))),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));

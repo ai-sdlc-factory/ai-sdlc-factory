@@ -207,7 +207,7 @@ public sealed class PlanWorkflow : FactoryWorkflowBase
             {
                 // One attempt: a retry after a lost answer would open the same ticket twice.
                 var issue = await Workflow.ExecuteActivityAsync(
-                    (ForgejoActivities activities) => activities.CreateIssueAsync(
+                    (GitHostActivities activities) => activities.CreateIssueAsync(
                         new CreateIssueRequest(request.Owner, request.Repo, title, body, new List<string> { EventRouter.FeatureLabel })),
                     ActivityPolicy.Local(TimeSpan.FromSeconds(60), 1));
                 var made = new CreatedTicket(number, issue.Number, issue.Url);

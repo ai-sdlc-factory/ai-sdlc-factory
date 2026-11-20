@@ -14,18 +14,18 @@ public sealed record PullRequestRequest(string Owner, string Repo, string Head, 
 /// <summary>A ticket, by number, whose open pull request of the factory is wanted.</summary>
 public sealed record TicketReference(string Owner, string Repo, int Number);
 
-public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
+public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
 {
     /// <summary>The number of the factory's newest open pull request for the ticket, or null when it has none.</summary>
-    [Activity("forgejo_find_factory_pull_request")]
+    [Activity("githost_find_factory_pull_request")]
     public Task<int?> FindFactoryPullRequestAsync(TicketReference ticket) =>
-        forgejo.FindFactoryPullRequestAsync(ticket.Owner, ticket.Repo, ticket.Number, ActivityExecutionContext.Current.CancellationToken);
+        host.FindFactoryPullRequestAsync(ticket.Owner, ticket.Repo, ticket.Number, ActivityExecutionContext.Current.CancellationToken);
 
     /// <summary>
     /// For the weekly report: what became of the pull requests the factory opened in a week (merged, closed without merging, still open). Read-only, and only numbers and states
     /// come back. At most <see cref="MaxRepositories"/> repositories, the ones the usage log names.
     /// </summary>
-    [Activity("forgejo_pull_outcomes")]
+    [Activity("githost_pull_outcomes")]
     public async Task<IReadOnlyList<PullOutcome>> ReadPullOutcomesAsync(PullOutcomeRequest request)
     {
         var token = ActivityExecutionContext.Current.CancellationToken;
@@ -36,7 +36,7 @@ public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
             {
                 continue;
             }
-            var pulls = await forgejo.ListAllPullRequestsAsync(owner, repo, token);
+            var pulls = await host.ListAllPullRequestsAsync(owner, repo, token);
             outcomes.AddRange(PullOutcomes.Build(repository, pulls, request.Scope, settings.ForgejoBotLogin, request.From, request.To));
         }
         return outcomes;
@@ -44,39 +44,39 @@ public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
 
     private const int MaxRepositories = 25;
 
-    [Activity("forgejo_post_issue_comment")]
+    [Activity("githost_post_issue_comment")]
     public Task PostIssueCommentAsync(CommentRequest request) =>
-        forgejo.PostIssueCommentAsync(
+        host.PostIssueCommentAsync(
             request.Owner, request.Repo, request.IssueNumber, request.Body,
             ActivityExecutionContext.Current.CancellationToken);
 
-    [Activity("forgejo_post_notice_once")]
+    [Activity("githost_post_notice_once")]
     public Task<bool> PostNoticeOnceAsync(CommentRequest request) =>
-        forgejo.PostNoticeOnceAsync(
+        host.PostNoticeOnceAsync(
             request.Owner, request.Repo, request.IssueNumber, request.Body,
             ActivityExecutionContext.Current.CancellationToken);
 
-    [Activity("forgejo_post_notice_unique")]
+    [Activity("githost_post_notice_unique")]
     public Task<bool> PostNoticeUniqueAsync(CommentRequest request) =>
-        forgejo.PostNoticeUniqueAsync(
+        host.PostNoticeUniqueAsync(
             request.Owner, request.Repo, request.IssueNumber, request.Body,
             ActivityExecutionContext.Current.CancellationToken);
 
-    [Activity("forgejo_create_issue")]
+    [Activity("githost_create_issue")]
     public Task<IssueInfo> CreateIssueAsync(CreateIssueRequest request) =>
-        forgejo.CreateIssueAsync(
+        host.CreateIssueAsync(
             request.Owner, request.Repo, request.Title, request.Body, request.Labels,
             ActivityExecutionContext.Current.CancellationToken);
 
     /// <summary>Reads what is needed to decide whether to revise a pull request, and what the reviewer asked for.</summary>
-    [Activity("forgejo_read_revision_context")]
+    [Activity("githost_read_revision_context")]
     public async Task<RevisionContext> ReadRevisionContextAsync(RevisionRequest request)
     {
         var token = ActivityExecutionContext.Current.CancellationToken;
         var bot = settings.ForgejoBotLogin;
-        var pull = await forgejo.GetPullRequestAsync(request.Owner, request.Repo, request.PullNumber, token);
-        var history = await forgejo.GetRevisionHistoryAsync(request.Owner, request.Repo, request.PullNumber, token);
-        var reviews = await forgejo.GetUnaddressedReviewsAsync(request.Owner, request.Repo, request.PullNumber, bot, history.LastAt, token);
+        var pull = await host.GetPullRequestAsync(request.Owner, request.Repo, request.PullNumber, token);
+        var history = await host.GetRevisionHistoryAsync(request.Owner, request.Repo, request.PullNumber, token);
+        var reviews = await host.GetUnaddressedReviewsAsync(request.Owner, request.Repo, request.PullNumber, bot, history.LastAt, token);
         IReadOnlyList<string>? qaFindings = null;
         if (QaReportFormat.IsQaFix(request.Instruction))
         {
@@ -96,7 +96,7 @@ public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
         numbers.Add(request.PullNumber);
         foreach (var number in numbers)
         {
-            var bodies = await forgejo.RecentCommentBodiesAsync(request.Owner, request.Repo, number, 50, token);
+            var bodies = await host.RecentCommentBodiesAsync(request.Owner, request.Repo, number, 50, token);
             if (bodies.LastOrDefault(body => body.Contains(QaReportFormat.Marker, StringComparison.Ordinal)) is { } report)
             {
                 return QaReportFormat.ExtractFindings(report);
@@ -106,18 +106,18 @@ public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
     }
 
     /// <summary>Finds the factory's open pull request for the ticket a <c>/qa</c> came from, or reads the pull request it came from.</summary>
-    [Activity("forgejo_read_qa_context")]
+    [Activity("githost_read_qa_context")]
     public async Task<QaContext> ReadQaContextAsync(QaRequest request)
     {
         var token = ActivityExecutionContext.Current.CancellationToken;
         var number = request.OnPullRequest
             ? request.Number
-            : await forgejo.FindFactoryPullRequestAsync(request.Owner, request.Repo, request.Number, token);
+            : await host.FindFactoryPullRequestAsync(request.Owner, request.Repo, request.Number, token);
         if (number is null)
         {
             return new QaContext(null, settings.ForgejoBotLogin);
         }
-        var pull = await forgejo.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token);
+        var pull = await host.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token);
         return new QaContext(pull, settings.ForgejoBotLogin, await TryGetChangesAsync(request.Owner, request.Repo, number.Value, token));
     }
 
@@ -126,7 +126,7 @@ public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
     {
         try
         {
-            return await forgejo.GetPullChangesAsync(owner, repo, number, token);
+            return await host.GetPullChangesAsync(owner, repo, number, token);
         }
         catch (Exception error) when (error is Temporalio.Exceptions.ApplicationFailureException or HttpRequestException || (error is TaskCanceledException && !token.IsCancellationRequested))
         {
@@ -135,37 +135,37 @@ public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
     }
 
     /// <summary>Finds the factory's open pull request for the ticket an <c>/update</c> came from, or reads the pull request it came from.</summary>
-    [Activity("forgejo_read_update_context")]
+    [Activity("githost_read_update_context")]
     public async Task<UpdateContext> ReadUpdateContextAsync(UpdateRequest request)
     {
         var token = ActivityExecutionContext.Current.CancellationToken;
         var number = request.OnPullRequest
             ? request.Number
-            : await forgejo.FindFactoryPullRequestAsync(request.Owner, request.Repo, request.Number, token);
+            : await host.FindFactoryPullRequestAsync(request.Owner, request.Repo, request.Number, token);
         if (number is null)
         {
             return new UpdateContext(null, settings.ForgejoBotLogin);
         }
-        return new UpdateContext(await forgejo.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token), settings.ForgejoBotLogin);
+        return new UpdateContext(await host.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token), settings.ForgejoBotLogin);
     }
 
     /// <summary>Reads the pull request a <c>/review</c> is for, and what it changes.</summary>
-    [Activity("forgejo_read_review_context")]
+    [Activity("githost_read_review_context")]
     public async Task<ReviewContext> ReadReviewContextAsync(PullReviewRequest request)
     {
         var token = ActivityExecutionContext.Current.CancellationToken;
-        var pull = await forgejo.GetPullRequestAsync(request.Owner, request.Repo, request.Number, token);
+        var pull = await host.GetPullRequestAsync(request.Owner, request.Repo, request.Number, token);
         return new ReviewContext(pull, await TryGetChangesAsync(request.Owner, request.Repo, request.Number, token));
     }
 
     /// <summary>Asks the reviewers to look again after a revision was pushed. Never fails the run.</summary>
-    [Activity("forgejo_request_reviewers")]
+    [Activity("githost_request_reviewers")]
     public Task<bool> RequestReviewersAsync(ReviewRequestInput request) =>
-        forgejo.RequestReviewAsync(request.Owner, request.Repo, request.PullNumber, request.Reviewers, ActivityExecutionContext.Current.CancellationToken);
+        host.RequestReviewAsync(request.Owner, request.Repo, request.PullNumber, request.Reviewers, ActivityExecutionContext.Current.CancellationToken);
 
-    [Activity("forgejo_create_pull_request")]
+    [Activity("githost_create_pull_request")]
     public Task<PullRequestInfo> CreatePullRequestAsync(PullRequestRequest request) =>
-        forgejo.CreatePullRequestAsync(
+        host.CreatePullRequestAsync(
             request.Owner, request.Repo, request.Head, request.Base, request.Title, request.Body,
             ActivityExecutionContext.Current.CancellationToken);
 }

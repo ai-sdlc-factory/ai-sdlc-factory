@@ -114,7 +114,7 @@ public sealed class ForgejoEventWorkflow
         }
         var feature = decision.Feature!;
         await Workflow.ExecuteActivityAsync(
-            (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+            (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                 new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.ReopenStillStopping)),
             ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
     }
@@ -128,7 +128,7 @@ public sealed class ForgejoEventWorkflow
         try
         {
             return await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.FindFactoryPullRequestAsync(new TicketReference(owner, repo, ticket)),
+                (GitHostActivities activities) => activities.FindFactoryPullRequestAsync(new TicketReference(owner, repo, ticket)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
         catch (ActivityFailureException)
@@ -145,7 +145,7 @@ public sealed class ForgejoEventWorkflow
         if (feature.Resume && await FindOpenPullRequestAsync(feature.Owner, feature.Repo, feature.IssueNumber) is { } pull)
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.RetryHasPullRequest(pull))),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
             return;
@@ -155,7 +155,7 @@ public sealed class ForgejoEventWorkflow
             return;
         }
         await Workflow.ExecuteActivityAsync(
-            (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+            (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                 new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.RetryWhileRunning)),
             ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
     }
@@ -177,7 +177,7 @@ public sealed class ForgejoEventWorkflow
         catch (WorkflowAlreadyStartedException)
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaBusy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
@@ -189,7 +189,7 @@ public sealed class ForgejoEventWorkflow
         if (!await SignalAsync<QaWorkflow>(qa.WorkflowId, workflow => workflow.OnGoAsync()))
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaNothingToConfirm)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
@@ -212,7 +212,7 @@ public sealed class ForgejoEventWorkflow
         catch (WorkflowAlreadyStartedException)
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(update.Owner, update.Repo, update.Number, TicketComments.UpdateBusy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
@@ -235,7 +235,7 @@ public sealed class ForgejoEventWorkflow
         catch (WorkflowAlreadyStartedException)
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(review.Owner, review.Repo, review.Number, TicketComments.PullReviewBusy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
@@ -258,7 +258,7 @@ public sealed class ForgejoEventWorkflow
         catch (WorkflowAlreadyStartedException)
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(ask.Owner, ask.Repo, ask.Number, AskComments.Busy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
@@ -281,7 +281,7 @@ public sealed class ForgejoEventWorkflow
         catch (WorkflowAlreadyStartedException)
         {
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(setup.Owner, setup.Repo, setup.IssueNumber, SetupComments.Busy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
@@ -307,7 +307,7 @@ public sealed class ForgejoEventWorkflow
             var queued = await SignalAsync<PullRequestRevisionWorkflow>(revision.WorkflowId, workflow => workflow.OnMoreFeedbackAsync(revision));
             var busy = new CommentRequest(revision.Owner, revision.Repo, revision.PullNumber, queued ? TicketComments.RevisionQueued : TicketComments.RevisionBusy);
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(busy),
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(busy),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
     }
@@ -328,7 +328,7 @@ public sealed class ForgejoEventWorkflow
         {
             // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
             await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActive)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }

@@ -44,7 +44,7 @@ public sealed class CompositionTests
         using var provider = Build();
         using var scope = provider.CreateScope();
 
-        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ForgejoActivities>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<GitHostActivities>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<WorkspaceActivities>());
     }
 }

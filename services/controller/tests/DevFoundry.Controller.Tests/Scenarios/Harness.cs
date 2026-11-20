@@ -328,35 +328,35 @@ public sealed class FakeWorld
 
     // ---- the activities the workflow calls ---------------------------------------------------------------
 
-    /// <summary>Stands in for ForgejoActivities and WorkspaceActivities; the names are what the workflow calls.</summary>
+    /// <summary>Stands in for GitHostActivities and WorkspaceActivities; the names are what the workflow calls.</summary>
     private sealed class MainActivities(FakeWorld world)
     {
-        [Activity("forgejo_post_issue_comment")]
+        [Activity("githost_post_issue_comment")]
         public void PostComment(CommentRequest request)
         {
             lock (world.gate) { world.Comments.Add(request.Body); }
         }
 
-        [Activity("forgejo_read_revision_context")]
+        [Activity("githost_read_revision_context")]
         public RevisionContext ReadRevisionContext(RevisionRequest request) =>
             world.RevisionContextFailure is { } failure ? throw failure : world.RevisionContext;
 
-        [Activity("forgejo_read_qa_context")]
+        [Activity("githost_read_qa_context")]
         public QaContext ReadQaContext(QaRequest request) => world.QaContext;
 
-        [Activity("forgejo_read_review_context")]
+        [Activity("githost_read_review_context")]
         public ReviewContext ReadReviewContext(PullReviewRequest request) => world.ReviewContextFailure is { } failure ? throw failure : world.ReviewContext;
 
-        [Activity("forgejo_read_update_context")]
+        [Activity("githost_read_update_context")]
         public UpdateContext ReadUpdateContext(UpdateRequest request) => world.UpdateContext;
 
-        [Activity("forgejo_find_factory_pull_request")]
+        [Activity("githost_find_factory_pull_request")]
         public int? FindFactoryPullRequest(TicketReference ticket) => world.OpenFactoryPull;
 
         [Activity("workspace_pull_scope")]
         public PullScope ReadPullScope(ImprovementRequest request) => world.PullScope;
 
-        [Activity("forgejo_pull_outcomes")]
+        [Activity("githost_pull_outcomes")]
         public IReadOnlyList<PullOutcome> ReadPullOutcomes(PullOutcomeRequest request) => world.PullOutcomesFailure is { } failure ? throw failure : world.PullOutcomes;
 
         [Activity("workspace_improvement_report")]
@@ -435,14 +435,14 @@ public sealed class FakeWorld
             return new PublishResult("deadbeef12345678", "factory/issue-7", 1);
         }
 
-        [Activity("forgejo_request_reviewers")]
+        [Activity("githost_request_reviewers")]
         public bool RequestReviewers(ReviewRequestInput request)
         {
             lock (world.gate) { world.ReviewRequests.Add(request); }
             return true;
         }
 
-        [Activity("forgejo_create_issue")]
+        [Activity("githost_create_issue")]
         public IssueInfo CreateIssue(CreateIssueRequest request)
         {
             if (world.IssueFailure is not null)
@@ -456,7 +456,7 @@ public sealed class FakeWorld
             }
         }
 
-        [Activity("forgejo_post_notice_once")]
+        [Activity("githost_post_notice_once")]
         public bool PostNotice(CommentRequest request)
         {
             lock (world.gate)
@@ -471,7 +471,7 @@ public sealed class FakeWorld
             }
         }
 
-        [Activity("forgejo_post_notice_unique")]
+        [Activity("githost_post_notice_unique")]
         public bool PostUniqueNotice(CommentRequest request)
         {
             lock (world.gate)
@@ -486,7 +486,7 @@ public sealed class FakeWorld
             }
         }
 
-        [Activity("forgejo_create_pull_request")]
+        [Activity("githost_create_pull_request")]
         public PullRequestInfo CreatePullRequest(PullRequestRequest request)
         {
             if (world.PullRequestFailure is not null)

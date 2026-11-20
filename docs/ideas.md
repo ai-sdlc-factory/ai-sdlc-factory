@@ -15,14 +15,14 @@ Left out on purpose, for now: auto-triage of unlabelled tickets and a permission
 **Problem.** Everything the factory reads from or writes to a repository goes through Forgejo. A team on GitHub, GitLab, Azure DevOps or Bitbucket cannot use it, and one factory cannot serve repositories on two hosts.
 
 **Where Forgejo is built in** (measured 2026-11-15):
-- Controller: 33 files, about 140 mentions. `ForgejoClient` has 17 operations (comments, issues, pull requests and their files, reviews, review requests, branches, a repository list), wrapped by `ForgejoActivities`. `EventRouter` reads Forgejo's webhook JSON directly (`issues`, `issue_comment`, `pull_request_rejected`, labels, `is_pull`).
+- Controller: 33 files, about 140 mentions. `ForgejoClient` has 17 operations (comments, issues, pull requests and their files, reviews, review requests, branches, a repository list), wrapped by `GitHostActivities`. `EventRouter` reads Forgejo's webhook JSON directly (`issues`, `issue_comment`, `pull_request_rejected`, labels, `is_pull`).
 - API service: `WebhookEndpoints` and `WebhookVerifier` check Forgejo's HMAC-SHA256 signature on one fixed route.
 - Alert intake: its own small client (`Forgejo.cs`: find a ticket by marker, create, comment, add a marker).
 - Identity: `owner/repo` is the key everywhere (`WorkIds.For` hashes it into workflow ids and workspace folders, the usage log, the janitor's prefixes, the weekly report). There is **no host** in any of it.
 - Not affected: the agents, sandboxes, workflows, gates, QA, reviewers, token limits, and cloning and pushing (plain git over HTTPS with a token).
 
 **How.** In this order, each step keeping every test green:
-1. **A host port.** Turn the operations of `ForgejoClient` into an interface (`IGitHost`) with Forgejo as the only implementation, and have `ForgejoActivities` call the interface. No behaviour change.
+1. **A host port.** Turn the operations of `ForgejoClient` into an interface (`IGitHost`) with Forgejo as the only implementation, and have `GitHostActivities` call the interface. No behaviour change.
 2. **A neutral event.** One `RepoEvent` (kind, repository, number, is it a pull request, comment text, labels, author, action, head ref, state, review state) that `EventRouter` works on, and a **webhook adapter per host** that verifies and normalises (`IWebhookAdapter`: `Verify(headers, body)`, `Normalise(payload)`). The API serves `/webhooks/<host>`; each host has its own secret. Many tests build Forgejo payloads by hand: they become tests of the Forgejo adapter, and the router tests use neutral events.
 3. **Host in the identity.** A repository is `host:owner/repo` (the default host keeps today's ids, so nothing running is renamed). Settings carry a list of hosts (type, base URL, token); `WorkIds`, the workspace folders, the janitor, the usage log and the report take the host into account. The janitor and the report loop over hosts.
 4. **Configurable triggers.** Today a label starts a run, which not every host has. Per repository (in `.factory/project.json`, or per host): a label, a tag, a work-item type, or a comment command (`/factory feature`). Slash commands in comments are portable as they are.

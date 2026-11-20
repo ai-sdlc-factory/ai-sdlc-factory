@@ -217,7 +217,7 @@ public static class ImprovementReportBuilder
         text.AppendLine();
         if (pulls is null)
         {
-            text.AppendLine("Forgejo could not be asked what became of this week's pull requests, so this section is empty. The rest of the report does not depend on it.");
+            text.AppendLine("The git host could not be asked what became of this week's pull requests, so this section is empty. The rest of the report does not depend on it.");
             text.AppendLine();
             return;
         }

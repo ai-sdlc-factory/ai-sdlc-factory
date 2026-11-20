@@ -16,16 +16,16 @@ public sealed record LoggedPullKind(string Repository, int Ticket, string Kind);
 /// <summary>How many revisions the factory pushed to a pull request, as the usage log counts them.</summary>
 public sealed record LoggedRevisions(string Repository, int Pull, int Count);
 
-/// <summary>What the usage log says about the factory's pull requests: which repositories to ask Forgejo about, which ticket was what kind of run, and how many revisions each pull request got.</summary>
+/// <summary>What the usage log says about the factory's pull requests: which repositories to ask the git host about, which ticket was what kind of run, and how many revisions each pull request got.</summary>
 public sealed record PullScope(IReadOnlyList<string> Repositories, IReadOnlyList<LoggedPullKind> Tickets, IReadOnlyList<LoggedRevisions> Revisions);
 
-/// <summary>What the weekly report asks of Forgejo: the pull requests the factory opened in [<see cref="From"/>, <see cref="To"/>) in these repositories, and the log's facts to join them to.</summary>
+/// <summary>What the weekly report asks of the git host: the pull requests the factory opened in [<see cref="From"/>, <see cref="To"/>) in these repositories, and the log's facts to join them to.</summary>
 public sealed record PullOutcomeRequest(PullScope Scope, DateTimeOffset From, DateTimeOffset To);
 
 /// <summary>One pull request of the factory and what became of it. Only numbers and states: nothing from its title or text is read.</summary>
 public sealed record PullOutcome(string Repository, int Number, string Kind, string State, int Revisions, double? DaysToMerge);
 
-/// <summary>A pull request as Forgejo lists it: only what the report needs.</summary>
+/// <summary>A pull request as the git host lists it: only what the report needs.</summary>
 public sealed record PullSummary(int Number, string State, bool Merged, string HeadRef, string Author, DateTimeOffset CreatedAt, DateTimeOffset? MergedAt);
 
 public static partial class PullOutcomes

@@ -21,7 +21,7 @@ public sealed partial class PullRequestUpdateWorkflow : FactoryWorkflowBase
         try
         {
             context = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.ReadUpdateContextAsync(update),
+                (GitHostActivities activities) => activities.ReadUpdateContextAsync(update),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(2), 3));
         }
         catch (ActivityFailureException error)

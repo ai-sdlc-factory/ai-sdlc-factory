@@ -151,7 +151,7 @@ public abstract partial class FactoryWorkflowBase
                 return new WorkResult(Statuses.NoChanges, triage.NeedsArchitect);
             }
             pullRequest = await Workflow.ExecuteActivityAsync(
-                (ForgejoActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
+                (GitHostActivities activities) => activities.CreatePullRequestAsync(new PullRequestRequest(
                     request.Owner, request.Repo, published.Branch, workspace.DefaultBranch, title,
                     PullRequestText.Body(request, report, remaining, design, passed, passedRound, reviews, qa, uxNote, quickReason, bug))),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
