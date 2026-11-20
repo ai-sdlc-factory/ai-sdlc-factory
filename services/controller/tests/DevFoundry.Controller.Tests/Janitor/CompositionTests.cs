@@ -22,7 +22,7 @@ public sealed class CompositionTests
         Assert.NotNull(provider.GetRequiredService<JanitorRunner>());
         Assert.NotNull(provider.GetRequiredService<IRunningWorkflows>());
         Assert.NotNull(provider.GetRequiredService<IWorkspaceStore>());
-        Assert.NotNull(provider.GetRequiredService<IJanitorForgejo>());
+        Assert.NotNull(provider.GetRequiredService<IJanitorGitHost>());
         Assert.NotNull(provider.GetRequiredService<Temporalio.Client.ITemporalClient>());
     }
 

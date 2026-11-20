@@ -30,8 +30,8 @@ public sealed class TemporalRunningWorkflows(ITemporalClient client) : IRunningW
     }
 }
 
-/// <summary>What the janitor needs from Forgejo.</summary>
-public interface IJanitorForgejo
+/// <summary>What the janitor needs from the git host: a few operations on repositories and branches. A narrow port of its own (it is part of <see cref="IGitHost"/>), so the janitor and its tests need nothing more.</summary>
+public interface IJanitorGitHost
 {
     Task<IReadOnlyList<(string Owner, string Repo)>> ListWritableRepositoriesAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<BranchInfo>> ListBranchesAsync(string owner, string repo, CancellationToken cancellationToken);

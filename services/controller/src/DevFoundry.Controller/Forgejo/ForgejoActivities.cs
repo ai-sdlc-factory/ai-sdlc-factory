@@ -14,7 +14,7 @@ public sealed record PullRequestRequest(string Owner, string Repo, string Head, 
 /// <summary>A ticket, by number, whose open pull request of the factory is wanted.</summary>
 public sealed record TicketReference(string Owner, string Repo, int Number);
 
-public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings settings)
+public sealed class ForgejoActivities(IGitHost forgejo, WorkerSettings settings)
 {
     /// <summary>The number of the factory's newest open pull request for the ticket, or null when it has none.</summary>
     [Activity("forgejo_find_factory_pull_request")]

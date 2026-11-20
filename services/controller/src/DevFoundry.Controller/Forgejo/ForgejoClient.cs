@@ -18,7 +18,7 @@ public sealed record IssueInfo(int Number, string Url);
 
 public sealed record BranchInfo(string Name, DateTimeOffset LastCommit);
 
-public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJanitorForgejo
+public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IGitHost
 {
     public async Task PostIssueCommentAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)

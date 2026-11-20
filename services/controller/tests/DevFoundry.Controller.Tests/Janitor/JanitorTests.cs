@@ -73,7 +73,7 @@ public sealed class JanitorRunnerTests
             Fails ? throw new InvalidOperationException("temporal is down") : Task.FromResult<IReadOnlySet<string>>(ids.ToHashSet());
     }
 
-    private sealed class Forgejo : IJanitorForgejo
+    private sealed class Forgejo : IJanitorGitHost
     {
         public List<(string, string)> Repos { get; } = [("acme", "shop")];
         public Dictionary<string, List<BranchInfo>> Branches { get; } = new() { ["acme/shop"] = [] };

@@ -9,7 +9,7 @@ public sealed record JanitorReport(
 /// Anything it cannot establish (the running list, a ticket's state) means it does nothing for that item.
 /// </summary>
 public sealed class JanitorRunner(
-    IWorkspaceStore workspaces, IRunningWorkflows running, IJanitorForgejo forgejo, WorkerSettings settings, ILogger<JanitorRunner> log, Func<DateTimeOffset>? clock = null)
+    IWorkspaceStore workspaces, IRunningWorkflows running, IJanitorGitHost forgejo, WorkerSettings settings, ILogger<JanitorRunner> log, Func<DateTimeOffset>? clock = null)
 {
     private readonly Func<DateTimeOffset> now = clock ?? (() => DateTimeOffset.UtcNow);
 
