@@ -14,13 +14,14 @@ Small, working starter projects with **every factory feature switched on**, to s
 | File | What it is for |
 | --- | --- |
 | `.factory/project.json` | the factory's settings: image, checks, reviewers, limits, rules. **Required**; only a person edits it |
+| `.factory/instructions.md` | the project's house rules for the agents, with a short section per role (optional; read from the default branch and added to every prompt) |
 | `AGENTS.md` | what the agents should know about the project: layout, commands, conventions, what not to touch |
 | `.gitignore` | keeps build output out of changes (the factory rejects a change that adds it) |
 | `README.md` | how to run the project and what each setting does |
 | `e2e/` | end-to-end tests for `/qa`, run against the started application (the `verify` setting). They are not part of the gates |
 | the code and tests | a stand-in application that builds and passes, so the checks have something to check |
 
-The settings are explained in [Setting up a project](../docs/project-setup.md); the `AGENTS.md` files follow the outline there.
+The settings are explained in [Setting up a project](../docs/project-setup.md); the `AGENTS.md` files follow the outline there, and the `instructions.md` files show [project instructions](../docs/project-setup.md#project-instructions-factoryinstructionsmd).
 
 ## Use a template
 
@@ -32,7 +33,7 @@ The settings are explained in [Setting up a project](../docs/project-setup.md); 
 2. **Put it in Forgejo**: create an empty repository there, add it as `origin` and push `main`. The factory needs at least one commit on the default branch, and `.factory/project.json` on it.
 3. **Connect it to the factory**, once per repository, as in [Setting up a project](../docs/project-setup.md): give the `factory-bot` account **Write** access, add the webhook, and create the labels (`feature`, `bug`, `incident`, and optionally `quick`, `full`, `needs-architecture`).
 4. **Build the sandbox image** the template names, if you have not yet (`docker compose --profile images build sandbox-image-<name>` in `infra/`; the combined `dotnet-node` is needed by `dotnet-react`).
-5. **Make it yours**: replace the stand-in code and the "What this is" part of `AGENTS.md`, and adjust `.factory/project.json` (check commands, rules, limits). Then open a ticket with the `feature` label.
+5. **Make it yours**: replace the stand-in code, the "What this is" part of `AGENTS.md` and the example rules in `.factory/instructions.md` (or delete that file), and adjust `.factory/project.json` (check commands, rules, limits). Then open a ticket with the `feature` label.
 
 ## Notes
 
