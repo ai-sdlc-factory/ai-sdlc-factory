@@ -14,6 +14,7 @@ public enum RoutingAction
     UpdatePullRequest,
     ReviewPullRequest,
     AskQuestion,
+    RunSetup,
 }
 
 public sealed record RoutingDecision(
@@ -26,7 +27,8 @@ public sealed record RoutingDecision(
     QaRequest? Qa = null,
     UpdateRequest? Update = null,
     PullReviewRequest? Review = null,
-    AskRequest? Ask = null);
+    AskRequest? Ask = null,
+    WorkRequest? Setup = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a Forgejo delivery to what the factory should do.
@@ -121,6 +123,13 @@ public static partial class EventRouter
                     return new RoutingDecision(RoutingAction.AskQuestion, "ask command on a ticket",
                         Ask: new AskRequest(owner, repo, issueNumber, false, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", question,
                             AsString(Get(issue, "title")) ?? "", AsString(Get(issue, "body")) ?? ""));
+                }
+                // Setting up a repository needs no factory label either: a repository without settings has no use for labels yet.
+                if (SetupCommand.Matches(body))
+                {
+                    return new RoutingDecision(RoutingAction.RunSetup, "setup command on a ticket",
+                        Setup: new WorkRequest(owner, repo, issueNumber, AsString(Get(issue, "title")) ?? "", AsString(Get(issue, "body")) ?? "",
+                            AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "", Kind: WorkIds.Setup));
                 }
                 if (!hasFeatureLabel)
                 {

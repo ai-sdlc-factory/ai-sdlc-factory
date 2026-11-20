@@ -42,6 +42,7 @@ public static class WorkIds
     public const string Review = "review";
     public const string Docs = "docs";
     public const string Ask = "ask";
+    public const string Setup = "setup";
     public const string Improvement = "improvement";
 
     private const int MaxReadable = 80;

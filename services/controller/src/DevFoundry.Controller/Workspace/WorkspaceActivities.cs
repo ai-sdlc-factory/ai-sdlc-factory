@@ -20,6 +20,11 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
         return Task.CompletedTask;
     }
 
+    /// <summary>Commits a proposed <c>.factory/project.json</c> to a new branch (for <c>/setup</c>).</summary>
+    [Activity("workspace_publish_settings")]
+    public Task<PublishResult> PublishSettingsAsync(PublishSettingsRequest request) =>
+        workspace.PublishSettingsAsync(request, ActivityExecutionContext.Current.CancellationToken);
+
     [Activity("workspace_cleanup")]
     public Task CleanupAsync(string name) => workspace.CleanupAsync(name);
 

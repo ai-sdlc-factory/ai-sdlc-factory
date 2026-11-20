@@ -192,6 +192,7 @@ public sealed class FakeWorld
     public Action<string>? BeforeAgent { get; set; }
     public List<PullRequestRequest> PullRequests { get; } = [];
     public List<PublishRequest> Publishes { get; } = [];
+    public List<PublishSettingsRequest> SettingsPublishes { get; } = [];
     public List<string> CleanedUp { get; } = [];
     public int ChangeChecks { get; private set; }
 
@@ -544,6 +545,13 @@ public sealed class FakeWorld
         [Activity("workspace_diff")]
         public string DiffOf(string name) => world.Diff;
 
+        [Activity("workspace_publish_settings")]
+        public PublishResult PublishSettings(PublishSettingsRequest request)
+        {
+            lock (world.gate) { world.SettingsPublishes.Add(request); }
+            return new PublishResult("c0ffee", "factory/setup-3", 1);
+        }
+
         [Activity("workspace_publish")]
         public PublishResult? Publish(PublishRequest request)
         {
@@ -623,7 +631,7 @@ public sealed class FakeWorld
         var queue = "scenario-" + Guid.NewGuid().ToString("N");
 
         var main = new TemporalWorker(client, new TemporalWorkerOptions(queue)
-            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<AskWorkflow>().AddWorkflow<ImprovementWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
+            .AddWorkflow<FeatureWorkflow>().AddWorkflow<BugWorkflow>().AddWorkflow<IncidentWorkflow>().AddWorkflow<PlanWorkflow>().AddWorkflow<PullRequestRevisionWorkflow>().AddWorkflow<PullRequestUpdateWorkflow>().AddWorkflow<PullRequestReviewWorkflow>().AddWorkflow<DocsWorkflow>().AddWorkflow<AskWorkflow>().AddWorkflow<SetupWorkflow>().AddWorkflow<ImprovementWorkflow>().AddWorkflow<QaWorkflow>().AddWorkflow<ForgejoEventWorkflow>().AddAllActivities(new MainActivities(this)));
         // The sandbox activities live on a queue of their own, as in production.
         var sandbox = new TemporalWorker(client, new TemporalWorkerOptions(SandboxNames.DefaultTaskQueue)
             .AddAllActivities(new SandboxActivities(this)));
@@ -683,6 +691,16 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
     {
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
         return new AskRequest("acme", repo, 7, onPullRequest, "bob", question, "Say goodbye", "As a user I want a goodbye.");
+    }
+
+    /// <summary>A <c>/setup</c> comment on ticket 3 of a repository that has no settings.</summary>
+    public static WorkRequest Setup() => new("acme", "r" + Guid.NewGuid().ToString("N")[..10], 3, "Connect this repository", "", "alice", Kind: WorkIds.Setup);
+
+    public async Task<WorkResult> RunSetupAsync(WorkRequest request)
+    {
+        var handle = await Client.StartWorkflowAsync((SetupWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
     }
 
     public async Task<WorkResult> RunAskAsync(AskRequest request)
@@ -938,6 +956,18 @@ public static class Answers
             summary = verdict switch { "done" => "Wrote AGENTS.md from the code.", "unchanged" => "The documents are already right.", _ => "Cannot continue." },
             notes = Array.Empty<string>(),
         });
+
+    /// <summary>The configurer's answer: a python project with a lint and a test check, unless <paramref name="config"/> says otherwise.</summary>
+    public static string Setup(string verdict = "configured", string? config = null) =>
+        JsonSerializer.Serialize(new
+        {
+            verdict,
+            summary = verdict == "configured" ? "A Python project tested with pytest and linted with ruff." : "I cannot tell how this project is built.",
+            config = verdict == "configured" ? JsonSerializer.Deserialize<JsonElement>(config ?? SetupConfig) : (JsonElement?)null,
+            reasons = new { image = "pyproject.toml shows Python.", gates = "CI runs ruff and pytest." },
+        });
+
+    public const string SetupConfig = """{"image":"python","gates":[{"name":"lint","command":["ruff","check","."]},{"name":"test","command":["python","-m","pytest","-q"]}],"reviewers":["reviewer"],"protected_paths":["ruff.toml"]}""";
 
     /// <summary>The asker's answer.</summary>
     public static string Ask(string verdict = "answered", string answer = "The greeting is built in `hello.py`.", params string[] files) =>

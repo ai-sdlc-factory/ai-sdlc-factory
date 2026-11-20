@@ -630,6 +630,27 @@ public sealed class EventRouterTests
         Assert.NotEqual(first, second);
     }
 
+    // ---- /setup ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_setup_comment_on_a_ticket_with_no_label_starts_a_setup()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", labels: [], more: new { comment = Comment("/setup") })));
+
+        Assert.Equal(RoutingAction.RunSetup, decision.Action);
+        var setup = decision.Setup!;
+        Assert.Equal(("acme", "shop", 7, WorkIds.Setup, "bob"), (setup.Owner, setup.Repo, setup.IssueNumber, setup.Kind, setup.Author));
+        Assert.Equal(WorkIds.For("acme", "shop", 7, WorkIds.Setup), setup.WorkflowId);
+    }
+
+    [Fact]
+    public void A_sentence_that_mentions_setup_is_not_the_command()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", labels: [], more: new { comment = Comment("can you /setup this please") })));
+
+        Assert.NotEqual(RoutingAction.RunSetup, decision.Action);
+    }
+
     // ---- /ask --------------------------------------------------------------------------------------------------
 
     [Fact]

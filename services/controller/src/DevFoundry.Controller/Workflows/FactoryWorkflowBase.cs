@@ -30,6 +30,9 @@ public abstract partial class FactoryWorkflowBase
     /// <summary>The text of <c>.factory/instructions.md</c> for this run, or null; every agent's prompt gets the part that is for its role.</summary>
     private string? projectInstructions;
 
+    /// <summary>The repository had no <c>.factory/project.json</c> and the run was allowed to go on without it (only <c>/setup</c> is).</summary>
+    protected bool projectWasMissing;
+
     protected readonly List<HumanReply> replies = [];
     protected bool ticketClosed;
 
@@ -63,7 +66,7 @@ public abstract partial class FactoryWorkflowBase
     /// </summary>
     protected async Task<WorkResult> RunPipelineAsync(
         WorkRequest request, string kind, Func<WorkContext, Task<WorkResult>> stages,
-        Func<WorkRequest, WorkspaceRequest>? workspaceFor = null, string? startMessage = null)
+        Func<WorkRequest, WorkspaceRequest>? workspaceFor = null, string? startMessage = null, ProjectConfig? whenConfigMissing = null)
     {
         current = request;
         await CommentAsync(request, startMessage ?? $"The factory picked up this {kind} ticket. Preparing a workspace.");
@@ -88,7 +91,15 @@ public abstract partial class FactoryWorkflowBase
             var configText = await Workflow.ExecuteActivityAsync(
                 (WorkspaceActivities activities) => activities.ReadProjectConfigAsync(request.WorkflowId),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
-            if (!ProjectConfigParser.TryParse(configText, out var project, out var configError))
+            ProjectConfig? project;
+            string configError = "";
+            if (configText is null && whenConfigMissing is not null)
+            {
+                // Only /setup runs without settings: it uses the standard image it was given and never a repository's own, because there is no file to say so.
+                project = whenConfigMissing;
+                projectWasMissing = true;
+            }
+            else if (!ProjectConfigParser.TryParse(configText, out project, out configError))
             {
                 await CommentAsync(request, configText is null ? NoConfigMessage : $"`.factory/project.json` cannot be used: {TicketComments.Inert(configError)}. Fix it, then {AskAgain(request)}");
                 return new WorkResult(Statuses.NeedsConfig);
@@ -137,12 +148,15 @@ public abstract partial class FactoryWorkflowBase
                     ActivityPolicy.Local(TimeSpan.FromMinutes(1)));
             }
 
-            var (image, imageStop) = await PrepareProjectImageAsync(request, project, defaults);
-            if (imageStop is not null)
+            if (!projectWasMissing)
             {
-                return imageStop;
+                var (image, imageStop) = await PrepareProjectImageAsync(request, project, defaults);
+                if (imageStop is not null)
+                {
+                    return imageStop;
+                }
+                project = project with { Image = image };
             }
-            project = project with { Image = image };
 
             if (project.Record)
             {
@@ -254,7 +268,8 @@ public abstract partial class FactoryWorkflowBase
     protected async Task<WorkResult> SaveUnfinishedWorkAsync(WorkRequest request, WorkResult result)
     {
         // Already on a branch (only the pull request failed), or nothing that could hold unsaved work.
-        if (!StoppedWithWork.Contains(result.Status) || result.WorkBranch is not null)
+        // /setup writes nothing an agent made: its checkout only holds what the proposed checks left behind (packages, build output), which is never worth saving.
+        if (!StoppedWithWork.Contains(result.Status) || result.WorkBranch is not null || request.Kind == WorkIds.Setup)
         {
             return result;
         }

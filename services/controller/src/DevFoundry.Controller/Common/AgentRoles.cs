@@ -8,7 +8,7 @@ public static class AgentRoles
 {
     public static readonly IReadOnlyList<string> All =
     [
-        "acceptance", "analyst", "architect", "asker", "bug-analyst", "coverage", "developer", "diagnostician", "docs-writer", "e2e-tester", "improver",
+        "acceptance", "analyst", "architect", "asker", "bug-analyst", "configurer", "coverage", "developer", "diagnostician", "docs-writer", "e2e-tester", "improver",
         "incident-analyst", "investigator", "merge-resolver", "mitigator", "planner", "postmortem-writer", "pr-resolver", "reproducer", "reviewer", "security", "ux",
     ];
 

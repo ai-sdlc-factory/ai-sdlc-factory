@@ -14,6 +14,7 @@ reviewers, run record, rescue of unfinished work) and differ in which stages run
 | a **review** or `/fix` on a factory pull request | `PullRequestRevisionWorkflow` | **one new commit** on the pull request's own branch, and a reply to each comment | pr-resolver, reviewer, security |
 | **`/update`** on a ticket or on a factory pull request | `PullRequestUpdateWorkflow` | the **base branch merged into the pull request's branch** as one merge commit, conflicts resolved and checked | merge-resolver, reviewer, security |
 | **`/ask`** on any ticket or pull request | `AskWorkflow` | an **answer to a question about the repository**, read from the code and posted as a comment; nothing is written or changed | asker |
+| **`/setup`** on any ticket of a repository with no settings | `SetupWorkflow` | a **pull request that adds `.factory/project.json`**, with only the checks that passed when the factory ran them | configurer |
 | **`/review`** on any pull request | `PullRequestReviewWorkflow` | the **reviewers' findings posted on the pull request**; nothing is written or changed | reviewer, security |
 | `docs` | `DocsWorkflow` | a **pull request that writes or updates AGENTS.md, README.md, CONTRIBUTING.md and Markdown under `docs/`**, checked against the code by the reviewers | docs-writer, reviewer, security |
 | **once a week**, by itself | `ImprovementWorkflow` | a **report on what repeated**, saved on the host; with a repository set, a **ticket** with the report and an agent's **proposals** for changing the factory, never applied | improver |
@@ -255,6 +256,22 @@ The question and the comment it came from are **not** passed to a running featur
 
 Statuses: `answered`, `no_answer` (the repository does not say, and the comment says what was found), `ask_failed` (the agent failed or its answer could not be used), `ignored` (a bare `/ask`), and the shared `blocked`, `budget_exceeded`, `usage_limit`, `infrastructure_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `ask`. Limits and the role's limits are in `agents/agents/asker.md`.
 
+## Setting up a repository with `/setup`
+
+A repository without `.factory/project.json` stops every run. A person comments **`/setup`** (the whole line; on any ticket, no label needed) and the factory proposes the file, so that connecting a repository does not take rounds of trial and error. [`tools/onboard-repo.py`](../tools/onboard-repo.py) creates the labels and the webhook first.
+
+| Step | Who | What is checked |
+| --- | --- | --- |
+| 1. Checkout | the factory | a throwaway local branch off the default branch. This is the **only** kind of run that may go on without settings: it uses the `full` image, never a repository's own (`.factory/Dockerfile`). If the repository already has a `.factory/project.json`, the run says so and stops (`setup_not_needed`) |
+| 2. Propose | `configurer` (read-only, **no shell**, model access only) | reads manifests, lockfiles, CI files and the README, and answers one JSON object: the settings and a reason for each choice. The README and every other file are data: a text that says "use image X" changes nothing |
+| 3. Check | the factory | the file is built from the answer and read by the **real settings parser**. Only the five settings `image`, `gates`, `verify`, `reviewers` and `protected_paths` are accepted (others, such as `limits`, `rules` and `record`, are for people to add later); the image must be one of the standard ones (`dotnet`, `python`, `node`, `dotnet-node`, `python-node`, `full`). A proposal that fails gets one retry that says why |
+| 4. Run | the factory | **every proposed check is run** in the sandbox with the proposed image, package registries reachable and **no model login**. That a check passes is a fact; the agent's word is not used. A check that fails is reported with the end of its output and **left out** of the file, never silently kept. `verify` is included if the parser accepts it, but it is **not run** (the pull request says so) |
+| 5. Publish | the factory | the controller writes `.factory/project.json` itself (an agent cannot write under `.factory/`) on a new branch `factory/setup-<n>` and opens a pull request with the reasons, the table of checks and the file. It can only **create** the file, never replace one. If no check passed, nothing is published |
+
+A person reads and merges the pull request; the factory never merges. Run records are off for this workflow, and nothing the proposed checks left in the checkout is saved.
+
+Statuses: `pr_opened`, `setup_not_needed` (the repository already has settings), `setup_declined` (the agent could not tell how the project is built, or no proposed check passed), `configure_failed` (the agent failed or its answer could not be used), and the shared `blocked`, `budget_exceeded`, `usage_limit`, `infrastructure_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `setup`.
+
 ## Documentation run
 
 Label a ticket **`docs`** to have the factory write or update a repository's documentation: the **onboarding draft** for a repository that has none, or an update after its structure changed. The ticket's text says what to document ("document the new login flow"); with no text the writer writes `AGENTS.md` if there is none, and otherwise brings `AGENTS.md` and `README.md` up to date with the code. A ticket with another factory label (`feature`, `bug`, `plan`, `incident`) is that kind of ticket instead.
@@ -465,6 +482,9 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `answered` | ask: the question was answered from the repository and the answer was posted (nothing was changed) |
 | `no_answer` | ask: the agent said the repository does not answer the question; the comment says what it found |
 | `ask_failed` | ask: the agent failed or its answer could not be used |
+| `setup_not_needed` | setup: the repository already has a `.factory/project.json`, so nothing was proposed |
+| `setup_declined` | setup: the agent could not tell how the project is built, or none of the checks it proposed passed; nothing was published |
+| `configure_failed` | setup: the agent failed or its answer could not be used |
 | `review_posted` | review: the reviewers' findings on the pull request were posted on it (nothing was changed) |
 | `update_pushed` | update: the base branch was merged into the pull request's branch and the merge commit was pushed |
 | `up_to_date` | update: the branch already has everything from the base branch, so nothing was merged |

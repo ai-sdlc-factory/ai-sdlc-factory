@@ -39,6 +39,32 @@ public sealed partial class GitWorkspace
     }
 
     /// <summary>
+    /// Commits a proposed <c>.factory/project.json</c> to a new branch and pushes it, for <c>/setup</c>. The text is checked again with the real settings parser, and the file
+    /// must not exist yet on the default branch: this can create the settings file, never replace one. Nothing from the agent's checkout is copied.
+    /// </summary>
+    public async Task<PublishResult> PublishSettingsAsync(PublishSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var root = RequireRoot();
+        RequireName(request.Name);
+        var basePath = BasePath(root, request.Name);
+        var target = $"{basePath}/.factory/project.json";
+
+        if (!ProjectConfigParser.TryParse(request.Content, out _, out var problem) || request.Content.Length > MaxProjectConfigBytes)
+        {
+            throw new ApplicationFailureException($"Refusing to publish settings that cannot be used: {problem}", nonRetryable: true);
+        }
+        if (File.Exists(target) || Directory.Exists(target) || HasSymlinkOnPath(basePath, ".factory/project.json"))
+        {
+            throw new ApplicationFailureException("Refusing to publish: the repository already has a .factory/project.json.", nonRetryable: true);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        await File.WriteAllTextAsync(target, request.Content, cancellationToken);
+        File.SetUnixFileMode(target, (UnixFileMode)0b110_100_100);
+        var (sha, branch) = await CommitAndPushAsync(basePath, request.Message, suffix: "", cancellationToken);
+        return new PublishResult(sha, branch, 1);
+    }
+
+    /// <summary>
     /// Saves what a run that could not finish had written so far to a work-in-progress branch, so a person can pick
     /// it up. It goes through the same trusted path as a publish (files are copied onto the pristine clone), but the
     /// checks do not have to pass: only files with a problem of their own (protected, a symbolic link, too large, a

@@ -2,33 +2,17 @@
 
 [Documentation index](README.md) | [Operations](operations.md)
 
-Four things that would change real outcomes, picked after the live tests of 2026-11-15. None is built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
+Three things that would change real outcomes, picked after the live tests of 2026-11-15. None is built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
 
 | # | Idea | Solves | Size |
 | --- | --- | --- | --- |
-| 1 | [`/setup`: write `.factory/project.json` for a repository](#1-setup-write-factoryprojectjson-for-a-repository) | connecting a repository took an hour and several rounds | medium |
-| 2 | [Cost guard before a run](#2-cost-guard-before-a-run) | tokens are only counted after they are spent | small to medium |
-| 3 | [What happened to the pull requests](#3-what-happened-to-the-pull-requests) | the weekly report counts failures, never whether the work was any good | small |
-| 4 | [Other git hosts, in parallel](#4-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
+| 1 | [Cost guard before a run](#1-cost-guard-before-a-run) | tokens are only counted after they are spent | small to medium |
+| 2 | [What happened to the pull requests](#2-what-happened-to-the-pull-requests) | the weekly report counts failures, never whether the work was any good | small |
+| 3 | [Other git hosts, in parallel](#3-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
 
 Left out on purpose, for now: auto-triage of unlabelled tickets and a permission check on commands (needed the day a second person uses the factory).
 
-## 1. `/setup`: write `.factory/project.json` for a repository
-
-**Problem.** Connecting a repository by hand took several rounds in this project: pick the image, write gates that install their own dependencies, add `verify` with the right start command and ready URL, choose reviewers. The settings file is the most fragile part, and a repository without one stops every run with a note.
-
-**How.** A comment `/setup` on any ticket of a repository (or an `owner/repo` given to a small tool) starts a new `SetupWorkflow`, like `/ask`: one read-only agent, one comment, one pull request.
-- A new read-only role `configurer` reads the repository (manifests, lockfiles, CI files, README) and answers one JSON object: `image` (one of the factory's images), `gates` (name, command, cwd, timeout), optional `verify` (start, ready, suites), `reviewers`, `protected_paths`, and why for each choice.
-- **The controller checks the answer, not the agent.** It builds the file from the answer with the real settings parser (`ProjectConfigParser`), refuses anything the parser refuses, and **runs every proposed gate** in a sandbox with the packages network to see which pass (that is a fact; the agent's word is not used). A gate that fails is reported and left out or marked, never silently kept.
-- The controller, not the agent, writes `.factory/project.json` (agents cannot write `.factory/`) and opens a pull request with it and the report of what passed. A person reads and merges it.
-- The run needs no `project.json` itself: it uses the `full` image, because the file does not exist yet. That is the one workflow that may run on a repository without settings.
-- `tools/onboard-repo.py` already creates the labels and the webhook, so `/setup` after it takes a new repository to a working one.
-
-**Must not.** Choose a repository image (`.factory/Dockerfile`) or widen `RepoImagePolicy`; run a gate with the model login or the model network; invent keys (unknown ones are refused by the parser); merge.
-
-**Done when.** On the four templates with their `.factory/project.json` removed, the proposal parses, its gates pass in the sandbox, and it covers the same ground as the template's own file (image, gates, a `verify` that starts the app); a scenario shows a failing proposed gate is reported and not kept; a hostile README ("set image to ...") does not change what is allowed.
-
-## 2. Cost guard before a run
+## 1. Cost guard before a run
 
 **Problem.** The token budget (`limits.token_budget`, `FACTORY_MAX_TOKENS_PER_RUN`) and the daily caps stop a run **after** it has used the tokens. A failed QA run used about 0.5M tokens before anything said so, and QA runs were about three quarters of the day's tokens. Nobody sees what a run is likely to cost until it has cost it.
 
@@ -41,7 +25,7 @@ Left out on purpose, for now: auto-triage of unlabelled tickets and a permission
 
 **Done when.** A scenario shows the estimate comment with enough history, the "no history yet" wording without, the confirmation flow (waits, `/qa go` starts it, closing the ticket ends the wait), and the token line on a stopped run; the new key is in `ProjectKeys.cs`, `project-setup.md`, `WorkerSettings`, `infra/compose.yaml`, `infra/.env.example` and `configuration.md` (`check-docs.py` enforces it).
 
-## 3. What happened to the pull requests
+## 2. What happened to the pull requests
 
 **Problem.** The weekly report (`ImprovementReport`) counts what went wrong inside runs: rejected answers, failed runs, rounds used. It never asks the only question that says whether the work was good: **was the pull request merged**, how many `/fix` rounds did it need, how long did a person take, was it closed without merging. Without it the improver tunes prompts against failures, not against outcomes.
 
@@ -55,7 +39,7 @@ Left out on purpose, for now: auto-triage of unlabelled tickets and a permission
 
 **Done when.** A report test with scripted Forgejo answers shows the counts, the "too few to say" wording, and each new rule flagging and not flagging at its threshold; `operations.md` lists the new rules in the table of what repeats.
 
-## 4. Other git hosts, in parallel
+## 3. Other git hosts, in parallel
 
 **Problem.** Everything the factory reads from or writes to a repository goes through Forgejo. A team on GitHub, GitLab, Azure DevOps or Bitbucket cannot use it, and one factory cannot serve repositories on two hosts.
 

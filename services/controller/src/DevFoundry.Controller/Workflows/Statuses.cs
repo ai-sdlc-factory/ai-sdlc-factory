@@ -147,6 +147,15 @@ public static class Statuses
     /// <summary>ask: the agent failed or its answer could not be used, so nothing was posted but the failure.</summary>
     public const string AskFailed = "ask_failed";
 
+    /// <summary>`/setup` found a `.factory/project.json` already on the default branch, so it proposed nothing.</summary>
+    public const string SetupNotNeeded = "setup_not_needed";
+
+    /// <summary>`/setup`: the configurer could not tell how to build or test the project, or none of the checks it proposed passed. Nothing was proposed.</summary>
+    public const string SetupDeclined = "setup_declined";
+
+    /// <summary>`/setup`: the configurer failed or its answer could not be used, even after one retry.</summary>
+    public const string ConfigureFailed = "configure_failed";
+
     /// <summary>review: the reviewers' findings on a pull request were posted on it (nothing was changed).</summary>
     public const string ReviewPosted = "review_posted";
 

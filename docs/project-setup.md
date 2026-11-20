@@ -69,6 +69,8 @@ is good. It is read from the default branch at the start of each run, so a chang
 
 Without a usable file, a run stops with the status `needs_config` and a comment that shows an example like this one.
 
+**Shortcut:** on a repository with no file, comment `/setup` on any ticket. An agent reads the repository and proposes the file, the factory runs every proposed check in a sandbox, and a pull request adds the file with only the checks that passed ([how it works](workflows.md#setting-up-a-repository-with-setup)). Read it as you would a file you wrote: the checks, `protected_paths` and `reviewers` shape every later run, and `verify` is not run.
+
 ### Reference
 
 | Key | Required | Default | Meaning and limits |

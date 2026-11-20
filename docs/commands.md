@@ -13,6 +13,7 @@ What to type, where to type it, and what starts. Everything happens in Forgejo: 
 | split a big goal | open a ticket with the label `plan`, then `/approve` | proposed feature tickets, created when you approve |
 | get advice on an incident | open a ticket with the label `incident` | an assessment, likely causes and mitigation options (nothing touches production) |
 | have documentation written or updated | open a ticket with the label `docs` | a pull request with `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `docs/` changes |
+| connect a repository that has no settings | comment `/setup` on any ticket | a pull request that adds `.factory/project.json`, with the checks that passed |
 | ask a question about the code | comment `/ask <question>` on any ticket or pull request | an answer, as a comment (nothing is changed) |
 | change the factory's pull request | submit a review that **requests changes**, or comment `/fix <what to change>` on the pull request | one new commit on the same branch |
 | have any pull request reviewed | comment `/review` on it | the reviewers' findings, as comments (nothing is changed) |
@@ -73,6 +74,7 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 | Command | Type it on | What it does | Needs |
 | --- | --- | --- | --- |
 | `/ask <question>` | any ticket (no label needed) or any pull request | a read-only agent answers from the code and posts the answer. On a pull request it also sees what the pull request changes. Up to 1,500 characters; a bare `/ask` says how to use it | `.factory/project.json` in the repository |
+| `/setup` | any ticket (no label needed) of a repository with **no** `.factory/project.json`; the comment must be only that line | the configurer proposes the settings, the factory runs every proposed check and opens a pull request with the ones that passed ([details](workflows.md#setting-up-a-repository-with-setup)) | a repository the bot can write to |
 | `/review` | any pull request, **yours or a stranger's** | the reviewers read it and post findings. Reads the default branch's settings, so a fork cannot change what runs | an open pull request, and `.factory/project.json` |
 
 ### On a `plan` ticket

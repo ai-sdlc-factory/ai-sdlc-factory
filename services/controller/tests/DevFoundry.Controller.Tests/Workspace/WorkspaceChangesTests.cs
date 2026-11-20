@@ -343,6 +343,40 @@ public sealed class WorkspaceChangesTests : IDisposable
         Assert.False(File.Exists(marker));
     }
 
+    [Fact]
+    public async Task Proposed_settings_are_committed_to_a_new_branch_by_the_controller()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace, "setup-acme-shop-1");
+        File.Delete($"{root}/.base/{info.Name}/.factory/project.json");
+        File.WriteAllText($"{info.Path}/.factory/evil.json", "from the agent");
+
+        var result = await workspace.PublishSettingsAsync(
+            new PublishSettingsRequest(info.Name, """{"image":"python","gates":[{"name":"t","command":["x"]}]}""" + "\n", "Add settings"), CancellationToken.None);
+
+        Assert.Equal(1, result.FileCount);
+        var tree = Git(origin, "ls-tree", "-r", "--name-only", result.Branch).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains(".factory/project.json", tree);
+        Assert.DoesNotContain(".factory/evil.json", tree);
+        Assert.Contains("\"image\"", Git(origin, "show", $"{result.Branch}:.factory/project.json"));
+    }
+
+    [Fact]
+    public async Task Settings_that_cannot_be_used_or_would_replace_a_file_are_refused()
+    {
+        var workspace = Workspace();
+        var info = await Prepared(workspace, "setup-acme-shop-1");
+
+        var exists = await Assert.ThrowsAsync<ApplicationFailureException>(() => workspace.PublishSettingsAsync(
+            new PublishSettingsRequest(info.Name, """{"image":"python","gates":[{"name":"t","command":["x"]}]}""", "m"), CancellationToken.None));
+        Assert.Contains("already has", exists.Message);
+
+        File.Delete($"{root}/.base/{info.Name}/.factory/project.json");
+        var bad = await Assert.ThrowsAsync<ApplicationFailureException>(() => workspace.PublishSettingsAsync(
+            new PublishSettingsRequest(info.Name, """{"image":"python"}""", "m"), CancellationToken.None));
+        Assert.Contains("cannot be used", bad.Message);
+    }
+
     // ---- the diff for reviewers --------------------------------------------------------------------------
 
     [Fact]

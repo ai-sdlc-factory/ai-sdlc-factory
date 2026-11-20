@@ -45,6 +45,7 @@ public sealed class ForgejoEventWorkflow
             RoutingAction.UpdatePullRequest => StartUpdateAsync(decision.Update!),
             RoutingAction.ReviewPullRequest => StartReviewAsync(decision.Review!),
             RoutingAction.AskQuestion => StartAskAsync(decision.Ask!),
+            RoutingAction.RunSetup => StartSetupAsync(decision.Setup!),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
@@ -246,6 +247,29 @@ public sealed class ForgejoEventWorkflow
             await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(ask.Owner, ask.Repo, ask.Number, AskComments.Busy)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
+    /// <summary>`/setup`: proposes a settings file for the repository; a second one for the same ticket while one is running gets a notice.</summary>
+    private static async Task StartSetupAsync(WorkRequest setup)
+    {
+        try
+        {
+            await Workflow.StartChildWorkflowAsync(
+                (SetupWorkflow workflow) => workflow.RunAsync(setup),
+                new ChildWorkflowOptions
+                {
+                    Id = setup.WorkflowId,
+                    ParentClosePolicy = ParentClosePolicy.Abandon,
+                    IdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate,
+                });
+        }
+        catch (WorkflowAlreadyStartedException)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(setup.Owner, setup.Repo, setup.IssueNumber, SetupComments.Busy)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
     }

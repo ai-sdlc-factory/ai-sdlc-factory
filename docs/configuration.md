@@ -207,6 +207,7 @@ Which roles can do what:
 | `merge-resolver` | pull request update (`/update`) | yes (and git history) | yes (checked like the developer's changes; no protected files, no conflict marker left) | yes | `developer` |
 | `docs-writer` | documentation run (`docs` label) | yes | yes (only `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and Markdown under `docs/`, checked) | no | `model` |
 | `asker` | question (`/ask`) | yes | no | no | `model` |
+| `configurer` | setup (`/setup`) | yes | no | no | `model` |
 | `improver` | the weekly improvement run | yes (the factory's own repository) | no | no | `model` |
 | `incident-analyst`, `mitigator` | incident | yes | no | no | `model` |
 | `planner` | plan | yes | no | no | `model` |

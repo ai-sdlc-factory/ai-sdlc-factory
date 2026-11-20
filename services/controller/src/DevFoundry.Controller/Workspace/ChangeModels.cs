@@ -27,6 +27,9 @@ public sealed record PublishRequest(string Name, string Message, RunRecordSpec? 
 /// </summary>
 public sealed record RepoImageSource(string Dockerfile, IReadOnlyDictionary<string, string> Files);
 
+/// <summary>The settings file <c>/setup</c> proposes. The controller writes it itself (an agent cannot write under <c>.factory/</c>); only this one path is possible.</summary>
+public sealed record PublishSettingsRequest(string Name, string Content, string Message);
+
 public sealed record ProtectedPathsRequest(string Name, IReadOnlyList<string> Patterns);
 
 public sealed record PublishResult(string CommitSha, string Branch, int FileCount, int RebasedOver = 0);
