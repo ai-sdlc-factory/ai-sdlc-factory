@@ -287,7 +287,7 @@ The project's code checks (`gates`) are **not** run, because no code changed. If
 
 ## Weekly improvement report
 
-Not started by a ticket or a comment: once a week the factory looks at **how it did itself**. The report is made by counting its logs (rejected answers per agent, rounds used, runs that stopped the same way, token outliers, hosts a sandbox was refused), and with a repository set it is opened as a ticket where a read-only `improver` agent proposes changes to prompts and settings. **Nothing is applied automatically.** What it reads, the rules that flag something, the setting, the ticket it opens and how to run it by hand are in the [operations guide](operations.md#the-weekly-report-what-repeats).
+Not started by a ticket or a comment: once a week the factory looks at **how it did itself**. The report is made by counting its logs (rejected answers per agent, rounds used, runs that stopped the same way, what became of the week's pull requests, token outliers, hosts a sandbox was refused), and with a repository set it is opened as a ticket where a read-only `improver` agent proposes changes to prompts and settings. **Nothing is applied automatically.** What it reads, the rules that flag something, the setting, the ticket it opens and how to run it by hand are in the [operations guide](operations.md#the-weekly-report-what-repeats).
 
 Statuses: `report_saved` (the report is on the host; no ticket, because no repository is set or nothing repeated), `improvement_posted` (the proposals, or the agent's "nothing to propose", are on the ticket), `improvement_failed` (the report or the ticket could not be made, or no proposal named a file that exists), and the shared `blocked`, `budget_exceeded`, `usage_limit`.
 

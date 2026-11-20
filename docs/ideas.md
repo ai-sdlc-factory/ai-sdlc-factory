@@ -2,30 +2,15 @@
 
 [Documentation index](README.md) | [Operations](operations.md)
 
-Two things that would change real outcomes, picked after the live tests of 2026-11-15. None is built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
+One thing that would change real outcomes, picked after the live tests of 2026-11-15. It is not built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
 
 | # | Idea | Solves | Size |
 | --- | --- | --- | --- |
-| 1 | [What happened to the pull requests](#1-what-happened-to-the-pull-requests) | the weekly report counts failures, never whether the work was any good | small |
-| 2 | [Other git hosts, in parallel](#2-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
+| 1 | [Other git hosts, in parallel](#1-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
 
 Left out on purpose, for now: auto-triage of unlabelled tickets and a permission check on commands (needed the day a second person uses the factory).
 
-## 1. What happened to the pull requests
-
-**Problem.** The weekly report (`ImprovementReport`) counts what went wrong inside runs: rejected answers, failed runs, rounds used. It never asks the only question that says whether the work was good: **was the pull request merged**, how many `/fix` rounds did it need, how long did a person take, was it closed without merging. Without it the improver tunes prompts against failures, not against outcomes.
-
-**How.** Add a section to the weekly report, built by counting, like the rest.
-- The usage log already names every run that opened a pull request (`status: pr_opened`, repository, number) and every revision (`kind: revision`). An activity asks Forgejo (read-only, the bot's token) for the state of those pull requests: merged, closed unmerged, still open, merged after how many revisions, days from opening to merge.
-- Report per kind: pull requests opened, merged, closed unmerged, open; average revisions per merged one. No titles or text, only counts and repository names, as now.
-- Rules in `ReportRules` (constants, with the minimum of 5 runs the other rules use): flag when 30% or more of a week's factory pull requests were **closed unmerged** (the work was rejected) or the average merged pull request needed 2 or more revisions. These go to the improver like the other findings.
-- Meaningful from about 20 pull requests; with fewer the section says so instead of showing percentages.
-
-**Must not.** Let the report decide anything (it only reports); read pull request text; call Forgejo from workflow code (use an activity, so a replay sees the same answer).
-
-**Done when.** A report test with scripted Forgejo answers shows the counts, the "too few to say" wording, and each new rule flagging and not flagging at its threshold; `operations.md` lists the new rules in the table of what repeats.
-
-## 2. Other git hosts, in parallel
+## 1. Other git hosts, in parallel
 
 **Problem.** Everything the factory reads from or writes to a repository goes through Forgejo. A team on GitHub, GitLab, Azure DevOps or Bitbucket cannot use it, and one factory cannot serve repositories on two hosts.
 

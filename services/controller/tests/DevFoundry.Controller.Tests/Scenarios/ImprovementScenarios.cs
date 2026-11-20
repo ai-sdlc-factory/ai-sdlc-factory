@@ -46,6 +46,37 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task The_report_is_given_what_became_of_the_weeks_pull_requests_from_forgejo()
+    {
+        var world = Improving();
+        world.PullOutcomes = [new PullOutcome("acme/shop", 4, "feature", PullStates.Merged, 1, 2.0)];
+
+        var result = await world.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
+
+        Assert.Equal("improvement_posted", result.Status);
+        var given = Assert.Single(world.Snapshot(world.ReportOutcomes));
+        Assert.Equal([4], given!.Select(o => o.Number));
+    }
+
+    [SkippableFact]
+    public async Task A_week_with_no_pull_requests_asks_forgejo_nothing_and_a_forgejo_that_fails_does_not_stop_the_report()
+    {
+        var none = Improving();
+        none.PullScope = new PullScope([], [], []);
+        none.PullOutcomesFailure = new Temporalio.Exceptions.ApplicationFailureException("must not be asked", nonRetryable: true);
+        var noneResult = await none.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
+
+        var broken = Improving();
+        broken.PullOutcomesFailure = new Temporalio.Exceptions.ApplicationFailureException("forgejo is down", nonRetryable: true);
+        var brokenResult = await broken.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
+
+        Assert.Equal("improvement_posted", noneResult.Status);
+        Assert.Empty(Assert.Single(none.Snapshot(none.ReportOutcomes))!);
+        Assert.Equal("improvement_posted", brokenResult.Status);
+        Assert.Null(Assert.Single(broken.Snapshot(broken.ReportOutcomes)));
+    }
+
+    [SkippableFact]
     public async Task A_proposal_that_names_a_file_that_does_not_exist_is_left_out_and_counted()
     {
         var world = Improving(Answers.Improvement("proposals", "agents/agents/analyst.md", "agents/agents/made-up.md"));

@@ -15,11 +15,13 @@ public sealed class ImprovementWorkflow : FactoryWorkflowBase
     [WorkflowRun]
     public async Task<WorkResult> RunAsync(ImprovementRequest request)
     {
+        // What became of the pull requests is asked of Forgejo in an activity (never from workflow code), and read-only. If it cannot be known the report says so and goes on.
+        var outcomes = await ReadPullOutcomesAsync(request);
         ImprovementReportResult report;
         try
         {
             report = await Workflow.ExecuteActivityAsync(
-                (WorkspaceActivities activities) => activities.BuildImprovementReportAsync(request),
+                (WorkspaceActivities activities) => activities.BuildImprovementReportAsync(request, outcomes),
                 ActivityPolicy.Local(TimeSpan.FromMinutes(5), 2));
         }
         catch (ActivityFailureException)
@@ -54,6 +56,31 @@ public sealed class ImprovementWorkflow : FactoryWorkflowBase
             // A throwaway local branch off the default branch, never pushed: the agent reads and nothing is written.
             workspaceFor: r => new WorkspaceRequest(r.Owner, r.Repo, r.WorkflowId, $"factory/improvement-{request.Week.ToLowerInvariant()}"),
             startMessage: "I am reading this report to propose changes. I only read: nothing will be changed or applied.");
+    }
+
+    /// <summary>The state of the factory's pull requests of the week, or null when it could not be read (the report then says so instead of showing nothing).</summary>
+    private static async Task<IReadOnlyList<PullOutcome>?> ReadPullOutcomesAsync(ImprovementRequest request)
+    {
+        try
+        {
+            var scope = await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.ReadPullScopeAsync(request),
+                ActivityPolicy.Local(TimeSpan.FromMinutes(2), 2));
+            if (scope.Repositories.Count == 0)
+            {
+                return [];
+            }
+            return await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.ReadPullOutcomesAsync(new PullOutcomeRequest(
+                    scope,
+                    DateTimeOffset.ParseExact(request.From, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal),
+                    DateTimeOffset.ParseExact(request.To, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal))),
+                ActivityPolicy.Local(TimeSpan.FromMinutes(5), 2));
+        }
+        catch (ActivityFailureException)
+        {
+            return null;
+        }
     }
 
     private async Task<WorkResult> StagesAsync(WorkContext work, string week)

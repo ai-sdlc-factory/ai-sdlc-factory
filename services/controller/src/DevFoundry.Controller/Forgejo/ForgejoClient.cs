@@ -483,6 +483,32 @@ public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IJ
         return found;
     }
 
+    /// <summary>Every pull request of a repository, open or not, as the report counts them: numbers, states and dates only (read-only; never any title or text).</summary>
+    public async Task<IReadOnlyList<PullSummary>> ListAllPullRequestsAsync(string owner, string repo, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var result = new List<PullSummary>();
+        await foreach (var pull in PagedAsync($"{RepoPath(owner, repo)}/pulls?state=all", "pull request list", null, cancellationToken))
+        {
+            if (!pull.TryGetProperty("number", out var number) || !number.TryGetInt32(out var value)
+                || !TryDate(pull, "created_at", out var created))
+            {
+                continue;
+            }
+            var merged = pull.TryGetProperty("merged", out var mergedFlag) && mergedFlag.ValueKind == JsonValueKind.True;
+            DateTimeOffset? mergedAt = TryDate(pull, "merged_at", out var at) ? at : null;
+            result.Add(new PullSummary(value, Text(pull, "state"), merged, Text(Child(pull, "head"), "ref"), Text(Child(pull, "user"), "login"), created, mergedAt));
+        }
+        return result;
+    }
+
+    private static bool TryDate(JsonElement element, string name, out DateTimeOffset value)
+    {
+        value = default;
+        return element.TryGetProperty(name, out var raw) && raw.ValueKind == JsonValueKind.String
+            && DateTimeOffset.TryParse(raw.GetString(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out value);
+    }
+
     private static string RepoPath(string owner, string repo) => $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}";
 
     /// <summary>

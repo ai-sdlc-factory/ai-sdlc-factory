@@ -21,6 +21,29 @@ public sealed class ForgejoActivities(ForgejoClient forgejo, WorkerSettings sett
     public Task<int?> FindFactoryPullRequestAsync(TicketReference ticket) =>
         forgejo.FindFactoryPullRequestAsync(ticket.Owner, ticket.Repo, ticket.Number, ActivityExecutionContext.Current.CancellationToken);
 
+    /// <summary>
+    /// For the weekly report: what became of the pull requests the factory opened in a week (merged, closed without merging, still open). Read-only, and only numbers and states
+    /// come back. At most <see cref="MaxRepositories"/> repositories, the ones the usage log names.
+    /// </summary>
+    [Activity("forgejo_pull_outcomes")]
+    public async Task<IReadOnlyList<PullOutcome>> ReadPullOutcomesAsync(PullOutcomeRequest request)
+    {
+        var token = ActivityExecutionContext.Current.CancellationToken;
+        var outcomes = new List<PullOutcome>();
+        foreach (var repository in request.Scope.Repositories.Distinct().Take(MaxRepositories))
+        {
+            if (repository.Split('/') is not [var owner, var repo])
+            {
+                continue;
+            }
+            var pulls = await forgejo.ListAllPullRequestsAsync(owner, repo, token);
+            outcomes.AddRange(PullOutcomes.Build(repository, pulls, request.Scope, settings.ForgejoBotLogin, request.From, request.To));
+        }
+        return outcomes;
+    }
+
+    private const int MaxRepositories = 25;
+
     [Activity("forgejo_post_issue_comment")]
     public Task PostIssueCommentAsync(CommentRequest request) =>
         forgejo.PostIssueCommentAsync(

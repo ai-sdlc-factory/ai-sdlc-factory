@@ -98,7 +98,12 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
 
     /// <summary>Makes and saves the weekly report on what repeats.</summary>
     [Activity("workspace_improvement_report")]
-    public Task<ImprovementReportResult> BuildImprovementReportAsync(ImprovementRequest request) => Task.FromResult(workspace.BuildImprovementReport(request));
+    public Task<ImprovementReportResult> BuildImprovementReportAsync(ImprovementRequest request, IReadOnlyList<PullOutcome>? pullOutcomes = null) =>
+        Task.FromResult(workspace.BuildImprovementReport(request, pullOutcomes));
+
+    /// <summary>What the usage log says about the week's pull requests (repositories, kinds and revision counts), for the report's question to Forgejo.</summary>
+    [Activity("workspace_pull_scope")]
+    public Task<PullScope> ReadPullScopeAsync(ImprovementRequest request) => Task.FromResult(workspace.ReadPullScope(request));
 
     /// <summary>Keeps the stages a run has finished, for a later <c>/retry</c>.</summary>
     [Activity("workspace_save_resume")]

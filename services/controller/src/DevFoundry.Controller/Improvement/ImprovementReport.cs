@@ -36,6 +36,15 @@ public static class ReportRules
     public const int OutlierTimesMedian = 3;
     public const long OutlierFloor = 50_000;
 
+    /// <summary>At least this share of a week's pull requests (percent), with at least <see cref="MinSample"/> of them, were closed without merging: the work was turned down.</summary>
+    public const int ClosedUnmergedPercent = 30;
+
+    /// <summary>The merged pull requests of the week needed this many revisions or more on average (with at least <see cref="MinSample"/> merged): what the factory opens is not right the first time.</summary>
+    public const double ManyRevisionsAverage = 2;
+
+    /// <summary>From this many pull requests in the week the section shows percentages; with fewer it shows counts and says that too few were opened to say more.</summary>
+    public const int PercentagesFrom = 20;
+
     /// <summary>The same host refused this many times.</summary>
     public const int RepeatedRefusals = 3;
 
@@ -50,7 +59,7 @@ public static class ReportRules
 /// <summary>Builds the weekly report from the usage log's runs and the egress proxy's refusals. Pure: the same input gives the same text.</summary>
 public static class ImprovementReportBuilder
 {
-    public static ImprovementReport Build(string week, DateOnly from, DateOnly to, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previousWeek, IReadOnlyList<DeniedHost> denied, bool deniedLogExists)
+    public static ImprovementReport Build(string week, DateOnly from, DateOnly to, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previousWeek, IReadOnlyList<DeniedHost> denied, bool deniedLogExists, IReadOnlyList<PullOutcome>? pullOutcomes = null)
     {
         var findings = new List<ReportFinding>();
         var text = new StringBuilder();
@@ -64,6 +73,7 @@ public static class ImprovementReportBuilder
         AppendRoles(text, findings, roleTotals);
         AppendRounds(text, findings, runs);
         AppendEndings(text, findings, runs);
+        AppendPullRequests(text, findings, pullOutcomes);
         AppendOutliers(text, findings, runs);
         AppendRefusals(text, findings, denied, deniedLogExists);
 
@@ -199,6 +209,62 @@ public static class ImprovementReportBuilder
             }
         }
         text.AppendLine();
+    }
+
+    private static void AppendPullRequests(StringBuilder text, List<ReportFinding> findings, IReadOnlyList<PullOutcome>? pulls)
+    {
+        text.AppendLine("## What happened to the pull requests");
+        text.AppendLine();
+        if (pulls is null)
+        {
+            text.AppendLine("Forgejo could not be asked what became of this week's pull requests, so this section is empty. The rest of the report does not depend on it.");
+            text.AppendLine();
+            return;
+        }
+        if (pulls.Count == 0)
+        {
+            text.AppendLine("The factory opened no pull request this week.");
+            text.AppendLine();
+            return;
+        }
+        text.AppendLine("The pull requests the factory opened this week, and what became of them when the report was made (a merged one is the work being accepted; a closed one that was not merged is the work being turned down). Counts and repository names only: no title or text of any pull request is read.");
+        text.AppendLine();
+        text.AppendLine("| kind | opened | merged | closed, not merged | still open | revisions per merged | days to merge |");
+        text.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+        foreach (var group in pulls.GroupBy(pull => pull.Kind).OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            text.AppendLine(PullRow(group.Key, group.ToList()));
+        }
+        text.AppendLine(PullRow("**all**", pulls));
+        text.AppendLine();
+
+        var merged = pulls.Where(pull => pull.State == PullStates.Merged).ToList();
+        var closed = pulls.Count(pull => pull.State == PullStates.ClosedUnmerged);
+        var showPercent = pulls.Count >= ReportRules.PercentagesFrom;
+        text.AppendLine(showPercent
+            ? $"{Percent(merged.Count, pulls.Count)} merged, {Percent(closed, pulls.Count)} closed without merging, {Percent(pulls.Count - merged.Count - closed, pulls.Count)} still open."
+            : $"Only {pulls.Count} pull request{(pulls.Count == 1 ? "" : "s")} this week: too few to say what share is accepted (percentages need {ReportRules.PercentagesFrom}).");
+        text.AppendLine();
+
+        if (pulls.Count >= ReportRules.MinSample && closed * 100 >= ReportRules.ClosedUnmergedPercent * pulls.Count)
+        {
+            findings.Add(new ReportFinding("Pull requests turned down", "factory pull requests",
+                $"{closed} of {pulls.Count} pull requests ({Percent(closed, pulls.Count)}) were closed without being merged: the work was rejected, whatever the checks said."));
+        }
+        if (merged.Count >= ReportRules.MinSample && merged.Average(pull => pull.Revisions) >= ReportRules.ManyRevisionsAverage)
+        {
+            findings.Add(new ReportFinding("Pull requests needing revisions", "merged factory pull requests",
+                $"The {merged.Count} merged pull requests needed {merged.Average(pull => pull.Revisions):0.0} revisions on average: they were not right the first time."));
+        }
+    }
+
+    private static string PullRow(string name, IReadOnlyList<PullOutcome> pulls)
+    {
+        var merged = pulls.Where(pull => pull.State == PullStates.Merged).ToList();
+        var revisions = merged.Count == 0 ? "-" : $"{merged.Average(pull => pull.Revisions):0.0}";
+        var days = merged.Where(pull => pull.DaysToMerge is not null).ToList();
+        var daysText = days.Count == 0 ? "-" : $"{days.Average(pull => pull.DaysToMerge!.Value):0.0}";
+        return $"| {name} | {pulls.Count} | {merged.Count} | {pulls.Count(pull => pull.State == PullStates.ClosedUnmerged)} | {pulls.Count(pull => pull.State == PullStates.Open)} | {revisions} | {daysText} |";
     }
 
     private static void AppendOutliers(StringBuilder text, List<ReportFinding> findings, IReadOnlyList<LoggedRun> runs)

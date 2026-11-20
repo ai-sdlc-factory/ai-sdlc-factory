@@ -177,6 +177,12 @@ public sealed class FakeWorld
 
     public List<ImprovementRequest> ImprovementRequests { get; } = [];
 
+    /// <summary>What the usage log says about the week's pull requests, and what Forgejo says became of them; the report gets the second.</summary>
+    public PullScope PullScope { get; set; } = new(["acme/shop"], [], []);
+    public IReadOnlyList<PullOutcome> PullOutcomes { get; set; } = [];
+    public Exception? PullOutcomesFailure { get; set; }
+    public List<IReadOnlyList<PullOutcome>?> ReportOutcomes { get; } = [];
+
     public List<WorkspaceRequest> PrepareRequests { get; } = [];
 
     public static RevisionContext FactoryPullRequest(
@@ -347,10 +353,16 @@ public sealed class FakeWorld
         [Activity("forgejo_find_factory_pull_request")]
         public int? FindFactoryPullRequest(TicketReference ticket) => world.OpenFactoryPull;
 
+        [Activity("workspace_pull_scope")]
+        public PullScope ReadPullScope(ImprovementRequest request) => world.PullScope;
+
+        [Activity("forgejo_pull_outcomes")]
+        public IReadOnlyList<PullOutcome> ReadPullOutcomes(PullOutcomeRequest request) => world.PullOutcomesFailure is { } failure ? throw failure : world.PullOutcomes;
+
         [Activity("workspace_improvement_report")]
-        public ImprovementReportResult BuildImprovementReport(ImprovementRequest request)
+        public ImprovementReportResult BuildImprovementReport(ImprovementRequest request, IReadOnlyList<PullOutcome>? pullOutcomes)
         {
-            lock (world.gate) { world.ImprovementRequests.Add(request); }
+            lock (world.gate) { world.ImprovementRequests.Add(request); world.ReportOutcomes.Add(pullOutcomes); }
             return world.ImprovementReportFailure is { } failure ? throw failure : world.ImprovementReport;
         }
 
