@@ -14,10 +14,15 @@ namespace DevFoundry.Controller;
 /// </summary>
 public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
 {
+    /// <summary>A client for the default host, with the bot's token from the settings.</summary>
+    public ForgejoClient(HttpClient http, WorkerSettings settings) : this(http, settings.ForgejoToken)
+    {
+    }
+
     public async Task PostIssueCommentAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(settings.ForgejoToken))
+        if (string.IsNullOrWhiteSpace(token))
         {
             throw new ApplicationFailureException(
                 "FORGEJO_BOT_TOKEN is not configured for the controller.", nonRetryable: true);
@@ -29,7 +34,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
         {
             Content = JsonContent.Create(new { body = $"{EventRouter.BotMarker}\n{body}" }),
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("token", settings.ForgejoToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("token", token);
 
         using var response = await http.SendAsync(request, cancellationToken);
         if (response.IsSuccessStatusCode)
@@ -585,7 +590,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
 
     private void RequireToken()
     {
-        if (string.IsNullOrWhiteSpace(settings.ForgejoToken))
+        if (string.IsNullOrWhiteSpace(token))
         {
             throw new ApplicationFailureException("FORGEJO_BOT_TOKEN is not configured for the controller.", nonRetryable: true);
         }
@@ -594,7 +599,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
     private HttpRequestMessage Authorized(HttpMethod method, string path)
     {
         var request = new HttpRequestMessage(method, path);
-        request.Headers.Authorization = new AuthenticationHeaderValue("token", settings.ForgejoToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("token", token);
         return request;
     }
 

@@ -39,6 +39,24 @@ public sealed class WebhookAdapterTests
     }
 
     [Fact]
+    public void A_delivery_from_another_host_names_its_owner_with_that_host_and_the_default_hosts_stays_plain()
+    {
+        object payload = new { action = "opened", repository = new { full_name = "acme/shop" }, issue = Issue() };
+        var element = JsonSerializer.SerializeToElement(payload);
+
+        var other = Adapter.Normalise(new WebhookDelivery(Delivery, "issues", element, Host: "codeberg"));
+        var plain = Adapter.Normalise(new WebhookDelivery(Delivery, "issues", element));
+
+        Assert.Equal(("codeberg", "codeberg:acme", "acme/shop"), (other.Host, other.Owner, other.Repository));
+        Assert.Equal(("forgejo", "acme"), (plain.Host, plain.Owner));
+        var review = Adapter.Normalise(new WebhookDelivery(Delivery, "pull_request_rejected", JsonSerializer.SerializeToElement(new
+        {
+            repository = new { full_name = "acme/shop" }, pull_request = new { number = 9, head = new { @ref = "factory/issue-4" } },
+        }), Host: "codeberg"));
+        Assert.Equal("codeberg:acme", review.Owner);
+    }
+
+    [Fact]
     public void A_comment_carries_its_text_and_who_wrote_it()
     {
         var read = Read("issue_comment", new { action = "created", repository = new { full_name = "acme/shop" }, issue = Issue("closed"), comment = new { body = "/retry", user = new { login = "bob" } } });
@@ -155,6 +173,7 @@ public sealed class WebhookAdapterTests
     public void Hosts_are_found_by_name_and_an_unknown_one_is_not_there()
     {
         Assert.Same(Adapter.GetType(), WebhookAdapters.Find("Forgejo")!.GetType());
+        Assert.Equal("forgejo", Adapter.Type);
         Assert.Null(WebhookAdapters.Find("github"));
     }
 }
@@ -165,6 +184,16 @@ public sealed class NeutralRouterTests
     private static RepoEvent Ticket(RepoEventKind kind, string[]? labels = null, bool open = true, string comment = "", bool pull = false) =>
         new("test-host", "d1", "whatever", kind, Owner: "acme", Repo: "shop", Number: 7, IsPullRequest: pull, IsOpen: open,
             Title: "Add wishlist", Body: "As a user...", Author: "alice", Labels: labels ?? ["feature"], CommentBody: comment, CommentAuthor: "bob");
+
+    [Fact]
+    public void The_same_ticket_number_on_two_hosts_is_two_runs()
+    {
+        var onDefault = EventRouter.Decide(Ticket(RepoEventKind.TicketOpened) with { Owner = "acme" });
+        var onOther = EventRouter.Decide(Ticket(RepoEventKind.TicketOpened) with { Owner = "codeberg:acme" });
+
+        Assert.NotEqual(onDefault.Feature!.WorkflowId, onOther.Feature!.WorkflowId);
+        Assert.Equal("codeberg:acme", onOther.Feature.Owner);
+    }
 
     [Fact]
     public void An_open_ticket_with_the_label_starts_a_feature_whatever_host_it_came_from()

@@ -7,6 +7,28 @@ public sealed class WorkerSettings
     public string TemporalTaskQueue { get; init; } = "factory-events";
     public string ForgejoUrl { get; init; } = "http://forgejo:3000";
 
+    /// <summary>The git hosts besides the default one (<c>FACTORY_EXTRA_HOSTS</c>). The default one is the Forgejo above.</summary>
+    public IReadOnlyList<HostDefinition> ExtraHosts { get; init; } = [];
+
+    /// <summary>Every git host the factory serves: the default one (the Forgejo settings) first, then the extra ones.</summary>
+    public IReadOnlyList<HostSettings> Hosts =>
+        [new HostSettings(RepoNames.DefaultHost, ForgejoWebhookAdapter.TypeName, ForgejoUrl, ForgejoToken, ForgejoBotLogin),
+         .. ExtraHosts.Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin))];
+
+    /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
+    public HostSettings HostNamed(string name) =>
+        Hosts.FirstOrDefault(host => host.Name == name)
+        ?? throw new Temporalio.Exceptions.ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_EXTRA_HOSTS).", nonRetryable: true);
+
+    /// <summary>The host a qualified owner (<c>acme</c>, or <c>codeberg:acme</c>) belongs to.</summary>
+    public HostSettings HostFor(string qualifiedOwner) => HostNamed(RepoNames.Split(qualifiedOwner).Host);
+
+    /// <summary>The login of the bot on the host a qualified owner belongs to: the factory only revises pull requests that account opened.</summary>
+    public string BotLoginFor(string qualifiedOwner) => HostFor(qualifiedOwner).BotLogin;
+
+    /// <summary>Every host's token that is set: what must never appear in a log, a record or a pushed file.</summary>
+    public IReadOnlyList<string> HostTokens => Hosts.Select(host => host.Token).Where(token => !string.IsNullOrWhiteSpace(token)).ToList();
+
     /// <summary>Address of the Temporal web UI as a person opens it, used for the link to a run's full record.</summary>
     public string TemporalUiUrl { get; init; } = "http://localhost:8080";
     /// <summary>Access token of the factory's Forgejo bot account; empty disables ticket actions.</summary>
@@ -55,6 +77,7 @@ public sealed class WorkerSettings
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
         ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
         ForgejoBotLogin = NonEmpty(configuration, "FORGEJO_BOT_LOGIN", "factory-bot"),
+        ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),

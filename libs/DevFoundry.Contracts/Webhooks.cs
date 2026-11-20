@@ -40,11 +40,12 @@ public enum RepoEventKind
 /// A webhook delivery in the factory's own words, whichever host sent it: what the router decides on. Only data the router needs; the host's raw JSON stays in the
 /// workflow's input. Texts (<see cref="Title"/>, <see cref="Body"/>, <see cref="CommentBody"/>, <see cref="ReviewBody"/>) are people's words: data, never instructions.
 /// </summary>
-/// <param name="Host">The adapter that made it (<c>forgejo</c>).</param>
+/// <param name="Host">The name of the host the delivery came from (<c>forgejo</c>, or one of the extra hosts).</param>
 /// <param name="EventName">The host's own event name, for the receipt and the log.</param>
 /// <param name="Action">The host's own action word (<c>opened</c>, <c>created</c>), or null.</param>
 /// <param name="Reference">The host's <c>ref</c> of the delivery (a push), or null.</param>
 /// <param name="Repository">The repository as the host names it (<c>owner/name</c>), or null when the delivery has none.</param>
+/// <param name="Owner">The owner as the factory names it: plain for the default host, <c>host:owner</c> for any other (see <see cref="RepoNames"/>).</param>
 /// <param name="Number">The ticket or pull request number (for a review: the pull request's).</param>
 /// <param name="IsOpen">The ticket is open (or says nothing about it).</param>
 /// <param name="Author">Who wrote the ticket.</param>
@@ -70,8 +71,8 @@ public sealed record RepoEvent(
 /// </summary>
 public interface IWebhookAdapter
 {
-    /// <summary>The host's name: the end of the route (<c>/webhooks/forgejo</c>), the prefix of the workflow ids, and the setting of its secret.</summary>
-    string Host { get; }
+    /// <summary>The kind of host this adapter reads (<c>forgejo</c>). A factory can have several hosts of one kind; each has a name of its own (see <see cref="WebhookDelivery.Host"/>).</summary>
+    string Type { get; }
 
     /// <summary>The headers the delivery must carry, named for the error messages.</summary>
     string EventHeader { get; }
@@ -99,7 +100,8 @@ public static class WebhookAdapters
 {
     public static readonly IReadOnlyList<IWebhookAdapter> All = [new ForgejoWebhookAdapter()];
 
-    public static IWebhookAdapter? Find(string host) => All.FirstOrDefault(adapter => string.Equals(adapter.Host, host, StringComparison.OrdinalIgnoreCase));
+    /// <summary>The adapter for a kind of host (<c>forgejo</c>), or null.</summary>
+    public static IWebhookAdapter? Find(string type) => All.FirstOrDefault(adapter => string.Equals(adapter.Type, type, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>The signature scheme Forgejo (and GitHub) use: a hex HMAC-SHA256 of the exact bytes of the body. One implementation, for the adapters and for the API's own tests of it.</summary>
@@ -126,9 +128,9 @@ public static partial class HmacSignature
 /// <summary>Forgejo: HMAC-SHA256 over the exact bytes in <c>X-Forgejo-Signature</c>, events named in <c>X-Forgejo-Event</c>, issues, comments and reviews in its own JSON.</summary>
 public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
 {
-    public const string HostName = "forgejo";
+    public const string TypeName = "forgejo";
 
-    public string Host => HostName;
+    public string Type => TypeName;
     public string EventHeader => "X-Forgejo-Event";
     public string DeliveryHeader => "X-Forgejo-Delivery";
 
@@ -150,7 +152,7 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
         var payload = delivery.Payload;
         var action = AsString(Get(payload, "action"));
         var repository = AsString(Get(Get(payload, "repository"), "full_name"));
-        RepoEvent Make(RepoEventKind kind) => new(HostName, delivery.DeliveryId, delivery.Event, kind, action, AsString(Get(payload, "ref")), repository);
+        RepoEvent Make(RepoEventKind kind) => new(delivery.Host, delivery.DeliveryId, delivery.Event, kind, action, AsString(Get(payload, "ref")), repository);
 
         // A review that requests changes carries the pull request, not a ticket. Forgejo names this event "pull_request_rejected" in its header
         // (the payload's review.type says "pull_request_review_rejected").
@@ -164,7 +166,7 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
             }
             return Make(RepoEventKind.ChangesRequested) with
             {
-                Owner = reviewOwner, Repo = reviewRepo, Number = number, IsPullRequest = true,
+                Owner = RepoNames.Qualify(delivery.Host, reviewOwner), Repo = reviewRepo, Number = number, IsPullRequest = true,
                 HeadRef = AsString(Get(Get(pull, "head"), "ref")), PullState = AsString(Get(pull, "state")),
                 ReviewBody = AsString(Get(Get(payload, "review"), "content")) ?? "", Actor = AsString(Get(Get(payload, "sender"), "login")) ?? "",
             };
@@ -182,7 +184,7 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
         var kind = Kind(delivery.Event, action, isPull);
         return Make(kind) with
         {
-            Owner = owner, Repo = repo, Number = ticket, IsPullRequest = isPull,
+            Owner = RepoNames.Qualify(delivery.Host, owner), Repo = repo, Number = ticket, IsPullRequest = isPull,
             IsOpen = AsString(Get(issue, "state")) is null or "open",
             Title = AsString(Get(issue, "title")) ?? "", Body = AsString(Get(issue, "body")) ?? "", Author = AsString(Get(Get(issue, "user"), "login")) ?? "",
             Labels = Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels

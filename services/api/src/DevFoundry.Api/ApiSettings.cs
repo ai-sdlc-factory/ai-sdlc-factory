@@ -1,5 +1,8 @@
 namespace DevFoundry.Api;
 
+/// <summary>A git host this API takes webhooks from: its name (the end of its route), the kind of host it is, and the secret its deliveries are signed with.</summary>
+public sealed record WebhookHost(string Name, string Type, string Secret);
+
 public sealed class ApiSettings
 {
     public string TemporalAddress { get; init; } = "localhost:7233";
@@ -8,9 +11,15 @@ public sealed class ApiSettings
     public required string ForgejoWebhookSecret { get; init; }
     public int MaxWebhookBytes { get; init; } = 1_048_576;
 
-    /// <summary>The secret a host's webhooks are signed with, or null for a host this API has no secret for (its route then answers 404). One setting per host, named after it.</summary>
-    public string? WebhookSecretFor(string host) =>
-        string.Equals(host, ForgejoWebhookAdapter.HostName, StringComparison.OrdinalIgnoreCase) ? ForgejoWebhookSecret : null;
+    /// <summary>The hosts besides the default one (<c>FACTORY_EXTRA_HOSTS</c>): each has its own route, kind and secret.</summary>
+    public IReadOnlyList<HostDefinition> ExtraHosts { get; init; } = [];
+
+    /// <summary>The hosts this API takes webhooks from: the default one (<c>FORGEJO_WEBHOOK_SECRET</c>) and the extra ones. Each has a route <c>/webhooks/&lt;name&gt;</c>.</summary>
+    public IReadOnlyList<WebhookHost> Hosts =>
+        [new WebhookHost(RepoNames.DefaultHost, ForgejoWebhookAdapter.TypeName, ForgejoWebhookSecret), .. ExtraHosts.Select(host => new WebhookHost(host.Name, host.Type, host.WebhookSecret))];
+
+    /// <summary>The secret a host's webhooks are signed with, or null for a host this API has none for (its route then answers 404).</summary>
+    public string? WebhookSecretFor(string host) => Hosts.FirstOrDefault(known => known.Name == host)?.Secret;
 
     public static ApiSettings FromConfiguration(IConfiguration configuration)
     {
@@ -21,6 +30,7 @@ public sealed class ApiSettings
             TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
             ForgejoWebhookSecret = configuration["FORGEJO_WEBHOOK_SECRET"] ?? "",
             MaxWebhookBytes = configuration.GetValue("MAX_WEBHOOK_BYTES", 1_048_576),
+            ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
         };
         settings.Validate();
         return settings;

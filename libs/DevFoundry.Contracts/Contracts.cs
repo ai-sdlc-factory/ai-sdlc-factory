@@ -8,13 +8,15 @@ namespace DevFoundry.Contracts;
 
 /// <summary>
 /// Workflow input: a verified webhook delivery from a git host, sent by the API to the controller. The payload is the host's own JSON, kept as it came (the router reads it
-/// through the host's <see cref="IWebhookAdapter"/>). <see cref="Host"/> names the adapter; deliveries written before there was one read as Forgejo's.
+/// through the host's <see cref="IWebhookAdapter"/>). <see cref="Host"/> is the name of the host the delivery came from (the end of its webhook route) and
+/// <see cref="Adapter"/> the kind of host it is, which picks the adapter; deliveries written before there were hosts read as Forgejo's.
 /// </summary>
 public sealed record WebhookDelivery(
     [property: JsonPropertyName("delivery_id")] string DeliveryId,
     [property: JsonPropertyName("event")] string Event,
     [property: JsonPropertyName("payload")] JsonElement Payload,
-    [property: JsonPropertyName("host")] string Host = ForgejoWebhookAdapter.HostName);
+    [property: JsonPropertyName("host")] string Host = RepoNames.DefaultHost,
+    [property: JsonPropertyName("adapter")] string Adapter = ForgejoWebhookAdapter.TypeName);
 
 /// <summary>
 /// Asks the sandbox launcher to run one command in a disposable container. The launcher decides

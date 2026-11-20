@@ -65,7 +65,7 @@ public sealed class JanitorRunner(
 
     private async Task CheckBranchesAsync(List<string> old, List<string> deleted, List<string> problems, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(settings.ForgejoToken))
+        if (settings.HostTokens.Count == 0)
         {
             return;
         }

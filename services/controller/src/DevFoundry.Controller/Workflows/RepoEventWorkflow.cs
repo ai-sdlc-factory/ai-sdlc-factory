@@ -16,8 +16,8 @@ public sealed class RepoEventWorkflow
     [WorkflowRun]
     public async Task<EventReceipt> RunAsync(WebhookDelivery input)
     {
-        var adapter = WebhookAdapters.Find(input.Host)
-            ?? throw new ApplicationFailureException($"No webhook adapter for the host \"{input.Host}\".", nonRetryable: true);
+        var adapter = WebhookAdapters.Find(input.Adapter)
+            ?? throw new ApplicationFailureException($"No webhook adapter for the host type \"{input.Adapter}\".", nonRetryable: true);
         var repoEvent = adapter.Normalise(input);
         await RouteAsync(repoEvent);
         return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);

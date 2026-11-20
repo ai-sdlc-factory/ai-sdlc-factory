@@ -33,7 +33,7 @@ public sealed class ContractTests
     [Fact]
     public async Task A_delivery_from_a_host_without_an_adapter_fails_instead_of_being_guessed_at()
     {
-        var input = new WebhookDelivery(DeliveryId, "issues", JsonDocument.Parse("{}").RootElement, Host: "nowhere");
+        var input = new WebhookDelivery(DeliveryId, "issues", JsonDocument.Parse("{}").RootElement, Adapter: "nowhere");
 
         var error = await Assert.ThrowsAsync<Temporalio.Exceptions.ApplicationFailureException>(() => new RepoEventWorkflow().RunAsync(input));
 
@@ -47,8 +47,8 @@ public sealed class ContractTests
         var encoded = DataConverter.Default.PayloadConverter.ToPayload(old);
         using var json = JsonDocument.Parse(encoded.Data.ToByteArray());
 
-        Assert.Equal("forgejo", old.Host);
-        Assert.Equal(["delivery_id", "event", "payload", "host"], json.RootElement.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(("forgejo", "forgejo"), (old.Host, old.Adapter));
+        Assert.Equal(["delivery_id", "event", "payload", "host", "adapter"], json.RootElement.EnumerateObject().Select(property => property.Name));
     }
 
     [Fact]

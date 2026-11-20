@@ -33,6 +33,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | Key | What | Default |
 | --- | --- | --- |
 | `FORGEJO_BOT_LOGIN` | the bot account's username. The factory revises only pull requests this account opened, and compares the author with it (the token's own scopes do not allow asking Forgejo) | `factory-bot` |
+| `FACTORY_EXTRA_HOSTS` | more git hosts than the Forgejo above, as one line of JSON: `[{"name":"codeberg","type":"forgejo","url":"https://codeberg.org","token":"...","bot_login":"factory-bot","webhook_secret":"..."}]`. `name` (lower case letters, digits and `-`, at most 31, not `forgejo`) and `url` and a `webhook_secret` of 32+ characters are required; `type` (only `forgejo` so far) and `bot_login` (`factory-bot`) have defaults. Each host gets its own webhook route, `/webhooks/<name>`, signed with its own secret, and its repositories are named `<name>:owner/repo` in runs, folders and logs; the default host's stay `owner/repo`. A setting that cannot be used stops the api and the controller at start, with a message that names the host and never prints a secret. See [Several git hosts](operations.md#several-git-hosts) | none |
 | `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
 | `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
 | `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
@@ -98,6 +99,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | --- | --- | --- |
 | `FORGEJO_WEBHOOK_SECRET` | none (required, 32+ characters) | the HMAC key for webhook signatures |
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | `localhost:7233`, `default`, `factory-events` | where to start workflows |
+| `FACTORY_EXTRA_HOSTS` | none | the extra git hosts (see above): the api reads each one's name, kind and `webhook_secret` and serves `/webhooks/<name>` |
 | `MAX_WEBHOOK_BYTES` | `1048576` | largest accepted webhook body (1 to 1,048,576) |
 
 ### controller
@@ -108,6 +110,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `FORGEJO_URL` | `http://forgejo:3000` | where the controller reaches Forgejo (over the `forge` network) |
 | `FORGEJO_BOT_TOKEN` | empty | the bot's token |
 | `FORGEJO_BOT_LOGIN` | `factory-bot` | the bot's username, used to recognise the factory's own pull requests |
+| `FACTORY_EXTRA_HOSTS` | none | the extra git hosts (see above): the controller reads each one's address, token and bot login. Every host's token is kept out of logs and records like the default one |
 | `FACTORY_MAX_TOKENS_PER_RUN`, `FACTORY_DAILY_TOKEN_LIMIT`, `FACTORY_REPO_DAILY_TOKEN_LIMIT`, `FACTORY_CONFIRM_OVER_TOKENS` | `0`, `0`, `0`, `0` (set by Compose) | token limits, as above; a value that is not `0` or a whole number from 10000 stops the controller at start with a message, so a typo cannot switch a limit off |
 | `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | whether a repository's own image is mentioned and used, as above; the launcher enforces the same switch |
 | `FACTORY_JANITOR`, `FACTORY_JANITOR_INTERVAL_HOURS`, `FACTORY_JANITOR_CHECKOUT_DAYS`, `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` | `true`, `24`, `2`, `30`, `false` (set by Compose) | the janitor, described under [Cleaning up](operations.md#cleaning-up); a value out of range stops the controller at start with a message |

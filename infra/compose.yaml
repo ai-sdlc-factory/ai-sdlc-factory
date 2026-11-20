@@ -232,6 +232,8 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
       FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
+      # Git hosts besides the default Forgejo (see docs/configuration.md): each gets its own webhook route and secret. Empty = none.
+      FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
     networks: [control, hooks]
     ports:
       - "127.0.0.1:${CONTROLLER_API_PORT:-8000}:8000"
@@ -263,6 +265,8 @@ services:
       FORGEJO_BOT_TOKEN: ${FORGEJO_BOT_TOKEN:-}
       # The factory only revises pull requests this account opened.
       FORGEJO_BOT_LOGIN: ${FORGEJO_BOT_LOGIN:-factory-bot}
+      # Git hosts besides the default Forgejo, with the bot's token on each (see docs/configuration.md). Empty = none.
+      FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
       # What a project gets when its .factory/project.json "limits" do not say (see docs/configuration.md).
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}

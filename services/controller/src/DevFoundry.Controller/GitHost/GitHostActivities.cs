@@ -37,7 +37,7 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
                 continue;
             }
             var pulls = await host.ListAllPullRequestsAsync(owner, repo, token);
-            outcomes.AddRange(PullOutcomes.Build(repository, pulls, request.Scope, settings.ForgejoBotLogin, request.From, request.To));
+            outcomes.AddRange(PullOutcomes.Build(repository, pulls, request.Scope, settings.BotLoginFor(owner), request.From, request.To));
         }
         return outcomes;
     }
@@ -73,7 +73,7 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
     public async Task<RevisionContext> ReadRevisionContextAsync(RevisionRequest request)
     {
         var token = ActivityExecutionContext.Current.CancellationToken;
-        var bot = settings.ForgejoBotLogin;
+        var bot = settings.BotLoginFor(request.Owner);
         var pull = await host.GetPullRequestAsync(request.Owner, request.Repo, request.PullNumber, token);
         var history = await host.GetRevisionHistoryAsync(request.Owner, request.Repo, request.PullNumber, token);
         var reviews = await host.GetUnaddressedReviewsAsync(request.Owner, request.Repo, request.PullNumber, bot, history.LastAt, token);
@@ -115,10 +115,10 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
             : await host.FindFactoryPullRequestAsync(request.Owner, request.Repo, request.Number, token);
         if (number is null)
         {
-            return new QaContext(null, settings.ForgejoBotLogin);
+            return new QaContext(null, settings.BotLoginFor(request.Owner));
         }
         var pull = await host.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token);
-        return new QaContext(pull, settings.ForgejoBotLogin, await TryGetChangesAsync(request.Owner, request.Repo, number.Value, token));
+        return new QaContext(pull, settings.BotLoginFor(request.Owner), await TryGetChangesAsync(request.Owner, request.Repo, number.Value, token));
     }
 
     /// <summary>What the pull request changes, for the tester. A tester that is not told is only less well informed, so a failure here never stops the run.</summary>
@@ -144,9 +144,9 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
             : await host.FindFactoryPullRequestAsync(request.Owner, request.Repo, request.Number, token);
         if (number is null)
         {
-            return new UpdateContext(null, settings.ForgejoBotLogin);
+            return new UpdateContext(null, settings.BotLoginFor(request.Owner));
         }
-        return new UpdateContext(await host.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token), settings.ForgejoBotLogin);
+        return new UpdateContext(await host.GetPullRequestAsync(request.Owner, request.Repo, number.Value, token), settings.BotLoginFor(request.Owner));
     }
 
     /// <summary>Reads the pull request a <c>/review</c> is for, and what it changes.</summary>

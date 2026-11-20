@@ -6,21 +6,24 @@ public static class WebhookEndpoints
 {
     public static IEndpointRouteBuilder MapWebhookEndpoints(this IEndpointRouteBuilder app)
     {
-        // One route per host the factory has an adapter for, so a host that is not there is an ordinary 404 and the OpenAPI document lists each one.
-        foreach (var adapter in WebhookAdapters.All)
+        // One route per host the factory takes webhooks from (the default one and the extra ones), so a host that is not there is an ordinary 404 and the OpenAPI document lists each.
+        var configured = app.ServiceProvider.GetRequiredService<ApiSettings>();
+        foreach (var host in configured.Hosts)
         {
-            var host = adapter;
-            app.MapPost($"/webhooks/{host.Host}",
+            var known = host;
+            var adapter = WebhookAdapters.Find(known.Type) ?? throw new InvalidOperationException($"No webhook adapter for the host type \"{known.Type}\".");
+            app.MapPost($"/webhooks/{known.Name}",
                     (HttpRequest request, ITemporalGateway gateway, ApiSettings settings, ILogger<Program> logger, CancellationToken cancellationToken) =>
-                        ReceiveAsync(host, request, gateway, settings, logger, cancellationToken))
+                        ReceiveAsync(known.Name, adapter, request, gateway, settings, logger, cancellationToken))
                 .WithTags("Webhooks")
-                .WithSummary($"Verify a {host.Host} delivery and durably start its receipt workflow");
+                .WithSummary($"Verify a {known.Name} delivery and durably start its receipt workflow");
         }
         return app;
     }
 
     // The order of checks is deliberate: nothing is parsed before the signature is verified.
     private static async Task<IResult> ReceiveAsync(
+        string host,
         IWebhookAdapter adapter,
         HttpRequest request,
         ITemporalGateway gateway,
@@ -29,7 +32,7 @@ public static class WebhookEndpoints
         CancellationToken cancellationToken)
     {
         // A host with an adapter but no secret here is not there: nothing about it is revealed beyond that.
-        if (settings.WebhookSecretFor(adapter.Host) is not { Length: > 0 } secret)
+        if (settings.WebhookSecretFor(host) is not { Length: > 0 } secret)
         {
             return Responses.Detail(404, "Unknown webhook host");
         }
@@ -86,23 +89,23 @@ public static class WebhookEndpoints
                 return Responses.Detail(400, "Expected a JSON object");
             }
 
-            var workflowId = $"{adapter.Host}-{deliveryId}";
+            var workflowId = $"{host}-{deliveryId}";
             bool started;
             try
             {
                 started = await gateway.StartEventWorkflowAsync(
                     workflowId,
-                    new WebhookDelivery(deliveryId, eventName, document.RootElement, adapter.Host),
+                    new WebhookDelivery(deliveryId, eventName, document.RootElement, host, adapter.Type),
                     cancellationToken);
             }
             catch (TemporalUnavailableException)
             {
-                logger.LogWarning("Temporal did not acknowledge {Host} webhook delivery {DeliveryId}", adapter.Host, deliveryId);
+                logger.LogWarning("Temporal did not acknowledge {Host} webhook delivery {DeliveryId}", host, deliveryId);
                 return Responses.Detail(503, "Temporal is unavailable; retry this delivery");
             }
 
             // The event name is checked against a strict pattern above, so it is safe to log; the payload never is.
-            logger.LogInformation("{Host} {Event} delivery {DeliveryId}: {Status}", adapter.Host, eventName, deliveryId, started ? "accepted" : "duplicate");
+            logger.LogInformation("{Host} {Event} delivery {DeliveryId}: {Status}", host, eventName, deliveryId, started ? "accepted" : "duplicate");
             var receipt = new WebhookReceipt(started ? "accepted" : "duplicate", workflowId, deliveryId, eventName);
             return Results.Json(receipt, statusCode: started ? 202 : 200);
         }

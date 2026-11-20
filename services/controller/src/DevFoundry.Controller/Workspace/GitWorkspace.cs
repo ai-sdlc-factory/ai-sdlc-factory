@@ -26,6 +26,9 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
     [GeneratedRegex(@"\A[A-Za-z0-9][A-Za-z0-9._/-]{0,100}\z")]
     private static partial Regex BranchName();
 
+    /// <summary>The file inside a pristine clone's <c>.git</c> that names the host it came from.</summary>
+    private const string HostMarker = "factory-host";
+
     private const int MaxChangedFiles = 300;
     private const long MaxFileBytes = 2 * 1024 * 1024;
     private const long MaxTotalBytes = 10 * 1024 * 1024;
@@ -40,8 +43,10 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
     public async Task<WorkspaceInfo> PrepareAsync(WorkspaceRequest request, CancellationToken cancellationToken)
     {
         var root = RequireRoot();
-        if (!SafeSegment().IsMatch(request.Owner) || !SafeSegment().IsMatch(request.Repo)
-            || request.Repo.Contains("..") || request.Owner.Contains("..")
+        // The owner carries its host when it is not the default one (see RepoNames): the host decides where to clone from and which token to use.
+        var (hostName, owner) = RepoNames.Split(request.Owner);
+        if (!SafeSegment().IsMatch(owner) || !SafeSegment().IsMatch(request.Repo) || !RepoNames.IsHostName(hostName)
+            || request.Repo.Contains("..") || owner.Contains("..")
             || !WorkspaceName().IsMatch(request.Name) || request.Name.Contains("..")
             || !BranchName().IsMatch(request.Branch) || request.Branch.Contains(".."))
         {
@@ -55,9 +60,12 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         DeleteDirectory(basePath);
         Directory.CreateDirectory(basePath);
 
+        var host = settings.HostNamed(hostName);
         var url = remoteUrl?.Invoke(request.Owner, request.Repo)
-            ?? $"{settings.ForgejoUrl.TrimEnd('/')}/{request.Owner}/{request.Repo}.git";
-        await GitAsync(["clone", "--quiet", url, "."], basePath, useToken: true, cancellationToken);
+            ?? $"{host.Url.TrimEnd('/')}/{owner}/{request.Repo}.git";
+        await GitAsync(["clone", "--quiet", url, "."], basePath, useToken: true, cancellationToken, tokenHost: hostName);
+        // Later pushes and fetches of this clone use this host's token; the marker sits inside .git, which is never committed.
+        await File.WriteAllTextAsync($"{basePath}/.git/{HostMarker}", hostName, cancellationToken);
         if ((await GitAsync(["rev-parse", "--verify", "--quiet", "HEAD"], basePath, useToken: false, cancellationToken, allowFailure: true)).Trim().Length == 0)
         {
             // A brand-new repository has nothing to branch from, and no .factory/project.json to read. Retrying cannot help.

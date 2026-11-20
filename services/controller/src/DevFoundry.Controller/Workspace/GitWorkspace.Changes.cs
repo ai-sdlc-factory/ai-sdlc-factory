@@ -136,7 +136,7 @@ public sealed partial class GitWorkspace
         var entries = new List<Entry>();
         var global = new List<string>();
         long total = 0;
-        var knownSecrets = string.IsNullOrWhiteSpace(settings.ForgejoToken) ? [] : new[] { settings.ForgejoToken };
+        var knownSecrets = settings.HostTokens.ToArray();
 
         var extraProtected = ReadProtectedPaths(basePath);
 

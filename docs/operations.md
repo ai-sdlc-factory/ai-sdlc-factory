@@ -48,6 +48,16 @@ shows what the router decided.
 | A network error in the launcher at start | One of the three internal sandbox networks is missing or clashes with yours (`SANDBOX_NET_BASE`). The launcher refuses to run without them. |
 | Disk fills up | Old checkouts and Docker layers; see [Cleaning up](#cleaning-up). |
 
+## Several git hosts
+
+The factory serves one Forgejo by default. With [`FACTORY_EXTRA_HOSTS`](configuration.md) it can serve more hosts at once (today other Forgejo instances; each kind of host needs an adapter, see [architecture](architecture.md#how-a-ticket-flows)) from one controller.
+
+- **Names.** A host has a name (`codeberg`). The default host is called `forgejo`. A repository on any other host is written **`<host>:owner/repo`** everywhere the factory names a repository: in comments that name it, in the usage log's `repository` field, in the weekly report, and in the ids of workflows and the names of checkout folders (which carry a hash of it). The default host's repositories keep the plain `owner/repo`, so **nothing that exists is renamed** when a second host is added.
+- **Nothing is shared.** The same owner, repository and ticket number on two hosts are two different runs: different workflow ids, different checkouts, different usage counts. A token is used only for its own host (the clone remembers which in `.git/factory-host`), and every host's token is kept out of logs, run records and pushed files.
+- **Setting one up.** Add it to `FACTORY_EXTRA_HOSTS`, restart the api and the controller, give the bot account on that host write access to the repositories, and add a webhook there that points at `http://<api>/webhooks/<name>` with the host's `webhook_secret` (the same events as for the default host: [Setting up a project](project-setup.md#2-add-the-webhook)). The labels have to exist on each host's repositories; `tools/onboard-repo.py` only knows the default host, so create them by hand or point the tool at the other host.
+- **What loops over hosts.** The janitor lists every host's writable repositories (a host that cannot be listed fails that pass rather than leaving a partial list), and the weekly report asks each host about its own pull requests, with each host's own bot login. The repository for the report's ticket (`FACTORY_IMPROVEMENT_REPO`) is on the default host.
+- **Not yet.** Alert intake still opens its tickets on the default host only.
+
 ## Cleaning up
 
 A **janitor** in the controller cleans up once a day (the first pass is five minutes after the controller starts). It is on by default and cautious: it only removes things that are provably finished, and anything it cannot establish it leaves alone. Everything it does is written to the controller log: `docker compose logs controller | grep Janitor`.

@@ -25,8 +25,7 @@ public sealed partial class GitWorkspace
         return Task.CompletedTask;
     }
 
-    private IEnumerable<string> KnownSecrets() =>
-        string.IsNullOrWhiteSpace(settings.ForgejoToken) ? [] : [settings.ForgejoToken];
+    private IEnumerable<string> KnownSecrets() => settings.HostTokens;
 
     /// <summary>Copies the stored steps, an index and a summary into the pristine clone, ready to be committed.</summary>
     private void AddRunRecord(string root, string name, string basePath, RunRecordSpec? spec)

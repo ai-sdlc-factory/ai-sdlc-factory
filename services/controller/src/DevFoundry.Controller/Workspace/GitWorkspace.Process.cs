@@ -21,8 +21,18 @@ public sealed partial class GitWorkspace
         }
     }
 
+    /// <summary>The host a pristine clone came from (the default one for a clone without the marker, such as one made before hosts existed).</summary>
+    private static string HostOfClone(string directory)
+    {
+        var marker = $"{directory}/.git/{HostMarker}";
+        return File.Exists(marker) && File.ReadAllText(marker).Trim() is { Length: > 0 } name ? name : RepoNames.DefaultHost;
+    }
+
+    /// <summary>The token of a host, or empty when it has none (or is not configured).</summary>
+    private string TokenFor(string host) => settings.Hosts.FirstOrDefault(known => known.Name == host)?.Token ?? "";
+
     private async Task<string> GitAsync(
-        IReadOnlyList<string> arguments, string workingDirectory, bool useToken, CancellationToken cancellationToken, bool allowFailure = false)
+        IReadOnlyList<string> arguments, string workingDirectory, bool useToken, CancellationToken cancellationToken, bool allowFailure = false, string? tokenHost = null)
     {
         var start = new ProcessStartInfo("git")
         {
@@ -36,11 +46,11 @@ public sealed partial class GitWorkspace
         }
         start.Environment["GIT_TERMINAL_PROMPT"] = "0";
         start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
-        if (useToken && !string.IsNullOrWhiteSpace(settings.ForgejoToken))
+        if (useToken && TokenFor(tokenHost ?? HostOfClone(workingDirectory)) is { Length: > 0 } token)
         {
             start.Environment["GIT_CONFIG_COUNT"] = "1";
             start.Environment["GIT_CONFIG_KEY_0"] = "http.extraHeader";
-            start.Environment["GIT_CONFIG_VALUE_0"] = $"Authorization: token {settings.ForgejoToken}";
+            start.Environment["GIT_CONFIG_VALUE_0"] = $"Authorization: token {token}";
         }
 
         using var process = Process.Start(start)

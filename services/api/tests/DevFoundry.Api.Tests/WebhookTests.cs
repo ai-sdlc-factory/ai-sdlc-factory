@@ -228,6 +228,68 @@ public sealed class WebhookTests
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
     }
 
+    private const string OtherSecret = "another-hosts-secret-never-used-outside-tests";
+
+    private HttpClient CreateClientWithOtherHost() =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton(new ApiSettings
+                {
+                    ForgejoWebhookSecret = Secret,
+                    ExtraHosts = [new HostDefinition("codeberg", "forgejo", "https://codeberg.example", "", "factory-bot", OtherSecret)],
+                });
+                services.AddSingleton<ITemporalGateway>(gateway);
+            })).CreateClient();
+
+    private static HttpRequestMessage OtherRequest(string path, string secret, byte[] body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new("application/json");
+        request.Headers.Add("X-Forgejo-Signature", Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), body)));
+        request.Headers.Add("X-Forgejo-Event", "issues");
+        request.Headers.Add("X-Forgejo-Delivery", "12345678-1234-1234-1234-123456789abc");
+        return request;
+    }
+
+    [Fact]
+    public async Task An_extra_host_has_a_route_and_a_secret_of_its_own_and_its_deliveries_say_where_they_came_from()
+    {
+        var client = CreateClientWithOtherHost();
+
+        var accepted = await client.SendAsync(OtherRequest("/webhooks/codeberg", OtherSecret, Body));
+        var wrongSecret = await client.SendAsync(OtherRequest("/webhooks/codeberg", Secret, Body));
+        var defaultStillWorks = await client.SendAsync(OtherRequest("/webhooks/forgejo", Secret, Body));
+        var crossed = await client.SendAsync(OtherRequest("/webhooks/forgejo", OtherSecret, Body));
+
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, wrongSecret.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, defaultStillWorks.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, crossed.StatusCode);
+        var (workflowId, delivery) = gateway.Started[0];
+        Assert.Equal("codeberg-12345678-1234-1234-1234-123456789abc", workflowId);
+        Assert.Equal(("codeberg", "forgejo"), (delivery.Host, delivery.Adapter));
+        Assert.Equal("forgejo-12345678-1234-1234-1234-123456789abc", gateway.Started[1].WorkflowId);
+    }
+
+    [Fact]
+    public void The_extra_hosts_are_read_from_the_environment_and_a_bad_one_stops_the_start()
+    {
+        var extra = $$"""[{"name":"codeberg","url":"https://codeberg.example","webhook_secret":"{{OtherSecret}}"}]""";
+        var settings = ApiSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["FORGEJO_WEBHOOK_SECRET"] = Secret, ["FACTORY_EXTRA_HOSTS"] = extra,
+        }).Build());
+
+        Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
+        Assert.Equal(OtherSecret, settings.WebhookSecretFor("codeberg"));
+        Assert.Null(settings.WebhookSecretFor("github"));
+        Assert.Throws<InvalidOperationException>(() => ApiSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["FORGEJO_WEBHOOK_SECRET"] = Secret, ["FACTORY_EXTRA_HOSTS"] = """[{"name":"x"}]""",
+        }).Build()));
+    }
+
     [Fact]
     public async Task A_host_with_no_adapter_has_no_route()
     {

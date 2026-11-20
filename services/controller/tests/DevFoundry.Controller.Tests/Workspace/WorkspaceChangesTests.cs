@@ -62,6 +62,40 @@ public sealed class WorkspaceChangesTests : IDisposable
         await workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", name, "factory/issue-1"), CancellationToken.None);
 
     [Fact]
+    public async Task A_repository_on_another_host_is_cloned_from_that_hosts_address_and_remembers_which_host_it_came_from()
+    {
+        var urls = new List<string>();
+        var settings = new WorkerSettings
+        {
+            WorkspaceRoot = root,
+            ExtraHosts = [new HostDefinition("codeberg", "forgejo", "https://codeberg.example", "cb-token", "cb-bot", "0123456789abcdef0123456789abcdef")],
+        };
+        var workspace = new GitWorkspace(settings, (owner, repo) => { urls.Add($"{owner}/{repo}"); return origin; });
+
+        var info = await workspace.PrepareAsync(new WorkspaceRequest("codeberg:acme", "shop", "feature-codeberg-acme-shop-1", "factory/issue-1"), CancellationToken.None);
+
+        Assert.Equal(["codeberg:acme/shop"], urls);
+        Assert.Equal("codeberg", File.ReadAllText($"{root}/.base/{info.Name}/.git/factory-host"));
+        Assert.DoesNotContain("factory-host", Git($"{root}/.base/{info.Name}", "status", "--porcelain")); // inside .git: never committed
+    }
+
+    [Fact]
+    public async Task A_repository_on_a_host_that_is_not_configured_or_with_a_bad_host_name_is_refused_for_good()
+    {
+        var workspace = Workspace();
+
+        var unknown = await Assert.ThrowsAsync<ApplicationFailureException>(() =>
+            workspace.PrepareAsync(new WorkspaceRequest("nowhere:acme", "shop", "feature-nowhere-acme-shop-1", "factory/issue-1"), CancellationToken.None));
+        var bad = await Assert.ThrowsAsync<ApplicationFailureException>(() =>
+            workspace.PrepareAsync(new WorkspaceRequest("Bad Host:acme", "shop", "feature-x-1", "factory/issue-1"), CancellationToken.None));
+
+        Assert.True(unknown.NonRetryable);
+        Assert.Contains("nowhere", unknown.Message);
+        Assert.True(bad.NonRetryable);
+        Assert.Contains("invalid name", bad.Message);
+    }
+
+    [Fact]
     public async Task An_empty_repository_is_refused_with_a_message_that_says_what_to_do()
     {
         var empty = Path.Combine(temp, "empty.git");

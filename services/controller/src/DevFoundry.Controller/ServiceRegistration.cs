@@ -33,10 +33,12 @@ public static class ServiceRegistration
 
         services.AddSingleton(settings);
         services.AddSingleton(new GitWorkspace(settings));
-        // The one git host there is today. The rest of the controller asks for IGitHost, never for the class.
-        services.AddSingleton<IGitHost>(sp => new ForgejoClient(
-            new HttpClient { BaseAddress = new Uri(settings.ForgejoUrl.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(20) },
-            settings));
+        // The git hosts there are (the default one and the extra ones), behind one port that sends each call to the host its owner belongs to. The rest of the controller asks for IGitHost, never for a class.
+        services.AddSingleton<IGitHost>(sp => new GitHostRouter(settings.Hosts.ToDictionary(
+            host => host.Name,
+            host => (IGitHost)new ForgejoClient(
+                new HttpClient { BaseAddress = new Uri(host.Url.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(20) },
+                host.Token))));
         services.AddSingleton<IWorkspaceStore>(sp => sp.GetRequiredService<GitWorkspace>());
         services.AddSingleton<IRunningWorkflows>(sp => new TemporalRunningWorkflows(sp.GetRequiredService<ITemporalClient>()));
         services.AddSingleton<IJanitorGitHost>(sp => sp.GetRequiredService<IGitHost>());
