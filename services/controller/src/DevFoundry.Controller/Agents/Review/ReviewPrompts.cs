@@ -5,7 +5,7 @@ namespace DevFoundry.Controller;
 /// <summary>What a reviewing agent needs to see: the case, the files that changed, and the diff.</summary>
 public static class ReviewPrompt
 {
-    // The sandbox policy allows 32768 characters in one argument; stay well under it.
+    // The sandbox policy allows 49152 characters in one argument; every prompt may also get the project instructions (ProjectInstructions.MaxBlockLength), so stay well under it.
     public const int MaxLength = 26_000;
     public const int MaxDiff = 14_000;
     private const int MaxFilesListed = 60;

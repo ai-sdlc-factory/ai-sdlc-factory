@@ -152,10 +152,10 @@ public sealed class DeveloperPromptTests
         var prompt = DeveloperPrompt.Build(Request(new string('b', 20_000)), criteria, design, Gates, new string('f', 20_000), 3, 3);
 
         Assert.True(prompt.Length <= DeveloperPrompt.MaxLength, prompt.Length.ToString());
-        Assert.True(DeveloperPrompt.MaxLength < SandboxPolicyLimit);
+        Assert.True(DeveloperPrompt.MaxLength + ProjectInstructions.MaxBlockLength < SandboxPolicyLimit); // the project's instructions are added to the largest prompt
     }
 
-    private const int SandboxPolicyLimit = 32 * 1024;
+    private const int SandboxPolicyLimit = 48 * 1024;
 }
 
 public sealed class BuildFeedbackTests

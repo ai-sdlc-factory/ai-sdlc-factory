@@ -5,7 +5,7 @@ namespace DevFoundry.Controller;
 /// <summary>What the end-to-end tester needs: the finished pull request, what it had to achieve, how the factory will run the tests, and what the last run showed.</summary>
 public static class TesterPrompt
 {
-    // The sandbox policy allows 32768 characters in one argument; stay well under it.
+    // The sandbox policy allows 49152 characters in one argument; every prompt may also get the project instructions (ProjectInstructions.MaxBlockLength), so stay well under it.
     public const int MaxLength = 26_000;
     private const int MaxBody = 4_000;
     private const int MaxFeedback = 6_000;

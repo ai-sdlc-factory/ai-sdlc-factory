@@ -9,7 +9,7 @@ namespace DevFoundry.Controller;
 /// </summary>
 public static class AnalystPrompt
 {
-    // The sandbox policy limits one argument to 32768 characters; stay well under it.
+    // The sandbox policy limits one argument to 49152 characters; every prompt may also get the project instructions (ProjectInstructions.MaxBlockLength), so stay well under it.
     public const int MaxLength = 7000;
     private const int MaxTitle = 200;
     private const int MaxBody = 3000;
