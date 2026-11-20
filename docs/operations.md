@@ -181,6 +181,14 @@ A budget belongs to one run: a `/retry`, a revision, an update or a QA run is a 
 
 **The provider's own limit.** When the model provider (your ChatGPT plan, or an API key's quota) says its limit is reached, OpenCode fails and the factory recognises it: the run stops at once with `usage_limit`, saves its work, and says that nothing is wrong with the ticket and to comment `/retry` after the limit resets. It does not try the same call a second time, which would only be told the same. This goes by the provider's **wording** on OpenCode's standard error and its `error` events (for example "usage limit", "rate limit", "too many requests", an HTTP 429 or an exceeded quota), because no document fixes the text. A limit worded differently is reported as an ordinary failure (tried once more, then `analysis_failed`, `build_failed` or the like); if you meet one, the patterns are in one place, `ProviderLimit.cs`.
 
+### Estimates, and what a stopped run used
+
+Tokens are counted after they are spent, so the factory also tells you beforehand what a run is likely to cost and afterwards what a wasted one did. All of it comes from the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories), which holds only numbers.
+
+- **An estimate on the ticket** when a feature, bug, incident, plan, documentation, revision, QA or update run starts: "A feature on this repository has typically used about 300,000 tokens (the median of the last 9 runs)". It uses the runs of the **same kind on the same repository** that used any tokens; with fewer than 3 it says there is no history yet. It is a figure to read and **never stops or delays a run** (the cheap kinds, such as a question or a review, say nothing).
+- **The tokens of a run that failed or was stopped** are said once more at its end ("This run used about 480,000 tokens before it stopped"), for every `*_failed` status, `build_blocked`, `error`, `usage_limit`, `cannot_reproduce`, `qa_blocked`, `update_blocked` and `timed_out`, when any were spent. A successful run's report stays as it is.
+- **An optional go-ahead for an expensive QA run.** With `limits.confirm_over` in a project (or `FACTORY_CONFIRM_OVER_TOKENS` for all projects; off by default), a `/qa` run whose estimate is over it says so on the ticket and **waits for `/qa go`** before the tester spends anything. Closing the ticket ends the wait, and so do 7 days without an answer (`not_confirmed`). With fewer than 3 earlier runs there is no estimate, so the run starts at once. The run itself was already a person's command: the go-ahead only makes them confirm a cost they have said they care about.
+
 ### Spending less
 
 The main knobs, from the biggest effect down: `limits.build_rounds` (each failed round is another developer run, the checks and the reviews), `mode: "quick"` (skips the coverage check, design review and the acceptance check), and `limits.clarification_rounds`. Set them per project in

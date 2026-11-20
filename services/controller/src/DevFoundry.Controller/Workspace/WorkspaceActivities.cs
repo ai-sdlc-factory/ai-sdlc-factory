@@ -92,6 +92,10 @@ public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings s
     [Activity("workspace_usage_today")]
     public Task<UsageToday> UsageTodayAsync(string repository) => Task.FromResult(workspace.UsageToday(repository, DateTimeOffset.UtcNow));
 
+    /// <summary>What a run of this kind on this repository has typically used, from the usage log (numbers only).</summary>
+    [Activity("workspace_usage_estimate")]
+    public Task<UsageEstimate> EstimateUsageAsync(string repository, string kind) => Task.FromResult(workspace.EstimateUsage(repository, kind));
+
     /// <summary>Makes and saves the weekly report on what repeats.</summary>
     [Activity("workspace_improvement_report")]
     public Task<ImprovementReportResult> BuildImprovementReportAsync(ImprovementRequest request) => Task.FromResult(workspace.BuildImprovementReport(request));

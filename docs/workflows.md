@@ -330,6 +330,8 @@ A deeper test of a change that is already finished, started by a person with a c
 | `/qa api`, `/qa ui`, `/qa full ui` | run only that suite (the words can come in either order, `full` and the suite first) |
 | `/qa <your note>` | the note, and any lines below it, are given to the tester to take into account, for example `/qa focus on the 404 cases` or `/qa full api check what happens with an empty city id`. Up to 1,500 characters; it is data from a person, not instructions that change the tester's role |
 
+| `/qa go` | the go-ahead for a run that is **waiting for one**: when the estimate of a `/qa` run is over [`limits.confirm_over`](project-setup.md#limits), the run says so and waits before the tester spends anything. `/qa go` starts it; closing the ticket cancels it (`closed`), and 7 days without an answer ends it (`not_confirmed`). With nothing waiting, `/qa go` only says so |
+
 The report names the scope and repeats your note. The same scope line is at the top of every other comment a `/qa` run posts about itself (the heads-up below and the "tester could not write tests" comment), so a person always sees what was asked.
 
 **A UI-only change with no `ui` suite.** When every file the pull request changes matches the project's [`ui.paths`](project-setup.md) and `verify.suites` has no `ui` suite (and the person did not choose a suite), the tests can only exercise the API, which never touches what changed. The factory says so in a comment before the tester starts, and again as a "Heads up" line in the report, and carries on, because API tests can still help. It decides by comparing paths only, so it costs nothing, and it says nothing when it cannot be sure (the list of changed files was cut, or Forgejo could not give it).
@@ -491,6 +493,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `update_blocked` | update: the factory cannot do this merge (a protected file or too many files in conflict, a merge git cannot make, or the resolver said it cannot continue); a person merges by hand |
 | `update_no_pull_request` | update: there is no open pull request of the factory for this ticket |
 | `qa_reported` | qa: the report is on the ticket (the tests that passed are on the pull request, or saved to a `-wip` branch) |
+| `not_confirmed` | qa: the estimate was over `limits.confirm_over` and nobody commented `/qa go` within 7 days, so nothing was spent |
 | `qa_blocked` | qa: the tester could not write tests it could stand behind (the reason is on the ticket) |
 | `qa_failed` | qa: the tester's answer stayed unusable after the retry |
 | `qa_not_configured` | qa: the project has no `verify` settings, or not the suite that was asked for |

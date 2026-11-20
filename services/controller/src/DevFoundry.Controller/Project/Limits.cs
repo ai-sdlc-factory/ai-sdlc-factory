@@ -4,21 +4,23 @@ namespace DevFoundry.Controller;
 /// <param name="MaxTokensPerRun">The most tokens one run may use (see <see cref="TokenUsage.Counted"/>); a project can set a lower number with <c>limits.token_budget</c>, never a higher one. 0 means no limit.</param>
 /// <param name="DailyTokenLimit">The most tokens all runs together may use in one UTC day, as the host's usage log counts them; a run that reaches it waits for the next day. 0 means no limit.</param>
 /// <param name="RepoDailyTokenLimit">The same for one repository. 0 means no limit.</param>
+/// <param name="ConfirmOverTokens">A <c>/qa</c> run whose estimate (the median of the repository's earlier runs of that kind) is over this waits for <c>/qa go</c>; a project can set its own with <c>limits.confirm_over</c>. 0 means never wait.</param>
 public sealed record FactoryDefaults(
     int BuildRounds, int ClarificationRounds, int RevisionsPerPullRequest, bool AllowRepoImages = false,
-    long MaxTokensPerRun = 0, long DailyTokenLimit = 0, long RepoDailyTokenLimit = 0)
+    long MaxTokensPerRun = 0, long DailyTokenLimit = 0, long RepoDailyTokenLimit = 0, long ConfirmOverTokens = 0)
 {
     public static readonly FactoryDefaults Standard = new(3, 3, 3);
 }
 
 /// <summary>The limits a project may set in <c>limits</c>. A missing value means the factory's default.</summary>
-public sealed record ProjectLimits(int? BuildRounds = null, int? ClarificationRounds = null, int? RevisionsPerPullRequest = null, int? TokenBudget = null)
+public sealed record ProjectLimits(int? BuildRounds = null, int? ClarificationRounds = null, int? RevisionsPerPullRequest = null, int? TokenBudget = null, int? ConfirmOver = null)
 {
     public EffectiveLimits Resolve(FactoryDefaults defaults) => new(
         BuildRounds ?? defaults.BuildRounds,
         ClarificationRounds ?? defaults.ClarificationRounds,
         RevisionsPerPullRequest ?? defaults.RevisionsPerPullRequest,
-        EffectiveTokenBudget(TokenBudget, defaults.MaxTokensPerRun));
+        EffectiveTokenBudget(TokenBudget, defaults.MaxTokensPerRun),
+        ConfirmOver ?? defaults.ConfirmOverTokens);
 
     /// <summary>The budget of one run: what the project asks for, but never more than the operator's maximum. 0 means no limit (neither is set).</summary>
     public static long EffectiveTokenBudget(long? project, long factoryMaximum) =>
@@ -31,7 +33,8 @@ public sealed record ProjectLimits(int? BuildRounds = null, int? ClarificationRo
 }
 
 /// <param name="TokenBudget">Tokens one run may use before it stops, or 0 for no limit.</param>
-public sealed record EffectiveLimits(int BuildRounds, int ClarificationRounds, int RevisionsPerPullRequest, long TokenBudget = 0);
+/// <param name="ConfirmOver">A <c>/qa</c> run estimated above this many tokens waits for <c>/qa go</c>; 0 means it never waits.</param>
+public sealed record EffectiveLimits(int BuildRounds, int ClarificationRounds, int RevisionsPerPullRequest, long TokenBudget = 0, long ConfirmOver = 0);
 
 /// <summary>The ranges that hold for both the factory's defaults and a project's settings. They are fixed: a project cannot raise a ceiling.</summary>
 public static class LimitRanges

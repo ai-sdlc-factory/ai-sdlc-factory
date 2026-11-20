@@ -160,6 +160,12 @@ public sealed class FakeWorld
     /// <summary>What the usage log says the finished runs used today, for the daily token limits.</summary>
     public UsageToday UsageToday { get; set; } = new(0, 0);
 
+    /// <summary>What the usage log says a run of any kind has typically used here; the default is no history.</summary>
+    public UsageEstimate Estimate { get; set; } = new(0, 0);
+
+    /// <summary>The kinds the runs asked an estimate for.</summary>
+    public List<string> EstimateKinds { get; } = [];
+
     /// <summary>How many times the daily totals were looked up (once before every agent run, when a daily limit is set).</summary>
     public int UsageTodayChecks { get; private set; }
 
@@ -346,6 +352,13 @@ public sealed class FakeWorld
         {
             lock (world.gate) { world.ImprovementRequests.Add(request); }
             return world.ImprovementReportFailure is { } failure ? throw failure : world.ImprovementReport;
+        }
+
+        [Activity("workspace_usage_estimate")]
+        public UsageEstimate EstimateUsage(string repository, string kind)
+        {
+            lock (world.gate) { world.EstimateKinds.Add(kind); }
+            return world.Estimate;
         }
 
         [Activity("workspace_usage_today")]
@@ -732,6 +745,9 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         return new QaRequest("acme", repo, 7, onPullRequest, suite, "bob");
     }
 
+    public Task<WorkflowHandle<QaWorkflow, WorkResult>> StartQaAsync(QaRequest request) =>
+        Client.StartWorkflowAsync((QaWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
+
     public async Task<WorkResult> RunQaAsync(QaRequest request)
     {
         var handle = await Client.StartWorkflowAsync((QaWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
@@ -753,6 +769,12 @@ public sealed class ScenarioContext(ITemporalClient client, string queue, FakeWo
         Client.StartWorkflowAsync((PlanWorkflow workflow) => workflow.RunAsync(request), new WorkflowOptions(request.WorkflowId, Queue));
 
     public static async Task<WorkResult> ResultAsync(WorkflowHandle<PlanWorkflow, WorkResult> handle)
+    {
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });
+    }
+
+    public static async Task<WorkResult> ResultAsync(WorkflowHandle<QaWorkflow, WorkResult> handle)
     {
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         return await handle.GetResultAsync(rpcOptions: new RpcOptions { CancellationToken = limit.Token });

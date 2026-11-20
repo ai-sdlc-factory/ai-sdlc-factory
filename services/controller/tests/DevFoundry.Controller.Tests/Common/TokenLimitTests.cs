@@ -271,3 +271,140 @@ public sealed class UsageTodayTests : IDisposable
         Assert.Equal(1270, workspace.UsageToday("acme/shop", Now).All);
     }
 }
+
+public sealed class UsageEstimateTests : IDisposable
+{
+    private readonly string root = Path.Combine(Path.GetTempPath(), "ue-" + Guid.NewGuid().ToString("N"));
+    private static readonly DateTimeOffset Now = new(2026, 11, 14, 15, 0, 0, TimeSpan.Zero);
+
+    public UsageEstimateTests() => Directory.CreateDirectory(root);
+
+    public void Dispose() => Directory.Delete(root, recursive: true);
+
+    private GitWorkspace Workspace() => new(new WorkerSettings { WorkspaceRoot = root });
+
+    private static UsageLogEntry Entry(string run, long input, string kind = "feature", string repository = "acme/shop") =>
+        new($"{kind}-{run}", run, kind, repository, 1, "pr_opened", new TokenUsage(input, 0, 0, 99_999, 0, input + 99_999, 0, 3));
+
+    [Fact]
+    public void The_median_is_the_middle_value_and_the_mean_of_the_two_middle_ones_for_an_even_count()
+    {
+        Assert.Equal(0, UsageEstimates.Median([]));
+        Assert.Equal(300, UsageEstimates.Median([900, 100, 300]));
+        Assert.Equal(250, UsageEstimates.Median([400, 100, 200, 300]));
+    }
+
+    [Fact]
+    public async Task The_estimate_is_the_median_of_the_same_kind_on_the_same_repository_and_cache_reads_are_not_counted()
+    {
+        var workspace = Workspace();
+        await workspace.LogUsageAsync(Entry("a", 100), Now);
+        await workspace.LogUsageAsync(Entry("b", 300), Now);
+        await workspace.LogUsageAsync(Entry("c", 200), Now);
+        await workspace.LogUsageAsync(Entry("other-kind", 9_000, kind: "bug"), Now);
+        await workspace.LogUsageAsync(Entry("other-repo", 9_000, repository: "acme/api"), Now);
+
+        var estimate = workspace.EstimateUsage("acme/shop", "feature");
+
+        Assert.Equal(new UsageEstimate(3, 200), estimate);
+        Assert.True(estimate.Known);
+    }
+
+    [Fact]
+    public async Task Only_the_last_nine_runs_count_a_run_without_tokens_is_skipped_and_a_run_written_twice_counts_once()
+    {
+        var workspace = Workspace();
+        for (var i = 1; i <= 12; i++)
+        {
+            await workspace.LogUsageAsync(Entry($"r{i}", i * 100), Now);
+        }
+        await workspace.LogUsageAsync(Entry("r12", 1200), Now);                      // the same run again
+        await workspace.LogUsageAsync(new UsageLogEntry("feature-z", "z", "feature", "acme/shop", 1, "error", new TokenUsage(0, 0, 0, 0, 0, 0, 0, 0)), Now);
+
+        var estimate = workspace.EstimateUsage("acme/shop", "feature");
+
+        Assert.Equal(new UsageEstimate(9, 800), estimate); // runs 4 to 12: the median is run 8
+    }
+
+    [Fact]
+    public async Task Fewer_than_three_runs_is_no_estimate_and_a_missing_or_damaged_log_is_not_an_error()
+    {
+        var workspace = Workspace();
+        Assert.False(workspace.EstimateUsage("acme/shop", "feature").Known);
+
+        await workspace.LogUsageAsync(Entry("a", 100), Now);
+        await workspace.LogUsageAsync(Entry("b", 100), Now);
+        File.AppendAllText(GitWorkspace.UsageLogPath(root), "{\"kind\":\"feature\", cut short\n");
+
+        var estimate = workspace.EstimateUsage("acme/shop", "feature");
+
+        Assert.Equal(2, estimate.Runs);
+        Assert.False(estimate.Known);
+    }
+
+    [Theory]
+    [InlineData(483_211, 480_000)]
+    [InlineData(300_000, 300_000)]
+    [InlineData(28_400, 28_000)]
+    [InlineData(99_600, 100_000)]
+    public void Figures_are_rounded_for_reading(long tokens, long expected) => Assert.Equal(expected, TicketComments.Rounded(tokens));
+
+    [Fact]
+    public void The_estimate_says_a_figure_or_that_there_is_no_history()
+    {
+        var known = TicketComments.Estimate(WorkIds.Feature, new UsageEstimate(9, 300_000));
+        var unknown = TicketComments.Estimate(WorkIds.Qa, new UsageEstimate(2, 500_000));
+
+        Assert.Contains("A feature on this repository has typically used about 300,000 tokens (the median of the last 9 runs)", known);
+        Assert.Contains("no history yet for a `/qa` run", unknown);
+        Assert.DoesNotContain("500,000", unknown);
+        Assert.False(TicketComments.HasEstimate(WorkIds.Ask));
+        Assert.False(TicketComments.HasEstimate(WorkIds.Review));
+    }
+
+    [Theory]
+    [InlineData("build_failed", true)]
+    [InlineData("qa_failed", true)]
+    [InlineData("analysis_failed", true)]
+    [InlineData("error", true)]
+    [InlineData("usage_limit", true)]
+    [InlineData("pr_opened", false)]
+    [InlineData("qa_reported", false)]
+    [InlineData("closed", false)]
+    [InlineData("budget_exceeded", false)]
+    [InlineData("answered", false)]
+    public void Only_the_endings_that_wasted_tokens_say_what_they_cost(string status, bool said) =>
+        Assert.Equal(said, FactoryWorkflowBase.IsStoppedStatus(status));
+
+    [Fact]
+    public void The_confirmation_setting_is_read_from_the_environment_and_a_typo_stops_the_start()
+    {
+        WorkerSettings Load(string? value) => WorkerSettings.FromConfiguration(new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(value is null ? [] : new Dictionary<string, string?> { ["FACTORY_CONFIRM_OVER_TOKENS"] = value }).Build());
+
+        Assert.Equal(0, Load(null).Defaults.ConfirmOverTokens);
+        Assert.Equal(500_000, Load("500000").Defaults.ConfirmOverTokens);
+        Assert.Throws<InvalidOperationException>(() => Load("5000"));
+    }
+
+    [Fact]
+    public void A_project_can_set_its_own_threshold_and_the_factorys_default_applies_otherwise()
+    {
+        Assert.True(ProjectConfigParser.TryParse("""{"image":"python","gates":[{"name":"t","command":["x"]}],"limits":{"confirm_over":400000}}""", out var project, out var error), error);
+        var defaults = FactoryDefaults.Standard with { ConfirmOverTokens = 900_000 };
+
+        Assert.Equal(400_000, project.Limits!.Resolve(defaults).ConfirmOver);
+        Assert.Equal(900_000, new ProjectLimits().Resolve(defaults).ConfirmOver);
+        Assert.False(ProjectConfigParser.TryParse("""{"image":"python","gates":[{"name":"t","command":["x"]}],"limits":{"confirm_over":5}}""", out _, out error));
+        Assert.Contains("confirm_over", error);
+    }
+
+    [Theory]
+    [InlineData("/qa go", true)]
+    [InlineData("  /QA   GO  ", true)]
+    [InlineData("ok\n/qa go\nthanks", true)]
+    [InlineData("/qa go ahead and look at 404s", false)]
+    [InlineData("/qa", false)]
+    [InlineData("/qa full", false)]
+    public void The_go_ahead_is_a_line_with_only_qa_go(string body, bool expected) => Assert.Equal(expected, QaCommand.IsGo(body));
+}

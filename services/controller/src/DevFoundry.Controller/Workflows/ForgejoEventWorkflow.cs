@@ -42,6 +42,7 @@ public sealed class ForgejoEventWorkflow
             RoutingAction.RevisePullRequest => RevisePullRequestAsync(decision.Revision!),
             RoutingAction.RetryFeature => RetryTicketAsync(decision),
             RoutingAction.RunQa => StartQaAsync(decision.Qa!),
+            RoutingAction.ConfirmQa => ConfirmQaAsync(decision.Qa!),
             RoutingAction.UpdatePullRequest => StartUpdateAsync(decision.Update!),
             RoutingAction.ReviewPullRequest => StartReviewAsync(decision.Review!),
             RoutingAction.AskQuestion => StartAskAsync(decision.Ask!),
@@ -178,6 +179,18 @@ public sealed class ForgejoEventWorkflow
             await Workflow.ExecuteActivityAsync(
                 (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
                     new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaBusy)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
+    /// <summary>`/qa go`: the go-ahead for a QA run that waits for one. When nothing waits, the person is told.</summary>
+    private static async Task ConfirmQaAsync(QaRequest qa)
+    {
+        if (!await SignalAsync<QaWorkflow>(qa.WorkflowId, workflow => workflow.OnGoAsync()))
+        {
+            await Workflow.ExecuteActivityAsync(
+                (ForgejoActivities activities) => activities.PostNoticeOnceAsync(
+                    new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaNothingToConfirm)),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
         }
     }
@@ -323,6 +336,8 @@ public sealed class ForgejoEventWorkflow
 
     private static async Task CloseTicketAsync(WorkRequest feature)
     {
+        // A QA run on this ticket may be waiting for a go-ahead; closing the ticket ends that wait (nothing happens when none is running).
+        await SignalAsync<QaWorkflow>(WorkIds.For(feature.Owner, feature.Repo, feature.IssueNumber, WorkIds.Qa), workflow => workflow.OnTicketClosedAsync());
         if (feature.IsIncident)
         {
             await SignalAsync<IncidentWorkflow>(feature.WorkflowId, workflow => workflow.OnTicketClosedAsync());

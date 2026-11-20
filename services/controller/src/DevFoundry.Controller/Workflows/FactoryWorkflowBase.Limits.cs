@@ -1,3 +1,4 @@
+using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
 namespace DevFoundry.Controller;
@@ -14,6 +15,15 @@ public abstract partial class FactoryWorkflowBase
     private DateOnly? limitDay;
     private long tokensAtDayStart;
 
+    /// <summary>The project's (or the operator's) threshold for asking a person before a <c>/qa</c> run; 0 means never ask.</summary>
+    private long confirmOver;
+
+    /// <summary>What a run of this kind has typically used on this repository, once the run has looked it up (null for kinds that have no estimate, or when the log could not be read).</summary>
+    protected UsageEstimate? runEstimate;
+
+    /// <summary>A person commented <c>/qa go</c> (set by the QA workflow's signal).</summary>
+    protected bool qaConfirmed;
+
     /// <summary>What this run's agents have used so far, as it counts against a budget or a daily limit.</summary>
     protected long TokensCounted => usages.Sum(usage => usage.Counted);
 
@@ -23,6 +33,69 @@ public abstract partial class FactoryWorkflowBase
         tokenBudget = limits.TokenBudget;
         dailyTokenLimit = defaults.DailyTokenLimit;
         repoDailyTokenLimit = defaults.RepoDailyTokenLimit;
+        confirmOver = limits.ConfirmOver;
+    }
+
+    /// <summary>
+    /// Says on the ticket what a run of this kind has typically used on this repository (from the usage log, which holds only numbers), so the cost is known before it is spent.
+    /// Best effort and never a reason to refuse a run: if the log cannot be read, the run goes ahead without a figure.
+    /// </summary>
+    private async Task SayEstimateAsync(WorkRequest request)
+    {
+        if (!TicketComments.HasEstimate(request.Kind))
+        {
+            return;
+        }
+        try
+        {
+            runEstimate = await Workflow.ExecuteActivityAsync(
+                (WorkspaceActivities activities) => activities.EstimateUsageAsync($"{request.Owner}/{request.Repo}", request.Kind),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 2));
+        }
+        catch (ActivityFailureException)
+        {
+            return;
+        }
+        await CommentAsync(request, TicketComments.Estimate(request.Kind, runEstimate));
+    }
+
+    /// <summary>
+    /// For a <c>/qa</c> run whose estimate is over <c>limits.confirm_over</c>: waits for a person to comment <c>/qa go</c> before any tokens are spent. The run is already a person's explicit
+    /// command, so asking again is their choice to have turned on; closing the ticket or seven days without an answer ends the wait. Returns the result to stop with, or null to go on.
+    /// </summary>
+    protected async Task<WorkResult?> ConfirmExpensiveRunAsync(WorkRequest request)
+    {
+        if (confirmOver <= 0 || runEstimate is not { Known: true } estimate || estimate.Median <= confirmOver)
+        {
+            return null;
+        }
+        await CommentAsync(request, TicketComments.QaWaitingForConfirmation(estimate, confirmOver));
+        var answered = await Workflow.WaitConditionAsync(() => qaConfirmed || ticketClosed, WaitForHuman);
+        if (ticketClosed)
+        {
+            return new WorkResult(Statuses.Closed);
+        }
+        if (!answered)
+        {
+            await CommentAsync(request, TicketComments.QaNotConfirmed);
+            return new WorkResult(Statuses.NotConfirmed);
+        }
+        await CommentAsync(request, TicketComments.QaConfirmed);
+        return null;
+    }
+
+    /// <summary>The endings where tokens were spent and no result came of it. Only these say what the run cost: a successful run's report stays as it is.</summary>
+    public static bool IsStoppedStatus(string status) =>
+        status.EndsWith("_failed", StringComparison.Ordinal)
+        || status is Statuses.BuildBlocked or Statuses.Error or Statuses.UsageLimit or Statuses.CannotReproduce or Statuses.QaBlocked or Statuses.UpdateBlocked or Statuses.TimedOut;
+
+    /// <summary>A run that failed or was stopped says what it used, because that is where tokens are wasted. Not said when nothing was spent (or when the budget message already said it).</summary>
+    private async Task SayTokensOfStoppedRunAsync(WorkRequest request, WorkResult result)
+    {
+        if (IsStoppedStatus(result.Status) && TokensCounted > 0)
+        {
+            await CommentAsync(request, TicketComments.TokensOfStoppedRun(TokensCounted));
+        }
     }
 
     /// <summary>

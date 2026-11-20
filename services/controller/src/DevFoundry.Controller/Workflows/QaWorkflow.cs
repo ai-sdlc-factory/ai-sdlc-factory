@@ -19,6 +19,21 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
     /// <summary>Set when the change is all UI and the project has no ui suite (see <see cref="QaUiGap"/>); the report repeats it.</summary>
     private string? uiGap;
 
+    /// <summary>A person commented <c>/qa go</c>: the go-ahead a run waits for when its estimate is over <c>limits.confirm_over</c>.</summary>
+    [WorkflowSignal("qa_go")]
+    public Task OnGoAsync()
+    {
+        qaConfirmed = true;
+        return Task.CompletedTask;
+    }
+
+    [WorkflowSignal("ticket_closed")]
+    public Task OnTicketClosedAsync()
+    {
+        MarkTicketClosed();
+        return Task.CompletedTask;
+    }
+
     [WorkflowRun]
     public async Task<WorkResult> RunAsync(QaRequest qa)
     {
@@ -68,6 +83,12 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
         {
             await CommentAsync(request, TicketComments.QaSuiteMissing(qa.Suite!, verify.Suites.Select(s => s.Name)));
             return new WorkResult(Statuses.QaNotConfigured);
+        }
+
+        // Before any tokens are spent (the tester is the expensive part); a person said /qa to start this, and may have asked to be asked again when it is costly.
+        if (await ConfirmExpensiveRunAsync(request) is { } notGoingOn)
+        {
+            return notGoingOn;
         }
 
         var image = verify.Image ?? project.Image;

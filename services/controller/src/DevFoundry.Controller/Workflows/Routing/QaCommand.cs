@@ -16,6 +16,12 @@ public static partial class QaCommand
     [GeneratedRegex(@"\A[ \t]*(?<word>full|api|ui)(?=[ \t\r\n]|\z)[ \t]*", RegexOptions.IgnoreCase)]
     private static partial Regex Keyword();
 
+    [GeneratedRegex(@"^[ \t]*/qa[ \t]+go[ \t]*\r?$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex GoLine();
+
+    /// <summary>A line that is only <c>/qa go</c>: the go-ahead for a QA run that is waiting for one (it is never a new run with the note "go").</summary>
+    public static bool IsGo(string body) => GoLine().IsMatch(body);
+
     /// <summary>The command's parts, or null when the comment has no <c>/qa</c> line.</summary>
     public static (string Mode, string? Suite, string? Note)? Parse(string body)
     {

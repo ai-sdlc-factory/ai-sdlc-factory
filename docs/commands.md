@@ -67,6 +67,7 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 | `/fix` | the pull request | acts on every review still waiting. `/fix <instruction>` adds an instruction (`/fix rename the helper and add a test`); `/revise` is the same. One new commit, never forced, at most 3 revisions per pull request | something to act on: a review, or an instruction. A review that **requests changes** starts a revision by itself, without any command |
 | `/fix qa` | the pull request | acts on the findings of the latest QA report | an earlier `/qa` report |
 | `/update` | the pull request or the ticket | merges the base branch into the pull request's branch as one merge commit; resolves conflicts and checks the result | the line is only `/update`. A conflict in a protected file (`.factory/`, CI files) is left to a person |
+| `/qa go` | the pull request or the ticket | the go-ahead for a QA run that waits for one because its estimate is over `limits.confirm_over` (off by default); says so when nothing waits | |
 | `/qa` | the pull request or the ticket | tests the running application and writes end-to-end tests: `/qa` (this change), `/qa full` (the whole application), `/qa api` or `/qa ui` (one suite), plus a note (`/qa focus on the 404 cases`, up to 1,500 characters) | `verify` settings in `.factory/project.json`, merged into the pull request's branch |
 
 ### On any ticket or pull request

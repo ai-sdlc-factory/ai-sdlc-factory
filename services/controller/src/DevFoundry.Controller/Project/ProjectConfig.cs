@@ -113,7 +113,7 @@ public static partial class ProjectConfigParser
             error = "\"limits\" must be an object, for example {\"build_rounds\": 2}";
             return false;
         }
-        int? buildRounds = null, clarificationRounds = null, revisions = null, tokenBudget = null;
+        int? buildRounds = null, clarificationRounds = null, revisions = null, tokenBudget = null, confirmOver = null;
         foreach (var property in value.EnumerateObject())
         {
             if (property.Name == "token_budget")
@@ -126,6 +126,16 @@ public static partial class ProjectConfigParser
                 tokenBudget = budget;
                 continue;
             }
+            if (property.Name == "confirm_over")
+            {
+                if (property.Value.ValueKind != JsonValueKind.Number || !property.Value.TryGetInt32(out var confirm) || !LimitRanges.TokenBudgetOk(confirm))
+                {
+                    error = $"\"limits.confirm_over\" must be a whole number of tokens from {LimitRanges.MinTokenBudget:N0} to {LimitRanges.MaxTokenBudget:N0}";
+                    return false;
+                }
+                confirmOver = confirm;
+                continue;
+            }
             var (name, ok, low, high) = property.Name switch
             {
                 "build_rounds" => ("build_rounds", true, LimitRanges.MinBuildRounds, LimitRanges.MaxBuildRounds),
@@ -135,7 +145,7 @@ public static partial class ProjectConfigParser
             };
             if (!ok)
             {
-                error = $"\"limits\" has no setting \"{property.Name}\"; the settings are build_rounds, clarification_rounds, revisions_per_pull_request and token_budget";
+                error = $"\"limits\" has no setting \"{property.Name}\"; the settings are build_rounds, clarification_rounds, revisions_per_pull_request, token_budget and confirm_over";
                 return false;
             }
             if (property.Value.ValueKind != JsonValueKind.Number || !property.Value.TryGetInt32(out var number) || number < low || number > high)
@@ -150,7 +160,7 @@ public static partial class ProjectConfigParser
                 default: revisions = number; break;
             }
         }
-        limits = new ProjectLimits(buildRounds, clarificationRounds, revisions, tokenBudget);
+        limits = new ProjectLimits(buildRounds, clarificationRounds, revisions, tokenBudget, confirmOver);
         return true;
     }
 

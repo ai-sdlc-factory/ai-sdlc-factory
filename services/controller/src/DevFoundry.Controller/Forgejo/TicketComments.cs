@@ -393,6 +393,42 @@ public static class TicketComments
         $"**Token budget reached**\n\nThis run has used {used:N0} tokens of its budget of {budget:N0} (input, output, reasoning and cache writes; cached input that was only read again is not counted), so I stopped before asking another agent. " +
         "To allow more, raise `limits.token_budget` in `.factory/project.json` (the operator's `FACTORY_MAX_TOKENS_PER_RUN` is the most a project can ask for), then comment `/retry` (a feature or bug run keeps the stages that finished).";
 
+    private static readonly Dictionary<string, string> RunNames = new()
+    {
+        [WorkIds.Feature] = "a feature", [WorkIds.Bug] = "a bug fix", [WorkIds.Incident] = "an incident analysis", [WorkIds.Plan] = "a plan",
+        [WorkIds.Docs] = "a documentation run", [WorkIds.Revision] = "a revision", [WorkIds.Qa] = "a `/qa` run", [WorkIds.Update] = "an `/update`",
+    };
+
+    /// <summary>The kinds of run that start with an estimate on the ticket (the cheap ones, such as a question or a review, do not).</summary>
+    public static bool HasEstimate(string kind) => RunNames.ContainsKey(kind);
+
+    /// <summary>"Rounded for reading": 483,211 is about 480,000; 28,400 is about 28,000.</summary>
+    public static long Rounded(long tokens) => tokens >= 100_000 ? (tokens + 5_000) / 10_000 * 10_000 : (tokens + 500) / 1_000 * 1_000;
+
+    /// <summary>What a run is likely to use, from the repository's earlier runs of its kind. It is a figure for a person to read; it never stops or delays a run.</summary>
+    public static string Estimate(string kind, UsageEstimate estimate) =>
+        estimate.Known
+            ? $"**Estimate:** {Capital(RunNames[kind])} on this repository has typically used about {Rounded(estimate.Median):N0} tokens (the median of the last {estimate.Runs} runs). It is only a guide: nothing is stopped because of it."
+            : $"**Estimate:** there is no history yet for {RunNames[kind]} on this repository (fewer than {UsageEstimates.MinimumRuns} earlier runs), so I cannot say what this run will cost.";
+
+    private static string Capital(string text) => char.ToUpperInvariant(text[0]) + text[1..];
+
+    /// <summary>A run that ended without its result says what it cost, because a failed run is where tokens are wasted.</summary>
+    public static string TokensOfStoppedRun(long tokens) =>
+        $"This run used about {Rounded(tokens):N0} tokens before it stopped (input, output, reasoning and cache writes).";
+
+    /// <summary>A <c>/qa</c> run is estimated over the project's confirmation threshold, so it waits for a person to say go.</summary>
+    public static string QaWaitingForConfirmation(UsageEstimate estimate, long threshold) =>
+        $"**This QA run needs your go-ahead**\n\nA `/qa` run on this repository has typically used about {Rounded(estimate.Median):N0} tokens (the median of the last {estimate.Runs} runs), more than the {threshold:N0} this project asks to confirm (`limits.confirm_over`). " +
+        "Comment `/qa go` to start it. Close the ticket to cancel; I wait up to 7 days.";
+
+    public const string QaConfirmed = "Confirmed. Starting the QA run.";
+
+    public const string QaNotConfirmed = "Nobody confirmed the QA run within 7 days, so I did not start it. Comment `/qa` to ask again.";
+
+    /// <summary><c>/qa go</c> when no run is waiting for it.</summary>
+    public const string QaNothingToConfirm = "No QA run is waiting for a go-ahead on this ticket or pull request. Comment `/qa` to start one.";
+
     /// <summary>A daily token limit is reached, so the run waits until the next UTC day instead of failing.</summary>
     public static string DailyLimitWaiting(bool allRepositories, string repository, DateTimeOffset resume) =>
         $"**Daily token limit reached**\n\nThe factory has used its token limit for today ({(allRepositories ? "for all repositories" : $"for `{Inert(repository)}`")}), so I am waiting and will carry on after {resume:HH:mm} UTC on {resume:yyyy-MM-dd}. Close the ticket to stop the run.";

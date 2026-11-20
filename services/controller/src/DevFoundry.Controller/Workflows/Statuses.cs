@@ -147,6 +147,9 @@ public static class Statuses
     /// <summary>ask: the agent failed or its answer could not be used, so nothing was posted but the failure.</summary>
     public const string AskFailed = "ask_failed";
 
+    /// <summary>`/qa`: the estimate was over `limits.confirm_over` and nobody commented `/qa go` within the wait.</summary>
+    public const string NotConfirmed = "not_confirmed";
+
     /// <summary>`/setup` found a `.factory/project.json` already on the default branch, so it proposed nothing.</summary>
     public const string SetupNotNeeded = "setup_not_needed";
 

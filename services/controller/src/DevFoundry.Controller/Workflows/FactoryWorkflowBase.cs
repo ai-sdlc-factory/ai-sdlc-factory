@@ -135,6 +135,7 @@ public abstract partial class FactoryWorkflowBase
             maxClarificationRounds = limits.ClarificationRounds;
             maxRevisionsPerPullRequest = limits.RevisionsPerPullRequest;
             SetTokenLimits(limits, defaults);
+            await SayEstimateAsync(request);
             var extraProtected = (project.ProtectedPaths ?? []).ToList();
             if (project.Verify is { } verify && request.Kind != WorkIds.Qa)
             {
@@ -198,6 +199,7 @@ public abstract partial class FactoryWorkflowBase
             }
             await NoteUnusedCommentsAsync(request, result);
             result = await SaveUnfinishedWorkAsync(request, result);
+            await SayTokensOfStoppedRunAsync(request, result);
             result = result with { Usage = TotalUsage };
             await LogUsageAsync(request, result);
             return result;

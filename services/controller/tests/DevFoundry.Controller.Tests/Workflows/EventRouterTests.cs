@@ -630,6 +630,26 @@ public sealed class EventRouterTests
         Assert.NotEqual(first, second);
     }
 
+    // ---- /qa go ---------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void Qa_go_on_a_ticket_is_the_go_ahead_and_not_a_new_run_with_the_note_go()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", Ticket("created", more: new { comment = Comment("/qa go") })));
+
+        Assert.Equal(RoutingAction.ConfirmQa, decision.Action);
+        Assert.Equal(WorkIds.For("acme", "shop", 7, WorkIds.Qa), decision.Qa!.WorkflowId);
+    }
+
+    [Fact]
+    public void Qa_go_on_a_pull_request_is_the_go_ahead_for_that_pull_request()
+    {
+        var decision = EventRouter.Decide(Event("issue_comment", PullComment("/qa go")));
+
+        Assert.Equal(RoutingAction.ConfirmQa, decision.Action);
+        Assert.True(decision.Qa!.OnPullRequest);
+    }
+
     // ---- /setup ---------------------------------------------------------------------------------------------
 
     [Fact]

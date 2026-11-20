@@ -271,6 +271,8 @@ services:
       FACTORY_MAX_TOKENS_PER_RUN: ${FACTORY_MAX_TOKENS_PER_RUN:-0}
       FACTORY_DAILY_TOKEN_LIMIT: ${FACTORY_DAILY_TOKEN_LIMIT:-0}
       FACTORY_REPO_DAILY_TOKEN_LIMIT: ${FACTORY_REPO_DAILY_TOKEN_LIMIT:-0}
+      # A /qa run estimated above this many tokens waits for "/qa go" (a project can set limits.confirm_over). 0 = never wait.
+      FACTORY_CONFIRM_OVER_TOKENS: ${FACTORY_CONFIRM_OVER_TOKENS:-0}
       # Whether a repository may bring its own sandbox image (.factory/Dockerfile). Off by default; read the warning in docs/configuration.md first.
       FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
       # The weekly report on what repeats (see docs/operations.md). It only reads the logs and writes a file; set the repository to also open it as a ticket.

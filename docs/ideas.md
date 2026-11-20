@@ -2,30 +2,16 @@
 
 [Documentation index](README.md) | [Operations](operations.md)
 
-Three things that would change real outcomes, picked after the live tests of 2026-11-15. None is built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
+Two things that would change real outcomes, picked after the live tests of 2026-11-15. None is built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
 
 | # | Idea | Solves | Size |
 | --- | --- | --- | --- |
-| 1 | [Cost guard before a run](#1-cost-guard-before-a-run) | tokens are only counted after they are spent | small to medium |
-| 2 | [What happened to the pull requests](#2-what-happened-to-the-pull-requests) | the weekly report counts failures, never whether the work was any good | small |
-| 3 | [Other git hosts, in parallel](#3-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
+| 1 | [What happened to the pull requests](#1-what-happened-to-the-pull-requests) | the weekly report counts failures, never whether the work was any good | small |
+| 2 | [Other git hosts, in parallel](#2-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
 
 Left out on purpose, for now: auto-triage of unlabelled tickets and a permission check on commands (needed the day a second person uses the factory).
 
-## 1. Cost guard before a run
-
-**Problem.** The token budget (`limits.token_budget`, `FACTORY_MAX_TOKENS_PER_RUN`) and the daily caps stop a run **after** it has used the tokens. A failed QA run used about 0.5M tokens before anything said so, and QA runs were about three quarters of the day's tokens. Nobody sees what a run is likely to cost until it has cost it.
-
-**How.** Three small pieces, all from the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories), which already has the figures:
-- **An estimate on the ticket** when a run starts: "A feature on this repository has typically used about 300,000 tokens (median of the last 9 runs); a `/qa` run about 600,000." Computed by an activity from `usage.jsonl` by kind and repository; with fewer than 3 runs it says there is no history yet. It states a figure and never refuses a run.
-- **Tokens of a run that failed or was stopped** shown in its failure comment (a failed run is where the waste is). Successful reports stay as they are: the QA report's token line was removed on purpose (commit `3711ac3`), so do not put it back there.
-- **An optional confirmation for expensive kinds**: `limits.confirm_over` (project) / `FACTORY_CONFIRM_OVER_TOKENS` (factory default), off by default. When the estimate of a `/qa` run is over it, the run waits for `/qa go` on the same ticket. Starting from a person's explicit command keeps "the controller decides".
-
-**Must not.** Block a run on the estimate alone; read anything from a ticket into the log (the log holds only numbers, keep it that way); make a decision in a prompt.
-
-**Done when.** A scenario shows the estimate comment with enough history, the "no history yet" wording without, the confirmation flow (waits, `/qa go` starts it, closing the ticket ends the wait), and the token line on a stopped run; the new key is in `ProjectKeys.cs`, `project-setup.md`, `WorkerSettings`, `infra/compose.yaml`, `infra/.env.example` and `configuration.md` (`check-docs.py` enforces it).
-
-## 2. What happened to the pull requests
+## 1. What happened to the pull requests
 
 **Problem.** The weekly report (`ImprovementReport`) counts what went wrong inside runs: rejected answers, failed runs, rounds used. It never asks the only question that says whether the work was good: **was the pull request merged**, how many `/fix` rounds did it need, how long did a person take, was it closed without merging. Without it the improver tunes prompts against failures, not against outcomes.
 
@@ -39,7 +25,7 @@ Left out on purpose, for now: auto-triage of unlabelled tickets and a permission
 
 **Done when.** A report test with scripted Forgejo answers shows the counts, the "too few to say" wording, and each new rule flagging and not flagging at its threshold; `operations.md` lists the new rules in the table of what repeats.
 
-## 3. Other git hosts, in parallel
+## 2. Other git hosts, in parallel
 
 **Problem.** Everything the factory reads from or writes to a repository goes through Forgejo. A team on GitHub, GitLab, Azure DevOps or Bitbucket cannot use it, and one factory cannot serve repositories on two hosts.
 

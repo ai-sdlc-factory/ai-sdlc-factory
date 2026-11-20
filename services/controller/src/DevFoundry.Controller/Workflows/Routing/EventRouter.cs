@@ -11,6 +11,7 @@ public enum RoutingAction
     RevisePullRequest,
     RetryFeature,
     RunQa,
+    ConfirmQa,
     UpdatePullRequest,
     ReviewPullRequest,
     AskQuestion,
@@ -135,6 +136,11 @@ public static partial class EventRouter
                 {
                     return Ignore("ticket is not a feature");
                 }
+                if (QaCommand.IsGo(body))
+                {
+                    return new RoutingDecision(RoutingAction.ConfirmQa, "qa go on a ticket",
+                        Qa: new QaRequest(owner, repo, issueNumber, false, null, AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? ""));
+                }
                 if (QaCommand.Parse(body) is { } qa)
                 {
                     // Only the factory's feature and bug tickets have a pull request to test (not an incident or a plan).
@@ -203,6 +209,11 @@ public static partial class EventRouter
         if (body.Contains(BotMarker, StringComparison.Ordinal))
         {
             return Ignore("comment written by the factory");
+        }
+        if (QaCommand.IsGo(body))
+        {
+            return new RoutingDecision(RoutingAction.ConfirmQa, "qa go on a pull request",
+                Qa: new QaRequest(owner, repo, pullNumber, true, null, AsString(Get(Get(comment, "user"), "login")) ?? ""));
         }
         if (QaCommand.Parse(body) is { } qa)
         {

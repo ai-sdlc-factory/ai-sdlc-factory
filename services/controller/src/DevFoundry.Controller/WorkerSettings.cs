@@ -72,7 +72,8 @@ public sealed class WorkerSettings
             Number(configuration, "FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST", FactoryDefaults.Standard.RevisionsPerPullRequest, LimitRanges.RevisionsOk, $"{LimitRanges.MinRevisions} to {LimitRanges.MaxRevisions}"),
             MaxTokensPerRun: Tokens(configuration, "FACTORY_MAX_TOKENS_PER_RUN"),
             DailyTokenLimit: Tokens(configuration, "FACTORY_DAILY_TOKEN_LIMIT"),
-            RepoDailyTokenLimit: Tokens(configuration, "FACTORY_REPO_DAILY_TOKEN_LIMIT")),
+            RepoDailyTokenLimit: Tokens(configuration, "FACTORY_REPO_DAILY_TOKEN_LIMIT"),
+            ConfirmOverTokens: Tokens(configuration, "FACTORY_CONFIRM_OVER_TOKENS")),
     };
 
     /// <summary>A token limit: empty or 0 means no limit. Anything but a whole number from 10,000 up stops the start with a message, because a typo would otherwise switch the limit off or make every run stop at once.</summary>

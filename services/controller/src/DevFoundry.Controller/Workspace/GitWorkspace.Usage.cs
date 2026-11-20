@@ -36,6 +36,32 @@ public sealed record RoleLine(
     [property: JsonPropertyName("failed")] int Failed,
     [property: JsonPropertyName("tokens")] long Tokens);
 
+/// <summary>
+/// What runs of one kind on one repository have typically used: the median of the tokens (<see cref="TokenUsage.Counted"/>) of the last <see cref="UsageEstimates.Window"/> runs
+/// that used any. <see cref="Runs"/> is how many runs that is; below <see cref="UsageEstimates.MinimumRuns"/> there is no estimate to give.
+/// </summary>
+public sealed record UsageEstimate(int Runs, long Median)
+{
+    public bool Known => Runs >= UsageEstimates.MinimumRuns;
+}
+
+public static class UsageEstimates
+{
+    public const int Window = 9;
+    public const int MinimumRuns = 3;
+
+    /// <summary>The middle value of the list (the mean of the two middle ones for an even count), rounded down.</summary>
+    public static long Median(IReadOnlyList<long> values)
+    {
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+        var sorted = values.Order().ToList();
+        return sorted.Count % 2 == 1 ? sorted[sorted.Count / 2] : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) / 2;
+    }
+}
+
 /// <summary>What the finished runs of one UTC day used, as the usage log counts it (<see cref="TokenUsage.Counted"/>): all repositories together, and one repository.</summary>
 public sealed record UsageToday(long All, long Repository);
 
@@ -118,5 +144,51 @@ public sealed partial class GitWorkspace
             }
         }
         return new UsageToday(all, mine);
+    }
+
+    /// <summary>
+    /// What a run of <paramref name="kind"/> on <paramref name="repository"/> has typically used, from the usage log: the median of the last <see cref="UsageEstimates.Window"/> runs
+    /// that used any tokens. Only numbers are read (the log holds nothing else). A line that cannot be read is skipped, and a run written twice counts once.
+    /// </summary>
+    public UsageEstimate EstimateUsage(string repository, string kind)
+    {
+        var path = UsageLogPath(RequireRoot());
+        if (!File.Exists(path))
+        {
+            return new UsageEstimate(0, 0);
+        }
+        var recent = new List<long>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        while (reader.ReadLine() is { } line)
+        {
+            if (!line.Contains($"\"kind\":\"{kind}\"", StringComparison.Ordinal))
+            {
+                continue; // most of the log is other kinds: not worth parsing
+            }
+            try
+            {
+                using var document = JsonDocument.Parse(line);
+                var root = document.RootElement;
+                if (root.GetProperty("kind").GetString() != kind || root.GetProperty("repository").GetString() != repository
+                    || !seen.Add(root.GetProperty("run_id").GetString() ?? Guid.NewGuid().ToString()))
+                {
+                    continue;
+                }
+                var counted = root.GetProperty("input").GetInt64() + root.GetProperty("output").GetInt64()
+                    + root.GetProperty("reasoning").GetInt64() + root.GetProperty("cache_write").GetInt64();
+                if (counted > 0)
+                {
+                    recent.Add(counted);
+                }
+            }
+            catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
+            {
+                // A line cut short by a write in progress, or not ours: skipped.
+            }
+        }
+        var last = recent.Count > UsageEstimates.Window ? recent.GetRange(recent.Count - UsageEstimates.Window, UsageEstimates.Window) : recent;
+        return new UsageEstimate(last.Count, UsageEstimates.Median(last));
     }
 }
