@@ -12,13 +12,7 @@ namespace DevFoundry.Controller;
 /// The controller's only route to Forgejo. The token never leaves this process: agents run in
 /// containers that have no Forgejo credentials.
 /// </summary>
-public sealed record PullRequestInfo(int Number, string Url);
-
-public sealed record IssueInfo(int Number, string Url);
-
-public sealed record BranchInfo(string Name, DateTimeOffset LastCommit);
-
-public sealed class ForgejoClient(HttpClient http, WorkerSettings settings) : IGitHost
+public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
 {
     public async Task PostIssueCommentAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
