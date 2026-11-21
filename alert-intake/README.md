@@ -11,6 +11,7 @@ The design: agents never get production access, and what monitoring says is **da
 | a **firing** alert whose labels match a route | one ticket in the route's repository, with the route's labels, the alert's details and (optionally) recent log lines. If that route already has an **open ticket opened in the last 15 minutes** (`ALERT_INTAKE_GROUP_MINUTES`), the alert is added to it as a comment instead (`grouped`): one outage often raises several alerts, and each ticket starts an incident run |
 | the same alert again while its ticket is open | nothing (the ticket carries a hidden marker with the alert's fingerprint; Alertmanager repeats notifications every few hours) |
 | that ticket is closed and the alert fires again | a new ticket |
+| the same alert (or another of the same route) again within **two minutes** of a ticket the intake itself opened | the same as above (duplicate, or grouped): the intake remembers its own tickets for two minutes in memory, because a host such as GitHub lists a new ticket only after a few seconds. A ticket closed within those two minutes is still counted as open for them |
 | a **resolved** alert | a comment on its open ticket ("the alert has resolved, check whether it can be closed"). The ticket is never closed by the intake |
 | an alert that matches no route | ignored (logged) |
 | more than **6 new tickets in an hour** (setting) | the rest are not opened (logged, answered as `rate_limited`) |

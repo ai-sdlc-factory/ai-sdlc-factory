@@ -39,10 +39,12 @@ public sealed class ProcessorTests
     [Fact]
     public async Task Once_the_ticket_is_closed_the_alert_firing_again_opens_a_new_one()
     {
+        var clock = new ManualClock();
         var forgejo = new FakeForgejo();
-        var processor = Setup.Processor(forgejo);
+        var processor = Setup.Processor(forgejo, clock: clock);
         await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
         forgejo.Close(1);
+        clock.Advance(RecentTickets.Remember + TimeSpan.FromSeconds(1)); // what the intake itself just did is remembered for two minutes; after that only the host decides
 
         await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
 

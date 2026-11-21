@@ -17,8 +17,9 @@ public sealed record AlertOutcome(string Alert, string Action, string? Detail = 
 /// Decides, with fixed rules and no AI, what an Alertmanager notification does: a firing alert of a known service opens one ticket (never a second one
 /// while that ticket is open), a resolved alert adds a comment to its ticket, and everything else is ignored or limited.
 /// </summary>
-public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, ITicketHosts hosts, ILogSource logs, RateLimiter limiter, IntakeMetrics metrics, ILogger<AlertProcessor> log, Func<DateTimeOffset>? now = null)
+public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, ITicketHosts hosts, ILogSource logs, RateLimiter limiter, IntakeMetrics metrics, ILogger<AlertProcessor> log, Func<DateTimeOffset>? now = null, RecentTickets? recentTickets = null)
 {
+    private readonly RecentTickets recent = recentTickets ?? new RecentTickets();
     private readonly Func<DateTimeOffset> clock = now ?? (() => DateTimeOffset.UtcNow);
 
     public async Task<IReadOnlyList<AlertOutcome>> ProcessAsync(AlertMessage message, CancellationToken cancellationToken)
@@ -66,17 +67,20 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
         }
 
         var host = hosts.For(route.Host);
-        if (await host.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken) is { } existing)
+        // What this process itself just did comes first: a host may not list a ticket it has only just created.
+        if ((recent.Find(RecentTickets.AlertKey, route, key, clock()) ?? await host.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken)) is { } existing)
         {
             return new AlertOutcome(name, AlertOutcome.Duplicate, "an open ticket already exists", existing);
         }
         // One outage often raises several alerts. An alert of the same route while that route's ticket is recent goes into it as a comment, so each outage is one ticket and one run.
         var group = TicketText.GroupMarker(route);
-        if (settings.GroupMinutes > 0 && await host.FindRecentTicketAsync(route.Owner, route.Repo, group, clock().AddMinutes(-settings.GroupMinutes), cancellationToken) is { } grouped)
+        if (settings.GroupMinutes > 0
+            && (recent.Find(RecentTickets.RouteGroup, route, group, clock()) ?? await host.FindRecentTicketAsync(route.Owner, route.Repo, group, clock().AddMinutes(-settings.GroupMinutes), cancellationToken)) is { } grouped)
         {
             await host.CommentAsync(route.Owner, route.Repo, grouped, TicketText.GroupedComment(alert, alert.LabelMap.GetValueOrDefault("severity")), cancellationToken);
             // Its own marker goes into the ticket, so a repeat of this alert is a duplicate and its resolution is told to this ticket.
             await host.AddMarkerAsync(route.Owner, route.Repo, grouped, TicketText.Marker(key), cancellationToken);
+            recent.Add(RecentTickets.AlertKey, route, key, grouped, clock());
             log.LogInformation("Alert {Alert} added to ticket {Number} in {Owner}/{Repo}", name, grouped, route.Owner, route.Repo);
             return new AlertOutcome(name, AlertOutcome.Grouped, "added to the open ticket of the same route", grouped);
         }
@@ -89,6 +93,11 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
         var severity = alert.LabelMap.GetValueOrDefault("severity");
         var evidence = await GatherEvidenceAsync(route, cancellationToken);
         var ticket = await host.CreateTicketAsync(route.Owner, route.Repo, title, TicketText.Body(alert, severity, evidence, group), route.Labels, cancellationToken);
+        recent.Add(RecentTickets.AlertKey, route, key, ticket.Number, clock());
+        if (settings.GroupMinutes > 0)
+        {
+            recent.Add(RecentTickets.RouteGroup, route, group, ticket.Number, clock());
+        }
         log.LogInformation("Opened ticket {Number} in {Owner}/{Repo} for alert {Alert}", ticket.Number, route.Owner, route.Repo, name);
         return new AlertOutcome(name, AlertOutcome.Created, null, ticket.Number);
     }
@@ -124,7 +133,7 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
             return new AlertOutcome(alert.Name, AlertOutcome.DryRun, "would comment that the alert resolved");
         }
         var host = hosts.For(route.Host);
-        if (await host.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken) is not { } number)
+        if ((recent.Find(RecentTickets.AlertKey, route, key, clock()) ?? await host.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken)) is not { } number)
         {
             return new AlertOutcome(alert.Name, AlertOutcome.Ignored, "resolved, and no open ticket to tell");
         }

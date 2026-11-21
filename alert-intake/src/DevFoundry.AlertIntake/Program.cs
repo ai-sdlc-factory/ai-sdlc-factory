@@ -53,6 +53,8 @@ builder.Services.AddTransient<ILogSource>(services =>
     services.GetRequiredService<IntakeSettings>().LokiUrl.Length == 0 ? new NoLogs() : services.GetRequiredService<LokiClient>());
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IntakeMetrics>();
+// One memory of the tickets just opened, shared by every request (the processor itself is made per request).
+builder.Services.AddSingleton<RecentTickets>();
 builder.Services.AddTransient<AlertProcessor>();
 
 var app = builder.Build();

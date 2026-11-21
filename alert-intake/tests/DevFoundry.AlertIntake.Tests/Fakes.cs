@@ -15,9 +15,16 @@ public sealed class FakeForgejo : ITicketHost
     public List<(string Owner, string Repo, int Number, string Body)> Comments { get; } = [];
     public Exception? Failure { get; set; }
 
+    /// <summary>A host whose ticket list has not caught up with what was just created (GitHub's lags by a few seconds): the finding calls see no ticket.</summary>
+    public bool ListingLags { get; set; }
+
     public Task<int?> FindOpenTicketAsync(string owner, string repo, string key, CancellationToken cancellationToken)
     {
         Fail();
+        if (ListingLags)
+        {
+            return Task.FromResult<int?>(null);
+        }
         var marker = TicketText.Marker(key);
         return Task.FromResult(Tickets.Where(t => t.Open && t.Owner == owner && t.Repo == repo && t.Body.Contains(marker)).Select(t => (int?)t.Number).FirstOrDefault());
     }
@@ -25,6 +32,10 @@ public sealed class FakeForgejo : ITicketHost
     public Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken)
     {
         Fail();
+        if (ListingLags)
+        {
+            return Task.FromResult<int?>(null);
+        }
         return Task.FromResult(Tickets.Where(t => t.Open && t.Owner == owner && t.Repo == repo && t.Body.Contains(groupMarker) && t.CreatedAt >= notBefore).Select(t => (int?)t.Number).FirstOrDefault());
     }
 
