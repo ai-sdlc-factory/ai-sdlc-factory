@@ -4,11 +4,11 @@ using System.Text.Json;
 namespace DevFoundry.Controller;
 
 /// <summary>
-/// Forgiving readers for what Forgejo sends back. A part that is missing or has another type reads as empty (or null), never as an
-/// error, and none of them throws on an element that is not an object: Forgejo's answers vary between versions and a missing field must not
+/// Forgiving readers for what a git host sends back. A part that is missing or has another type reads as empty (or null), never as an
+/// error, and none of them throws on an element that is not an object: a host's answers vary between versions and a missing field must not
 /// stop a run.
 /// </summary>
-internal static class ForgejoJson
+internal static class HostJson
 {
     public static string Text(JsonElement element, string name) =>
         element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";

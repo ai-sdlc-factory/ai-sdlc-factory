@@ -36,6 +36,8 @@ branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests.
 | Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** (this also carries the slash commands on pull requests: `/fix`, `/update`, `/qa` and `/review`). Add **Pull Request Review Rejected** if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
 | Active | yes |
 
+*On GitHub* the webhook is set up on the repository (Settings, Webhooks) with the payload URL `…/webhooks/<host name>`, content type `application/json`, the host's secret and the events Issues, Issue comments and Pull request reviews; see [Several git hosts](operations.md#several-git-hosts).
+
 Use **Test Delivery**. A valid delivery returns `202` and appears in the Temporal UI (http://localhost:8080). Adding a label to an existing ticket
 starts a run only if **Issue Label** is enabled; **opening** a ticket with the label already on needs only **Issues**.
 

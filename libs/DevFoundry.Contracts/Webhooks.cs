@@ -99,7 +99,7 @@ public interface IWebhookAdapter
 /// <summary>The hosts the factory can take webhooks from.</summary>
 public static class WebhookAdapters
 {
-    public static readonly IReadOnlyList<IWebhookAdapter> All = [new ForgejoWebhookAdapter()];
+    public static readonly IReadOnlyList<IWebhookAdapter> All = [new ForgejoWebhookAdapter(), new GitHubWebhookAdapter()];
 
     /// <summary>The adapter for a kind of host (<c>forgejo</c>), or null.</summary>
     public static IWebhookAdapter? Find(string type) => All.FirstOrDefault(adapter => string.Equals(adapter.Type, type, StringComparison.OrdinalIgnoreCase));
@@ -151,48 +151,48 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
     public RepoEvent Normalise(WebhookDelivery delivery)
     {
         var payload = delivery.Payload;
-        var action = AsString(Get(payload, "action"));
-        var repository = AsString(Get(Get(payload, "repository"), "full_name"));
-        RepoEvent Make(RepoEventKind kind) => new(delivery.Host, delivery.DeliveryId, delivery.Event, kind, action, AsString(Get(payload, "ref")), repository);
+        var action = WebhookJson.AsString(WebhookJson.Get(payload, "action"));
+        var repository = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(payload, "repository"), "full_name"));
+        RepoEvent Make(RepoEventKind kind) => new(delivery.Host, delivery.DeliveryId, delivery.Event, kind, action, WebhookJson.AsString(WebhookJson.Get(payload, "ref")), repository);
 
         // A review that requests changes carries the pull request, not a ticket. Forgejo names this event "pull_request_rejected" in its header
         // (the payload's review.type says "pull_request_review_rejected").
         if (delivery.Event is "pull_request_rejected" or "pull_request_review_rejected")
         {
-            if (!TryOwnerRepo(repository, out var reviewOwner, out var reviewRepo)
-                || !TryGet(payload, "pull_request", out var pull)
-                || Get(pull, "number") is not { ValueKind: JsonValueKind.Number } pullNumber || !pullNumber.TryGetInt32(out var number))
+            if (!WebhookJson.TryOwnerRepo(repository, out var reviewOwner, out var reviewRepo)
+                || !WebhookJson.TryGet(payload, "pull_request", out var pull)
+                || WebhookJson.Get(pull, "number") is not { ValueKind: JsonValueKind.Number } pullNumber || !pullNumber.TryGetInt32(out var number))
             {
                 return Make(RepoEventKind.MalformedReview);
             }
             return Make(RepoEventKind.ChangesRequested) with
             {
                 Owner = RepoNames.Qualify(delivery.Host, reviewOwner), Repo = reviewRepo, Number = number, IsPullRequest = true,
-                HeadRef = AsString(Get(Get(pull, "head"), "ref")), PullState = AsString(Get(pull, "state")),
-                ReviewBody = AsString(Get(Get(payload, "review"), "content")) ?? "", Actor = AsString(Get(Get(payload, "sender"), "login")) ?? "",
+                HeadRef = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(pull, "head"), "ref")), PullState = WebhookJson.AsString(WebhookJson.Get(pull, "state")),
+                ReviewBody = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(payload, "review"), "content")) ?? "", Actor = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(payload, "sender"), "login")) ?? "",
             };
         }
 
-        if (!TryOwnerRepo(repository, out var owner, out var repo)
-            || !TryGet(payload, "issue", out var issue)
-            || Get(issue, "number") is not { ValueKind: JsonValueKind.Number } issueNumber || !issueNumber.TryGetInt32(out var ticket))
+        if (!WebhookJson.TryOwnerRepo(repository, out var owner, out var repo)
+            || !WebhookJson.TryGet(payload, "issue", out var issue)
+            || WebhookJson.Get(issue, "number") is not { ValueKind: JsonValueKind.Number } issueNumber || !issueNumber.TryGetInt32(out var ticket))
         {
             return Make(RepoEventKind.Unrelated);
         }
 
         // Forgejo reports pull request activity through the same events. Plain tickets carry "pull_request": null, so only a real object counts.
-        var isPull = Get(payload, "is_pull") is { ValueKind: JsonValueKind.True } || Get(issue, "pull_request") is { ValueKind: JsonValueKind.Object };
+        var isPull = WebhookJson.Get(payload, "is_pull") is { ValueKind: JsonValueKind.True } || WebhookJson.Get(issue, "pull_request") is { ValueKind: JsonValueKind.Object };
         var kind = Kind(delivery.Event, action, isPull);
         return Make(kind) with
         {
             Owner = RepoNames.Qualify(delivery.Host, owner), Repo = repo, Number = ticket, IsPullRequest = isPull,
-            IsOpen = AsString(Get(issue, "state")) is null or "open",
-            Title = AsString(Get(issue, "title")) ?? "", Body = AsString(Get(issue, "body")) ?? "", Author = AsString(Get(Get(issue, "user"), "login")) ?? "",
-            Labels = Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels
-                ? labels.EnumerateArray().Select(item => AsString(Get(item, "name"))).OfType<string>().ToList()
+            IsOpen = WebhookJson.AsString(WebhookJson.Get(issue, "state")) is null or "open",
+            Title = WebhookJson.AsString(WebhookJson.Get(issue, "title")) ?? "", Body = WebhookJson.AsString(WebhookJson.Get(issue, "body")) ?? "", Author = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(issue, "user"), "login")) ?? "",
+            Labels = WebhookJson.Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels
+                ? labels.EnumerateArray().Select(item => WebhookJson.AsString(WebhookJson.Get(item, "name"))).OfType<string>().ToList()
                 : [],
-            CommentBody = AsString(Get(Get(payload, "comment"), "body")) ?? "",
-            CommentAuthor = AsString(Get(Get(Get(payload, "comment"), "user"), "login")) ?? "",
+            CommentBody = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(payload, "comment"), "body")) ?? "",
+            CommentAuthor = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(WebhookJson.Get(payload, "comment"), "user"), "login")) ?? "",
         };
     }
 
@@ -212,8 +212,12 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
             _ => RepoEventKind.Other,
         };
     }
+}
 
-    private static bool TryOwnerRepo(string? fullName, out string owner, out string repo)
+/// <summary>Forgiving readers for a host's webhook JSON, shared by the adapters: a part that is missing or has another shape reads as nothing, never as an error.</summary>
+internal static class WebhookJson
+{
+    public static bool TryOwnerRepo(string? fullName, out string owner, out string repo)
     {
         owner = repo = "";
         if (fullName?.Split('/') is not [var o, var r])
@@ -225,13 +229,19 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
         return true;
     }
 
-    private static bool TryGet(JsonElement element, string name, out JsonElement value)
+    public static bool TryGet(JsonElement element, string name, out JsonElement value)
     {
         value = default;
         return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out value);
     }
 
-    private static JsonElement Get(JsonElement element, string name) => TryGet(element, name, out var value) ? value : default;
+    public static JsonElement Get(JsonElement element, string name) => TryGet(element, name, out var value) ? value : default;
 
-    private static string? AsString(JsonElement element) => element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+    public static string? AsString(JsonElement element) => element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+
+    /// <summary>The names of the labels of a ticket (a label is an object with a <c>name</c>).</summary>
+    public static List<string> LabelNames(JsonElement issue) =>
+        Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels
+            ? labels.EnumerateArray().Select(item => AsString(Get(item, "name"))).OfType<string>().ToList()
+            : [];
 }

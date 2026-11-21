@@ -28,8 +28,8 @@ public sealed partial class GitWorkspace
         return File.Exists(marker) && File.ReadAllText(marker).Trim() is { Length: > 0 } name ? name : RepoNames.DefaultHost;
     }
 
-    /// <summary>The token of a host, or empty when it has none (or is not configured).</summary>
-    private string TokenFor(string host) => settings.Hosts.FirstOrDefault(known => known.Name == host)?.Token ?? "";
+    /// <summary>The header git sends to a host (its kind decides the scheme), or empty when it has no token (or is not configured).</summary>
+    private string AuthorizationFor(string host) => settings.Hosts.FirstOrDefault(known => known.Name == host)?.GitAuthorization ?? "";
 
     private async Task<string> GitAsync(
         IReadOnlyList<string> arguments, string workingDirectory, bool useToken, CancellationToken cancellationToken, bool allowFailure = false, string? tokenHost = null)
@@ -46,11 +46,11 @@ public sealed partial class GitWorkspace
         }
         start.Environment["GIT_TERMINAL_PROMPT"] = "0";
         start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
-        if (useToken && TokenFor(tokenHost ?? HostOfClone(workingDirectory)) is { Length: > 0 } token)
+        if (useToken && AuthorizationFor(tokenHost ?? HostOfClone(workingDirectory)) is { Length: > 0 } authorization)
         {
             start.Environment["GIT_CONFIG_COUNT"] = "1";
             start.Environment["GIT_CONFIG_KEY_0"] = "http.extraHeader";
-            start.Environment["GIT_CONFIG_VALUE_0"] = $"Authorization: token {token}";
+            start.Environment["GIT_CONFIG_VALUE_0"] = authorization;
         }
 
         using var process = Process.Start(start)

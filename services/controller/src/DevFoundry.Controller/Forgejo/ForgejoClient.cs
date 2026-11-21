@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
-using static DevFoundry.Controller.ForgejoJson;
+using static DevFoundry.Controller.HostJson;
 
 namespace DevFoundry.Controller;
 

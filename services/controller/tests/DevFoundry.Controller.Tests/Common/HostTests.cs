@@ -91,7 +91,7 @@ public sealed class ExtraHostsTests
     [Fact]
     public void A_kind_without_an_adapter_an_unusable_address_and_a_short_secret_are_refused_without_echoing_the_secret()
     {
-        Assert.Contains("no adapter", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(type: "github")}]")).Message);
+        Assert.Contains("no adapter", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(type: "gitlab")}]")).Message);
         Assert.Contains("http or https", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(url: "ftp://x")}]")).Message);
         var error = Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(secret: "short-secret-123")}]"));
         Assert.Contains("webhook_secret", error.Message);

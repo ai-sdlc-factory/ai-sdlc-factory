@@ -174,7 +174,7 @@ public sealed class WebhookAdapterTests
     {
         Assert.Same(Adapter.GetType(), WebhookAdapters.Find("Forgejo")!.GetType());
         Assert.Equal("forgejo", Adapter.Type);
-        Assert.Null(WebhookAdapters.Find("github"));
+        Assert.Null(WebhookAdapters.Find("gitlab"));
     }
 }
 

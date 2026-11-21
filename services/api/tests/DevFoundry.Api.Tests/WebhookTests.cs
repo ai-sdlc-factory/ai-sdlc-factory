@@ -290,8 +290,46 @@ public sealed class WebhookTests
         }).Build()));
     }
 
+    private const string GitHubSecret = "a-github-hooks-secret-never-used-outside-tests";
+
     [Fact]
-    public async Task A_host_with_no_adapter_has_no_route()
+    public async Task A_github_host_takes_githubs_headers_and_its_delivery_says_it_is_github()
+    {
+        var client = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddSingleton(new ApiSettings
+                {
+                    ForgejoWebhookSecret = Secret,
+                    ExtraHosts = [new HostDefinition("github", "github", "https://github.com", "", "vacant", GitHubSecret)],
+                });
+                services.AddSingleton<ITemporalGateway>(gateway);
+            })).CreateClient();
+        HttpRequestMessage Request(string secret, string signaturePrefix = "sha256=")
+        {
+            var body = """{"zen":"Keep it logically awesome."}"""u8.ToArray();
+            var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks/github") { Content = new ByteArrayContent(body) };
+            request.Content.Headers.ContentType = new("application/json");
+            request.Headers.Add("X-Hub-Signature-256", signaturePrefix + Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), body)));
+            request.Headers.Add("X-GitHub-Event", "ping");
+            request.Headers.Add("X-GitHub-Delivery", "12345678-1234-1234-1234-123456789abc");
+            return request;
+        }
+
+        var accepted = await client.SendAsync(Request(GitHubSecret));
+        var wrongSecret = await client.SendAsync(Request(Secret));
+        var noPrefix = await client.SendAsync(Request(GitHubSecret, signaturePrefix: ""));
+
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, wrongSecret.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, noPrefix.StatusCode);
+        var (workflowId, delivery) = Assert.Single(gateway.Started);
+        Assert.Equal("github-12345678-1234-1234-1234-123456789abc", workflowId);
+        Assert.Equal(("github", "github", "ping"), (delivery.Host, delivery.Adapter, delivery.Event));
+    }
+
+    [Fact]
+    public async Task A_host_that_is_not_configured_has_no_route()
     {
         var response = await CreateClient().PostAsync("/webhooks/github", new StringContent("{}"));
 
