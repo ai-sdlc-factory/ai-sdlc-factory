@@ -22,6 +22,49 @@ public interface IForgejo
     Task CommentAsync(string owner, string repo, int number, string body, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// One client for every host: each call goes to the host the owner belongs to (<c>acme</c> is the default host's, <c>codeberg:acme</c> the host named <c>codeberg</c>'s; see
+/// <see cref="RepoNames"/>) with the qualifier taken off, so a host never sees another's name.
+/// </summary>
+public sealed class HostsClient(IReadOnlyDictionary<string, IForgejo> hosts) : IForgejo
+{
+    private (IForgejo Host, string Owner) For(string qualifiedOwner)
+    {
+        var (name, owner) = RepoNames.Split(qualifiedOwner);
+        return hosts.TryGetValue(name, out var host) ? (host, owner) : throw new InvalidOperationException($"No git host named \"{name}\" is configured.");
+    }
+
+    public Task<int?> FindOpenTicketAsync(string owner, string repo, string key, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.FindOpenTicketAsync(plain, repo, key, cancellationToken);
+    }
+
+    public Task<int?> FindRecentTicketAsync(string owner, string repo, string groupMarker, DateTimeOffset notBefore, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.FindRecentTicketAsync(plain, repo, groupMarker, notBefore, cancellationToken);
+    }
+
+    public Task AddMarkerAsync(string owner, string repo, int number, string marker, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.AddMarkerAsync(plain, repo, number, marker, cancellationToken);
+    }
+
+    public Task<IssueRef> CreateTicketAsync(string owner, string repo, string title, string body, IReadOnlyList<string> labels, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.CreateTicketAsync(plain, repo, title, body, labels, cancellationToken);
+    }
+
+    public Task CommentAsync(string owner, string repo, int number, string body, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.CommentAsync(plain, repo, number, body, cancellationToken);
+    }
+}
+
 public sealed class ForgejoClient(HttpClient http) : IForgejo
 {
     private const int PageSize = 50;

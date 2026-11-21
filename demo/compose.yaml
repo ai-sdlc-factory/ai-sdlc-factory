@@ -157,6 +157,8 @@ services:
       ALERT_INTAKE_LOKI_URL: http://loki:3100
       FORGEJO_URL: http://forgejo:3000
       FORGEJO_BOT_TOKEN: ${INTAKE_FORGEJO_TOKEN:-}
+      # Other git hosts a route may name with "host" (see docs/configuration.md); the same setting the factory reads. Empty = only the Forgejo above.
+      FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
     volumes:
       - ./alert-intake/mapping.json:/etc/alert-intake/mapping.json:ro
     networks: [default, forge]

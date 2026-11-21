@@ -17,19 +17,26 @@ if (args.Contains("--healthcheck"))
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(services => IntakeSettings.FromConfiguration(services.GetRequiredService<IConfiguration>()));
-builder.Services.AddSingleton(services => RouteTable.Load(services.GetRequiredService<IntakeSettings>().MappingFile));
 builder.Services.AddSingleton(services =>
-    new RateLimiter(services.GetRequiredService<IntakeSettings>().MaxTicketsPerHour, TimeProvider.System));
-builder.Services.AddHttpClient<IForgejo, ForgejoClient>((services, client) =>
 {
     var settings = services.GetRequiredService<IntakeSettings>();
-    client.BaseAddress = new Uri(settings.ForgejoUrl.TrimEnd('/') + "/");
-    client.Timeout = TimeSpan.FromSeconds(20);
-    if (settings.ForgejoToken.Length > 0)
-    {
-        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", settings.ForgejoToken);
-    }
+    return RouteTable.Load(settings.MappingFile, settings.Hosts.Select(host => host.Name).ToHashSet());
 });
+builder.Services.AddSingleton(services =>
+    new RateLimiter(services.GetRequiredService<IntakeSettings>().MaxTicketsPerHour, TimeProvider.System));
+// One client per git host (long-lived, a few at most), behind one that sends each call to the host the route names.
+builder.Services.AddSingleton<IForgejo>(services =>
+    new HostsClient(services.GetRequiredService<IntakeSettings>().Hosts.ToDictionary(
+        host => host.Name,
+        host =>
+        {
+            var client = new HttpClient { BaseAddress = new Uri(host.Url.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(20) };
+            if (host.Token.Length > 0)
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", host.Token);
+            }
+            return (IForgejo)new ForgejoClient(client);
+        })));
 builder.Services.AddHttpClient<LokiClient>((services, client) =>
 {
     var settings = services.GetRequiredService<IntakeSettings>();

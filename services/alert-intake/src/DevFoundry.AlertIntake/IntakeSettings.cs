@@ -1,5 +1,8 @@
 namespace DevFoundry.AlertIntake;
 
+/// <summary>A git host the intake may open tickets on: its name, where it is, and the bot's token on it.</summary>
+public sealed record IntakeHost(string Name, string Url, string Token);
+
 /// <summary>
 /// What the alert intake reads from its environment. Messages name a setting but never echo its value.
 /// </summary>
@@ -8,6 +11,13 @@ public sealed class IntakeSettings
     public required string Token { get; init; }
     public string ForgejoUrl { get; init; } = "http://forgejo:3000";
     public string ForgejoToken { get; init; } = "";
+
+    /// <summary>The git hosts besides the default Forgejo (<c>FACTORY_EXTRA_HOSTS</c>, the same setting the factory reads): a route may name one with <c>host</c>.</summary>
+    public IReadOnlyList<HostDefinition> ExtraHosts { get; init; } = [];
+
+    /// <summary>Every host a route may name: the default one first (<c>forgejo</c>, from FORGEJO_URL and FORGEJO_BOT_TOKEN), then the extra ones.</summary>
+    public IReadOnlyList<IntakeHost> Hosts =>
+        [new IntakeHost(RepoNames.DefaultHost, ForgejoUrl, ForgejoToken), .. ExtraHosts.Select(host => new IntakeHost(host.Name, host.Url, host.Token))];
     public string MappingFile { get; init; } = "/etc/alert-intake/mapping.json";
 
     /// <summary>When true nothing is written to Forgejo: the ticket that would be opened is only logged.</summary>
@@ -29,6 +39,7 @@ public sealed class IntakeSettings
             Token = configuration["ALERT_INTAKE_TOKEN"] ?? "",
             ForgejoUrl = NonEmpty(configuration, "FORGEJO_URL", "http://forgejo:3000"),
             ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
+            ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
             MappingFile = NonEmpty(configuration, "ALERT_INTAKE_MAPPING_FILE", "/etc/alert-intake/mapping.json"),
             DryRun = configuration.GetValue("ALERT_INTAKE_DRY_RUN", true),
             LokiUrl = configuration["ALERT_INTAKE_LOKI_URL"] ?? "",

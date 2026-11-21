@@ -136,6 +136,7 @@ The service that turns monitoring alerts into tickets ([its README](../services/
 | `ALERT_INTAKE_LOKI_URL` | empty | where Loki answers, for the log lines a route adds to its tickets; empty means no log evidence |
 | `FORGEJO_URL` | `http://forgejo:3000` | where Forgejo is (as for the controller) |
 | `FORGEJO_BOT_TOKEN` | empty | the bot's token; required unless `ALERT_INTAKE_DRY_RUN` is `true` |
+| `FACTORY_EXTRA_HOSTS` | none | the same setting as for the [factory](operations.md#several-git-hosts): a route in the mapping file may name one of these hosts with `"host"`, and its tickets open there (the intake reads each host's name, address and token). A route without `host` goes to the default Forgejo above |
 
 ### sandbox-launcher
 

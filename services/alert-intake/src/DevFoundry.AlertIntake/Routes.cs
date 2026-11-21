@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 namespace DevFoundry.AlertIntake;
 
 /// <summary>Where the tickets of the alerts that match <see cref="Match"/> go, and the labels they get.</summary>
+/// <remarks><see cref="Owner"/> is the owner as the factory names it: plain on the default host, <c>host:owner</c> on any other (see <see cref="RepoNames"/>), so the one client that serves every host sends the ticket to the right one.</remarks>
 public sealed record Route(IReadOnlyDictionary<string, string> Match, string Owner, string Repo, IReadOnlyList<string> Labels, IReadOnlyList<EvidenceQuery>? Evidence = null);
 
 /// <summary>A log query the operator wants run when a ticket is opened, and what to call its result. It comes from the operator's file, never from an alert.</summary>
@@ -28,7 +29,7 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
     public Route? Find(IReadOnlyDictionary<string, string> labels) =>
         routes.FirstOrDefault(route => route.Match.All(pair => labels.TryGetValue(pair.Key, out var value) && value == pair.Value));
 
-    public static RouteTable Load(string path)
+    public static RouteTable Load(string path, IReadOnlySet<string>? knownHosts = null)
     {
         string text;
         try
@@ -39,10 +40,11 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
         {
             throw new InvalidOperationException($"The routes file {path} cannot be read: {error.Message}");
         }
-        return Parse(text);
+        return Parse(text, knownHosts);
     }
 
-    public static RouteTable Parse(string json)
+    /// <param name="knownHosts">The names of the hosts a route may name with <c>host</c>; null means only the default host.</param>
+    public static RouteTable Parse(string json, IReadOnlySet<string>? knownHosts = null)
     {
         JsonDocument document;
         try
@@ -67,18 +69,29 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
             var routes = new List<Route>();
             foreach (var item in list.EnumerateArray())
             {
-                routes.Add(ReadRoute(item, routes.Count + 1));
+                routes.Add(ReadRoute(item, routes.Count + 1, knownHosts ?? new HashSet<string> { RepoNames.DefaultHost }));
             }
             return new RouteTable(routes);
         }
     }
 
-    private static Route ReadRoute(JsonElement item, int number)
+    private static Route ReadRoute(JsonElement item, int number, IReadOnlySet<string> knownHosts)
     {
         var repository = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("repository", out var repo) && repo.ValueKind == JsonValueKind.String ? repo.GetString() : null;
         if (repository is null || !Repository().IsMatch(repository))
         {
             throw new InvalidOperationException($"Route {number}: \"repository\" must look like owner/name.");
+        }
+
+        // A route may name the git host its tickets go to ("host": "codeberg"); without one it is the default host, as it always was.
+        var host = RepoNames.DefaultHost;
+        if (item.TryGetProperty("host", out var hostValue))
+        {
+            host = hostValue.ValueKind == JsonValueKind.String ? hostValue.GetString() ?? "" : "";
+            if (!knownHosts.Contains(host))
+            {
+                throw new InvalidOperationException($"Route {number}: \"host\" must be the name of a configured git host ({string.Join(", ", knownHosts.Order(StringComparer.Ordinal))}).");
+            }
         }
 
         var match = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -133,6 +146,6 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
         }
 
         var parts = repository.Split('/');
-        return new Route(match, parts[0], parts[1], labels, evidence);
+        return new Route(match, RepoNames.Qualify(host, parts[0]), parts[1], labels, evidence);
     }
 }
