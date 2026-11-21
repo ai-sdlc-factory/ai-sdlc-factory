@@ -64,7 +64,7 @@ public sealed class AskScenarios(TemporalFixture fixture)
     public async Task A_pull_request_that_cannot_be_read_still_gets_an_answer_from_the_repository()
     {
         var world = Asking();
-        world.ReviewContextFailure = new Temporalio.Exceptions.ApplicationFailureException("Forgejo is down");
+        world.ReviewContextFailure = new Temporalio.Exceptions.ApplicationFailureException("The host is down");
 
         var result = await world.RunAsync(fixture, context => context.RunAskAsync(ScenarioContext.Ask(onPullRequest: true)));
 

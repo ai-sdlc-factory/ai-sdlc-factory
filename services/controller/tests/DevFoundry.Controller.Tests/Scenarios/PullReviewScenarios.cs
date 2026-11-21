@@ -122,7 +122,7 @@ public sealed class PullReviewScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task When_forgejo_cannot_say_what_changed_nothing_is_reviewed_and_the_person_is_told()
+    public async Task When_the_host_cannot_say_what_changed_nothing_is_reviewed_and_the_person_is_told()
     {
         var world = Reviewing();
         world.ReviewContext = world.ReviewContext with { Changes = null };

@@ -46,7 +46,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task The_report_is_given_what_became_of_the_weeks_pull_requests_from_forgejo()
+    public async Task The_report_is_given_what_became_of_the_weeks_pull_requests_from_the_host()
     {
         var world = Improving();
         world.PullOutcomes = [new PullOutcome("acme/shop", 4, "feature", PullStates.Merged, 1, 2.0)];
@@ -59,7 +59,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task A_week_with_no_pull_requests_asks_forgejo_nothing_and_a_forgejo_that_fails_does_not_stop_the_report()
+    public async Task A_week_with_no_pull_requests_asks_the_host_nothing_and_a_host_that_fails_does_not_stop_the_report()
     {
         var none = Improving();
         none.PullScope = new PullScope([], [], []);
@@ -67,7 +67,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
         var noneResult = await none.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
 
         var broken = Improving();
-        broken.PullOutcomesFailure = new Temporalio.Exceptions.ApplicationFailureException("forgejo is down", nonRetryable: true);
+        broken.PullOutcomesFailure = new Temporalio.Exceptions.ApplicationFailureException("the host is down", nonRetryable: true);
         var brokenResult = await broken.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
 
         Assert.Equal("improvement_posted", noneResult.Status);
@@ -159,7 +159,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
     public async Task A_ticket_that_cannot_be_opened_ends_the_run_before_any_agent_is_asked()
     {
         var world = Improving();
-        world.IssueFailure = new Temporalio.Exceptions.ApplicationFailureException("Forgejo rejected the ticket", nonRetryable: true);
+        world.IssueFailure = new Temporalio.Exceptions.ApplicationFailureException("The host rejected the ticket", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
 
@@ -198,7 +198,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
 
         var (first, second) = await world.RunAsync(fixture, async context =>
         {
-            var settings = new WorkerSettings { Hosts = TestHosts.Forgejo(), TemporalTaskQueue = context.Queue };
+            var settings = new WorkerSettings { Hosts = TestHosts.One(), TemporalTaskQueue = context.Queue };
             var service = new ImprovementService(context.Client, settings, NullLogger<ImprovementService>.Instance, () => new DateTimeOffset(2026, 11, 18, 12, 0, 0, TimeSpan.Zero));
             var started = await service.StartForLastWeekAsync();
             var handle = context.Client.GetWorkflowHandle("improvement-2026-w46");
@@ -219,7 +219,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
 
         var (status, second) = await world.RunAsync(fixture, async context =>
         {
-            var service = new ImprovementService(context.Client, new WorkerSettings { Hosts = TestHosts.Forgejo(), TemporalTaskQueue = context.Queue }, NullLogger<ImprovementService>.Instance, () => new DateTimeOffset(2026, 11, 25, 12, 0, 0, TimeSpan.Zero));
+            var service = new ImprovementService(context.Client, new WorkerSettings { Hosts = TestHosts.One(), TemporalTaskQueue = context.Queue }, NullLogger<ImprovementService>.Instance, () => new DateTimeOffset(2026, 11, 25, 12, 0, 0, TimeSpan.Zero));
             await service.StartForLastWeekAsync();
             var failed = await context.Client.GetWorkflowHandle("improvement-2026-w47").GetResultAsync<WorkResult>();
             return (failed.Status, await service.StartForLastWeekAsync());

@@ -1,8 +1,8 @@
 namespace DevFoundry.Controller;
 
 /// <summary>
-/// Everything the factory asks of the git host that holds a repository's tickets and pull requests: the port the rest of the controller depends on. <see cref="ForgejoClient"/> is the
-/// only implementation today; another host (GitHub, GitLab, ...) would be another class behind the same operations. A host only carries events in and results out: it never decides
+/// Everything the factory asks of the git host that holds a repository's tickets and pull requests: the port the rest of the controller depends on. There is one implementation per kind of
+/// host (<see cref="ForgejoClient"/>, <see cref="GitHubClient"/>); another host (GitLab, ...) would be another class behind the same operations. A host only carries events in and results out: it never decides
 /// anything, and nothing here returns a title or a text that is not meant for a person or an agent to read as data.
 /// </summary>
 public interface IGitHost : IJanitorGitHost

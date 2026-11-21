@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DevFoundry.AlertIntake.Tests;
 
-public sealed class FakeForgejo : ITicketHost
+public sealed class FakeTicketHost : ITicketHost
 {
     public sealed record Ticket(string Owner, string Repo, int Number, string Title, string Body, IReadOnlyList<string> Labels, bool Open = true, DateTimeOffset CreatedAt = default);
 
@@ -51,7 +51,7 @@ public sealed class FakeForgejo : ITicketHost
         Fail();
         var number = Tickets.Count + 1;
         Tickets.Add(new Ticket(owner, repo, number, title, body, labels, true, Clock.GetUtcNow()));
-        return Task.FromResult(new IssueRef(number, $"http://forgejo/{owner}/{repo}/issues/{number}"));
+        return Task.FromResult(new IssueRef(number, $"http://git.test/{owner}/{repo}/issues/{number}"));
     }
 
     public Task CommentAsync(string owner, string repo, int number, string body, CancellationToken cancellationToken)
@@ -97,17 +97,17 @@ public static class Setup
 
     public static IntakeSettings Settings(bool dryRun = false, int perHour = 6, int maxBody = 262_144, int group = 0) => new()
     {
-        Token = Token, Hosts = [new IntakeHost("forgejo", "forgejo", "http://forgejo:3000", "forgejo-token")], DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
+        Token = Token, Hosts = [new IntakeHost("forgejo", "forgejo", "http://forgejo:3000", "host-token")], DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
     };
 
-    /// <summary>The fake as the one host of the intake, called forgejo.</summary>
+    /// <summary>The fake as the one host of the intake, named forgejo, the host a route without one goes to.</summary>
     public static ITicketHosts Hosts(ITicketHost host) => new TicketHosts(new Dictionary<string, ITicketHost> { ["forgejo"] = host });
 
-    public static AlertProcessor Processor(FakeForgejo forgejo, IntakeSettings? settings = null, string routes = WeatherRoutes, TimeProvider? clock = null, ILogSource? logs = null, IntakeMetrics? metrics = null)
+    public static AlertProcessor Processor(FakeTicketHost host, IntakeSettings? settings = null, string routes = WeatherRoutes, TimeProvider? clock = null, ILogSource? logs = null, IntakeMetrics? metrics = null)
     {
         settings ??= Settings();
         var table = RouteTable.Parse(routes);
-        return new AlertProcessor(settings, table, Hosts(forgejo), logs ?? new NoLogs(), new RateLimiter(settings.MaxTicketsPerHour, clock ?? TimeProvider.System),
+        return new AlertProcessor(settings, table, Hosts(host), logs ?? new NoLogs(), new RateLimiter(settings.MaxTicketsPerHour, clock ?? TimeProvider.System),
             metrics ?? new IntakeMetrics(settings, table), NullLogger<AlertProcessor>.Instance, () => (clock ?? TimeProvider.System).GetUtcNow());
     }
 

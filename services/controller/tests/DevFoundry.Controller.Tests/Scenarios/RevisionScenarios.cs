@@ -224,12 +224,12 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     public async Task A_pull_request_that_cannot_be_read_is_reported_to_the_person_who_asked()
     {
         var world = Reviewing();
-        world.RevisionContextFailure = new Temporalio.Exceptions.ApplicationFailureException("Forgejo rejected the pull request: 403 Forbidden", nonRetryable: true);
+        world.RevisionContextFailure = new Temporalio.Exceptions.ApplicationFailureException("The host rejected the pull request: 403 Forbidden", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunRevisionAsync(ScenarioContext.Revision()));
 
         Assert.Equal("error", result.Status);
-        Assert.Contains("I could not read this pull request, so I did nothing: Forgejo rejected the pull request: 403 Forbidden", Assert.Single(world.Comments));
+        Assert.Contains("I could not read this pull request, so I did nothing: The host rejected the pull request: 403 Forbidden", Assert.Single(world.Comments));
         Assert.Empty(world.PrepareRequests);
     }
 

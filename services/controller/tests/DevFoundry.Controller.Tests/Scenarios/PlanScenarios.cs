@@ -103,7 +103,7 @@ public sealed class PlanScenarios(TemporalFixture fixture)
         Assert.Contains("at the request of carol", world.CreatedIssues[2].Body);
         Assert.Contains("- #91: Part 1", world.CreatedIssues[2].Body);
         Assert.Contains(world.Comments, c => c.Contains("Not created yet: 3. Reply `/approve 3`"));
-        Assert.Contains(world.Comments, c => c.Contains("Created 1 ticket from this plan") && c.Contains("http://forgejo/issues/93"));
+        Assert.Contains(world.Comments, c => c.Contains("Created 1 ticket from this plan") && c.Contains("http://git.test/issues/93"));
     }
 
     [SkippableFact]

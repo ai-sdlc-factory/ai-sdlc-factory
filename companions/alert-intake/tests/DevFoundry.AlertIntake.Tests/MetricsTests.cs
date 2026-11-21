@@ -13,8 +13,8 @@ public sealed class MetricsTests
     {
         var settings = Setup.Settings(perHour: 1);
         var metrics = new IntakeMetrics(settings, RouteTable.Parse(Setup.WeatherRoutes));
-        var forgejo = new FakeForgejo();
-        var processor = Setup.Processor(forgejo, settings, metrics: metrics);
+        var host = new FakeTicketHost();
+        var processor = Setup.Processor(host, settings, metrics: metrics);
         Assert.Contains("alert_intake_outcomes_total{action=\"created\"} 0", metrics.Render()); // a rate() needs the series before the first event
 
         await processor.ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing(), Setup.Firing("Two", fingerprint: "bbbb"))), default);
@@ -34,7 +34,7 @@ public sealed class MetricsTests
     [Fact]
     public async Task The_metrics_endpoint_counts_notifications_and_refusals_and_carries_no_alert_text()
     {
-        var forgejo = new FakeForgejo();
+        var host = new FakeTicketHost();
         var settings = Setup.Settings(dryRun: true);
         using var client = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
@@ -42,7 +42,7 @@ public sealed class MetricsTests
                 services.AddSingleton(settings);
                 services.AddSingleton(RouteTable.Parse(Setup.WeatherRoutes));
                 services.AddSingleton(new RateLimiter(6, TimeProvider.System));
-                services.AddSingleton(Setup.Hosts(forgejo));
+                services.AddSingleton(Setup.Hosts(host));
             })).CreateClient();
         HttpRequestMessage Post(string body, string token) => new(HttpMethod.Post, "/alerts")
         {

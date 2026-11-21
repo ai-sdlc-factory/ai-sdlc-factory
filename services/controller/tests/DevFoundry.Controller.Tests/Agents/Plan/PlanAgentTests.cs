@@ -187,7 +187,7 @@ public sealed class PlanCommentTests
     public void After_a_partial_approval_a_ticket_that_waits_for_nothing_is_not_said_to_wait()
     {
         Assert.True(PlanParser.TryParse(Answers.Plan(), out var plan, out var error), error);
-        var made = new Dictionary<int, CreatedTicket> { [2] = new CreatedTicket(2, 92, "http://forgejo/issues/92") };
+        var made = new Dictionary<int, CreatedTicket> { [2] = new CreatedTicket(2, 92, "http://git.test/issues/92") };
 
         var text = PlanComments.Created([made[2]], plan, made);
 

@@ -93,7 +93,7 @@ public sealed class TriggerRulesTests
     [Fact]
     public async Task The_activity_gives_a_host_its_own_rules()
     {
-        var settings = new WorkerSettings { Hosts = [new HostSettings("codeberg", "forgejo", "https://x.org", "", "bot", new TriggerRules(Command: true)), TestHosts.Forgejo()[0]] };
+        var settings = new WorkerSettings { Hosts = [new HostSettings("codeberg", "forgejo", "https://x.org", "", "bot", new TriggerRules(Command: true)), TestHosts.One()[0]] };
         var activities = new GitHostActivities(null!, settings);
 
         Assert.True((await activities.ReadTriggersAsync("codeberg")).Command);

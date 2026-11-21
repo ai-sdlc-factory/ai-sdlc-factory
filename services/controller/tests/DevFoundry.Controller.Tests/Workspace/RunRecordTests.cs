@@ -178,7 +178,7 @@ public sealed class RecordPublishTests : IDisposable
     }
 
     private GitWorkspace Workspace(string token = "", string agents = "") =>
-        new(new WorkerSettings { WorkspaceRoot = root, Hosts = TestHosts.Forgejo(token), AgentsDirectory = agents }, (_, _) => origin);
+        new(new WorkerSettings { WorkspaceRoot = root, Hosts = TestHosts.One(token), AgentsDirectory = agents }, (_, _) => origin);
 
     private static async Task<WorkspaceInfo> PrepareWithChange(GitWorkspace workspace)
     {

@@ -74,7 +74,7 @@ public sealed record AgentReply(SandboxRunResult Result, Exception? Failure = nu
 public sealed record AgentCall(string Role, string Prompt, string Image, bool Writable, bool ModelAuth, string Network);
 
 /// <summary>
-/// Everything the workflow talks to, scripted: agents, project checks, the workspace and Forgejo. It records
+/// Everything the workflow talks to, scripted: agents, project checks, the workspace and the git host. It records
 /// what the workflow did so tests can assert on it, and fails loudly if the workflow does something unscripted.
 /// </summary>
 public sealed class FakeWorld
@@ -103,22 +103,22 @@ public sealed class FakeWorld
     public List<SandboxBuildRequest> Builds { get; } = [];
     public FactoryDefaults Defaults { get; set; } = FactoryDefaults.Standard;
 
-    /// <summary>What Forgejo says about the pull request being revised; the default is a pull request the factory opened with two line comments.</summary>
+    /// <summary>What the git host says about the pull request being revised; the default is a pull request the factory opened with two line comments.</summary>
     public RevisionContext RevisionContext { get; set; } = FactoryPullRequest();
 
-    /// <summary>When set, reading the pull request fails with this (as when Forgejo refuses the token).</summary>
+    /// <summary>When set, reading the pull request fails with this (as when the host refuses the token).</summary>
     public Exception? RevisionContextFailure { get; set; }
 
-    /// <summary>What Forgejo says about the pull request a /qa run is for; the default is a pull request the factory opened for ticket 7.</summary>
+    /// <summary>What the git host says about the pull request a /qa run is for; the default is a pull request the factory opened for ticket 7.</summary>
     public QaContext QaContext { get; set; } = new(FactoryPullRequest(body: "## Acceptance criteria\n- goodbye() returns the text.\n- bye selects it.\n").Pull, "factory-bot");
 
-    /// <summary>The newest open pull request of the factory for the ticket (what Forgejo would find); null means the ticket has none.</summary>
+    /// <summary>The newest open pull request of the factory for the ticket (what the host would find); null means the ticket has none.</summary>
     public int? OpenFactoryPull { get; set; }
 
-    /// <summary>What Forgejo says about the pull request an /update is for; the default is a pull request the factory opened for ticket 7, based on main.</summary>
+    /// <summary>What the git host says about the pull request an /update is for; the default is a pull request the factory opened for ticket 7, based on main.</summary>
     public UpdateContext UpdateContext { get; set; } = new(FactoryPullRequest().Pull, "factory-bot");
 
-    /// <summary>What Forgejo says about the pull request a /review is for: by default a person's open pull request with two changed files and a short diff.</summary>
+    /// <summary>What the git host says about the pull request a /review is for: by default a person's open pull request with two changed files and a short diff.</summary>
     public Exception? ReviewContextFailure { get; set; }
 
     public ReviewContext ReviewContext { get; set; } = new(
@@ -177,7 +177,7 @@ public sealed class FakeWorld
 
     public List<ImprovementRequest> ImprovementRequests { get; } = [];
 
-    /// <summary>What the usage log says about the week's pull requests, and what Forgejo says became of them; the report gets the second.</summary>
+    /// <summary>What the usage log says about the week's pull requests, and what the host says became of them; the report gets the second.</summary>
     /// <summary>How the host's tickets say which workflow to run; by default only the plain labels.</summary>
     public TriggerRules Triggers { get; set; } = TriggerRules.Default;
 
@@ -458,7 +458,7 @@ public sealed class FakeWorld
             lock (world.gate)
             {
                 world.CreatedIssues.Add(request);
-                return new IssueInfo(90 + world.CreatedIssues.Count, $"http://forgejo/issues/{90 + world.CreatedIssues.Count}");
+                return new IssueInfo(90 + world.CreatedIssues.Count, $"http://git.test/issues/{90 + world.CreatedIssues.Count}");
             }
         }
 
@@ -500,7 +500,7 @@ public sealed class FakeWorld
                 throw world.PullRequestFailure;
             }
             lock (world.gate) { world.PullRequests.Add(request); }
-            return new PullRequestInfo(1, "http://forgejo/pulls/1");
+            return new PullRequestInfo(1, "http://git.test/pulls/1");
         }
 
         [Activity("workspace_prepare")]

@@ -12,13 +12,13 @@ public sealed class EvidenceTests
     [Fact]
     public async Task The_routes_log_queries_add_redacted_bounded_lines_to_the_ticket()
     {
-        var forgejo = new FakeForgejo();
+        var host = new FakeTicketHost();
         var logs = new FakeLogs();
         logs.Lines["{app=\"api\"} |= \"error\""] = Enumerable.Range(1, 40).Select(i => $"error {i} password=hunter{i} ```boom``` " + new string('z', 300)).ToArray();
 
-        await Setup.Processor(forgejo, routes: EvidenceRoutes, logs: logs).ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+        await Setup.Processor(host, routes: EvidenceRoutes, logs: logs).ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
 
-        var body = Assert.Single(forgejo.Tickets).Body.Replace("\r", "");
+        var body = Assert.Single(host.Tickets).Body.Replace("\r", "");
         Assert.Equal(["{app=\"api\"} |= \"error\"", "{app=\"none\"}"], logs.Queries); // only what the operator's file asks for
         Assert.Contains("**Recent errors**\n```text\n", body);
         Assert.Contains("**Quiet**\n(no lines in the last 15 minutes", body);
@@ -31,13 +31,13 @@ public sealed class EvidenceTests
     [Fact]
     public async Task A_failing_log_source_never_stops_the_ticket()
     {
-        var forgejo = new FakeForgejo();
+        var host = new FakeTicketHost();
         var logs = new FakeLogs { Failure = new HttpRequestException("Loki refused the log query: 500") };
 
-        var outcomes = await Setup.Processor(forgejo, routes: EvidenceRoutes, logs: logs).ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
+        var outcomes = await Setup.Processor(host, routes: EvidenceRoutes, logs: logs).ProcessAsync(Setup.Parse(Setup.Message(Setup.Firing())), default);
 
         Assert.Equal(AlertOutcome.Created, Assert.Single(outcomes).Action);
-        Assert.Contains("the logs could not be read", Assert.Single(forgejo.Tickets).Body);
+        Assert.Contains("the logs could not be read", Assert.Single(host.Tickets).Body);
     }
 
     [Fact]

@@ -10,16 +10,13 @@ namespace DevFoundry.Controller;
 
 /// <summary>
 /// The controller's route to GitHub (github.com or GitHub Enterprise Server): an <see cref="IGitHost"/> over the REST API, for one host. The token never leaves this process.
-/// It does what <see cref="ForgejoClient"/> does, in GitHub's words; the differences are noted where they are. Not every call has a GitHub equivalent:
+/// It does what the Forgejo client does, in GitHub's words; the differences are noted where they are. Not every call has a GitHub equivalent:
 /// conversations marked resolved are not visible to the REST API (only to GraphQL), so a review comment in a resolved conversation is still given to the revision.
 /// </summary>
 public sealed class GitHubClient(HttpClient http, string token) : IGitHost
 {
     private const int PerPage = 100;
     private const int MaxPages = 20;
-    public const int MaxChangedFiles = ForgejoClient.MaxChangedFiles;
-    public const int MaxDiffBytes = ForgejoClient.MaxDiffBytes;
-    private const int MaxRawDiffBytes = 4 * 1024 * 1024;
     private const int MaxFilePages = 30; // the files endpoint lists at most 3,000 files
 
     // ---- comments and tickets
@@ -105,7 +102,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
             Text(head, "ref"), Text(head, "sha"), Repository(head), Repository(@base), Text(@base, "ref"), Text(Child(root, "user"), "login"));
     }
 
-    /// <summary>The files a pull request changes (the first <see cref="MaxChangedFiles"/>, with the total) and the start of its diff. A diff GitHub will not give (too large) comes back empty and cut.</summary>
+    /// <summary>The files a pull request changes (the first <see cref="GitHostLimits.MaxChangedFiles"/>, with the total) and the start of its diff. A diff GitHub will not give (too large) comes back empty and cut.</summary>
     public async Task<PullChanges> GetPullChangesAsync(string owner, string repo, int number, CancellationToken cancellationToken)
     {
         RequireToken();
@@ -135,7 +132,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
                     continue;
                 }
                 total++;
-                if (files.Count < MaxChangedFiles)
+                if (files.Count < GitHostLimits.MaxChangedFiles)
                 {
                     files.Add(new ChangedFile(
                         Text(item, "filename"), FileStatus(Text(item, "status")), Count(item, "additions"), Count(item, "deletions"),
@@ -161,22 +158,22 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
             throw Failure("diff", diffResponse);
         }
         await using var stream = await diffResponse.Content.ReadAsStreamAsync(cancellationToken);
-        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(MaxRawDiffBytes + 1);
+        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(GitHostLimits.MaxRawDiffBytes + 1);
         try
         {
             var read = 0;
-            while (read <= MaxRawDiffBytes)
+            while (read <= GitHostLimits.MaxRawDiffBytes)
             {
-                var count = await stream.ReadAsync(buffer.AsMemory(read, MaxRawDiffBytes + 1 - read), cancellationToken);
+                var count = await stream.ReadAsync(buffer.AsMemory(read, GitHostLimits.MaxRawDiffBytes + 1 - read), cancellationToken);
                 if (count == 0)
                 {
                     break;
                 }
                 read += count;
             }
-            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxRawDiffBytes)));
-            var cut = read > MaxRawDiffBytes || text.Length > MaxDiffBytes;
-            return new PullChanges(files, total, text.Length > MaxDiffBytes ? text[..MaxDiffBytes] : text, cut);
+            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, GitHostLimits.MaxRawDiffBytes)));
+            var cut = read > GitHostLimits.MaxRawDiffBytes || text.Length > GitHostLimits.MaxDiffBytes;
+            return new PullChanges(files, total, text.Length > GitHostLimits.MaxDiffBytes ? text[..GitHostLimits.MaxDiffBytes] : text, cut);
         }
         finally
         {

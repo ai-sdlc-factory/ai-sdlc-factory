@@ -175,7 +175,7 @@ public sealed class ImprovementReportActivityTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace(string deniedLog = "") => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root, EgressDeniedLog = deniedLog });
+    private GitWorkspace Workspace(string deniedLog = "") => new(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root, EgressDeniedLog = deniedLog });
 
     private static UsageLogEntry Entry(string run, string status = "build_failed", string role = "analyst", RoleStats? stats = null) =>
         new($"feature-{run}", run, "feature", "acme/shop", 1, status, new TokenUsage(1000, 200, 30, 0, 40, 1270, 0, 3),

@@ -12,7 +12,7 @@ public sealed class RepoImageSourceTests : IDisposable
     public void Dispose() => Directory.Delete(root, recursive: true);
 
     private string Factory => $"{root}/.base/{Name}/.factory";
-    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root });
 
     [Fact]
     public void A_repository_without_a_dockerfile_has_no_image_definition()

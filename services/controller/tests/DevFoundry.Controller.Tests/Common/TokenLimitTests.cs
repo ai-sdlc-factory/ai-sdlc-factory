@@ -201,7 +201,7 @@ public sealed class UsageTodayTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root });
 
     private static UsageLogEntry Entry(string run, string repository, long input = 1000) =>
         new($"feature-{run}", run, "feature", repository, 1, "pr_opened", new TokenUsage(input, 200, 30, 9_999, 40, 12_000, 0, 3));
@@ -281,7 +281,7 @@ public sealed class UsageEstimateTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root });
 
     private static UsageLogEntry Entry(string run, long input, string kind = "feature", string repository = "acme/shop") =>
         new($"{kind}-{run}", run, kind, repository, 1, "pr_opened", new TokenUsage(input, 0, 0, 99_999, 0, input + 99_999, 0, 3));

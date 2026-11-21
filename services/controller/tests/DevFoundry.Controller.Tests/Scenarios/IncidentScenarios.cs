@@ -100,7 +100,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
         });
 
         Assert.Equal("postmortem_opened", result.Status);
-        Assert.Equal("http://forgejo/pulls/1", result.PullRequestUrl);
+        Assert.Equal("http://git.test/pulls/1", result.PullRequestUrl);
         var checklist = Assert.Single(world.Comments, c => c.Contains("Checklist for option 2"));
         Assert.Contains("- [ ] Step A of option 2", checklist);
         Assert.Contains("A person carries these out", checklist);
@@ -111,7 +111,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
         Assert.Contains("Refs #1", pull.Body);
         Assert.Contains("A person must verify the facts", pull.Body);
         Assert.Contains("Postmortem", Assert.Single(world.Publishes).Message);
-        Assert.Contains(world.Comments, c => c.Contains("**Draft postmortem:** http://forgejo/pulls/1") && c.Contains("A person must check the facts"));
+        Assert.Contains(world.Comments, c => c.Contains("**Draft postmortem:** http://git.test/pulls/1") && c.Contains("A person must check the facts"));
 
         // The postmortem writer is given the record of the ticket, in order, and the one file it may write.
         var prompt = world.Calls("postmortem-writer").Single().Prompt;
@@ -175,7 +175,7 @@ public sealed class IncidentScenarios(TemporalFixture fixture)
         Assert.Contains("The new retry loop doubles the load.", issue.Body);
         Assert.Contains("check it before relying on it", issue.Body);
         Assert.Contains("`a1b2c3d`", issue.Body);
-        Assert.Contains(world.Comments, c => c.Contains("http://forgejo/issues/91") && c.Contains("A person still has to review and merge"));
+        Assert.Contains(world.Comments, c => c.Contains("http://git.test/issues/91") && c.Contains("A person still has to review and merge"));
     }
 
     [SkippableFact]

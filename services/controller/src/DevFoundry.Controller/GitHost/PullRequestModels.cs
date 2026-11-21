@@ -23,7 +23,7 @@ public sealed record RevisionContext(PullRequestDetails Pull, string BotLogin, I
 public sealed record ChangedFile(string Path, string Status, int Additions, int Deletions, string? PreviousPath = null);
 
 /// <summary>
-/// What a pull request changes, as the git host reports it: the files (at most <see cref="ForgejoClient.MaxChangedFiles"/>), how many there are in all, and the start of the diff
+/// What a pull request changes, as the git host reports it: the files (at most <see cref="GitHostLimits.MaxChangedFiles"/>), how many there are in all, and the start of the diff
 /// (<see cref="DiffCut"/> when it was longer). Text from the repository, so only ever given to an agent as data.
 /// </summary>
 public sealed record PullChanges(IReadOnlyList<ChangedFile> Files, int TotalFiles, string Diff, bool DiffCut);
@@ -36,3 +36,16 @@ public sealed record UpdateContext(PullRequestDetails? Pull, string BotLogin);
 
 /// <summary>How many revisions the factory has made on a pull request, and when the last reply was posted.</summary>
 public sealed record RevisionHistory(int Count, DateTimeOffset? LastAt);
+
+/// <summary>What the factory reads of a pull request at most, whatever the host: a huge one is never pulled into memory whole.</summary>
+public static class GitHostLimits
+{
+    /// <summary>Files of a pull request that are listed (the rest are only counted).</summary>
+    public const int MaxChangedFiles = 300;
+
+    /// <summary>Characters of its diff that are kept.</summary>
+    public const int MaxDiffBytes = 120_000;
+
+    /// <summary>Bytes of its diff that are read at all.</summary>
+    public const int MaxRawDiffBytes = 4 * 1024 * 1024;
+}

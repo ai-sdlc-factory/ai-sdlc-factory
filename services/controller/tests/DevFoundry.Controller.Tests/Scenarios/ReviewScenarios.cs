@@ -514,7 +514,7 @@ public sealed class StoppedRunScenarios(TemporalFixture fixture)
             .Agent("developer", Say(Answers.Developer()))
             .Agent("reviewer", Say(Answers.Review()))
             .Agent("acceptance", Say(Answers.Qa("met", "met")));
-        world.PullRequestFailure = new Temporalio.Exceptions.ApplicationFailureException("forgejo down", nonRetryable: true);
+        world.PullRequestFailure = new Temporalio.Exceptions.ApplicationFailureException("host down", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
@@ -564,12 +564,12 @@ public sealed class StoppedRunScenarios(TemporalFixture fixture)
         var world = Building()
             .Agent("developer", Say(Answers.Developer()), Say(Answers.Developer()), Say(Answers.Developer()))
             .Check("python -m pytest -q", failing);
-        world.Rescue = _ => throw new Temporalio.Exceptions.ApplicationFailureException("forgejo unreachable", nonRetryable: true);
+        world.Rescue = _ => throw new Temporalio.Exceptions.ApplicationFailureException("host unreachable", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("build_failed", result.Status);
-        Assert.Contains(world.Comments, c => c.Contains("could not save the work so far") && c.Contains("forgejo unreachable"));
+        Assert.Contains(world.Comments, c => c.Contains("could not save the work so far") && c.Contains("host unreachable"));
     }
 
     [SkippableTheory]

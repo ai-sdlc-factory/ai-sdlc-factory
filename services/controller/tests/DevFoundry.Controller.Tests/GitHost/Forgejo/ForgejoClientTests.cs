@@ -133,23 +133,23 @@ public sealed class ForgejoClientTests
     {
         var changes = await WithPull(new PullEndpoints(1000, "")).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
 
-        Assert.Equal(ForgejoClient.MaxChangedFiles, changes.Files.Count);
+        Assert.Equal(GitHostLimits.MaxChangedFiles, changes.Files.Count);
         Assert.Equal(1000, changes.TotalFiles);
     }
 
     [Fact]
     public async Task A_huge_diff_is_read_only_as_far_as_the_limit_and_says_it_was_cut()
     {
-        var changes = await WithPull(new PullEndpoints(1, new string('+', ForgejoClient.MaxDiffBytes * 3))).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+        var changes = await WithPull(new PullEndpoints(1, new string('+', GitHostLimits.MaxDiffBytes * 3))).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
 
-        Assert.Equal(ForgejoClient.MaxDiffBytes, changes.Diff.Length);
+        Assert.Equal(GitHostLimits.MaxDiffBytes, changes.Diff.Length);
         Assert.True(changes.DiffCut);
     }
 
     [Fact]
     public async Task A_diff_exactly_at_the_limit_is_not_called_cut()
     {
-        var changes = await WithPull(new PullEndpoints(1, new string('+', ForgejoClient.MaxDiffBytes))).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
+        var changes = await WithPull(new PullEndpoints(1, new string('+', GitHostLimits.MaxDiffBytes))).GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
 
         Assert.False(changes.DiffCut);
     }
@@ -186,7 +186,7 @@ public sealed class ForgejoClientTests
     private static Task<QaContext> ReadQaContext(HttpStatusCode files)
     {
         var client = new ForgejoClient(new HttpClient(new WholePullRequest(files)) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
-        var activities = new GitHostActivities(client, new WorkerSettings { Hosts = TestHosts.Forgejo("secret-token") });
+        var activities = new GitHostActivities(client, new WorkerSettings { Hosts = TestHosts.One("secret-token") });
         return new Temporalio.Testing.ActivityEnvironment().RunAsync(() => activities.ReadQaContextAsync(new QaRequest("acme", "shop", 7, true, null, "bob")));
     }
 

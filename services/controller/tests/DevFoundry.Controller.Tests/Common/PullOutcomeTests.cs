@@ -55,7 +55,7 @@ public sealed class PullOutcomeTests : IDisposable
     [Fact]
     public async Task The_usage_log_names_the_repositories_the_kinds_and_the_revisions_that_were_pushed()
     {
-        var workspace = new GitWorkspace(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
+        var workspace = new GitWorkspace(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root });
         UsageLogEntry Entry(string run, string kind, string status, string repo, int number) =>
             new($"{kind}-{run}", run, kind, repo, number, status, new TokenUsage(1000, 0, 0, 0, 0, 1000, 0, 1));
         await workspace.LogUsageAsync(Entry("a", "feature", "pr_opened", "acme/shop", 1), DateTimeOffset.Parse("2026-11-10T09:00:00Z"));

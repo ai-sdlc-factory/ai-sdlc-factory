@@ -134,12 +134,12 @@ public sealed class SettingsTests
     private static IntakeSettings Load(params (string Key, string? Value)[] values) =>
         IntakeSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(values.ToDictionary(v => v.Key, v => v.Value)).Build());
 
-    private const string Forgejo = """[{"name":"forgejo","url":"http://forgejo:3000","token":"t"}]""";
+    private const string OneHost = """[{"name":"forgejo","url":"http://forgejo:3000","token":"t"}]""";
 
     [Fact]
     public void Defaults_are_safe_a_dry_run_and_a_small_limit()
     {
-        var settings = Load(("ALERT_INTAKE_TOKEN", "0123456789abcdef"), ("ALERT_INTAKE_HOSTS", Forgejo));
+        var settings = Load(("ALERT_INTAKE_TOKEN", "0123456789abcdef"), ("ALERT_INTAKE_HOSTS", OneHost));
 
         Assert.True(settings.DryRun);
         Assert.Equal(6, settings.MaxTicketsPerHour);
@@ -150,7 +150,7 @@ public sealed class SettingsTests
     [InlineData("short", "ALERT_INTAKE_TOKEN")]
     public void A_missing_or_short_token_is_refused_without_echoing_it(string token, string name)
     {
-        var error = Assert.Throws<InvalidOperationException>(() => Load(("ALERT_INTAKE_TOKEN", token), ("ALERT_INTAKE_HOSTS", Forgejo)));
+        var error = Assert.Throws<InvalidOperationException>(() => Load(("ALERT_INTAKE_TOKEN", token), ("ALERT_INTAKE_HOSTS", OneHost)));
         Assert.Contains(name, error.Message);
         Assert.DoesNotContain(token, error.Message.Replace(name, ""));
     }
@@ -163,7 +163,7 @@ public sealed class SettingsTests
         Assert.Contains("token", Assert.Throws<InvalidOperationException>(() =>
             Load(("ALERT_INTAKE_TOKEN", "0123456789abcdef"), ("ALERT_INTAKE_DRY_RUN", "false"), ("ALERT_INTAKE_HOSTS", """[{"name":"forgejo","url":"http://forgejo:3000"}]"""))).Message);
         Assert.Contains("PER_HOUR", Assert.Throws<InvalidOperationException>(() =>
-            Load(("ALERT_INTAKE_TOKEN", "0123456789abcdef"), ("ALERT_INTAKE_HOSTS", Forgejo), ("ALERT_INTAKE_MAX_TICKETS_PER_HOUR", "0"))).Message);
+            Load(("ALERT_INTAKE_TOKEN", "0123456789abcdef"), ("ALERT_INTAKE_HOSTS", OneHost), ("ALERT_INTAKE_MAX_TICKETS_PER_HOUR", "0"))).Message);
         Assert.Contains("http or https", Assert.Throws<InvalidOperationException>(() =>
             Load(("ALERT_INTAKE_TOKEN", "0123456789abcdef"), ("ALERT_INTAKE_HOSTS", """[{"name":"forgejo","url":"ftp://x"}]"""))).Message);
     }

@@ -11,7 +11,7 @@ public sealed class UsageLogTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root });
 
     private static UsageLogEntry Entry(string run = "run-1", long total = 1710) => new(
         "feature-acme-shop-1-abcd1234", run, "feature", "acme/shop", 1, "pr_opened",

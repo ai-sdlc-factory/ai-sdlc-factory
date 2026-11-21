@@ -172,7 +172,7 @@ public sealed class DocsScenarios(TemporalFixture fixture)
     public async Task A_pull_request_that_cannot_be_opened_names_the_branch()
     {
         var world = Writing().Changes(Wrote("AGENTS.md"));
-        world.PullRequestFailure = new Temporalio.Exceptions.ApplicationFailureException("Forgejo rejected the pull request: 422", nonRetryable: true);
+        world.PullRequestFailure = new Temporalio.Exceptions.ApplicationFailureException("The host rejected the pull request: 422", nonRetryable: true);
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(Ticket()));
 

@@ -9,7 +9,7 @@ namespace DevFoundry.AlertIntake.Tests;
 
 public sealed class EndpointTests
 {
-    private readonly FakeForgejo forgejo = new();
+    private readonly FakeTicketHost host = new();
 
     private HttpClient Client(IntakeSettings? settings = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
@@ -19,7 +19,7 @@ public sealed class EndpointTests
                 services.AddSingleton(settings);
                 services.AddSingleton(RouteTable.Parse(Setup.WeatherRoutes));
                 services.AddSingleton(new RateLimiter(settings.MaxTicketsPerHour, TimeProvider.System));
-                services.AddSingleton(Setup.Hosts(forgejo));
+                services.AddSingleton(Setup.Hosts(host));
                 services.AddSingleton(new IntakeMetrics(settings, RouteTable.Parse(Setup.WeatherRoutes)));
             })).CreateClient();
 
@@ -38,7 +38,7 @@ public sealed class EndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"created\"", await response.Content.ReadAsStringAsync());
-        Assert.Single(forgejo.Tickets);
+        Assert.Single(host.Tickets);
     }
 
     [Theory]
@@ -52,7 +52,7 @@ public sealed class EndpointTests
         using var response = await client.SendAsync(Post(Setup.Message(Setup.Firing()), token));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Empty(forgejo.Tickets);
+        Assert.Empty(host.Tickets);
     }
 
     [Theory]
@@ -82,13 +82,13 @@ public sealed class EndpointTests
 
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, announced.StatusCode);
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, unannounced.StatusCode);
-        Assert.Empty(forgejo.Tickets);
+        Assert.Empty(host.Tickets);
     }
 
     [Fact]
-    public async Task A_failing_forgejo_is_a_502_so_that_alertmanager_sends_the_notification_again()
+    public async Task A_failing_git_host_is_a_502_so_that_alertmanager_sends_the_notification_again()
     {
-        forgejo.Failure = new HttpRequestException("Forgejo refused the ticket request: 500");
+        host.Failure = new HttpRequestException("The git host refused the ticket request: 500");
         using var client = Client();
 
         using var response = await client.SendAsync(Post(Setup.Message(Setup.Firing())));

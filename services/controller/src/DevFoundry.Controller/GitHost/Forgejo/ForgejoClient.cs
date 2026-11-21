@@ -105,14 +105,11 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
             Text(head, "ref"), Text(head, "sha"), Repository(head), Repository(@base), Text(@base, "ref"), Text(Child(root, "user"), "login"));
     }
 
-    public const int MaxChangedFiles = 300;
-    public const int MaxDiffBytes = 120_000;
-    private const int MaxRawDiffBytes = 4 * 1024 * 1024;
     private const int FilesPerPage = 50;
 
     /// <summary>
-    /// The files a pull request changes (<c>pulls/&lt;n&gt;/files</c>, up to <see cref="MaxChangedFiles"/>) and the start of its diff (<c>pulls/&lt;n&gt;.diff</c>, at most
-    /// <see cref="MaxDiffBytes"/> bytes read, so a huge pull request is never pulled in whole). Both are what the pull request page shows.
+    /// The files a pull request changes (<c>pulls/&lt;n&gt;/files</c>, up to <see cref="GitHostLimits.MaxChangedFiles"/>) and the start of its diff (<c>pulls/&lt;n&gt;.diff</c>, at most
+    /// <see cref="GitHostLimits.MaxDiffBytes"/> bytes read, so a huge pull request is never pulled in whole). Both are what the pull request page shows.
     /// </summary>
     public async Task<PullChanges> GetPullChangesAsync(string owner, string repo, int number, CancellationToken cancellationToken)
     {
@@ -121,7 +118,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
         var files = new List<ChangedFile>();
         var total = 0;
         var records = 0; // the factory's own run record files, which are not part of what the pull request changes
-        for (var page = 1; files.Count < MaxChangedFiles; page++)
+        for (var page = 1; files.Count < GitHostLimits.MaxChangedFiles; page++)
         {
             using var request = Authorized(HttpMethod.Get, $"{path}/files?page={page}&limit={FilesPerPage}");
             using var response = await http.SendAsync(request, cancellationToken);
@@ -147,7 +144,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
                     records++;
                     continue;
                 }
-                if (files.Count < MaxChangedFiles)
+                if (files.Count < GitHostLimits.MaxChangedFiles)
                 {
                     files.Add(new ChangedFile(
                         Text(item, "filename"), Text(item, "status"), Count(item, "additions"), Count(item, "deletions"),
@@ -169,22 +166,22 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
         }
         await using var stream = await diffResponse.Content.ReadAsStreamAsync(cancellationToken);
         // Read far enough to find the code after any run records at the top of the diff (.factory sorts first), but never an unbounded amount.
-        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(MaxRawDiffBytes + 1);
+        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(GitHostLimits.MaxRawDiffBytes + 1);
         try
         {
             var read = 0;
-            while (read <= MaxRawDiffBytes)
+            while (read <= GitHostLimits.MaxRawDiffBytes)
             {
-                var count = await stream.ReadAsync(buffer.AsMemory(read, MaxRawDiffBytes + 1 - read), cancellationToken);
+                var count = await stream.ReadAsync(buffer.AsMemory(read, GitHostLimits.MaxRawDiffBytes + 1 - read), cancellationToken);
                 if (count == 0)
                 {
                     break;
                 }
                 read += count;
             }
-            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, MaxRawDiffBytes)));
-            var cut = read > MaxRawDiffBytes || text.Length > MaxDiffBytes;
-            return new PullChanges(files, total, text.Length > MaxDiffBytes ? text[..MaxDiffBytes] : text, cut);
+            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, GitHostLimits.MaxRawDiffBytes)));
+            var cut = read > GitHostLimits.MaxRawDiffBytes || text.Length > GitHostLimits.MaxDiffBytes;
+            return new PullChanges(files, total, text.Length > GitHostLimits.MaxDiffBytes ? text[..GitHostLimits.MaxDiffBytes] : text, cut);
         }
         finally
         {

@@ -73,7 +73,7 @@ public sealed class JanitorRunnerTests
             Fails ? throw new InvalidOperationException("temporal is down") : Task.FromResult<IReadOnlySet<string>>(ids.ToHashSet());
     }
 
-    private sealed class Forgejo : IJanitorGitHost
+    private sealed class FakeHost : IJanitorGitHost
     {
         public List<(string, string)> Repos { get; } = [("acme", "shop")];
         public Dictionary<string, List<BranchInfo>> Branches { get; } = new() { ["acme/shop"] = [] };
@@ -82,7 +82,7 @@ public sealed class JanitorRunnerTests
         public List<string> Deleted { get; } = [];
         public bool FailListing { get; set; }
         public Task<IReadOnlyList<(string Owner, string Repo)>> ListWritableRepositoriesAsync(CancellationToken ct) =>
-            FailListing ? throw new InvalidOperationException("forgejo is down") : Task.FromResult<IReadOnlyList<(string, string)>>(Repos);
+            FailListing ? throw new InvalidOperationException("the host is down") : Task.FromResult<IReadOnlyList<(string, string)>>(Repos);
         public Task<IReadOnlyList<BranchInfo>> ListBranchesAsync(string owner, string repo, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<BranchInfo>>(Branches.TryGetValue($"{owner}/{repo}", out var list) ? list : throw new InvalidOperationException("no such repo"));
         public Task<bool> IssueIsClosedAsync(string owner, string repo, int number, CancellationToken ct) => Task.FromResult(ClosedIssues.Contains(number));
@@ -90,8 +90,8 @@ public sealed class JanitorRunnerTests
         public Task DeleteBranchAsync(string owner, string repo, string branch, CancellationToken ct) { Deleted.Add($"{owner}/{repo}:{branch}"); return Task.CompletedTask; }
     }
 
-    private static JanitorRunner Make(Store store, Running running, Forgejo forgejo, bool deleteWip = false, string token = "t") =>
-        new(store, running, forgejo, new WorkerSettings { Hosts = TestHosts.Forgejo(token), JanitorCheckoutDays = 2, JanitorWipDays = 30, JanitorDeleteWip = deleteWip },
+    private static JanitorRunner Make(Store store, Running running, FakeHost host, bool deleteWip = false, string token = "t") =>
+        new(store, running, host, new WorkerSettings { Hosts = TestHosts.One(token), JanitorCheckoutDays = 2, JanitorWipDays = 30, JanitorDeleteWip = deleteWip },
             NullLogger<JanitorRunner>.Instance, () => Now);
 
     private static WorkspaceEntry Entry(string name, int daysAgo) => new(name, Now.AddDays(-daysAgo));
@@ -100,7 +100,7 @@ public sealed class JanitorRunnerTests
     public async Task Old_checkouts_of_finished_runs_are_removed_but_running_young_and_foreign_ones_are_not()
     {
         var store = new Store(Entry("feature-acme-shop-1-a", 5), Entry("feature-acme-shop-2-a", 5), Entry("bug-acme-shop-3-a", 1), Entry("somebody-elses-folder", 90));
-        var runner = Make(store, new Running("feature-acme-shop-2-a"), new Forgejo());
+        var runner = Make(store, new Running("feature-acme-shop-2-a"), new FakeHost());
 
         var report = await runner.RunOnceAsync(CancellationToken.None);
 
@@ -113,7 +113,7 @@ public sealed class JanitorRunnerTests
     {
         var store = new Store(Entry("feature-acme-shop-1-a", 50));
 
-        var report = await Make(store, new Running { Fails = true }, new Forgejo()).RunOnceAsync(CancellationToken.None);
+        var report = await Make(store, new Running { Fails = true }, new FakeHost()).RunOnceAsync(CancellationToken.None);
 
         Assert.Empty(store.Deleted);
         Assert.Contains("no checkout was removed", Assert.Single(report.Problems));
@@ -124,7 +124,7 @@ public sealed class JanitorRunnerTests
     {
         var store = new Store(Entry("feature-acme-shop-1-a", 5), Entry("feature-acme-shop-2-a", 5)) { FailOn = "feature-acme-shop-1-a" };
 
-        var report = await Make(store, new Running(), new Forgejo()).RunOnceAsync(CancellationToken.None);
+        var report = await Make(store, new Running(), new FakeHost()).RunOnceAsync(CancellationToken.None);
 
         Assert.Equal(["feature-acme-shop-2-a"], store.Deleted);
         Assert.Contains("feature-acme-shop-1-a", Assert.Single(report.Problems));
@@ -133,22 +133,22 @@ public sealed class JanitorRunnerTests
     [Fact]
     public async Task Old_wip_branches_are_only_listed_by_default_even_when_the_ticket_is_closed()
     {
-        var forgejo = new Forgejo();
-        forgejo.Branches["acme/shop"].AddRange([new("factory/issue-4-wip", Now.AddDays(-40)), new("factory/issue-5-wip", Now.AddDays(-3)), new("main", Now.AddDays(-400))]);
-        forgejo.ClosedIssues.Add(4);
+        var host = new FakeHost();
+        host.Branches["acme/shop"].AddRange([new("factory/issue-4-wip", Now.AddDays(-40)), new("factory/issue-5-wip", Now.AddDays(-3)), new("main", Now.AddDays(-400))]);
+        host.ClosedIssues.Add(4);
 
-        var report = await Make(new Store(), new Running(), forgejo).RunOnceAsync(CancellationToken.None);
+        var report = await Make(new Store(), new Running(), host).RunOnceAsync(CancellationToken.None);
 
         Assert.Equal(["acme/shop: factory/issue-4-wip"], report.OldBranches);
         Assert.Empty(report.DeletedBranches);
-        Assert.Empty(forgejo.Deleted);
+        Assert.Empty(host.Deleted);
     }
 
     [Fact]
     public async Task With_deletion_allowed_only_old_branches_of_closed_tickets_without_an_open_pull_request_are_deleted()
     {
-        var forgejo = new Forgejo();
-        forgejo.Branches["acme/shop"].AddRange(
+        var host = new FakeHost();
+        host.Branches["acme/shop"].AddRange(
         [
             new("factory/issue-4-wip", Now.AddDays(-40)),    // closed, old: deleted
             new("factory/issue-6-wip", Now.AddDays(-40)),    // ticket still open: kept (listed)
@@ -156,12 +156,12 @@ public sealed class JanitorRunnerTests
             new("factory/issue-8-wip", Now.AddDays(-5)),     // young: kept
             new("factory/issue-4", Now.AddDays(-400)),       // a pull request branch: never touched
         ]);
-        forgejo.ClosedIssues.UnionWith([4, 7, 8]);
-        forgejo.OpenPullBranches.Add("factory/issue-7-wip");
+        host.ClosedIssues.UnionWith([4, 7, 8]);
+        host.OpenPullBranches.Add("factory/issue-7-wip");
 
-        var report = await Make(new Store(), new Running(), forgejo, deleteWip: true).RunOnceAsync(CancellationToken.None);
+        var report = await Make(new Store(), new Running(), host, deleteWip: true).RunOnceAsync(CancellationToken.None);
 
-        Assert.Equal(["acme/shop:factory/issue-4-wip"], forgejo.Deleted);
+        Assert.Equal(["acme/shop:factory/issue-4-wip"], host.Deleted);
         Assert.Equal(["acme/shop: factory/issue-4-wip"], report.DeletedBranches);
         Assert.Equal(["acme/shop: factory/issue-4-wip", "acme/shop: factory/issue-6-wip"], report.OldBranches);
     }
@@ -169,32 +169,32 @@ public sealed class JanitorRunnerTests
     [Fact]
     public async Task A_problem_with_one_repository_does_not_stop_the_others()
     {
-        var forgejo = new Forgejo();
-        forgejo.Repos.Insert(0, ("acme", "broken"));
-        forgejo.Branches["acme/shop"].Add(new("factory/issue-4-wip", Now.AddDays(-40)));
+        var host = new FakeHost();
+        host.Repos.Insert(0, ("acme", "broken"));
+        host.Branches["acme/shop"].Add(new("factory/issue-4-wip", Now.AddDays(-40)));
 
-        var report = await Make(new Store(), new Running(), forgejo).RunOnceAsync(CancellationToken.None);
+        var report = await Make(new Store(), new Running(), host).RunOnceAsync(CancellationToken.None);
 
         Assert.Contains("acme/broken", Assert.Single(report.Problems));
         Assert.Equal(["acme/shop: factory/issue-4-wip"], report.OldBranches);
     }
 
     [Fact]
-    public async Task Without_a_forgejo_token_branches_are_not_looked_at_but_checkouts_still_are()
+    public async Task Without_a_host_token_branches_are_not_looked_at_but_checkouts_still_are()
     {
-        var forgejo = new Forgejo { FailListing = true };
+        var host = new FakeHost { FailListing = true };
         var store = new Store(Entry("feature-acme-shop-1-a", 5));
 
-        var report = await Make(store, new Running(), forgejo, token: "").RunOnceAsync(CancellationToken.None);
+        var report = await Make(store, new Running(), host, token: "").RunOnceAsync(CancellationToken.None);
 
         Assert.Equal(["feature-acme-shop-1-a"], store.Deleted);
         Assert.Empty(report.Problems);
     }
 
     [Fact]
-    public async Task A_forgejo_outage_is_a_problem_in_the_report_not_a_crash()
+    public async Task A_host_outage_is_a_problem_in_the_report_not_a_crash()
     {
-        var report = await Make(new Store(), new Running(), new Forgejo { FailListing = true }).RunOnceAsync(CancellationToken.None);
+        var report = await Make(new Store(), new Running(), new FakeHost { FailListing = true }).RunOnceAsync(CancellationToken.None);
 
         Assert.Contains("could not list the repositories", Assert.Single(report.Problems));
     }
@@ -208,7 +208,7 @@ public sealed class WorkspaceListingTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.One(), WorkspaceRoot = root });
 
     private void Touch(string path, int daysAgo)
     {

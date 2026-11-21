@@ -4,7 +4,7 @@ using Temporalio.Exceptions;
 namespace DevFoundry.Controller.Tests.Scenarios;
 
 /// <summary>
-/// The real FeatureWorkflow on a Temporal dev server, with scripted agents, checks, workspace and Forgejo.
+/// The real FeatureWorkflow on a Temporal dev server, with scripted agents, checks, workspace and git host.
 /// These cover every branch a live run cannot be made to take on demand.
 /// </summary>
 [Collection("temporal")]
@@ -98,7 +98,7 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
 
         var result = await world.RunAsync(fixture, context => context.RunToEndAsync(request));
 
-        Assert.Equal(new WorkResult("pr_opened", false, "http://forgejo/pulls/1"), result with { Usage = null });
+        Assert.Equal(new WorkResult("pr_opened", false, "http://git.test/pulls/1"), result with { Usage = null });
         // Every scripted agent step reported 175 tokens (100 in, 20 out, 5 reasoning, 50 cache read); the total of the run is kept in the result.
         Assert.Equal(5, result.Usage!.Steps);
         Assert.Equal(5 * 175, result.Usage.Total);
