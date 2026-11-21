@@ -12,7 +12,7 @@ A place to run the weather application **from the default branch of its reposito
 | Loki + Promtail | the containers' logs, searchable, with alert rules on log lines | (inside the stack) |
 | Alertmanager | groups alerts and sends them on | http://localhost:9093 |
 | Grafana | two dashboards: **Overview** (the home page) and **Weather service** (details) | http://localhost:3001 (user `admin`, password in `demo/.env`) |
-| alert-intake | turns an alert into a Forgejo ticket: [its README](../services/alert-intake/README.md) | (inside the stack) |
+| alert-intake | turns an alert into a ticket on a git host: [its README](../alert-intake/README.md) | (inside the stack) |
 
 ## Start it
 

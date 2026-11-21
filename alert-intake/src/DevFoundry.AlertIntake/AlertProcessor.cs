@@ -17,7 +17,7 @@ public sealed record AlertOutcome(string Alert, string Action, string? Detail = 
 /// Decides, with fixed rules and no AI, what an Alertmanager notification does: a firing alert of a known service opens one ticket (never a second one
 /// while that ticket is open), a resolved alert adds a comment to its ticket, and everything else is ignored or limited.
 /// </summary>
-public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, IForgejo forgejo, ILogSource logs, RateLimiter limiter, IntakeMetrics metrics, ILogger<AlertProcessor> log, Func<DateTimeOffset>? now = null)
+public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, ITicketHosts hosts, ILogSource logs, RateLimiter limiter, IntakeMetrics metrics, ILogger<AlertProcessor> log, Func<DateTimeOffset>? now = null)
 {
     private readonly Func<DateTimeOffset> clock = now ?? (() => DateTimeOffset.UtcNow);
 
@@ -34,7 +34,7 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
             catch (HttpRequestException error)
             {
                 // Alertmanager retries a failed notification, so say so instead of losing the alert.
-                log.LogWarning("Forgejo failed for alert {Alert}: {Error}", alert.Name, error.Message);
+                log.LogWarning("The git host failed for alert {Alert}: {Error}", alert.Name, error.Message);
                 outcome = new AlertOutcome(alert.Name, AlertOutcome.Failed, error.Message);
             }
             outcomes.Add(outcome);
@@ -65,17 +65,18 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
             return new AlertOutcome(name, AlertOutcome.DryRun, $"would open a ticket in {route.Owner}/{route.Repo}: {title}");
         }
 
-        if (await forgejo.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken) is { } existing)
+        var host = hosts.For(route.Host);
+        if (await host.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken) is { } existing)
         {
             return new AlertOutcome(name, AlertOutcome.Duplicate, "an open ticket already exists", existing);
         }
         // One outage often raises several alerts. An alert of the same route while that route's ticket is recent goes into it as a comment, so each outage is one ticket and one run.
         var group = TicketText.GroupMarker(route);
-        if (settings.GroupMinutes > 0 && await forgejo.FindRecentTicketAsync(route.Owner, route.Repo, group, clock().AddMinutes(-settings.GroupMinutes), cancellationToken) is { } grouped)
+        if (settings.GroupMinutes > 0 && await host.FindRecentTicketAsync(route.Owner, route.Repo, group, clock().AddMinutes(-settings.GroupMinutes), cancellationToken) is { } grouped)
         {
-            await forgejo.CommentAsync(route.Owner, route.Repo, grouped, TicketText.GroupedComment(alert, alert.LabelMap.GetValueOrDefault("severity")), cancellationToken);
+            await host.CommentAsync(route.Owner, route.Repo, grouped, TicketText.GroupedComment(alert, alert.LabelMap.GetValueOrDefault("severity")), cancellationToken);
             // Its own marker goes into the ticket, so a repeat of this alert is a duplicate and its resolution is told to this ticket.
-            await forgejo.AddMarkerAsync(route.Owner, route.Repo, grouped, TicketText.Marker(key), cancellationToken);
+            await host.AddMarkerAsync(route.Owner, route.Repo, grouped, TicketText.Marker(key), cancellationToken);
             log.LogInformation("Alert {Alert} added to ticket {Number} in {Owner}/{Repo}", name, grouped, route.Owner, route.Repo);
             return new AlertOutcome(name, AlertOutcome.Grouped, "added to the open ticket of the same route", grouped);
         }
@@ -87,7 +88,7 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
 
         var severity = alert.LabelMap.GetValueOrDefault("severity");
         var evidence = await GatherEvidenceAsync(route, cancellationToken);
-        var ticket = await forgejo.CreateTicketAsync(route.Owner, route.Repo, title, TicketText.Body(alert, severity, evidence, group), route.Labels, cancellationToken);
+        var ticket = await host.CreateTicketAsync(route.Owner, route.Repo, title, TicketText.Body(alert, severity, evidence, group), route.Labels, cancellationToken);
         log.LogInformation("Opened ticket {Number} in {Owner}/{Repo} for alert {Alert}", ticket.Number, route.Owner, route.Repo, name);
         return new AlertOutcome(name, AlertOutcome.Created, null, ticket.Number);
     }
@@ -122,11 +123,12 @@ public sealed class AlertProcessor(IntakeSettings settings, RouteTable routes, I
             log.LogInformation("Dry run: would comment that alert {Alert} resolved in {Owner}/{Repo}", alert.Name, route.Owner, route.Repo);
             return new AlertOutcome(alert.Name, AlertOutcome.DryRun, "would comment that the alert resolved");
         }
-        if (await forgejo.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken) is not { } number)
+        var host = hosts.For(route.Host);
+        if (await host.FindOpenTicketAsync(route.Owner, route.Repo, key, cancellationToken) is not { } number)
         {
             return new AlertOutcome(alert.Name, AlertOutcome.Ignored, "resolved, and no open ticket to tell");
         }
-        await forgejo.CommentAsync(route.Owner, route.Repo, number, TicketText.ResolvedComment(alert), cancellationToken);
+        await host.CommentAsync(route.Owner, route.Repo, number, TicketText.ResolvedComment(alert), cancellationToken);
         return new AlertOutcome(alert.Name, AlertOutcome.Commented, null, number);
     }
 }

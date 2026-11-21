@@ -45,7 +45,7 @@ set_value() {
 [ -n "$(env_value GRAFANA_ADMIN_PASSWORD .env)" ] || set_value GRAFANA_ADMIN_PASSWORD "$(random_secret 24)"
 [ -n "$(env_value ALERT_INTAKE_TOKEN .env)" ] || set_value ALERT_INTAKE_TOKEN "$(random_secret 40)"
 # The factory's git hosts are listed in FACTORY_HOSTS (infra/.env). The demo's scripts fetch the source from the first Forgejo with its token; the alert intake gets the
-# same list without the webhook secrets, and without the tokens too while it only does a dry run (it is given them only when tickets are really wanted).
+# hosts as its own list (ALERT_INTAKE_HOSTS: name, type, address, no webhook secrets), without the tokens too while it only does a dry run (it is given them only when tickets are really wanted).
 [ "$create_tickets" = true ] && set_value ALERT_INTAKE_DRY_RUN false
 [ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] || set_value ALERT_INTAKE_DRY_RUN true
 with_tokens=false
@@ -59,12 +59,12 @@ for line in open(sys.argv[1], encoding="utf-8"):
 hosts = json.loads(text)
 forgejo = next(h for h in hosts if h.get("type", "forgejo") == "forgejo" and h.get("token"))
 with_tokens = sys.argv[2] == "true"
-intake = [{k: v for k, v in h.items() if k in ("name", "type", "url")} | ({"token": h.get("token", "")} if with_tokens else {}) for h in hosts]
+intake = [{"name": h["name"], "type": h.get("type", "forgejo"), "url": h["url"]} | ({"token": h.get("token", "")} if with_tokens else {}) for h in hosts]
 print(forgejo["token"])
 print(json.dumps(intake, separators=(",", ":")))
 PY
 set_value FORGEJO_BOT_TOKEN "$(sed -n 1p .hosts.tmp)"
-set_value FACTORY_HOSTS "$(sed -n 2p .hosts.tmp)"
+set_value ALERT_INTAKE_HOSTS "$(sed -n 2p .hosts.tmp)"
 rm -f .hosts.tmp
 # Alertmanager reads the intake's token from a file, so it is never written into a config.
 umask 077

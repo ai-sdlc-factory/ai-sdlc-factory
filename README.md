@@ -48,7 +48,7 @@ Start at the [documentation index](docs/README.md).
 - [`infra/`](infra/README.md): Docker Compose and environment settings.
 - [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and Forgejo handling.
   [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach.
-- [`services/alert-intake/`](services/alert-intake/README.md): turns monitoring alerts into tickets. [`demo/`](demo/README.md): a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose.
+- [`alert-intake/`](alert-intake/README.md): a tool outside the factory that turns monitoring alerts into tickets. [`demo/`](demo/README.md): a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose.
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.
 - [`templates/`](templates/README.md): working starter projects (.NET, Python, React, .NET + React) to copy, with every feature switched on.
 - [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).

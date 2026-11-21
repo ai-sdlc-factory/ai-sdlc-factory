@@ -42,7 +42,7 @@ public sealed class MetricsTests
                 services.AddSingleton(settings);
                 services.AddSingleton(RouteTable.Parse(Setup.WeatherRoutes));
                 services.AddSingleton(new RateLimiter(6, TimeProvider.System));
-                services.AddSingleton<IForgejo>(forgejo);
+                services.AddSingleton(Setup.Hosts(forgejo));
             })).CreateClient();
         HttpRequestMessage Post(string body, string token) => new(HttpMethod.Post, "/alerts")
         {

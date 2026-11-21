@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/DevFoundry.AlertIntake/DevFoundry.AlertIntake.csproj" />
+  <Project Path="tests/DevFoundry.AlertIntake.Tests/DevFoundry.AlertIntake.Tests.csproj" />
+</Solution>

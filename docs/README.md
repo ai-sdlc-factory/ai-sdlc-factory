@@ -33,7 +33,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Workflows and workspace handling | [controller](../services/controller/README.md) |
 | Starting sandboxes | [sandbox-launcher](../services/sandbox-launcher/README.md) |
 | Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../egress/README.md) |
-| Alerts to tickets | [alert-intake](../services/alert-intake/README.md) |
+| Alerts to tickets | [alert-intake](../alert-intake/README.md) |
 | Demo production and monitoring | [demo](../demo/README.md) |
 | Deployed-pipeline test | [integration tests](../tests/integration/README.md) |
 

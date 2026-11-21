@@ -24,18 +24,21 @@ builder.Services.AddSingleton(services =>
 });
 builder.Services.AddSingleton(services =>
     new RateLimiter(services.GetRequiredService<IntakeSettings>().MaxTicketsPerHour, TimeProvider.System));
-// One client per git host (long-lived, a few at most), behind one that sends each call to the host the route names.
-builder.Services.AddSingleton<IForgejo>(services =>
-    new HostsClient(services.GetRequiredService<IntakeSettings>().Hosts.ToDictionary(
+// One client per git host (long-lived, a few at most), of the kind the host is; a route names the host its tickets go to.
+builder.Services.AddSingleton<ITicketHosts>(services =>
+    new TicketHosts(services.GetRequiredService<IntakeSettings>().Hosts.ToDictionary(
         host => host.Name,
         host =>
         {
-            var client = new HttpClient { BaseAddress = new Uri(host.Url.TrimEnd('/') + "/"), Timeout = TimeSpan.FromSeconds(20) };
-            if (host.Token.Length > 0)
+            var github = host.Type == HostList.GitHub;
+            var client = new HttpClient { BaseAddress = new Uri((github ? GitHubClient.ApiBase(host.Url) : host.Url) + "/"), Timeout = TimeSpan.FromSeconds(20) };
+            if (github)
             {
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", host.Token);
+                GitHubClient.Prepare(client, host.Token);
+                return (ITicketHost)new GitHubClient(client);
             }
-            return (IForgejo)new ForgejoClient(client);
+            ForgejoClient.Prepare(client, host.Token);
+            return new ForgejoClient(client);
         })));
 builder.Services.AddHttpClient<LokiClient>((services, client) =>
 {

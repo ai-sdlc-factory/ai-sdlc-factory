@@ -46,7 +46,7 @@ FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_
 | `webhook_secret` | the HMAC key of that host's webhook signature, 32+ characters, the same one you paste into each repository's webhook | required by the api |
 | `triggers` | how its tickets say which workflow to run: `{"labels":{"feature":["enhancement"]},"item_types":{"bug":["Bug"]},"command":true}`. `labels` and `item_types` add names per kind (`incident`, `plan`, `feature`, `bug`, `docs`; the plain labels always work; at most 20 names of at most 50 characters each); `command: true` turns on `/factory <kind>` in a comment on a ticket that has no kind. **Turning the command on lets anyone who can comment start a run**, where only someone who can label could before | the plain labels |
 
-The first host of the list is the one a route of the alert intake uses when it names none. At least one host is needed. A setting that cannot be used stops the api, the controller and the alert intake at start, with a message that names the host and the problem and never prints a secret. **Every service that reads the list receives the tokens and secrets in it**; the api needs only the secrets, and the alert intake only names, addresses and (when it opens tickets) tokens.
+At least one host is needed. A setting that cannot be used stops the api and the controller at start, with a message that names the host and the problem and never prints a secret. **Every service that reads the list receives the tokens and secrets in it**; the api needs only the secrets, and the controller only the rest.
 
 ### Needed for the factory to work, but optional for the stack to start
 
@@ -131,18 +131,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 
 ### alert-intake
 
-The service that turns monitoring alerts into tickets ([its README](../services/alert-intake/README.md)). It is not part of the factory's Compose stack: the [demo environment](../demo/README.md) runs it.
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `ALERT_INTAKE_TOKEN` | none (required, 16+ characters) | the bearer token Alertmanager sends with every notification |
-| `ALERT_INTAKE_DRY_RUN` | `true` | `true` writes nothing to a git host and only logs the ticket that would be opened |
-| `ALERT_INTAKE_MAPPING_FILE` | `/etc/alert-intake/mapping.json` | the operator's route table: which alert goes to which repository, with which labels and log queries |
-| `ALERT_INTAKE_MAX_TICKETS_PER_HOUR` | `6` | at most this many new tickets in any hour (1 to 100) |
-| `ALERT_INTAKE_GROUP_MINUTES` | `15` | an alert of a route that already has an **open ticket opened in the last this-many minutes** is added to that ticket as a comment instead of opening a second one, so one outage is one ticket and one incident run (0 switches it off, up to 1440). Alerts of different routes are never grouped |
-| `ALERT_INTAKE_MAX_BODY_BYTES` | `262144` | largest accepted notification (1,024 to 1,048,576) |
-| `ALERT_INTAKE_LOKI_URL` | empty | where Loki answers, for the log lines a route adds to its tickets; empty means no log evidence |
-| `FACTORY_HOSTS` | none (required) | the same setting as for the [factory](operations.md#several-git-hosts); the intake reads each host's name, address and token (a token is required on every host unless `ALERT_INTAKE_DRY_RUN` is `true`). A route in the mapping file may name a host with `"host"`, and its tickets open there; a route without `host` goes to the first host of the list |
+The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](../alert-intake/README.md#settings). The [demo environment](../demo/README.md) runs it.
 
 ### sandbox-launcher
 

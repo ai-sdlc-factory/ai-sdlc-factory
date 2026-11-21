@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace DevFoundry.AlertIntake;
 
 /// <summary>Where the tickets of the alerts that match <see cref="Match"/> go, and the labels they get.</summary>
-/// <remarks><see cref="Owner"/> is the owner as the factory names it: plain on the default host, <c>host:owner</c> on any other (see <see cref="RepoNames"/>), so the one client that serves every host sends the ticket to the right one.</remarks>
-public sealed record Route(IReadOnlyDictionary<string, string> Match, string Owner, string Repo, IReadOnlyList<string> Labels, IReadOnlyList<EvidenceQuery>? Evidence = null);
+/// <remarks><see cref="Host"/> is the name of the git host the ticket opens on (one of <c>ALERT_INTAKE_HOSTS</c>).</remarks>
+public sealed record Route(IReadOnlyDictionary<string, string> Match, string Host, string Owner, string Repo, IReadOnlyList<string> Labels, IReadOnlyList<EvidenceQuery>? Evidence = null);
 
 /// <summary>A log query the operator wants run when a ticket is opened, and what to call its result. It comes from the operator's file, never from an alert.</summary>
 public sealed record EvidenceQuery(string Title, string Query);
@@ -43,7 +43,7 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
         return Parse(text, knownHosts);
     }
 
-    /// <param name="knownHosts">The names of the hosts a route may name with <c>host</c>, in the order of <c>FACTORY_HOSTS</c>; the first is the host of a route that names none. Null means only a host called forgejo.</param>
+    /// <param name="knownHosts">The names of the hosts a route may name with <c>host</c>, in the order of <c>ALERT_INTAKE_HOSTS</c>; the first is the host of a route that names none. Null means a single host called forgejo.</param>
     public static RouteTable Parse(string json, IReadOnlyList<string>? knownHosts = null)
     {
         JsonDocument document;
@@ -69,7 +69,7 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
             var routes = new List<Route>();
             foreach (var item in list.EnumerateArray())
             {
-                routes.Add(ReadRoute(item, routes.Count + 1, knownHosts is { Count: > 0 } ? knownHosts : [RepoNames.DefaultHost]));
+                routes.Add(ReadRoute(item, routes.Count + 1, knownHosts is { Count: > 0 } ? knownHosts : [HostList.Forgejo]));
             }
             return new RouteTable(routes);
         }
@@ -146,6 +146,6 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
         }
 
         var parts = repository.Split('/');
-        return new Route(match, RepoNames.Qualify(host, parts[0]), parts[1], labels, evidence);
+        return new Route(match, host, parts[0], parts[1], labels, evidence);
     }
 }

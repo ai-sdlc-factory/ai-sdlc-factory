@@ -6,7 +6,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 - `services/api`: receives and verifies Forgejo webhooks, starts the router workflow
 - `services/controller`: the Temporal worker. `Agents/` (prompts and answer parsers per role), `Workflows/` (the flows; `Routing/` and `Requests/` hold the router and request types), `GitHost/` (the host port, its activities and comment texts), `Forgejo/` (its one implementation), `Workspace/` (git, change checks, the usage and resume files), `Project/` (`project.json` parsing, known keys, rules, limits), `Improvement/` (the weekly report), `Janitor/`, `Common/`
 - `services/sandbox-launcher`, `services/egress-proxy`: run agents in disposable containers; limit what they can reach
-- `services/alert-intake`: turns monitoring alerts into Forgejo tickets (fixed rules, no AI; a dry run is the default)
+- `alert-intake/`: a tool of its own, outside the factory (no shared code or settings): turns monitoring alerts into tickets on a git host (fixed rules, no AI; a dry run is the default)
 - `demo/`: a local "production" for the weather app with Prometheus, Alertmanager, Grafana and Loki, and the scripts to set it up, deliver code to it and break it on purpose
 - `libs/DevFoundry.Contracts`: types shared between services
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
@@ -17,6 +17,7 @@ This file is for people and AI agents changing dev-foundry itself (not for proje
 
 ## Commands (from the repository root)
 - Unit tests of a service: `docker build --target test -f services/<service>/Dockerfile -t t . && docker run --rm t`
+- Unit tests of the alert intake (it builds from its own folder): `docker build --target test -t t alert-intake && docker run --rm t`
 - Controller, fast tests only (no Temporal dev server, under a minute): `docker run --rm -e TEST_FILTER='Category!=Scenario' t`
 - Controller, only the workflow scenarios: `docker run --rm -e TEST_FILTER='Category=Scenario' t` (about 7 minutes), or `python3 tools/run-scenarios.py` (the scenario classes split over 4 containers at once, about 2 minutes; `-j N` for another number, `--no-build` to reuse the image `t`)
 - Launcher against the real Docker daemon (needs the base image built; builds and removes a throwaway image): `docker build --target test -f services/sandbox-launcher/Dockerfile -t t . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e DEV_FOUNDRY_LIVE_DOCKER=1 -e TEST_FILTER='Category=Live' t`

@@ -3,8 +3,6 @@
     <Project Path="libs/DevFoundry.Contracts/DevFoundry.Contracts.csproj" />
   </Folder>
   <Folder Name="/services/">
-    <Project Path="services/alert-intake/src/DevFoundry.AlertIntake/DevFoundry.AlertIntake.csproj" />
-    <Project Path="services/alert-intake/tests/DevFoundry.AlertIntake.Tests/DevFoundry.AlertIntake.Tests.csproj" />
     <Project Path="services/api/src/DevFoundry.Api/DevFoundry.Api.csproj" />
     <Project Path="services/api/tests/DevFoundry.Api.Tests/DevFoundry.Api.Tests.csproj" />
     <Project Path="services/controller/src/DevFoundry.Controller/DevFoundry.Controller.csproj" />

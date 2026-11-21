@@ -94,7 +94,7 @@ public sealed class EvidenceTests
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ALERT_INTAKE_TOKEN"] = "0123456789abcdef", ["ALERT_INTAKE_LOKI_URL"] = "nonsense", ["FACTORY_HOSTS"] = """[{"name":"forgejo","url":"http://forgejo:3000"}]""",
+            ["ALERT_INTAKE_TOKEN"] = "0123456789abcdef", ["ALERT_INTAKE_LOKI_URL"] = "nonsense", ["ALERT_INTAKE_HOSTS"] = """[{"name":"forgejo","url":"http://forgejo:3000"}]""",
         }).Build();
 
         Assert.Contains("LOKI_URL", Assert.Throws<InvalidOperationException>(() => IntakeSettings.FromConfiguration(configuration)).Message);

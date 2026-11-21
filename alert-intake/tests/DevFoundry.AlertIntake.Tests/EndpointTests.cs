@@ -19,7 +19,7 @@ public sealed class EndpointTests
                 services.AddSingleton(settings);
                 services.AddSingleton(RouteTable.Parse(Setup.WeatherRoutes));
                 services.AddSingleton(new RateLimiter(settings.MaxTicketsPerHour, TimeProvider.System));
-                services.AddSingleton<IForgejo>(forgejo);
+                services.AddSingleton(Setup.Hosts(forgejo));
                 services.AddSingleton(new IntakeMetrics(settings, RouteTable.Parse(Setup.WeatherRoutes)));
             })).CreateClient();
 

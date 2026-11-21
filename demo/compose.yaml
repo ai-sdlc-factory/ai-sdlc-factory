@@ -140,12 +140,11 @@ services:
       - prometheus
       - loki
 
-  # Turns an alert into a ticket: fixed rules, no AI. See ../services/alert-intake/README.md.
+  # Turns an alert into a ticket: fixed rules, no AI. See ../alert-intake/README.md.
   alert-intake:
     image: dev-foundry-demo/alert-intake:local
     build:
-      context: ..
-      dockerfile: services/alert-intake/Dockerfile
+      context: ../alert-intake
       target: runtime
     restart: unless-stopped
     environment:
@@ -155,8 +154,8 @@ services:
       ALERT_INTAKE_MAX_TICKETS_PER_HOUR: ${ALERT_INTAKE_MAX_TICKETS_PER_HOUR:-6}
       ALERT_INTAKE_GROUP_MINUTES: ${ALERT_INTAKE_GROUP_MINUTES:-15}
       ALERT_INTAKE_LOKI_URL: http://loki:3100
-      # The git hosts a route may name with "host": the factory's FACTORY_HOSTS (docs/configuration.md) without the webhook secrets, and without the tokens during a dry run. ./setup.sh writes it.
-      FACTORY_HOSTS: ${FACTORY_HOSTS:?Run ./setup.sh first}
+      # The git hosts a route may name with "host" (see ../alert-intake/README.md#settings): ./setup.sh writes it from the factory's FACTORY_HOSTS, without the tokens during a dry run.
+      ALERT_INTAKE_HOSTS: ${ALERT_INTAKE_HOSTS:?Run ./setup.sh first}
     volumes:
       - ./alert-intake/mapping.json:/etc/alert-intake/mapping.json:ro
     networks: [default, forge]

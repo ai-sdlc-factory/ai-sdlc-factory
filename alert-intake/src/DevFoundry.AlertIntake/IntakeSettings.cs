@@ -1,8 +1,5 @@
 namespace DevFoundry.AlertIntake;
 
-/// <summary>A git host the intake may open tickets on: its name, where it is, and the bot's token on it.</summary>
-public sealed record IntakeHost(string Name, string Url, string Token);
-
 /// <summary>
 /// What the alert intake reads from its environment. Messages name a setting but never echo its value.
 /// </summary>
@@ -10,7 +7,7 @@ public sealed class IntakeSettings
 {
     public required string Token { get; init; }
 
-    /// <summary>Every git host a route may name with <c>host</c> (<c>FACTORY_HOSTS</c>, the same setting the factory reads; the intake uses the name, address and token). A route that names none uses the first.</summary>
+    /// <summary>Every git host a route may name with <c>host</c> (<c>ALERT_INTAKE_HOSTS</c>). A route that names none uses the first.</summary>
     public IReadOnlyList<IntakeHost> Hosts { get; init; } = [];
     public string MappingFile { get; init; } = "/etc/alert-intake/mapping.json";
 
@@ -31,7 +28,7 @@ public sealed class IntakeSettings
         var settings = new IntakeSettings
         {
             Token = configuration["ALERT_INTAKE_TOKEN"] ?? "",
-            Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new IntakeHost(host.Name, host.Url, host.Token)).ToList(),
+            Hosts = HostList.Parse(configuration[HostList.Variable]),
             MappingFile = NonEmpty(configuration, "ALERT_INTAKE_MAPPING_FILE", "/etc/alert-intake/mapping.json"),
             DryRun = configuration.GetValue("ALERT_INTAKE_DRY_RUN", true),
             LokiUrl = configuration["ALERT_INTAKE_LOKI_URL"] ?? "",
@@ -51,11 +48,11 @@ public sealed class IntakeSettings
         }
         if (Hosts.Count == 0)
         {
-            throw new InvalidOperationException("FACTORY_HOSTS must list at least one git host.");
+            throw new InvalidOperationException("ALERT_INTAKE_HOSTS must list at least one git host.");
         }
         if (!DryRun && Hosts.Any(host => string.IsNullOrWhiteSpace(host.Token)))
         {
-            throw new InvalidOperationException("Every host in FACTORY_HOSTS needs a token when ALERT_INTAKE_DRY_RUN is false.");
+            throw new InvalidOperationException("Every host in ALERT_INTAKE_HOSTS needs a token when ALERT_INTAKE_DRY_RUN is false.");
         }
         if (LokiUrl.Length > 0 && (!Uri.TryCreate(LokiUrl, UriKind.Absolute, out var loki) || loki.Scheme is not ("http" or "https")))
         {

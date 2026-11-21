@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DevFoundry.AlertIntake.Tests;
 
-public sealed class FakeForgejo : IForgejo
+public sealed class FakeForgejo : ITicketHost
 {
     public sealed record Ticket(string Owner, string Repo, int Number, string Title, string Body, IReadOnlyList<string> Labels, bool Open = true, DateTimeOffset CreatedAt = default);
 
@@ -86,14 +86,17 @@ public static class Setup
 
     public static IntakeSettings Settings(bool dryRun = false, int perHour = 6, int maxBody = 262_144, int group = 0) => new()
     {
-        Token = Token, Hosts = [new IntakeHost("forgejo", "http://forgejo:3000", "forgejo-token")], DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
+        Token = Token, Hosts = [new IntakeHost("forgejo", "forgejo", "http://forgejo:3000", "forgejo-token")], DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
     };
+
+    /// <summary>The fake as the one host of the intake, called forgejo.</summary>
+    public static ITicketHosts Hosts(ITicketHost host) => new TicketHosts(new Dictionary<string, ITicketHost> { ["forgejo"] = host });
 
     public static AlertProcessor Processor(FakeForgejo forgejo, IntakeSettings? settings = null, string routes = WeatherRoutes, TimeProvider? clock = null, ILogSource? logs = null, IntakeMetrics? metrics = null)
     {
         settings ??= Settings();
         var table = RouteTable.Parse(routes);
-        return new AlertProcessor(settings, table, forgejo, logs ?? new NoLogs(), new RateLimiter(settings.MaxTicketsPerHour, clock ?? TimeProvider.System),
+        return new AlertProcessor(settings, table, Hosts(forgejo), logs ?? new NoLogs(), new RateLimiter(settings.MaxTicketsPerHour, clock ?? TimeProvider.System),
             metrics ?? new IntakeMetrics(settings, table), NullLogger<AlertProcessor>.Instance, () => (clock ?? TimeProvider.System).GetUtcNow());
     }
 
