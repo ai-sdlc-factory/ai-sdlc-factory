@@ -4,7 +4,7 @@
 The controller adds one line per finished run that used an agent to <FACTORY_WORKSPACE_ROOT>/.usage/usage.jsonl on the host. This reads it (only the standard
 library), counts each run once even if a line was written twice, and prints a table.
 
-  python3 tools/usage-report.py                      by repository, from the root named in infra/.env
+  python3 tools/usage-report.py                      by repository, from the root named in deploy/.env
   python3 tools/usage-report.py --by day --since 2026-11-01
   python3 tools/usage-report.py --by kind --repo acme/shop
   python3 tools/usage-report.py --by ticket --file /path/to/usage.jsonl
@@ -21,9 +21,9 @@ GROUPS = ("repo", "day", "month", "kind", "status", "ticket")
 
 
 def default_file() -> Path:
-    """The log under FACTORY_WORKSPACE_ROOT: from the environment, else from infra/.env."""
+    """The log under FACTORY_WORKSPACE_ROOT: from the environment, else from deploy/.env."""
     root = os.environ.get("FACTORY_WORKSPACE_ROOT")
-    env = ROOT / "infra/.env"
+    env = ROOT / "deploy/.env"
     if not root and env.exists():
         for line in env.read_text().splitlines():
             if line.startswith("FACTORY_WORKSPACE_ROOT="):

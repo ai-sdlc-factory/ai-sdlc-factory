@@ -5,7 +5,7 @@
     python3 tools/onboard-repo.py owner/repo --host codeberg   # on the host of that name
     python3 tools/onboard-repo.py owner/repo --dry-run         # say what would be done, change nothing
 
-It needs an existing repository (the bot's token cannot create one). It reads the host's token and webhook secret from FACTORY_HOSTS in infra/.env (or the environment) and
+It needs an existing repository (the bot's token cannot create one). It reads the host's token and webhook secret from FACTORY_HOSTS in deploy/.env (or the environment) and
 never prints either. It only knows Forgejo's API: on GitHub, create the labels and the webhook by hand (docs/operations.md, "Several git hosts"). It is safe to run again: a label or a webhook that is already right is left alone, a webhook with the factory's URL but other events is updated.
 """
 import argparse
@@ -36,9 +36,9 @@ HOOK_URL = "http://api:8000/webhooks/{host}"  # the API as the git host reaches 
 
 
 def read_hosts():
-    """The hosts of FACTORY_HOSTS, from the environment or infra/.env (the value is one line of JSON)."""
+    """The hosts of FACTORY_HOSTS, from the environment or deploy/.env (the value is one line of JSON)."""
     text = os.environ.get("FACTORY_HOSTS", "")
-    path = os.path.join(ROOT, "infra", ".env")
+    path = os.path.join(ROOT, "deploy", ".env")
     if not text and os.path.exists(path):
         with open(path, encoding="utf-8") as env_file:
             for line in env_file:
@@ -49,7 +49,7 @@ def read_hosts():
         if not isinstance(hosts, list) or not hosts:
             raise ValueError
     except ValueError:
-        sys.exit("FACTORY_HOSTS must be set in infra/.env (or the environment) as a JSON list of hosts: see infra/.env.example.")
+        sys.exit("FACTORY_HOSTS must be set in deploy/.env (or the environment) as a JSON list of hosts: see deploy/.env.example.")
     return hosts
 
 

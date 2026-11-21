@@ -6,7 +6,7 @@
 What it checks:
   * every relative link and image in every Markdown file resolves, and every #anchor exists in the target file
   * each docs/diagrams/*.dot has a rendered docs/images/*.svg, and the other way round
-  * every key of infra/.env.example, and every environment variable the services read, is in docs/configuration.md
+  * every key of deploy/.env.example, and every environment variable the services read, is in docs/configuration.md
   * every key of .factory/project.json that the controller reads is in docs/project-setup.md
   * every agent role file is in docs/configuration.md, and every result status the controller can return is in docs/workflows.md
   * every label the router or work mode looks at is in docs/workflows.md
@@ -104,11 +104,11 @@ def check_diagrams() -> None:
 
 def check_settings() -> None:
     configuration = read(ROOT / "docs/configuration.md")
-    keys = set(re.findall(r"^#?\s*([A-Z][A-Z0-9_]{2,})=", read(ROOT / "infra/.env.example"), re.M))
+    keys = set(re.findall(r"^#?\s*([A-Z][A-Z0-9_]{2,})=", read(ROOT / "deploy/.env.example"), re.M))
     checked["env keys"] = len(keys)
     for key in sorted(keys):
         if key not in configuration:
-            fail(f"infra/.env.example: {key} is not in docs/configuration.md")
+            fail(f"deploy/.env.example: {key} is not in docs/configuration.md")
 
     read_vars: set[str] = set()
     pattern = re.compile(r'(?:configuration\["|NonEmpty\(configuration, "|GetValue(?:<[a-z]+>)?\("|GetEnvironmentVariable\(")([A-Z][A-Z0-9_]{2,})"')
@@ -170,10 +170,10 @@ def check_embedded_copies() -> None:
 
 def check_templates() -> None:
     """Every starter project under templates/ is listed, names an image the factory offers, and its Dockerfile example starts from one of them."""
-    compose = read(ROOT / "infra/compose.yaml")
+    compose = read(ROOT / "deploy/compose.yaml")
     pairs = re.search(r"SANDBOX_IMAGES:\s*(\S+)", compose)
     if not pairs:
-        fail("infra/compose.yaml has no SANDBOX_IMAGES to check the templates against")
+        fail("deploy/compose.yaml has no SANDBOX_IMAGES to check the templates against")
         return
     images = dict(pair.split("=", 1) for pair in pairs.group(1).split(";") if "=" in pair)
     index = read(ROOT / "templates/README.md")

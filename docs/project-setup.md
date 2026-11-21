@@ -34,7 +34,7 @@ branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests.
 | Target URL | `http://api:8000/webhooks/<name>`, where `<name>` is the host's `name` in `FACTORY_HOSTS` (`forgejo` for the usual one; the Compose hostname, which Forgejo's allowed host list already contains) |
 | HTTP method | `POST` |
 | Content type | `application/json` |
-| Secret | the host's `webhook_secret` from `FACTORY_HOSTS` in `infra/.env` (the same for every repository on that host) |
+| Secret | the host's `webhook_secret` from `FACTORY_HOSTS` in `deploy/.env` (the same for every repository on that host) |
 | Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** (this also carries the slash commands on pull requests: `/fix`, `/update`, `/qa` and `/review`). Add **Pull Request Review Rejected** if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
 | Active | yes |
 
@@ -359,7 +359,7 @@ Dependency problems are better caught by a tool than a pattern: add an audit as 
 
 ### Limits
 
-`limits` sets how much effort a run may spend on this project. Every key is optional; a missing key means the factory's default, which the operator sets in `infra/.env` ([`FACTORY_DEFAULT_*`](configuration.md)). A value outside its range, a value that is not a whole number, or a misspelled key makes the file unusable, so a typo cannot silently do nothing.
+`limits` sets how much effort a run may spend on this project. Every key is optional; a missing key means the factory's default, which the operator sets in `deploy/.env` ([`FACTORY_DEFAULT_*`](configuration.md)). A value outside its range, a value that is not a whole number, or a misspelled key makes the file unusable, so a typo cannot silently do nothing.
 
 | Key | Range | Factory default | Meaning |
 | --- | --- | --- | --- |

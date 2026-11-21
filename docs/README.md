@@ -29,7 +29,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 
 | Component | Guide |
 | --- | --- |
-| Compose stack, local addresses, bot account | [Infrastructure](../infra/README.md) |
+| Compose stack, local addresses, bot account | [Deployment](../deploy/README.md) |
 | Webhook intake | [api](../src/api/README.md) |
 | Workflows and workspace handling | [controller](../src/controller/README.md) |
 | Starting sandboxes | [sandbox-launcher](../src/sandbox-launcher/README.md) |

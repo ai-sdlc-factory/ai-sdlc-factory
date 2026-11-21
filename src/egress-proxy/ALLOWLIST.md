@@ -1,6 +1,6 @@
 # Egress allowlist
 
-[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md#trust-boundaries) | [Egress proxy](README.md) | [Configuration](../../docs/configuration.md#infraenv)
+[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md#trust-boundaries) | [Egress proxy](README.md) | [Configuration](../../docs/configuration.md#deployenv)
 
 What the disposable agent containers may reach on the internet. A sandbox has **no route out** and no
 external DNS; the only thing it can talk to is an [egress proxy](README.md) that
@@ -10,7 +10,7 @@ would let repository content widen what an agent can reach.
 
 ## Modes and your own rules
 
-One setting in `infra/.env` decides how strict it is; after changing it run
+One setting in `deploy/.env` decides how strict it is; after changing it run
 `docker compose up -d --force-recreate egress-proxy sandbox-launcher`.
 
 | `SANDBOX_EGRESS` | What happens |
@@ -22,7 +22,7 @@ One setting in `infra/.env` decides how strict it is; after changing it run
 Anything else (a typo such as `off`) stops the proxy or the launcher from starting, instead of guessing.
 
 Your own rules: write a file in the format below and set `EGRESS_PROFILES` in `.env` to its path (relative
-to `infra/` or absolute) instead of editing `src/egress-proxy/profiles.json`. Add hosts, add ports, or define more
+to `deploy/` or absolute) instead of editing `src/egress-proxy/profiles.json`. Add hosts, add ports, or define more
 profiles. A file the proxy cannot parse stops it from starting with the reason, so no sandbox gets any
 network until it is fixed. Switching back from `open` leaves an unused `<project>_sandbox-open` network
 behind; remove it with `docker network rm dev-foundry_sandbox-open` if you like.

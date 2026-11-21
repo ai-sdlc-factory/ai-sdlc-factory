@@ -21,7 +21,7 @@ internet except an allowlisting proxy. See [Architecture](docs/architecture.md) 
 
 ## Quick start
 
-1. [Set up the factory](docs/getting-started.md): configure `infra/.env`, `docker compose up -d --build`, build the sandbox images, create the bot account, sign the agents in. About 30 minutes, once.
+1. [Set up the factory](docs/getting-started.md): configure `deploy/.env`, `docker compose up -d --build`, build the sandbox images, create the bot account, sign the agents in. About 30 minutes, once.
 2. [Connect a repository](docs/project-setup.md): bot access, a webhook, labels, and a small `.factory/project.json`. About 5 minutes per repository.
 3. Create a ticket, add the `feature` label, and watch the comments appear.
 
@@ -38,14 +38,14 @@ Start at the [documentation index](docs/README.md).
 | [Configuration](docs/configuration.md) | Every setting: `.env`, service variables, agents and models |
 | [Operations](docs/operations.md) | Watching runs, troubleshooting, cleaning up, backups, security notes |
 | [Design and decisions](docs/design.md) | Why it is built this way, and findings from running it |
-| [Infrastructure](infra/README.md) | Compose services, local addresses, the bot account |
+| [Deployment](deploy/README.md) | Compose services, local addresses, the bot account |
 | [Demo and monitoring](companions/demo/README.md) | A demo production for the weather app with Prometheus, Alertmanager, Grafana and Loki, where alerts open tickets |
 | [Agents](agents/README.md) | The role files, permissions and models |
 | [OpenCode login](docs/opencode-login.md) | Signing the agents in with a ChatGPT account |
 
 ## Repository
 
-- [`infra/`](infra/README.md): Docker Compose and environment settings.
+- [`deploy/`](deploy/README.md): Docker Compose and environment settings.
 - [`src/`](src/): the code, one folder per service with its own Dockerfile and README, and the library they share; their tests are in [`tests/`](tests/), one folder per service. [`src/api/`](src/api/README.md): webhook intake. [`src/controller/`](src/controller/README.md): workflows, agent prompts and parsers, workspace and git host handling.
   [`src/sandbox-launcher/`](src/sandbox-launcher/README.md): the only service with Docker access. [`src/egress-proxy/`](src/egress-proxy/README.md): the proxy that decides what sandboxes may reach, with its [allowlist](src/egress-proxy/ALLOWLIST.md) (`profiles.json`).
 - [`companions/`](companions/): things that run beside the factory, each with its own README, Compose file or Dockerfile and no shared code: [`forgejo/`](companions/forgejo/README.md) (a Forgejo to try the factory on), [`alert-intake/`](companions/alert-intake/README.md) (turns monitoring alerts into tickets) and [`demo/`](companions/demo/README.md) (a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose).

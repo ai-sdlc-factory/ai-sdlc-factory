@@ -22,7 +22,7 @@ boundaries are. How each kind of ticket is handled is in [Workflows](workflows.m
 | **Agents folder** ([guide](../agents/README.md)) | One Markdown file per role: permissions, model, prompt. | Roles are reviewed like code and change without a rebuild. |
 | **PostgreSQL** | The Temporal databases. | Standard. pgAdmin is a development convenience. |
 
-Docker Compose runs all of it on one machine ([Infrastructure](../infra/README.md)). The services are .NET 10 and live under
+Docker Compose runs all of it on one machine ([Deployment](../deploy/README.md)). The services are .NET 10 and live under
 [`src/`](../src/) (one folder each, with its Dockerfile and README; their tests are in [`tests/`](../tests/)); the wire types they share are in [`src/contracts`](../src/contracts/Contracts.cs).
 
 ## How a ticket flows
@@ -98,10 +98,14 @@ The [egress guide](../src/egress-proxy/ALLOWLIST.md) describes the network rules
 | [`src/controller`](../src/controller) | workflows, agent prompts and parsers, workspace and git host handling |
 | [`src/sandbox-launcher`](../src/sandbox-launcher) | container policy and the Docker client |
 | [`src/egress-proxy`](../src/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
+| [`src/contracts`](../src/contracts) | the library the services share: wire types, the git host list, triggers and the webhook adapters of each kind of host |
+| [`tests/`](../tests) | the tests of each service, one folder each (the workflow scenarios run on a Temporal dev server) |
 | [`companions/alert-intake`](../companions/alert-intake) | a tool outside the factory: turns monitoring alerts into tickets (the demo runs it) |
 | [`companions/demo`](../companions/demo) | a demo production with Prometheus, Alertmanager, Grafana and Loki, and the scripts around it |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
-| [`infra/`](../infra) | Docker Compose and environment settings |
+| [`deploy/`](../deploy) | Docker Compose and environment settings |
+| [`templates/`](../templates) | working starter projects and loose examples to copy into a repository |
+| [`tools/`](../tools) | the documentation check, the scenario runner, the usage report and the repository onboarding script |
 
 The controller's code layout is in its [guide](../src/controller/README.md#code-layout).

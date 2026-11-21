@@ -1,6 +1,6 @@
 # Sandbox Launcher
 
-[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md) | [Egress proxy](../egress-proxy/README.md)
+[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Deployment](../../deploy/README.md) | [Egress proxy](../egress-proxy/README.md)
 
 Starts disposable containers for the factory's agents. A workflow asks for "run this command in
 the `dotnet` image against workspace X"; the launcher starts one container, waits for it, returns
@@ -59,7 +59,7 @@ restrictions: in `open` mode every profile maps to one ordinary internet-connect
 [egress guide](../egress-proxy/ALLOWLIST.md#modes-and-your-own-rules).
 
 `SANDBOX_NETWORKS` and `SANDBOX_PROXIES` map each profile to its network and proxy address; both are set
-in `infra/compose.yaml`. The factory picks the profile by role: read-only agents get `model`, the
+in `deploy/compose.yaml`. The factory picks the profile by role: read-only agents get `model`, the
 developer `developer`, the project's checks `packages`.
 
 ## Model access and the OpenCode login
@@ -92,7 +92,7 @@ points OpenCode at it, because OpenCode writes into its config directory.
 Images are built outside the launcher:
 
 ```bash
-cd infra
+cd deploy
 docker compose --profile images build sandbox-image-dotnet
 # combined images for projects that need more than one toolchain
 docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full
@@ -104,7 +104,7 @@ pinned OpenCode binary) [`sandboxes/python/`](../../sandboxes/python/Dockerfile)
 (plus pytest and ruff), and [`sandboxes/node/`](../../sandboxes/node/Dockerfile) the Node.js 22 LTS one (npm,
 and corepack for pnpm/yarn; projects install their own dependencies through the egress proxy, and
 `node --test` needs nothing extra). The combined images [`dotnet-node/`](../../sandboxes/dotnet-node/Dockerfile) (.NET SDK + Node.js), [`python-node/`](../../sandboxes/python-node/Dockerfile) (Python + Node.js) and [`full/`](../../sandboxes/full/Dockerfile) (.NET + Python + Node.js) add Node.js by copying it from the official `node:22-bookworm-slim` image. All of them use the shared entrypoint in `sandboxes/common/`, which creates `HOME` and the XDG directories in the container's tmpfs (the .NET CLI fails if they are missing), prepares OpenCode's settings and login, and then runs the command.
-Add another language by adding `sandboxes/<name>/Dockerfile`, a build entry for it (profile `images`) in `infra/compose.yaml`, and one `alias=image` pair to `SANDBOX_IMAGES`; projects then pick it with `"image": "<alias>"`.
+Add another language by adding `sandboxes/<name>/Dockerfile`, a build entry for it (profile `images`) in `deploy/compose.yaml`, and one `alias=image` pair to `SANDBOX_IMAGES`; projects then pick it with `"image": "<alias>"`.
 The image must contain git, the OpenCode binary, the language's tooling and `/usr/local/bin/factory-entry`; look at the existing Dockerfiles.
 
 ## Images from a repository

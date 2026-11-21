@@ -1,6 +1,6 @@
 # Factory Controller API
 
-[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md) | [Controller](../controller/README.md)
+[Documentation index](../../docs/README.md) | [Architecture](../../docs/architecture.md) | [Deployment](../../deploy/README.md) | [Controller](../controller/README.md)
 
 An ASP.NET Core (.NET 10) minimal API verifies signed webhooks (each kind of git host through its own webhook adapter, Forgejo's and GitHub's; one route per host) and starts
 Temporal workflows. This service has its own project and Docker image. It sends a JSON envelope to the
@@ -8,11 +8,11 @@ Temporal workflows. This service has its own project and Docker image. It sends 
 
 ## Run
 
-Complete the [infrastructure setup](../../infra/README.md#start). Set
-`FACTORY_HOSTS` in `infra/.env` so that every host has a `webhook_secret` of at least 32 characters
+Complete the [infrastructure setup](../../deploy/README.md#start). Set
+`FACTORY_HOSTS` in `deploy/.env` so that every host has a `webhook_secret` of at least 32 characters
 (`openssl rand -hex 32`), matching the secret configured in that host's webhook.
 
-From `infra/`:
+From `deploy/`:
 
 ```bash
 docker compose up -d --build api
@@ -29,7 +29,7 @@ them, even if the worker is temporarily stopped.
 | http://localhost:8000/health/ready | Temporal namespace is reachable |
 | `POST /webhooks/<name>` | Signed event intake of the git host called `<name>` in `FACTORY_HOSTS` (`/webhooks/forgejo`, `/webhooks/github`, ...). A name that is not configured answers `404` |
 
-Settings come from `infra/.env`: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
+Settings come from `deploy/.env`: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
 (default `default`), `TEMPORAL_TASK_QUEUE` (default `factory-events`),
 `CONTROLLER_API_PORT` (default `8000`), and `FACTORY_HOSTS` (the hosts and their webhook secrets).
 
@@ -54,7 +54,7 @@ the API returns `503`; redeliver the event from the git host after recovery. The
 connects to Temporal on first use, so it starts even while Temporal is down;
 `/health/ready` reports `503` until Temporal answers.
 
-Inspect logs with `docker compose logs -f api` from `infra/`.
+Inspect logs with `docker compose logs -f api` from `deploy/`.
 
 ## Tests
 
@@ -68,7 +68,7 @@ docker run --rm dev-foundry/api-test
 These xUnit tests run without Temporal or the worker. One of them, `DeployedPipelineTests`, tests the **deployed** stack instead and skips itself unless `API_TEST_URL` is set: for each git host of `FACTORY_HOSTS` it sends a synthetic signed issue event with a unique delivery id, waits for the real controller to complete it in Temporal, checks duplicate handling after completion, and verifies that a tampered request is rejected. It creates one workflow per host in the configured namespace and needs no repository on any host. Run it against the running stack:
 
 ```bash
-cd infra
+cd deploy
 docker compose up -d --build api controller
 docker compose --profile test run --build --rm --no-deps integration-tests
 ```

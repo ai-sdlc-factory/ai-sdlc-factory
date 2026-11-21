@@ -10,7 +10,7 @@ Everything the factory needs from a git host, in one place, for each of the two 
 | --- | --- | --- | --- |
 | 1 | A **bot account** (a normal user, not an administrator of the site) | yes | |
 | 2 | A **token** of that account | yes | |
-| 3 | An entry in **`FACTORY_HOSTS`** (`infra/.env`) with the host's address, the token, the bot's login and a webhook secret | yes | |
+| 3 | An entry in **`FACTORY_HOSTS`** (`deploy/.env`) with the host's address, the token, the bot's login and a webhook secret | yes | |
 | 4 | **Access for the bot** to the repository: write (and, only for [permission levels](#who-may-start-and-steer-runs), administrator on Forgejo) | | yes |
 | 5 | A **webhook** that sends the host's events to the factory's api | | yes (or one per organization) |
 | 6 | The **labels** the factory reads | | yes |
@@ -33,7 +33,7 @@ The bot comments on tickets, pushes branches named `factory/issue-<n>` and `fact
 
 ## 2. The token
 
-The token is the bot's credential for both the API and git (clone, push). It stays in `infra/.env`, only the controller uses it to act, it never enters a sandbox, and it is kept out of logs, run records and pushed files.
+The token is the bot's credential for both the API and git (clone, push). It stays in `deploy/.env`, only the controller uses it to act, it never enters a sandbox, and it is kept out of logs, run records and pushed files.
 
 ### Forgejo
 
@@ -68,7 +68,7 @@ A classic token with the `repo` scope also works, but it reaches every repositor
 
 ## 3. The entry in `FACTORY_HOSTS`
 
-One JSON line in `infra/.env` lists every host ([all the fields](configuration.md#factory_hosts)):
+One JSON line in `deploy/.env` lists every host ([all the fields](configuration.md#factory_hosts)):
 
 ```bash
 FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"<forgejo token>","bot_login":"factory-bot","webhook_secret":"<32+ characters>"},{"name":"github","type":"github","url":"https://github.com","token":"<github token>","bot_login":"factory-bot","webhook_secret":"<32+ characters>"}]
@@ -78,7 +78,7 @@ FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"<forgejo t
 - `url` is where the **controller** reaches the host. The bundled Forgejo is `http://forgejo:3000` over a Docker network; another Forgejo is its address; GitHub is `https://github.com` (or the address of a GitHub Enterprise Server).
 - `webhook_secret` is made up by you (`openssl rand -hex 32`); the same value goes into each repository's webhook on that host.
 
-After a change, restart the api and the controller: `cd infra && docker compose up -d --force-recreate api controller`. The controller logs each host at start (`Git host github (github): anyone who can comment may use commands`).
+After a change, restart the api and the controller: `cd deploy && docker compose up -d --force-recreate api controller`. The controller logs each host at start (`Git host github (github): anyone who can comment may use commands`).
 
 ## 4. Access of the bot to a repository
 
@@ -148,7 +148,7 @@ There are two layers, and the factory-side one is optional.
 - `project`: `true` lets the repository's own `.factory/project.json` tighten the rule further (`"commands": "admin"`, or `{"who": "write", "deny": ["mallory"]}`); it can never let anyone in, and people you named in `allow` are not affected. It costs one read of that file per burst of commands, and only where you set it. If the file cannot be read, commands are refused for the moment.
 - The rule covers the slash commands, `/factory <kind>`, answers to an agent, and a review that asks for changes. It does **not** cover a label: the host limits who can label.
 - For `write` and `admin` the controller asks the host (the collaborator permission) and keeps the answer for [`FACTORY_PERMISSION_CACHE_SECONDS`](configuration.md#needed-for-the-factory-to-work-but-optional-for-the-stack-to-start) (default 5 minutes). If the host cannot say, the answer is no.
-- **Turn it off** by removing `commands` and `repositories` from the host's entry (or setting `"commands":"anyone"`) and recreating the controller: `cd infra && docker compose up -d --force-recreate controller`. A `repositories` entry with `"commands":"anyone"` opens a single repository under a stricter host rule.
+- **Turn it off** by removing `commands` and `repositories` from the host's entry (or setting `"commands":"anyone"`) and recreating the controller: `cd deploy && docker compose up -d --force-recreate controller`. A `repositories` entry with `"commands":"anyone"` opens a single repository under a stricter host rule.
 
 ## Checking that it works
 

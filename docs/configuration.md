@@ -6,15 +6,15 @@ Where each setting lives, whether it is required, and what it defaults to. Three
 
 | Where | What it configures | Who edits it |
 | --- | --- | --- |
-| [`infra/.env`](#infraenv) | the stack: passwords, ports, paths, network mode | the operator (you) |
+| [`deploy/.env`](#deployenv) | the stack: passwords, ports, paths, network mode | the operator (you) |
 | [`agents/`](#agents-and-models) | which models and permissions each agent role has, and the prompts | the operator, reviewed like code |
 | [`.factory/project.json`](project-setup.md#reference) in each repository | the image and checks for that project | the repository's owners |
 
 The repository file can only choose among what the operator already offers; it cannot widen permissions, models, images or network access.
 
-## `infra/.env`
+## `deploy/.env`
 
-Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ignored by Git. After changing it, run `docker compose up -d` from `infra/`
+Copy `deploy/.env.example` to `deploy/.env` (`cp -n`, `chmod 600`). The file is ignored by Git. After changing it, run `docker compose up -d` from `deploy/`
 (Compose recreates the services whose settings changed).
 
 ### Required
@@ -30,7 +30,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 
 ### FACTORY_HOSTS
 
-The git hosts the factory serves, as one line of JSON in `infra/.env`. How to get each value on Forgejo and GitHub (the bot account, the token and its permissions, the webhook and its events) is in [Connecting a git host](git-hosts.md). The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
+The git hosts the factory serves, as one line of JSON in `deploy/.env`. How to get each value on Forgejo and GitHub (the bot account, the token and its permissions, the webhook and its events) is in [Connecting a git host](git-hosts.md). The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
 
 ```bash
 FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_login":"factory-bot","webhook_secret":"..."},{"name":"github","type":"github","url":"https://github.com","token":"...","bot_login":"my-bot","webhook_secret":"..."}]
@@ -91,7 +91,7 @@ At least one host is needed. A setting that cannot be used stops the api and the
 | `FACTORY_JANITOR_DELETE_WIP` | `true` lets the janitor **delete** those branches, but only when their ticket is closed and no open pull request uses them. Off: they are only listed | `false` |
 | `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. Point it at the repository's own folder: a **copy** must be refreshed after every update, because a role added since the copy was made is missing and its agent then runs without its instructions (the run stops with "the role file ... is missing"). The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
 
-**Example: tune the defaults for every project at once** (in `infra/.env`, then `docker compose up -d --force-recreate controller`). A project's own `limits` in `.factory/project.json` still win, within the same ranges:
+**Example: tune the defaults for every project at once** (in `deploy/.env`, then `docker compose up -d --force-recreate controller`). A project's own `limits` in `.factory/project.json` still win, within the same ranges:
 
 ```bash
 FACTORY_DEFAULT_BUILD_ROUNDS=2            # spend fewer tokens: two tries, then stop
@@ -104,7 +104,7 @@ FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST=5
 | Key | What | Default |
 | --- | --- | --- |
 | `SANDBOX_EGRESS` | how strictly the sandboxes' internet access is limited: `enforce` (only each profile's allowlisted hosts through the proxy), `audit` (every HTTPS host allowed and logged), `open` (no restrictions at all). Anything else stops the launcher and proxy from starting. After a change: `docker compose up -d --force-recreate egress-proxy sandbox-launcher` | `enforce` |
-| `EGRESS_PROFILES` | your own allowlist file instead of `src/egress-proxy/profiles.json` (path relative to `infra/`, or absolute) | `../src/egress-proxy/profiles.json` |
+| `EGRESS_PROFILES` | your own allowlist file instead of `src/egress-proxy/profiles.json` (path relative to `deploy/`, or absolute) | `../src/egress-proxy/profiles.json` |
 | `SANDBOX_NET_BASE` | the first two numbers of the internal sandbox networks (`10.250.1.0/24`, `.2.0/24`, `.3.0/24`). Change only if they clash with a network you use | `10.250` |
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | shared Temporal connection settings; the api and controller must agree on the namespace and queue | `temporal:7233`, `default`, `factory-events` |
 | `TEMPORAL_RETENTION` | how long Temporal keeps a finished workflow's history, which is also the window for duplicate-delivery detection and for reading a run's full record. Applied only when the namespace is **first created** | `7d` |
@@ -125,8 +125,8 @@ authentication, which is why everything binds to localhost.
 
 ## Service settings
 
-These are read by the services themselves. Most are set for you in `infra/compose.yaml`; the rest keep their defaults and can be changed by adding the variable
-to that service's `environment` block in `infra/compose.yaml` (they are not in `.env`).
+These are read by the services themselves. Most are set for you in `deploy/compose.yaml`; the rest keep their defaults and can be changed by adding the variable
+to that service's `environment` block in `deploy/compose.yaml` (they are not in `.env`).
 
 ### api
 

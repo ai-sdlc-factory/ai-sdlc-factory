@@ -1,6 +1,6 @@
 # Forgejo, a git host to try the factory on
 
-A Forgejo that runs as a project of its own. The factory ([`../../infra`](../../infra/README.md)) does not need it and knows nothing about it: it serves the hosts its `FACTORY_HOSTS` lists, and this one is listed there like any other (`"url":"http://forgejo:3000"`). Use another host (GitHub, a Forgejo you already have) and you can leave this folder alone.
+A Forgejo that runs as a project of its own. The factory ([`../../deploy`](../../deploy/README.md)) does not need it and knows nothing about it: it serves the hosts its `FACTORY_HOSTS` lists, and this one is listed there like any other (`"url":"http://forgejo:3000"`). Use another host (GitHub, a Forgejo you already have) and you can leave this folder alone.
 
 ## Start
 
@@ -33,7 +33,7 @@ docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
   --username factory-bot --token-name controller --scopes "write:issue,write:repository" --raw
 ```
 
-Put the token into the `"token"` of this host in `FACTORY_HOSTS` in `infra/.env` (with `"url":"http://forgejo:3000"` and a `webhook_secret`; see [Configuration](../../docs/configuration.md#factory_hosts)) and recreate the controller. Then [connect each repository](../../docs/project-setup.md).
+Put the token into the `"token"` of this host in `FACTORY_HOSTS` in `deploy/.env` (with `"url":"http://forgejo:3000"` and a `webhook_secret`; see [Configuration](../../docs/configuration.md#factory_hosts)) and recreate the controller. Then [connect each repository](../../docs/project-setup.md).
 
 ## A Forgejo that started in the factory's stack
 

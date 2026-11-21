@@ -6,5 +6,5 @@
 *.user
 .vs
 TestResults
-infra
+deploy
 **/node_modules

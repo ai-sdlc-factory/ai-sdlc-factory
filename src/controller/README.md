@@ -1,6 +1,6 @@
 # Controller
 
-[Documentation index](../../docs/README.md) | [Workflows](../../docs/workflows.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md)
+[Documentation index](../../docs/README.md) | [Workflows](../../docs/workflows.md) | [Architecture](../../docs/architecture.md) | [Deployment](../../deploy/README.md)
 
 The trusted core of the factory: a standalone Temporal worker (.NET 10) that runs all the workflows, decides every next step in code, holds the only git host tokens, and runs git on
 the pristine clone of each ticket. It exposes no HTTP port and does not reference the API project.
@@ -31,7 +31,7 @@ Activities (all in this service, except `sandbox_run`) are in `Workspace/Workspa
 
 ## Run
 
-Complete the [getting-started guide](../../docs/getting-started.md), then from `infra/`:
+Complete the [getting-started guide](../../docs/getting-started.md), then from `deploy/`:
 
 ```bash
 docker compose up -d --build controller

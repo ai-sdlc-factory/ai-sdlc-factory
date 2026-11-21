@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Getting started](getting-started.md) | [Configuration](configuration.md)
 
-Running the factory day to day: seeing what a run did, fixing common problems, cleaning up, and the practical security checks. Commands run from `infra/` unless noted.
+Running the factory day to day: seeing what a run did, fixing common problems, cleaning up, and the practical security checks. Commands run from `deploy/` unless noted.
 
 ## Seeing what a run did
 
@@ -25,7 +25,7 @@ shows what the router decided.
 | Symptom | Cause and what to do |
 | --- | --- |
 | A ticket gets no comment | The webhook is missing, lacks the Issues / Issue Label / Issue Comment events, or has the wrong secret. In Forgejo use **Test Delivery** (`202` is good), then `docker compose logs api`. The ticket must also carry a factory label. |
-| "The Forgejo host has no token in FACTORY_HOSTS" (or the same for GitHub) | Set the host's `"token"` in `FACTORY_HOSTS` in `infra/.env` and `docker compose up -d --force-recreate controller`. |
+| "The Forgejo host has no token in FACTORY_HOSTS" (or the same for GitHub) | Set the host's `"token"` in `FACTORY_HOSTS` in `deploy/.env` and `docker compose up -d --force-recreate controller`. |
 | "OpenCode is not signed in" | Run the [login](opencode-login.md); nothing needs restarting. The volume is lost by `docker compose down -v` or a Docker reset. |
 | A role fails with "exited with code ..." and no explanation | Usually a model your account cannot use. Check the `model:` line of that role and `opencode models openai` ([agents guide](../agents/README.md#choosing-the-model-per-role)). |
 | "`.factory/project.json` cannot be used" | The comment names the problem. Fix the file on the default branch and close and reopen the ticket. |
@@ -98,7 +98,7 @@ docker compose up -d
 - **Sandbox images:** `docker compose --profile images build sandbox-image-<name>` after a change to `sandboxes/`. The OpenCode version in the images is pinned and checked against a digest.
 - **Agents:** edit `agents/agents/<role>.md` and commit; the next agent run uses it. Running sandboxes keep the copy they started with.
 - **Egress rules:** edit `src/egress-proxy/profiles.json` (or your own file) and `docker compose restart egress-proxy`.
-- Image versions of Forgejo, Temporal, PostgreSQL and the others are pinned in `infra/compose.yaml`; change them there.
+- Image versions of Forgejo, Temporal, PostgreSQL and the others are pinned in `deploy/compose.yaml`; change them there.
 
 ## Tests
 
@@ -112,7 +112,7 @@ docker compose up -d
 
 ## Security notes
 
-- **Tokens.** The bot token needs only `write:issue` and `write:repository`. It lives in `infra/.env` and in the controller; it never enters a sandbox, a repository or Temporal history. To rotate it, create a new token,
+- **Tokens.** The bot token needs only `write:issue` and `write:repository`. It lives in `deploy/.env` and in the controller; it never enters a sandbox, a repository or Temporal history. To rotate it, create a new token,
   update the host's `token` in `FACTORY_HOSTS`, recreate the controller, and revoke the old one. To rotate the webhook secret, change the host's `webhook_secret` in `FACTORY_HOSTS` and update **every** repository's webhook on that host.
 - **Local only.** All ports bind to `127.0.0.1`. Temporal and pgAdmin have no authentication of their own; do not publish them.
 - **Egress mode.** Keep `SANDBOX_EGRESS=enforce`. `audit` is for finding out what a tool needs and logs everything over HTTPS; `open` removes the restriction entirely and the launcher prints a warning at start.
@@ -140,7 +140,7 @@ Every finished run that used an agent adds **one line** to `usage.jsonl` in the 
 Totals, from the repository root:
 
 ```sh
-python3 tools/usage-report.py                                  # by repository (reads the root named in infra/.env)
+python3 tools/usage-report.py                                  # by repository (reads the root named in deploy/.env)
 python3 tools/usage-report.py --by day --since 2026-11-01     # by day; also month, kind, status, ticket
 python3 tools/usage-report.py --by kind --repo acme/shop      # filter by --repo, --kind, --since, --until
 ```
@@ -175,7 +175,7 @@ The agent's own run costs tokens like any other (kind `improvement` in the usage
 
 **Refused hosts.** The egress proxy also writes each refusal (one JSON line, at most 10 MB, then it stops writing and says so once) to a volume the controller reads, `egress-log`, at `/var/log/egress/denied.jsonl`. Without that file the report says it knows nothing about refused hosts, rather than claiming there were none. A refusal can be a host that is not on the profile's list, a name that does not resolve or a connection that failed; the report shows the reason.
 
-**Running it by hand** (a week that failed, or to look at one now). A run that ended with `improvement_failed` is not started again by itself, so a broken week cannot loop every hour. From the `infra` folder:
+**Running it by hand** (a week that failed, or to look at one now). A run that ended with `improvement_failed` is not started again by itself, so a broken week cannot loop every hour. From the `deploy` folder:
 
 ```sh
 docker compose run --rm --no-deps --entrypoint temporal temporal-namespace workflow start --task-queue factory-events --type ImprovementWorkflow \
@@ -214,7 +214,7 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 ## Keeping the documentation correct
 
 `python3 tools/check-docs.py` (CI runs it) checks that every relative link and anchor in the Markdown files resolves, that every image exists, that the diagram sources and their rendered SVGs are both present, that every setting in
-`infra/.env.example` and every environment variable the services read is documented in [Configuration](configuration.md), and that every agent role file is listed in the docs. The diagrams are Graphviz sources in
+`deploy/.env.example` and every environment variable the services read is documented in [Configuration](configuration.md), and that every agent role file is listed in the docs. The diagrams are Graphviz sources in
 [`docs/diagrams/`](diagrams/); after editing one, run `sh docs/diagrams/render.sh` (needs only Docker) and commit the SVG.
 
 ## Known limitations

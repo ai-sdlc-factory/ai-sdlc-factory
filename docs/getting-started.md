@@ -18,12 +18,12 @@ serve needs a [short setup](project-setup.md).
 
 ```bash
 git clone <this repository> dev-foundry
-cd dev-foundry/infra
+cd dev-foundry/deploy
 cp -n .env.example .env      # keeps an existing .env
 chmod 600 .env
 ```
 
-Open `infra/.env` and set the values below. Everything else has a working default; the full list is in [Configuration](configuration.md).
+Open `deploy/.env` and set the values below. Everything else has a working default; the full list is in [Configuration](configuration.md).
 
 | Setting | Required | What to put |
 | --- | --- | --- |
@@ -76,11 +76,11 @@ The factory works with the hosts listed in `FACTORY_HOSTS`. Everything a host ne
 1. Start Forgejo (the factory's stack must be up, because Forgejo joins two of its networks), open http://localhost:3000, finish the installation and create an **administrator** account:
 
    ```bash
-   cd ../companions/forgejo && cp -n .env.example .env && docker compose up -d && cd ../../infra
+   cd ../companions/forgejo && cp -n .env.example .env && docker compose up -d && cd ../../deploy
    ```
 
 2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account: [the commands](../companions/forgejo/README.md#the-factory-bot-account) print its token.
-3. Put the printed token into the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `infra/.env` and recreate the controller:
+3. Put the printed token into the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `deploy/.env` and recreate the controller:
 
    ```bash
    docker compose up -d --force-recreate controller
@@ -112,7 +112,7 @@ The login should be listed, and both services should be waiting for work without
 ```bash
 # unit tests of each service (from the repository root)
 docker build --target test -f src/controller/Dockerfile -t dev-foundry/controller-test . && docker run --rm dev-foundry/controller-test
-# full pipeline test against the running stack (from infra/)
+# full pipeline test against the running stack (from deploy/)
 docker compose --profile test run --build --rm --no-deps integration-tests
 ```
 
@@ -123,7 +123,7 @@ ticket, add the `feature` label, and watch the comments appear.
 
 ## Everyday commands
 
-Run from `infra/`:
+Run from `deploy/`:
 
 ```bash
 docker compose ps -a                         # status, including finished setup services

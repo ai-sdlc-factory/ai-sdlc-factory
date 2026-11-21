@@ -1,4 +1,4 @@
-# A Forgejo to try the factory on: a git host like any other, run as a project of its own. The factory (../../infra) does not need it and knows nothing about it; it serves the hosts
+# A Forgejo to try the factory on: a git host like any other, run as a project of its own. The factory (../../deploy) does not need it and knows nothing about it; it serves the hosts
 # its FACTORY_HOSTS lists, and this one is listed there as http://forgejo:3000. Start the factory first (this project joins two of its networks), then:
 #   cd companions/forgejo && cp -n .env.example .env && docker compose up -d
 # It keeps its data in SQLite. A Forgejo that was started from the factory's own stack and keeps its database in the factory's PostgreSQL continues with compose.shared-postgres.yaml

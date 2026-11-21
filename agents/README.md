@@ -3,7 +3,7 @@
 [Documentation index](../docs/README.md) | [Workflows](../docs/workflows.md) | [Configuration](../docs/configuration.md#agents-and-models)
 
 The factory's agents, written as Markdown so they can be reviewed like code. This folder is mounted read-only into every sandbox at `/etc/factory`; on start the sandbox copies it to a writable place and
-points OpenCode at it (OpenCode writes into its config directory, so a read-only mount alone fails). Set `FACTORY_GLOBAL_CONFIG` in `infra/.env` to the absolute path of this folder. The controller also reads it, only to name each
+points OpenCode at it (OpenCode writes into its config directory, so a read-only mount alone fails). Set `FACTORY_GLOBAL_CONFIG` in `deploy/.env` to the absolute path of this folder. The controller also reads it, only to name each
 role's model in run records.
 
 ```

@@ -9,7 +9,7 @@ mounts it into the runs that call the model.
 
 ## Sign in
 
-From `infra/`:
+From `deploy/`:
 
 ```bash
 docker compose --profile opencode-tools run --rm --service-ports opencode-login

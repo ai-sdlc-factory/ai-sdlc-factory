@@ -1,4 +1,4 @@
-# Infrastructure
+# Deployment
 
 [Documentation index](../docs/README.md) | [Getting started](../docs/getting-started.md) | [Configuration reference](../docs/configuration.md)
 
@@ -10,7 +10,7 @@ explained in the [configuration reference](../docs/configuration.md). **To set i
 Requires Docker Desktop with Ubuntu WSL integration (or Docker Engine) and Docker Compose v2. From the repository root:
 
 ```bash
-cd infra
+cd deploy
 cp -n .env.example .env  # keeps an existing .env
 chmod 600 .env
 # fill in the passwords, the webhook secret and the FACTORY_* values (see Getting started)
@@ -65,7 +65,7 @@ overrides do not change container ports. Give future applications their own data
 
 Tickets get a private git checkout on the host and run agents in disposable containers. The relevant `.env` settings are `FACTORY_WORKSPACE_ROOT` (create it first with `mkdir -p`; the same path is used inside containers),
 `FACTORY_UID`/`FACTORY_GID`, `DOCKER_GID` and `FACTORY_GLOBAL_CONFIG` (the absolute path of the [`agents/`](../agents/README.md) folder, mounted read-only into every sandbox and into the controller). They are explained in
-the [configuration reference](../docs/configuration.md#infraenv).
+the [configuration reference](../docs/configuration.md#deployenv).
 
 Sandboxes that call the model share the OpenCode login stored in the `opencode-data` volume (see [the launcher guide](../src/sandbox-launcher/README.md#model-access-and-the-opencode-login) and the
 [login guide](../docs/opencode-login.md)). The one-shot `opencode-data-init` service gives that volume to `FACTORY_UID`; it starts by itself before the login helper and needs no action from you.
@@ -91,7 +91,7 @@ when explicitly targeted; the `opencode-data` volume stores the login.
 
 ## Everyday commands
 
-Run from `infra/`:
+Run from `deploy/`:
 
 ```bash
 docker compose ps -a      # Status, including completed setup services

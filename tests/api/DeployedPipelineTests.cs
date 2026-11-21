@@ -9,7 +9,7 @@ namespace DevFoundry.Api.Tests;
 
 /// <summary>
 /// Exercises the separately deployed api and controller over HTTP and Temporal: one signed delivery for every git host of <c>FACTORY_HOSTS</c>. It needs a running stack, so it skips itself
-/// unless <c>API_TEST_URL</c> is set; <c>docker compose --profile test run --rm --no-deps integration-tests</c> (in <c>infra/</c>) runs it, and only it, with the settings of the stack.
+/// unless <c>API_TEST_URL</c> is set; <c>docker compose --profile test run --rm --no-deps integration-tests</c> (in <c>deploy/</c>) runs it, and only it, with the settings of the stack.
 /// </summary>
 [Trait("Category", "Deployed")]
 public sealed class DeployedPipelineTests
