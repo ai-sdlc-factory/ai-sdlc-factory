@@ -24,7 +24,7 @@ command -v docker >/dev/null 2>&1 || fail "Docker is not installed or not on the
 docker compose version >/dev/null 2>&1 || fail "Docker Compose (the 'docker compose' command) is not available."
 docker info >/dev/null 2>&1 || fail "Cannot talk to the Docker daemon. Is it running, and may you use it?"
 for tool in git curl python3; do command -v "$tool" >/dev/null 2>&1 || fail "$tool is needed."; done
-[ -r ../infra/.env ] || fail "infra/.env is missing: set up the factory first (docs/getting-started.md). The demo takes its source from the factory's Forgejo."
+[ -r ../../infra/.env ] || fail "infra/.env is missing: set up the factory first (docs/getting-started.md). The demo takes its source from the factory's Forgejo."
 
 env_value() { sed -n "s/^$1=//p" "$2" 2>/dev/null | head -n 1; }
 random_secret() { head -c 48 /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c "$1"; }
@@ -50,7 +50,7 @@ set_value() {
 [ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] || set_value ALERT_INTAKE_DRY_RUN true
 with_tokens=false
 [ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] && with_tokens=true
-python3 - ../infra/.env "$with_tokens" > .hosts.tmp <<'PY' || fail "FACTORY_HOSTS is not set in infra/.env, or has no Forgejo with a token: the scripts need it to fetch the source."
+python3 - ../../infra/.env "$with_tokens" > .hosts.tmp <<'PY' || fail "FACTORY_HOSTS is not set in infra/.env, or has no Forgejo with a token: the scripts need it to fetch the source."
 import json, sys
 text = ""
 for line in open(sys.argv[1], encoding="utf-8"):
@@ -75,7 +75,7 @@ umask 022
 say "3/6 Checking the factory's network (the intake reaches Forgejo through it)"
 network=$(env_value FACTORY_FORGE_NETWORK .env)
 network=${network:-dev-foundry_forge}
-docker network inspect "$network" >/dev/null 2>&1 || fail "The Docker network $network does not exist. Start the factory first: cd ../infra && docker compose up -d"
+docker network inspect "$network" >/dev/null 2>&1 || fail "The Docker network $network does not exist. Start the factory first: cd ../../infra && docker compose up -d"
 
 say "4/6 Starting the monitoring stack and the alert intake"
 docker compose up -d --build prometheus alertmanager blackbox container-stats loki promtail grafana alert-intake

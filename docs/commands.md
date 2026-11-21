@@ -111,7 +111,7 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 | --- | --- |
 | progress comments, the token budget and daily-limit notices, "the run did not finish, running it once more" | the run itself, as comments on the ticket |
 | the weekly improvement report | a timer, once a week; with `FACTORY_IMPROVEMENT_REPO` set it opens a ticket with proposals (nothing is applied) |
-| incident tickets from monitoring alerts | the [alert intake](../alert-intake/README.md), in the [demo](../demo/README.md) (alerts of one outage are grouped into one ticket) |
+| incident tickets from monitoring alerts | the [alert intake](../companions/alert-intake/README.md), in the [demo](../companions/demo/README.md) (alerts of one outage are grouped into one ticket) |
 
 ## Good to know
 

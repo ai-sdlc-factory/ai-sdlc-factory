@@ -18,7 +18,7 @@ public sealed record EgressConfig(IReadOnlySet<int> Ports, IReadOnlyDictionary<s
 }
 
 /// <summary>
-/// Reads the factory\'s trusted allowlist file (egress/profiles.json). Nothing a repository or an agent
+/// Reads the factory\'s trusted allowlist file (services/egress-proxy/profiles.json). Nothing a repository or an agent
 /// says can add a host: only a person editing this file can.
 /// </summary>
 public static partial class EgressConfigParser

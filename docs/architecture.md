@@ -12,7 +12,7 @@ boundaries are. How each kind of ticket is handled is in [Workflows](workflows.m
 
 | Part | What it does | Why it is separate |
 | --- | --- | --- |
-| **Git host** (Forgejo or GitHub; as many as `FACTORY_HOSTS` lists) | Holds the repositories, tickets, labels and pull requests. People work here. | It is the human interface; the factory needs no other one, and no host is built in: each kind has an adapter. A Forgejo to try it on is a separate project ([`forgejo/`](../forgejo/README.md)). |
+| **Git host** (Forgejo or GitHub; as many as `FACTORY_HOSTS` lists) | Holds the repositories, tickets, labels and pull requests. People work here. | It is the human interface; the factory needs no other one, and no host is built in: each kind has an adapter. A Forgejo to try it on is a separate project ([`forgejo/`](../companions/forgejo/README.md)). |
 | **api** ([guide](../services/api/README.md)) | Receives signed webhooks from the git hosts, checks the signature, starts a Temporal workflow. | It faces the network (webhooks) but has no git host token, no Docker and no business logic. |
 | **Temporal** | Durable workflows: every step, prompt, answer and check output is stored in its history; waits for people cost nothing. | A run can take days (waiting for answers) and survives restarts. |
 | **controller** ([guide](../services/controller/README.md)) | Runs the workflows. Decides every next step in code, holds the only git host tokens, runs git, validates what agents answer. Also runs the janitor and starts the weekly report on what repeated. | All decisions live in one reviewed, tested place. |
@@ -75,7 +75,7 @@ onto the pristine clone, and commits and pushes from there. A test plants a host
 - **Commands in `.factory/project.json`.** The project's checks run in the sandbox with package access and no model access. A repository owner decides what they do; they get no more reach than the agent has.
 - **A person with comment access** on a ticket can steer a run (answer questions, use incident commands). The git host's repository permissions are the access control.
 
-The [egress guide](../egress/README.md) describes the network rules in detail; [Operations](operations.md#security-notes) lists the practical checks.
+The [egress guide](../services/egress-proxy/ALLOWLIST.md) describes the network rules in detail; [Operations](operations.md#security-notes) lists the practical checks.
 
 ## Where data lives
 
@@ -97,12 +97,11 @@ The [egress guide](../egress/README.md) describes the network rules in detail; [
 | [`services/api`](../services/api) | webhook intake |
 | [`services/controller`](../services/controller) | workflows, agent prompts and parsers, workspace and git host handling |
 | [`services/sandbox-launcher`](../services/sandbox-launcher) | container policy and the Docker client |
-| [`services/egress-proxy`](../services/egress-proxy) | the CONNECT proxy and allowlist policy |
-| [`alert-intake`](../alert-intake) | a tool outside the factory: turns monitoring alerts into tickets (the demo runs it) |
-| [`demo/`](../demo) | a demo production with Prometheus, Alertmanager, Grafana and Loki, and the scripts around it |
+| [`services/egress-proxy`](../services/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
+| [`companions/alert-intake`](../companions/alert-intake) | a tool outside the factory: turns monitoring alerts into tickets (the demo runs it) |
+| [`companions/demo`](../companions/demo) | a demo production with Prometheus, Alertmanager, Grafana and Loki, and the scripts around it |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
-| [`egress/`](../egress) | the allowlist (`profiles.json`) |
 | [`infra/`](../infra) | Docker Compose and environment settings |
 | [`tests/integration`](../tests/integration) | API-to-controller test over HTTP and Temporal |
 

@@ -18,7 +18,8 @@ public sealed class TemplateTests
     }
 
     public static IEnumerable<object[]> Names() =>
-        Templates() is { } root ? Directory.GetDirectories(root).Select(path => new object[] { Path.GetFileName(path) }) : [];
+        // "examples" holds loose files to copy, not a starter project.
+        Templates() is { } root ? Directory.GetDirectories(root).Where(path => Path.GetFileName(path) != "examples").Select(path => new object[] { Path.GetFileName(path) }) : [];
 
     [Fact]
     public void There_are_templates_to_check_wherever_the_folder_was_copied()

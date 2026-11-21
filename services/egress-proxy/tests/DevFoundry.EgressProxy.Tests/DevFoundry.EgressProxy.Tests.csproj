@@ -14,7 +14,7 @@
     <Using Include="Xunit" />
     <ProjectReference Include="..\..\src\DevFoundry.EgressProxy\DevFoundry.EgressProxy.csproj" />
     <!-- The shipped allowlist is tested too, so a careless edit fails a test. -->
-    <Content Include="..\..\..\..\egress\profiles.json" Link="profiles.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\profiles.json" Link="profiles.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

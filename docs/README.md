@@ -12,7 +12,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | **run the factory** for the first time | [Getting started](getting-started.md) |
 | **connect a repository** and understand `.factory/project.json` (what is required, what is optional) | [Setting up a project](project-setup.md) |
 | start from a **working example project** (.NET, Python, React, or .NET + React) with every feature switched on | [Templates](../templates/README.md) |
-| copy a ready-made **`AGENTS.md` and `project.json`** for a .NET or React project | [Examples](examples/README.md) |
+| copy a ready-made **`AGENTS.md` and `project.json`** for a .NET or React project | [Examples](../templates/examples/README.md) |
 | see **which label or command to use, and where to type it** (a cheat sheet) | [Commands and labels](commands.md) |
 | understand **what happens to a ticket or a review**, step by step, with diagrams | [Workflows](workflows.md) |
 | understand **how it is built** and why it is safe to run | [Architecture](architecture.md) and [Design and decisions](design.md) |
@@ -20,7 +20,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | **operate** it: watch runs, troubleshoot, clean up, back up, update | [Operations](operations.md) |
 | change an **agent**, its model or its permissions | [Agents](../agents/README.md) |
 | sign the agents in with ChatGPT | [OpenCode login](opencode-login.md) |
-| run a **demo "production"** with monitoring (Prometheus, Grafana, Loki) where alerts open tickets | [Demo and monitoring](../demo/README.md) |
+| run a **demo "production"** with monitoring (Prometheus, Grafana, Loki) where alerts open tickets | [Demo and monitoring](../companions/demo/README.md) |
 | know the **limits** of what is built | [Known limitations](operations.md#known-limitations) |
 | see **what could be built next** and why (designs, not promises) | [Ideas for later](ideas.md) |
 
@@ -32,9 +32,9 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Webhook intake | [api](../services/api/README.md) |
 | Workflows and workspace handling | [controller](../services/controller/README.md) |
 | Starting sandboxes | [sandbox-launcher](../services/sandbox-launcher/README.md) |
-| Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../egress/README.md) |
-| Alerts to tickets | [alert-intake](../alert-intake/README.md) |
-| Demo production and monitoring | [demo](../demo/README.md) |
+| Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../services/egress-proxy/ALLOWLIST.md) |
+| Alerts to tickets | [alert-intake](../companions/alert-intake/README.md) |
+| Demo production and monitoring | [demo](../companions/demo/README.md) |
 | Deployed-pipeline test | [integration tests](../tests/integration/README.md) |
 
 ## The diagrams

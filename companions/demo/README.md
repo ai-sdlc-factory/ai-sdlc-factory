@@ -2,7 +2,7 @@
 
 A place to run the weather application **from the default branch of its repository**, the way a delivery pipeline would, with monitoring around it that **opens tickets when something breaks**. Everything is local Docker. It is where the factory's incident side gets something real to watch.
 
-![Monitoring and alerts](../docs/images/monitoring.svg)
+![Monitoring and alerts](../../docs/images/monitoring.svg)
 
 | Part | What it is | Address (localhost only) |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ A place to run the weather application **from the default branch of its reposito
 The factory must be running first (the demo fetches the source from its Forgejo and reaches Forgejo through its Docker network).
 
 ```sh
-cd demo
+cd companions/demo
 ./setup.sh                    # first start: prepares everything, alerts are only LOGGED (dry run)
 ./setup.sh --create-tickets   # later: let alerts open real tickets
 ```
@@ -76,7 +76,7 @@ The path of an alert: Prometheus (or Loki) evaluates a rule, the alert stays **p
 | WeatherApiUnhealthy | Docker's health check of the API container fails for 2 minutes | Prometheus, container-stats |
 | WeatherApiErrorLogs | more than 5 error lines in the API log within 5 minutes | Loki rule |
 
-The rules are in `prometheus/rules/weather.yml` and `loki/rules/fake/weather.yml`; the alerts about the monitoring itself are in `prometheus/rules/monitoring.yml`. Which alert goes to which repository is `alert-intake/mapping.json`.
+The rules are in `prometheus/rules/weather.yml` and `loki/rules/fake/weather.yml`; the alerts about the monitoring itself are in `prometheus/rules/monitoring.yml`. Which alert goes to which repository is `intake-routes/mapping.json`.
 
 ## Stop it
 
@@ -90,15 +90,15 @@ The rules are in `prometheus/rules/weather.yml` and `loki/rules/fake/weather.yml
 - **Local only.** Every port is bound to 127.0.0.1. Promtail and container-stats read the Docker socket, which is root on the host, so this stack is for your own machine, not a server.
 - **It is not the factory's sandbox.** The application runs here with normal networking. The factory's agents never get access to it; they see only what a ticket says.
 - **The frontend's API address is built in** (`http://localhost:5080`), so the application is reachable from your browser on this machine only.
-- **Configuration** (ports, repository, branch) is in `demo/.env`; `.env.example` lists the keys. The alert intake's settings are in [the configuration reference](../docs/configuration.md#alert-intake).
+- **Configuration** (ports, repository, branch) is in `demo/.env`; `.env.example` lists the keys. The alert intake's settings are in [the configuration reference](../alert-intake/README.md#settings).
 
 ## If something does not work
 
 | Symptom | Likely cause and fix |
 | --- | --- |
 | `setup.sh` stops with "error getting credentials" while pulling images | Docker's credential helper failed under many parallel pulls (seen under WSL2). Pull the images one at a time (`docker pull prom/alertmanager:v0.28.1`, and so on for the images in `compose.yaml`), then run `./setup.sh` again |
-| "The Docker network dev-foundry_forge does not exist" | the factory is not running: `cd ../infra && docker compose up -d` |
-| an alert fires but no ticket appears | the intake is in dry run (the Overview says so; `./status.sh` too), or the alert matches no route in `alert-intake/mapping.json`, or the hourly limit is reached: `docker compose logs alert-intake` says which |
+| "The Docker network dev-foundry_forge does not exist" | the factory is not running: `cd ../../infra && docker compose up -d` |
+| an alert fires but no ticket appears | the intake is in dry run (the Overview says so; `./status.sh` too), or the alert matches no route in `intake-routes/mapping.json`, or the hourly limit is reached: `docker compose logs alert-intake` says which |
 | the intake log shows "unauthorized" or Prometheus shows `AlertIntakeRefusingNotifications` | Alertmanager and the intake do not share the token: run `./setup.sh` again (it rewrites `secrets/intake-token` from `.env`) and `docker compose up -d alertmanager alert-intake` |
 | a panel on a dashboard is empty | give it a minute after a restart; then check Prometheus → Status → Targets: every target must be up |
 | `deploy.sh` says a version does not answer | it rolled back by itself; look at `docker compose logs weather-api` for the failed version |

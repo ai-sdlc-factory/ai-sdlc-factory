@@ -8,7 +8,7 @@ using Temporalio.Client;
 namespace DevFoundry.IntegrationTests;
 
 /// <summary>Exercises the separately deployed API and controller over HTTP and Temporal.</summary>
-public sealed class ForgejoDeliveryTests
+public sealed class WebhookDeliveryTests
 {
     private static string Env(string name, string? fallback = null) =>
         Environment.GetEnvironmentVariable(name)

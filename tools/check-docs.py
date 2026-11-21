@@ -174,7 +174,8 @@ def check_templates() -> None:
         return
     images = dict(pair.split("=", 1) for pair in pairs.group(1).split(";") if "=" in pair)
     index = read(ROOT / "templates/README.md")
-    names = sorted(path.name for path in (ROOT / "templates").iterdir() if path.is_dir())
+    # "examples" holds loose files to copy, not a starter project.
+    names = sorted(path.name for path in (ROOT / "templates").iterdir() if path.is_dir() and path.name != "examples")
     checked["templates"] = len(names)
     for name in names:
         base = ROOT / "templates" / name

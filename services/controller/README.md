@@ -53,8 +53,7 @@ The controller talks to a git host only through the `IGitHost` port (one client 
 | `Workflows/` | `FactoryWorkflowBase` (what every ticket workflow shares, in `.Stages`, `.Agent`, `.Build`, `.Record`, `.Bug` parts), one class per workflow (`FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow`, `DocsWorkflow`, `PullRequestRevisionWorkflow`, `PullRequestUpdateWorkflow`, `PullRequestReviewWorkflow`, `QaWorkflow`, `ImprovementWorkflow`) with their own stage orders, `RepoEventWorkflow`, `EventRouter`, `WorkMode`, `IncidentCommands`, `WorkRequest` and the workflow id rules |
 | `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with the acceptance check and the UX decision, `Bug`, `Incident`, `Plan`, `Revision`, `Qa`, `Update`, `Docs`) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
-| `GitHost/` | the git host port (`IGitHost`), its activities, the models it returns, ticket comment texts |
-| `Forgejo/`, `GitHub/` | the implementations of that port: the Forgejo and the GitHub API clients |
+| `GitHost/` | the git host port (`IGitHost`), its activities, the models it returns, ticket comment texts; `Forgejo/` and `GitHub/` inside it are the implementations of that port, the API clients |
 | `Project/` | `.factory/project.json` parsing, the known keys (`ProjectKeys`), limits, rules and the `verify` settings |
 | `Improvement/` | the weekly report: reading the logs, the rules that flag what repeats, the improver's answer and prompt, the scheduler |
 | `Janitor/` | removing leftover checkouts and reporting old work-in-progress branches |

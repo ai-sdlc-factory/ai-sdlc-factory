@@ -63,7 +63,7 @@ public sealed record SandboxBuildResult(
 
 /// <summary>
 /// The network a sandbox may use. Each name is an egress profile: a list of hosts the egress proxy lets
-/// that sandbox reach (see egress/profiles.json). A run that asks for nothing gets no network at all.
+/// that sandbox reach (see services/egress-proxy/profiles.json). A run that asks for nothing gets no network at all.
 /// </summary>
 public static class SandboxNetworks
 {

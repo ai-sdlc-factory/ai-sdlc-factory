@@ -15,7 +15,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
     [SkippableFact]
     public async Task A_report_with_findings_is_opened_as_a_ticket_and_the_improver_proposes_changes_on_it()
     {
-        var world = Improving(Answers.Improvement("proposals", "agents/agents/analyst.md", "egress/profiles.json"));
+        var world = Improving(Answers.Improvement("proposals", "agents/agents/analyst.md", "services/egress-proxy/profiles.json"));
 
         var result = await world.RunAsync(fixture, context => context.RunImprovementAsync(ScenarioContext.Improvement()));
 
@@ -33,7 +33,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
         Assert.Contains("Rejected answers: the analyst agent.", call.Prompt);
         var proposals = Assert.Single(world.Comments, c => c.StartsWith("**Proposed changes for the factory, from the report for 2026-W46**"));
         Assert.Contains("1. **prompt**, `agents/agents/analyst.md`", proposals);
-        Assert.Contains("2. **prompt**, `egress/profiles.json`", proposals);
+        Assert.Contains("2. **prompt**, `services/egress-proxy/profiles.json`", proposals);
         Assert.Contains("Why: 7 of 20 analyst answers (35%) were rejected.", proposals);
         Assert.Contains("What could get worse:", proposals);
         Assert.Contains("**Nothing here was applied, and nothing will be.**", proposals);

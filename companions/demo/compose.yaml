@@ -157,7 +157,7 @@ services:
       # The git hosts a route may name with "host" (see ../alert-intake/README.md#settings): ./setup.sh writes it from the factory's FACTORY_HOSTS, without the tokens during a dry run.
       ALERT_INTAKE_HOSTS: ${ALERT_INTAKE_HOSTS:?Run ./setup.sh first}
     volumes:
-      - ./alert-intake/mapping.json:/etc/alert-intake/mapping.json:ro
+      - ./intake-routes/mapping.json:/etc/alert-intake/mapping.json:ro
     networks: [default, forge]
     read_only: true
     cap_drop: ["ALL"]

@@ -47,7 +47,7 @@ A request names an **egress profile** in `network`: `none` (the default: no netw
 A profile puts the container on that profile's **internal** Docker network (no route out, no external
 DNS) and sets `HTTPS_PROXY` and friends to that profile's address on the [egress
 proxy](../egress-proxy/README.md), which tunnels HTTPS only to the hosts the profile lists
-([`egress/`](../../egress/README.md)). Tools that ignore the proxy settings cannot connect at all. The
+([the allowlist](../egress-proxy/ALLOWLIST.md)). Tools that ignore the proxy settings cannot connect at all. The
 proxy variables are fixed by the launcher; a request cannot set them (only `OPENCODE_` and `FACTORY_`
 variables are accepted), and the launcher's `OPENCODE_DISABLE_*` settings (no model-list fetch, no
 update check, no language-server downloads) are always last, so a request cannot undo them.
@@ -56,7 +56,7 @@ update check, no language-server downloads) are always last, so a request cannot
 restrictions: in `open` mode every profile maps to one ordinary internet-connected network
 (`SANDBOX_OPEN_NETWORK`, created by the launcher) with no proxy, and the launcher logs a warning at start;
 `none` stays none. `audit` is the proxy's own switch, so the launcher treats it like `enforce`. See the
-[egress guide](../../egress/README.md#modes-and-your-own-rules).
+[egress guide](../egress-proxy/ALLOWLIST.md#modes-and-your-own-rules).
 
 `SANDBOX_NETWORKS` and `SANDBOX_PROXIES` map each profile to its network and proxy address; both are set
 in `infra/compose.yaml`. The factory picks the profile by role: read-only agents get `model`, the

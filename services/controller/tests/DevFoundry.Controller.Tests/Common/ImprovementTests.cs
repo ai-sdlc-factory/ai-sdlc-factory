@@ -51,7 +51,7 @@ public sealed class ImprovementParserTests
 
     [Theory]
     [InlineData("agents/agents/analyst.md", true)]
-    [InlineData("egress/profiles.json", true)]
+    [InlineData("services/egress-proxy/profiles.json", true)]
     [InlineData("a.md", true)]
     [InlineData("../a.md", false)]
     [InlineData("a/../b.md", false)]

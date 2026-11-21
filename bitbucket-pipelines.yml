@@ -30,7 +30,7 @@ pipelines:
             <<: *service-tests
             name: Test alert-intake
             script:
-              - docker build --target test -t alert-intake-test alert-intake
+              - docker build --target test -t alert-intake-test companions/alert-intake
               - docker run --rm alert-intake-test
         - step:
             <<: *service-tests

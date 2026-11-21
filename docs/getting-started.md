@@ -12,7 +12,7 @@ serve needs a [short setup](project-setup.md).
 | Windows with **WSL 2** (Ubuntu) and **Docker Desktop** with WSL integration enabled, or any Linux with Docker Engine and Compose v2 | The stack is built and tested on WSL. Docker Compose runs everything. |
 | About 10 GB of disk and 8 GB of RAM for Docker | The sandboxes are limited to 2 GB and 2 CPUs each, and 2 run at once. |
 | A **ChatGPT Plus/Pro account** | The agents use OpenCode with a ChatGPT sign-in; there is no OpenAI API key. Usage counts against your plan. |
-| Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../egress/README.md)). |
+| Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../services/egress-proxy/ALLOWLIST.md)). |
 
 ## 1. Get the code and configure the environment
 
@@ -71,15 +71,15 @@ Adding another language is described in the [launcher guide](../services/sandbox
 
 ## 4. Set up a git host and the factory's bot account
 
-The factory works with the hosts listed in `FACTORY_HOSTS`. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`forgejo/`](../forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
+The factory works with the hosts listed in `FACTORY_HOSTS`. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`companions/forgejo/`](../companions/forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
 
 1. Start Forgejo (the factory's stack must be up, because Forgejo joins two of its networks), open http://localhost:3000, finish the installation and create an **administrator** account:
 
    ```bash
-   cd ../forgejo && cp -n .env.example .env && docker compose up -d && cd ../infra
+   cd ../companions/forgejo && cp -n .env.example .env && docker compose up -d && cd ../../infra
    ```
 
-2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account: [the commands](../forgejo/README.md#the-factory-bot-account) print its token.
+2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account: [the commands](../companions/forgejo/README.md#the-factory-bot-account) print its token.
 3. Put the printed token into the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `infra/.env` and recreate the controller:
 
    ```bash
@@ -137,7 +137,7 @@ docker compose up -d --build controller      # rebuild and restart one service a
 
 ## Optional: watch a demo production
 
-Once the factory works, [`demo/`](../demo/README.md) runs the weather application from its repository's default branch with monitoring around it. Alerts become tickets, and the factory's incident workflow starts on them. `cd demo && ./setup.sh` prepares everything; alerts are only logged until you ask for real tickets (`./setup.sh --create-tickets`, which spends model tokens).
+Once the factory works, [`companions/demo/`](../companions/demo/README.md) runs the weather application from its repository's default branch with monitoring around it. Alerts become tickets, and the factory's incident workflow starts on them. `cd demo && ./setup.sh` prepares everything; alerts are only logged until you ask for real tickets (`./setup.sh --create-tickets`, which spends model tokens).
 
 ## If something does not work
 

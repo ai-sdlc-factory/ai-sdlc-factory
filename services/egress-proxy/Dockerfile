@@ -5,7 +5,6 @@ COPY Directory.Build.props Directory.Packages.props ./
 COPY services/egress-proxy/src/DevFoundry.EgressProxy/DevFoundry.EgressProxy.csproj services/egress-proxy/src/DevFoundry.EgressProxy/
 COPY services/egress-proxy/tests/DevFoundry.EgressProxy.Tests/DevFoundry.EgressProxy.Tests.csproj services/egress-proxy/tests/DevFoundry.EgressProxy.Tests/
 RUN dotnet restore services/egress-proxy/tests/DevFoundry.EgressProxy.Tests/DevFoundry.EgressProxy.Tests.csproj
-COPY egress ./egress
 COPY services/egress-proxy ./services/egress-proxy
 RUN dotnet publish services/egress-proxy/src/DevFoundry.EgressProxy -c Release --no-restore -o /out
 

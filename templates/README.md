@@ -9,6 +9,8 @@ Small, working starter projects with **every factory feature switched on**, to s
 | [react-web](react-web/) | a Vite + React + TypeScript app with Vitest | `node` | a front-end project: the `ui` setting that brings in the UX reviewer, `npm ci` gates |
 | [dotnet-react](dotnet-react/) | a .NET API and a React front end in one repository | `dotnet-node` | a project with two parts: a combined image, gates that run in a subfolder (`cwd`), and an example of a project's own `Dockerfile` |
 
+Besides the starter projects, [examples/](examples/README.md) holds loose files to copy into your own repository: ready-made `AGENTS.md` and `project.json` files for a .NET and a React project, and a project's own `Dockerfile`.
+
 ## What is in each one
 
 | File | What it is for |

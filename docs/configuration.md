@@ -30,7 +30,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 
 ### FACTORY_HOSTS
 
-The git hosts the factory serves, as one line of JSON in `infra/.env`. The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
+The git hosts the factory serves, as one line of JSON in `infra/.env`. The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
 
 ```bash
 FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_login":"factory-bot","webhook_secret":"..."},{"name":"github","type":"github","url":"https://github.com","token":"...","bot_login":"my-bot","webhook_secret":"..."}]
@@ -83,7 +83,7 @@ FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST=5
 | Key | What | Default |
 | --- | --- | --- |
 | `SANDBOX_EGRESS` | how strictly the sandboxes' internet access is limited: `enforce` (only each profile's allowlisted hosts through the proxy), `audit` (every HTTPS host allowed and logged), `open` (no restrictions at all). Anything else stops the launcher and proxy from starting. After a change: `docker compose up -d --force-recreate egress-proxy sandbox-launcher` | `enforce` |
-| `EGRESS_PROFILES` | your own allowlist file instead of `egress/profiles.json` (path relative to `infra/`, or absolute) | `../egress/profiles.json` |
+| `EGRESS_PROFILES` | your own allowlist file instead of `services/egress-proxy/profiles.json` (path relative to `infra/`, or absolute) | `../services/egress-proxy/profiles.json` |
 | `SANDBOX_NET_BASE` | the first two numbers of the internal sandbox networks (`10.250.1.0/24`, `.2.0/24`, `.3.0/24`). Change only if they clash with a network you use | `10.250` |
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | shared Temporal connection settings; the api and controller must agree on the namespace and queue | `temporal:7233`, `default`, `factory-events` |
 | `TEMPORAL_RETENTION` | how long Temporal keeps a finished workflow's history, which is also the window for duplicate-delivery detection and for reading a run's full record. Applied only when the namespace is **first created** | `7d` |
@@ -131,7 +131,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 
 ### alert-intake
 
-The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](../alert-intake/README.md#settings). The [demo environment](../demo/README.md) runs it.
+The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](../companions/alert-intake/README.md#settings). The [demo environment](../companions/demo/README.md) runs it.
 
 ### sandbox-launcher
 
@@ -169,7 +169,7 @@ login volume. Details: [launcher guide](../services/sandbox-launcher/README.md).
 | `EGRESS_PORT` | `3128` | the proxy's port |
 | `EGRESS_DENIED_LOG` | `/var/log/egress/denied.jsonl` (set by Compose) | a file every refusal is also written to, one JSON line each, at most 10 MB; the controller's [weekly report](operations.md#the-weekly-report-what-repeats) reads it. Empty = no file (refusals are still on the console) |
 
-The allowlist format, adding a host, and what the protection does and does not cover are in the [egress guide](../egress/README.md).
+The allowlist format, adding a host, and what the protection does and does not cover are in the [egress guide](../services/egress-proxy/ALLOWLIST.md).
 
 ## Agents and models
 

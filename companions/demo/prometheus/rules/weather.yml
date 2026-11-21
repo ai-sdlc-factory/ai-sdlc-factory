@@ -1,4 +1,4 @@
-# Alerts about the weather service. The label `service: weather` is what the alert intake routes on (see ../../alert-intake/mapping.json).
+# Alerts about the weather service. The label `service: weather` is what the alert intake routes on (see ../../intake-routes/mapping.json).
 groups:
   - name: weather
     rules:

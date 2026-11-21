@@ -317,7 +317,7 @@ public abstract partial class FactoryWorkflowBase
 
     /// <summary>
     /// The network each agent role gets: the developer may also fetch packages, every other agent can reach only
-    /// the model provider. Which hosts a profile allows is decided in egress/profiles.json, not here.
+    /// the model provider. Which hosts a profile allows is decided in services/egress-proxy/profiles.json, not here.
     /// </summary>
     public static string NetworkFor(string role) => role is "developer" or "reproducer" or "pr-resolver" or "merge-resolver" or "e2e-tester" ? SandboxNetworks.Developer : SandboxNetworks.Model;
 

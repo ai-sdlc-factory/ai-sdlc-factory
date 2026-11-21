@@ -1,6 +1,6 @@
 # alert-intake
 
-Turns a monitoring alert into a ticket. It receives Alertmanager notifications, decides with **fixed rules (no AI)** whether an alert becomes a ticket, and opens it on a git host (Forgejo or GitHub). If the ticket carries the factory's `incident` label, the factory's [incident workflow](../docs/workflows.md#incident-workflow) then starts on it, like on any ticket a person wrote.
+Turns a monitoring alert into a ticket. It receives Alertmanager notifications, decides with **fixed rules (no AI)** whether an alert becomes a ticket, and opens it on a git host (Forgejo or GitHub). If the ticket carries the factory's `incident` label, the factory's [incident workflow](../../docs/workflows.md#incident-workflow) then starts on it, like on any ticket a person wrote.
 
 The design: agents never get production access, and what monitoring says is **data**, never an instruction.
 
@@ -75,8 +75,8 @@ It stands on its own: it shares no code and no settings with the factory. It onl
 It builds from this folder, with its own `Directory.Build.props` and `Directory.Packages.props`:
 
 ```bash
-docker build --target test -t alert-intake-test alert-intake && docker run --rm alert-intake-test
-docker build --target runtime -t alert-intake alert-intake
+docker build --target test -t alert-intake-test companions/alert-intake && docker run --rm alert-intake-test
+docker build --target runtime -t alert-intake companions/alert-intake
 ```
 
 The service is used by the demo environment in [`demo/`](../demo/README.md), which writes its settings and runs it next to a monitoring stack.

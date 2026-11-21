@@ -15,7 +15,7 @@ Running the factory day to day: seeing what a run did, fixing common problems, c
 | work from a run that could not finish | the `factory/issue-<n>-wip` branch (named in the comment) |
 | what a sandbox tried to reach on the internet | `docker compose logs egress-proxy`; refused hosts: `docker compose logs egress-proxy \| grep '"decision":"deny"'` |
 | which sandboxes are running and for which ticket | `docker ps --filter label=dev-foundry.sandbox=true --format '{{.Names}} {{.Label "dev-foundry.workspace"}} {{.Label "dev-foundry.role"}}'` |
-| why a service misbehaves | `docker compose logs -f <service>` (`api`, `controller`, `sandbox-launcher`, `egress-proxy`, `temporal`, `forgejo`) |
+| why a service misbehaves | `docker compose logs -f <service>` (`api`, `controller`, `sandbox-launcher`, `egress-proxy`, `temporal`) |
 
 Temporal workflow ids look like `feature-<owner>-<repo>-<number>-<hash>` (also `bug-` and `incident-`). Each webhook delivery is its own short `forgejo-<delivery-id>` workflow that
 shows what the router decided.
@@ -50,7 +50,7 @@ shows what the router decided.
 
 ## Several git hosts
 
-The factory serves every host listed in [`FACTORY_HOSTS`](configuration.md#factory_hosts), at once, from one controller. Forgejo and GitHub are the kinds it has an adapter for (see [architecture](architecture.md#how-a-ticket-flows)); the Forgejo of the [`forgejo/`](../forgejo/README.md) folder is a separate Compose project, listed there like any other host, not something the factory is built around.
+The factory serves every host listed in [`FACTORY_HOSTS`](configuration.md#factory_hosts), at once, from one controller. Forgejo and GitHub are the kinds it has an adapter for (see [architecture](architecture.md#how-a-ticket-flows)); the Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project, listed there like any other host, not something the factory is built around.
 
 - **Names.** A host has a name (`codeberg`, `github`). A repository on a host is written **`<host>:owner/repo`** everywhere the factory names a repository: in comments that name it, in the usage log's `repository` field, in the weekly report, and in the ids of workflows and the names of checkout folders (which carry a hash of it). A host called `forgejo` keeps the plain `owner/repo` (the way every id and folder of an older install is named), so **nothing that exists is renamed** when another host is added.
 - **Nothing is shared.** The same owner, repository and ticket number on two hosts are two different runs: different workflow ids, different checkouts, different usage counts. A token is used only for its own host (the clone remembers which in `.git/factory-host`), and every host's token is kept out of logs, run records and pushed files.
@@ -100,7 +100,7 @@ docker compose up -d
 - **Factory code:** `git pull`, then `docker compose up -d --build` (or name a service: `docker compose up -d --build controller`).
 - **Sandbox images:** `docker compose --profile images build sandbox-image-<name>` after a change to `sandboxes/`. The OpenCode version in the images is pinned and checked against a digest.
 - **Agents:** edit `agents/agents/<role>.md` and commit; the next agent run uses it. Running sandboxes keep the copy they started with.
-- **Egress rules:** edit `egress/profiles.json` (or your own file) and `docker compose restart egress-proxy`.
+- **Egress rules:** edit `services/egress-proxy/profiles.json` (or your own file) and `docker compose restart egress-proxy`.
 - Image versions of Forgejo, Temporal, PostgreSQL and the others are pinned in `infra/compose.yaml`; change them there.
 
 ## Tests
@@ -229,7 +229,7 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 | Pull request updates | only the factory's own pull requests are updated, and always by a normal push (never forced); a merge conflict in a protected file, or in more than 40 files, is left to a person; anyone who can comment can start one |
 | Reviews, updates and documentation runs spend tokens on anyone's request | `/review` works on anyone's pull request, and anyone who can comment can start `/review`, `/qa`, `/fix`, `/update` and `/retry`; nothing checks the commenter's write access yet |
 | Pull request revisions | only the factory's own pull requests are revised; the factory cannot resolve conversations (no API), and anyone who can comment on the pull request can start a revision |
-| Incident tickets come from people, or from the alert intake | the intake only watches the [demo environment](../demo/README.md); watching a real system needs its alerts routed in the intake's `mapping.json`. It opens a ticket only when `ALERT_INTAKE_DRY_RUN` is `false`, and the factory's incident workflow then spends tokens on every one |
+| Incident tickets come from people, or from the alert intake | the intake only watches the [demo environment](../companions/demo/README.md); watching a real system needs its alerts routed in the intake's `mapping.json`. It opens a ticket only when `ALERT_INTAKE_DRY_RUN` is `false`, and the factory's incident workflow then spends tokens on every one |
 | Unknown keys in `.factory/project.json` only produce a warning | the ticket names the key and the likely spelling, and the run goes ahead without it; see the [reference](project-setup.md#reference) |
 | Forgejo only | the router reads Forgejo's webhook format |
 | One controller instance | the workspace folder is local to it; a second controller would need a shared or per-worker workspace |
