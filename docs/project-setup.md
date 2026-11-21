@@ -472,7 +472,7 @@ To run a ticket again, comment `/retry` on it (it carries on from the stages the
 | no comment appears on the ticket | the webhook is missing or lacks Issues/Issue Label events; use **Test Delivery**; check the bot has write access |
 | "`.factory/project.json` cannot be used: ..." | the comment names the problem; fix it on the default branch, then close and reopen the ticket |
 | "The repository ... is empty: it has no commits yet" | a brand-new repository has nothing to branch from. Make a first commit on the default branch (a README and `.factory/project.json`), then close and reopen the ticket |
-| a gate fails with "command not found" | the tool is not in the sandbox image: install it in the gate, or add it to the image ([launcher guide](../services/sandbox-launcher/README.md#images)) |
+| a gate fails with "command not found" | the tool is not in the sandbox image: install it in the gate, or add it to the image ([launcher guide](../src/sandbox-launcher/README.md#images)) |
 | the change is rejected as "build output" | add the generated folder to `.gitignore` |
 | the run stops with `build_blocked` | the ticket needs a protected file changed ([above](#what-the-factory-will-not-do)) |
 | a pull request has a surprising extra file | review it, then merge or ask for removal; the PR lists each file |

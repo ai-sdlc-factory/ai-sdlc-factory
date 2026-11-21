@@ -1,15 +1,15 @@
 <Solution>
-  <Folder Name="/libs/">
-    <Project Path="libs/DevFoundry.Contracts/DevFoundry.Contracts.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/api/DevFoundry.Api.csproj" />
+    <Project Path="src/contracts/DevFoundry.Contracts.csproj" />
+    <Project Path="src/controller/DevFoundry.Controller.csproj" />
+    <Project Path="src/egress-proxy/DevFoundry.EgressProxy.csproj" />
+    <Project Path="src/sandbox-launcher/DevFoundry.SandboxLauncher.csproj" />
   </Folder>
-  <Folder Name="/services/">
-    <Project Path="services/api/src/DevFoundry.Api/DevFoundry.Api.csproj" />
-    <Project Path="services/api/tests/DevFoundry.Api.Tests/DevFoundry.Api.Tests.csproj" />
-    <Project Path="services/controller/src/DevFoundry.Controller/DevFoundry.Controller.csproj" />
-    <Project Path="services/controller/tests/DevFoundry.Controller.Tests/DevFoundry.Controller.Tests.csproj" />
-    <Project Path="services/egress-proxy/src/DevFoundry.EgressProxy/DevFoundry.EgressProxy.csproj" />
-    <Project Path="services/egress-proxy/tests/DevFoundry.EgressProxy.Tests/DevFoundry.EgressProxy.Tests.csproj" />
-    <Project Path="services/sandbox-launcher/src/DevFoundry.SandboxLauncher/DevFoundry.SandboxLauncher.csproj" />
-    <Project Path="services/sandbox-launcher/tests/DevFoundry.SandboxLauncher.Tests/DevFoundry.SandboxLauncher.Tests.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/api/DevFoundry.Api.Tests.csproj" />
+    <Project Path="tests/controller/DevFoundry.Controller.Tests.csproj" />
+    <Project Path="tests/egress-proxy/DevFoundry.EgressProxy.Tests.csproj" />
+    <Project Path="tests/sandbox-launcher/DevFoundry.SandboxLauncher.Tests.csproj" />
   </Folder>
 </Solution>

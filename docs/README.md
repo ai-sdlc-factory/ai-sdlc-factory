@@ -30,14 +30,14 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Component | Guide |
 | --- | --- |
 | Compose stack, local addresses, bot account | [Infrastructure](../infra/README.md) |
-| Webhook intake | [api](../services/api/README.md) |
-| Workflows and workspace handling | [controller](../services/controller/README.md) |
-| Starting sandboxes | [sandbox-launcher](../services/sandbox-launcher/README.md) |
-| Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../services/egress-proxy/ALLOWLIST.md) |
+| Webhook intake | [api](../src/api/README.md) |
+| Workflows and workspace handling | [controller](../src/controller/README.md) |
+| Starting sandboxes | [sandbox-launcher](../src/sandbox-launcher/README.md) |
+| Internet access of the sandboxes | [egress-proxy](../src/egress-proxy/README.md) and the [allowlist](../src/egress-proxy/ALLOWLIST.md) |
 | A Forgejo to try the factory on | [forgejo](../companions/forgejo/README.md) |
 | Alerts to tickets | [alert-intake](../companions/alert-intake/README.md) |
 | Demo production and monitoring | [demo](../companions/demo/README.md) |
-| Deployed-pipeline test | [deployed-pipeline test](../services/api/README.md#tests) |
+| Deployed-pipeline test | [deployed-pipeline test](../src/api/README.md#tests) |
 
 ## The diagrams
 

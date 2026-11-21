@@ -1,0 +1,35 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props ./
+COPY src/contracts/DevFoundry.Contracts.csproj src/contracts/
+COPY src/controller/DevFoundry.Controller.csproj src/controller/
+COPY tests/controller/DevFoundry.Controller.Tests.csproj tests/controller/
+RUN dotnet restore tests/controller/DevFoundry.Controller.Tests.csproj
+COPY src/contracts ./src/contracts
+COPY src/controller ./src/controller
+COPY tests/controller ./tests/controller
+# The templates are parsed by a test, so a template can never ship settings the factory would refuse.
+COPY templates ./templates
+# The role files, so a test can keep the controller's list of roles equal to the folder.
+COPY agents ./agents
+RUN dotnet publish src/controller -c Release --no-restore -o /out
+
+FROM build AS test
+# A Temporal dev server for the workflow scenario tests (a static binary, the version the stack already uses).
+COPY --from=temporalio/admin-tools:1.32.1 /usr/local/bin/temporal /usr/local/bin/temporal
+RUN dotnet build tests/controller -c Release --no-restore
+# TEST_FILTER (for example "Category!=Scenario" for the fast tests only) is passed to dotnet test when set.
+CMD ["sh", "-c", "dotnet test tests/controller -c Release --no-build ${TEST_FILTER:+--filter \"$TEST_FILTER\"}"]
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+ENV DOTNET_EnableDiagnostics=0 HOME=/tmp
+WORKDIR /app
+# git prepares the per-run checkouts that sandboxes mount.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+RUN useradd --system --uid 10001 worker
+COPY --from=build /out ./
+USER worker
+CMD ["dotnet", "DevFoundry.Controller.dll"]

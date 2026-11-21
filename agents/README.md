@@ -77,7 +77,7 @@ permissions, models or the allowed sandbox image; those come from this folder an
 ## Changing or adding an agent
 
 Edit the Markdown file and commit it. Changes apply to the next run; running sandboxes keep the copy they started with. Prompts should be checked against real tickets before they are trusted. To add a role, see
-[Adding or changing things](../services/controller/README.md#adding-or-changing-things): the role file is only one part, because the answer is validated by a parser in the controller.
+[Adding or changing things](../src/controller/README.md#adding-or-changing-things): the role file is only one part, because the answer is validated by a parser in the controller.
 
 ## The engineering floor
 

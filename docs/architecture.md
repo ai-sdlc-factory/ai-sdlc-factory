@@ -13,22 +13,22 @@ boundaries are. How each kind of ticket is handled is in [Workflows](workflows.m
 | Part | What it does | Why it is separate |
 | --- | --- | --- |
 | **Git host** (Forgejo or GitHub; as many as `FACTORY_HOSTS` lists) | Holds the repositories, tickets, labels and pull requests. People work here. | It is the human interface; the factory needs no other one, and no host is built in: each kind has an adapter. A Forgejo to try it on is a separate project ([`forgejo/`](../companions/forgejo/README.md)). |
-| **api** ([guide](../services/api/README.md)) | Receives signed webhooks from the git hosts, checks the signature, starts a Temporal workflow. | It faces the network (webhooks) but has no git host token, no Docker and no business logic. |
+| **api** ([guide](../src/api/README.md)) | Receives signed webhooks from the git hosts, checks the signature, starts a Temporal workflow. | It faces the network (webhooks) but has no git host token, no Docker and no business logic. |
 | **Temporal** | Durable workflows: every step, prompt, answer and check output is stored in its history; waits for people cost nothing. | A run can take days (waiting for answers) and survives restarts. |
-| **controller** ([guide](../services/controller/README.md)) | Runs the workflows. Decides every next step in code, holds the only git host tokens, runs git, validates what agents answer. Also runs the janitor and starts the weekly report on what repeated. | All decisions live in one reviewed, tested place. |
-| **sandbox-launcher** ([guide](../services/sandbox-launcher/README.md)) | The only service with the Docker socket. Starts one disposable container per agent run with a fixed isolation policy. | Docker access is effectively root on the host; it is kept in a small service that has no tokens and takes requests it can validate. |
-| **egress-proxy** ([guide](../services/egress-proxy/README.md)) | The only way out of a sandbox: HTTPS tunnels to allowlisted hosts, everything logged. | An agent that is tricked by text must not be able to send code or the login anywhere. |
+| **controller** ([guide](../src/controller/README.md)) | Runs the workflows. Decides every next step in code, holds the only git host tokens, runs git, validates what agents answer. Also runs the janitor and starts the weekly report on what repeated. | All decisions live in one reviewed, tested place. |
+| **sandbox-launcher** ([guide](../src/sandbox-launcher/README.md)) | The only service with the Docker socket. Starts one disposable container per agent run with a fixed isolation policy. | Docker access is effectively root on the host; it is kept in a small service that has no tokens and takes requests it can validate. |
+| **egress-proxy** ([guide](../src/egress-proxy/README.md)) | The only way out of a sandbox: HTTPS tunnels to allowlisted hosts, everything logged. | An agent that is tricked by text must not be able to send code or the login anywhere. |
 | **Sandboxes** | One per agent run: OpenCode, one role file, the project's language image. | Disposable and isolated: non-root, read-only root, no capabilities, no route out except the proxy. |
 | **Agents folder** ([guide](../agents/README.md)) | One Markdown file per role: permissions, model, prompt. | Roles are reviewed like code and change without a rebuild. |
 | **PostgreSQL** | The Temporal databases. | Standard. pgAdmin is a development convenience. |
 
 Docker Compose runs all of it on one machine ([Infrastructure](../infra/README.md)). The services are .NET 10 and live under
-[`services/`](../services/); the wire types they share are in [`libs/DevFoundry.Contracts`](../libs/DevFoundry.Contracts/Contracts.cs).
+[`src/`](../src/) (one folder each, with its Dockerfile and README; their tests are in [`tests/`](../tests/)); the wire types they share are in [`src/contracts`](../src/contracts/Contracts.cs).
 
 ## How a ticket flows
 
 1. A person creates or labels a ticket on a git host. The host sends a **signed webhook** to the api.
-2. The api verifies the signature (HMAC-SHA256 over the exact bytes) and starts `RepoEventWorkflow` in Temporal. How a host signs and words its events is the job of that host's **webhook adapter** (`libs/DevFoundry.Contracts/Hosts/Webhooks.cs`; Forgejo's and GitHub's exist): the api serves one route per configured host (`/webhooks/<name>`), and the workflow reads the delivery through the same adapter into the factory's own `RepoEvent`, which is all the router ever sees. Repeated
+2. The api verifies the signature (HMAC-SHA256 over the exact bytes) and starts `RepoEventWorkflow` in Temporal. How a host signs and words its events is the job of that host's **webhook adapter** (`src/contracts/Hosts/Webhooks.cs`; Forgejo's and GitHub's exist): the api serves one route per configured host (`/webhooks/<name>`), and the workflow reads the delivery through the same adapter into the factory's own `RepoEvent`, which is all the router ever sees. Repeated
    deliveries of the same id are ignored.
 3. That workflow is the **router**: with fixed rules it starts the ticket's own workflow (feature, bug, incident, plan or docs), starts
    the workflow a slash command asks for on a ticket or pull request (`/fix`, `/update`, `/qa`, `/review`, `/retry`), signals a
@@ -75,7 +75,7 @@ onto the pristine clone, and commits and pushes from there. A test plants a host
 - **Commands in `.factory/project.json`.** The project's checks run in the sandbox with package access and no model access. A repository owner decides what they do; they get no more reach than the agent has.
 - **A person with comment access** on a ticket can steer a run (answer questions, use incident commands) unless the operator restricted who: the git host's repository permissions are the access control by default, and a `commands` rule in `FACTORY_HOSTS` can ask for write or admin access, or name the people (the controller asks the host, keeps the answer briefly, and refuses when it cannot find out).
 
-The [egress guide](../services/egress-proxy/ALLOWLIST.md) describes the network rules in detail; [Operations](operations.md#security-notes) lists the practical checks.
+The [egress guide](../src/egress-proxy/ALLOWLIST.md) describes the network rules in detail; [Operations](operations.md#security-notes) lists the practical checks.
 
 ## Where data lives
 
@@ -94,14 +94,14 @@ The [egress guide](../services/egress-proxy/ALLOWLIST.md) describes the network 
 
 | Folder | Content |
 | --- | --- |
-| [`services/api`](../services/api) | webhook intake |
-| [`services/controller`](../services/controller) | workflows, agent prompts and parsers, workspace and git host handling |
-| [`services/sandbox-launcher`](../services/sandbox-launcher) | container policy and the Docker client |
-| [`services/egress-proxy`](../services/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
+| [`src/api`](../src/api) | webhook intake |
+| [`src/controller`](../src/controller) | workflows, agent prompts and parsers, workspace and git host handling |
+| [`src/sandbox-launcher`](../src/sandbox-launcher) | container policy and the Docker client |
+| [`src/egress-proxy`](../src/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
 | [`companions/alert-intake`](../companions/alert-intake) | a tool outside the factory: turns monitoring alerts into tickets (the demo runs it) |
 | [`companions/demo`](../companions/demo) | a demo production with Prometheus, Alertmanager, Grafana and Loki, and the scripts around it |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`infra/`](../infra) | Docker Compose and environment settings |
 
-The controller's code layout is in its [guide](../services/controller/README.md#code-layout).
+The controller's code layout is in its [guide](../src/controller/README.md#code-layout).

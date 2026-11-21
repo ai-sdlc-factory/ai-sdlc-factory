@@ -97,16 +97,16 @@ docker compose up -d
 - **Factory code:** `git pull`, then `docker compose up -d --build` (or name a service: `docker compose up -d --build controller`).
 - **Sandbox images:** `docker compose --profile images build sandbox-image-<name>` after a change to `sandboxes/`. The OpenCode version in the images is pinned and checked against a digest.
 - **Agents:** edit `agents/agents/<role>.md` and commit; the next agent run uses it. Running sandboxes keep the copy they started with.
-- **Egress rules:** edit `services/egress-proxy/profiles.json` (or your own file) and `docker compose restart egress-proxy`.
+- **Egress rules:** edit `src/egress-proxy/profiles.json` (or your own file) and `docker compose restart egress-proxy`.
 - Image versions of Forgejo, Temporal, PostgreSQL and the others are pinned in `infra/compose.yaml`; change them there.
 
 ## Tests
 
 | What | How |
 | --- | --- |
-| a service's unit tests | from the repository root: `docker build --target test -f services/<service>/Dockerfile -t t .` then `docker run --rm t` (`api`, `controller`, `sandbox-launcher`, `egress-proxy`) |
+| a service's unit tests | from the repository root: `docker build --target test -f src/<service>/Dockerfile -t t .` then `docker run --rm t` (`api`, `controller`, `sandbox-launcher`, `egress-proxy`) |
 | workflow scenarios | part of the controller tests: they run the real workflows on a Temporal dev server with scripted agents and fake activities. `python3 tools/run-scenarios.py` runs them in several containers at once (about 2 minutes instead of 7) and checks that no scenario class is left out |
-| the deployed pipeline | `docker compose --profile test run --build --rm --no-deps integration-tests` ([guide](../services/api/README.md#tests)) |
+| the deployed pipeline | `docker compose --profile test run --build --rm --no-deps integration-tests` ([guide](../src/api/README.md#tests)) |
 | documentation links and settings | `python3 tools/check-docs.py` ([below](#keeping-the-documentation-correct)) |
 | CI | `bitbucket-pipelines.yml` runs the service tests, a vulnerable-package check, the documentation check and the integration tests |
 
@@ -149,7 +149,7 @@ The report counts each run once even if a line was written twice (by `run_id`), 
 
 ### The weekly report: what repeats
 
-Once a week (a few minutes after the controller starts and then checked every hour, so a restart never makes a second one) the factory evaluates the **last completed week** (Monday to Monday, UTC) by **counting**: no model is involved, the same logs always give the same report. It reads the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories) and the egress proxy's log of refused hosts, and saves `.usage/reports/<year>-W<week>.md` next to the usage log. A rule only flags something when there is enough to mean something (at least 5 runs or attempts), and all of them are constants in [`ReportRules.cs`](../services/controller/src/DevFoundry.Controller/Improvement/ImprovementReport.cs):
+Once a week (a few minutes after the controller starts and then checked every hour, so a restart never makes a second one) the factory evaluates the **last completed week** (Monday to Monday, UTC) by **counting**: no model is involved, the same logs always give the same report. It reads the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories) and the egress proxy's log of refused hosts, and saves `.usage/reports/<year>-W<week>.md` next to the usage log. A rule only flags something when there is enough to mean something (at least 5 runs or attempts), and all of them are constants in [`ReportRules.cs`](../src/controller/Improvement/ImprovementReport.cs):
 
 | What repeats | Flagged when |
 | --- | --- |

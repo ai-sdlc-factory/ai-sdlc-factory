@@ -17,14 +17,14 @@ pipelines:
             name: Test api
             script:
               - export SERVICE=api
-              - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
+              - docker build --target test -f src/$SERVICE/Dockerfile -t $SERVICE-test .
               - docker run --rm $SERVICE-test
         - step:
             <<: *service-tests
             name: Test controller
             script:
               - export SERVICE=controller
-              - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
+              - docker build --target test -f src/$SERVICE/Dockerfile -t $SERVICE-test .
               - docker run --rm $SERVICE-test
         - step:
             <<: *service-tests
@@ -37,14 +37,14 @@ pipelines:
             name: Test egress-proxy
             script:
               - export SERVICE=egress-proxy
-              - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
+              - docker build --target test -f src/$SERVICE/Dockerfile -t $SERVICE-test .
               - docker run --rm $SERVICE-test
         - step:
             <<: *service-tests
             name: Test sandbox-launcher
             script:
               - export SERVICE=sandbox-launcher
-              - docker build --target test -f services/$SERVICE/Dockerfile -t $SERVICE-test .
+              - docker build --target test -f src/$SERVICE/Dockerfile -t $SERVICE-test .
               - docker run --rm $SERVICE-test
         - step:
             name: Check documentation

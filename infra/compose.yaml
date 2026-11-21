@@ -10,7 +10,7 @@ name: dev-foundry
 #   sandbox-model, sandbox-packages, sandbox-developer
 #           one internal network (no route out, no external DNS) per egress profile for the disposable agent
 #           containers the sandbox launcher starts. Only the egress proxy joins them, and it lets a sandbox
-#           reach just the hosts its profile lists (services/egress-proxy/profiles.json)
+#           reach just the hosts its profile lists (src/egress-proxy/profiles.json)
 
 # Helpers for the OpenCode login. They run from the Python sandbox image (which already has OpenCode),
 # only when asked for (profile opencode-tools), as the factory user and with no capabilities.
@@ -165,7 +165,7 @@ services:
     image: dev-foundry/api:local
     build:
       context: ..
-      dockerfile: services/api/Dockerfile
+      dockerfile: src/api/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -192,7 +192,7 @@ services:
     image: dev-foundry/controller:local
     build:
       context: ..
-      dockerfile: services/controller/Dockerfile
+      dockerfile: src/controller/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -257,7 +257,7 @@ services:
     image: dev-foundry/egress-proxy:local
     build:
       context: ..
-      dockerfile: services/egress-proxy/Dockerfile
+      dockerfile: src/egress-proxy/Dockerfile
       target: runtime
     restart: unless-stopped
     environment:
@@ -268,8 +268,8 @@ services:
       # Every refusal is also written here, one JSON line each (at most 10 MB), for the factory's weekly report.
       EGRESS_DENIED_LOG: /var/log/egress/denied.jsonl
     volumes:
-      # Your own rules: set EGRESS_PROFILES in .env to a file in the same format (see services/egress-proxy/ALLOWLIST.md).
-      - ${EGRESS_PROFILES:-../services/egress-proxy/profiles.json}:/etc/egress/profiles.json:ro
+      # Your own rules: set EGRESS_PROFILES in .env to a file in the same format (see src/egress-proxy/ALLOWLIST.md).
+      - ${EGRESS_PROFILES:-../src/egress-proxy/profiles.json}:/etc/egress/profiles.json:ro
       - egress-log:/var/log/egress
     networks:
       egress:
@@ -287,13 +287,13 @@ services:
       start_period: 10s
 
   # The only service with Docker access. It starts disposable agent containers with fixed isolation
-  # settings (see services/sandbox-launcher/README.md) and has no Forgejo credentials.
+  # settings (see src/sandbox-launcher/README.md) and has no Forgejo credentials.
   sandbox-launcher:
     <<: *hardened
     image: dev-foundry/sandbox-launcher:local
     build:
       context: ..
-      dockerfile: services/sandbox-launcher/Dockerfile
+      dockerfile: src/sandbox-launcher/Dockerfile
       target: runtime
     restart: unless-stopped
     depends_on:
@@ -404,9 +404,9 @@ services:
     image: dev-foundry/api-test:local
     build:
       context: ..
-      dockerfile: services/api/Dockerfile
+      dockerfile: src/api/Dockerfile
       target: test
-    command: ["dotnet", "test", "services/api/tests/DevFoundry.Api.Tests", "-c", "Release", "--no-build", "--filter", "Category=Deployed"]
+    command: ["dotnet", "test", "tests/api", "-c", "Release", "--no-build", "--filter", "Category=Deployed"]
     profiles: ["test"]
     restart: "no"
     networks: [control]

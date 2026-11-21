@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <ItemGroup>
+    <PackageReference Include="Temporalio.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\contracts\DevFoundry.Contracts.csproj" />
+    <Using Include="DevFoundry.Contracts" />
+  </ItemGroup>
+
+</Project>

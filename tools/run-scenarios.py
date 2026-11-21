@@ -19,7 +19,7 @@ import time
 from typing import NamedTuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TESTS = os.path.join(ROOT, "services", "controller", "tests", "DevFoundry.Controller.Tests")
+TESTS = os.path.join(ROOT, "tests", "controller")
 TEST_ATTRIBUTE = re.compile(r"\[(?:Skippable)?(?:Fact|Theory)\b")
 SCENARIO_TRAIT = 'Trait("Category", "Scenario")'
 NO_RESULT = "no result line (the container failed to run the tests)"
@@ -103,7 +103,7 @@ def main():
 
     if not arguments.no_build:
         print("Building the test image ...", flush=True)
-        build = subprocess.run(["docker", "build", "-q", "--target", "test", "-f", "services/controller/Dockerfile", "-t", arguments.image, "."], cwd=ROOT, capture_output=True, text=True)
+        build = subprocess.run(["docker", "build", "-q", "--target", "test", "-f", "src/controller/Dockerfile", "-t", arguments.image, "."], cwd=ROOT, capture_output=True, text=True)
         if build.returncode != 0:
             sys.exit("The test image did not build:\n" + (build.stdout + build.stderr)[-2000:])
 

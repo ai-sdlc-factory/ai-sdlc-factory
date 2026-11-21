@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Temporalio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\contracts\DevFoundry.Contracts.csproj" />
+    <Using Include="DevFoundry.Contracts" />
+  </ItemGroup>
+
+</Project>

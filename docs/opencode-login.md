@@ -4,7 +4,7 @@
 
 The factory's agents run OpenCode with a ChatGPT Plus/Pro account (browser sign-in; no OpenAI API key).
 You sign in once. The login is stored in the `opencode-data` Docker volume, outside `.env`, Git and
-Temporal history, and the [sandbox launcher](../services/sandbox-launcher/README.md#model-access-and-the-opencode-login)
+Temporal history, and the [sandbox launcher](../src/sandbox-launcher/README.md#model-access-and-the-opencode-login)
 mounts it into the runs that call the model.
 
 ## Sign in

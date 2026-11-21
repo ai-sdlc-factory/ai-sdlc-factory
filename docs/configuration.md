@@ -104,7 +104,7 @@ FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST=5
 | Key | What | Default |
 | --- | --- | --- |
 | `SANDBOX_EGRESS` | how strictly the sandboxes' internet access is limited: `enforce` (only each profile's allowlisted hosts through the proxy), `audit` (every HTTPS host allowed and logged), `open` (no restrictions at all). Anything else stops the launcher and proxy from starting. After a change: `docker compose up -d --force-recreate egress-proxy sandbox-launcher` | `enforce` |
-| `EGRESS_PROFILES` | your own allowlist file instead of `services/egress-proxy/profiles.json` (path relative to `infra/`, or absolute) | `../services/egress-proxy/profiles.json` |
+| `EGRESS_PROFILES` | your own allowlist file instead of `src/egress-proxy/profiles.json` (path relative to `infra/`, or absolute) | `../src/egress-proxy/profiles.json` |
 | `SANDBOX_NET_BASE` | the first two numbers of the internal sandbox networks (`10.250.1.0/24`, `.2.0/24`, `.3.0/24`). Change only if they clash with a network you use | `10.250` |
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | shared Temporal connection settings; the api and controller must agree on the namespace and queue | `temporal:7233`, `default`, `factory-events` |
 | `TEMPORAL_RETENTION` | how long Temporal keeps a finished workflow's history, which is also the window for duplicate-delivery detection and for reading a run's full record. Applied only when the namespace is **first created** | `7d` |
@@ -179,7 +179,7 @@ The service that turns monitoring alerts into tickets is a tool of its own, outs
 
 What the launcher fixes for **every** sandbox, whatever a request says: non-root user, read-only root filesystem with a 1 GB `/tmp`, all capabilities dropped, `no-new-privileges`, no
 privileged mode, no devices, an init process, the memory, CPU and process limits above, and no mounts except the workspace, the agents folder (read-only) and, for model runs, the
-login volume. Details: [launcher guide](../services/sandbox-launcher/README.md).
+login volume. Details: [launcher guide](../src/sandbox-launcher/README.md).
 
 ### egress-proxy
 
@@ -191,7 +191,7 @@ login volume. Details: [launcher guide](../services/sandbox-launcher/README.md).
 | `EGRESS_PORT` | `3128` | the proxy's port |
 | `EGRESS_DENIED_LOG` | `/var/log/egress/denied.jsonl` (set by Compose) | a file every refusal is also written to, one JSON line each, at most 10 MB; the controller's [weekly report](operations.md#the-weekly-report-what-repeats) reads it. Empty = no file (refusals are still on the console) |
 
-The allowlist format, adding a host, and what the protection does and does not cover are in the [egress guide](../services/egress-proxy/ALLOWLIST.md).
+The allowlist format, adding a host, and what the protection does and does not cover are in the [egress guide](../src/egress-proxy/ALLOWLIST.md).
 
 ## Agents and models
 

@@ -46,15 +46,15 @@ Start at the [documentation index](docs/README.md).
 ## Repository
 
 - [`infra/`](infra/README.md): Docker Compose and environment settings.
-- [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and git host handling.
-  [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach, with its [allowlist](services/egress-proxy/ALLOWLIST.md) (`profiles.json`).
+- [`src/`](src/): the code, one folder per service with its own Dockerfile and README, and the library they share; their tests are in [`tests/`](tests/), one folder per service. [`src/api/`](src/api/README.md): webhook intake. [`src/controller/`](src/controller/README.md): workflows, agent prompts and parsers, workspace and git host handling.
+  [`src/sandbox-launcher/`](src/sandbox-launcher/README.md): the only service with Docker access. [`src/egress-proxy/`](src/egress-proxy/README.md): the proxy that decides what sandboxes may reach, with its [allowlist](src/egress-proxy/ALLOWLIST.md) (`profiles.json`).
 - [`companions/`](companions/): things that run beside the factory, each with its own README, Compose file or Dockerfile and no shared code: [`forgejo/`](companions/forgejo/README.md) (a Forgejo to try the factory on), [`alert-intake/`](companions/alert-intake/README.md) (turns monitoring alerts into tickets) and [`demo/`](companions/demo/README.md) (a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose).
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.
 - [`templates/`](templates/README.md): working starter projects (.NET, Python, React, .NET + React) to copy, with every feature switched on.
-- [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
-- [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services, with the git host list, triggers and webhook adapters in `Hosts/`.
+- [`sandboxes/`](src/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
+- [`src/contracts/`](src/contracts/Contracts.cs): the library the services share: wire types, with the git host list, triggers and webhook adapters in `Hosts/`.
 - [`tools/`](tools/): `check-docs.py` (the documentation check), `usage-report.py` (token totals from the usage log) and `check-clock.py`.
 - [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the deployed-pipeline test.
 
-All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
+All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) (it holds `src/` and `tests/`) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
 [`Directory.Packages.props`](Directory.Packages.props); change a package version there, not in a project file.

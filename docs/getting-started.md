@@ -12,7 +12,7 @@ serve needs a [short setup](project-setup.md).
 | Windows with **WSL 2** (Ubuntu) and **Docker Desktop** with WSL integration enabled, or any Linux with Docker Engine and Compose v2 | The stack is built and tested on WSL. Docker Compose runs everything. |
 | About 10 GB of disk and 8 GB of RAM for Docker | The sandboxes are limited to 2 GB and 2 CPUs each, and 2 run at once. |
 | A **ChatGPT Plus/Pro account** | The agents use OpenCode with a ChatGPT sign-in; there is no OpenAI API key. Usage counts against your plan. |
-| Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../services/egress-proxy/ALLOWLIST.md)). |
+| Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../src/egress-proxy/ALLOWLIST.md)). |
 
 ## 1. Get the code and configure the environment
 
@@ -67,7 +67,7 @@ docker compose --profile images build sandbox-image-dotnet-node sandbox-image-py
 ```
 
 Build only the ones you need; a project that asks for an image that does not exist fails its first agent run with a clear message.
-Adding another language is described in the [launcher guide](../services/sandbox-launcher/README.md#images).
+Adding another language is described in the [launcher guide](../src/sandbox-launcher/README.md#images).
 
 ## 4. Set up a git host and the factory's bot account
 
@@ -111,7 +111,7 @@ The login should be listed, and both services should be waiting for work without
 
 ```bash
 # unit tests of each service (from the repository root)
-docker build --target test -f services/controller/Dockerfile -t dev-foundry/controller-test . && docker run --rm dev-foundry/controller-test
+docker build --target test -f src/controller/Dockerfile -t dev-foundry/controller-test . && docker run --rm dev-foundry/controller-test
 # full pipeline test against the running stack (from infra/)
 docker compose --profile test run --build --rm --no-deps integration-tests
 ```

@@ -112,10 +112,13 @@ def check_settings() -> None:
 
     read_vars: set[str] = set()
     pattern = re.compile(r'(?:configuration\["|NonEmpty\(configuration, "|GetValue(?:<[a-z]+>)?\("|GetEnvironmentVariable\(")([A-Z][A-Z0-9_]{2,})"')
-    for source in (ROOT / "services").glob("*/src/**/*.cs"):
-        if "/obj/" in str(source) or "/bin/" in str(source):
+    for source in (ROOT / "src").glob("*/**/*.cs"):
+        if "/obj/" in str(source) or "/bin/" in str(source) or "/contracts/" in str(source):
             continue
         read_vars.update(pattern.findall(read(source)))
+    # A glob that matches nothing would quietly check nothing: there are always variables to find.
+    if not read_vars:
+        fail("no service variables were found under src/: the path this check reads has moved")
     checked["service variables"] = len(read_vars)
     for key in sorted(read_vars):
         if key not in configuration:
@@ -124,7 +127,7 @@ def check_settings() -> None:
 
 def check_project_keys() -> None:
     guide = read(ROOT / "docs/project-setup.md")
-    source = "\n".join(read(path) for path in sorted((ROOT / "services/controller/src/DevFoundry.Controller/Project").glob("*.cs")))
+    source = "\n".join(read(path) for path in sorted((ROOT / "src/controller/Project").glob("*.cs")))
     project_keys = sorted(set(re.findall(r'TryGetProperty\("([a-z_]+)"', source)))
     checked["project.json keys"] = len(project_keys)
     for key in project_keys:
@@ -132,7 +135,7 @@ def check_project_keys() -> None:
             fail(f".factory/project.json key \"{key}\" (ProjectConfig.cs) is not in docs/project-setup.md")
 
     # A key a reader asks for but ProjectKeys.cs does not list would be reported as unknown to the people who use it.
-    known = read(ROOT / "services/controller/src/DevFoundry.Controller/Project/ProjectKeys.cs")
+    known = read(ROOT / "src/controller/Project/ProjectKeys.cs")
     for key in project_keys:
         if f'"{key}"' not in known:
             fail(f".factory/project.json key \"{key}\" is read by the parser but is not in ProjectKeys.cs, so it would be warned about as unknown")
@@ -202,16 +205,16 @@ def check_templates() -> None:
 def check_statuses_and_labels() -> None:
     workflows = read(ROOT / "docs/workflows.md")
     statuses: set[str] = set()
-    statuses.update(re.findall(r'const string \w+ = "([a-z_]+)";', read(ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Base/Statuses.cs")))
+    statuses.update(re.findall(r'const string \w+ = "([a-z_]+)";', read(ROOT / "src/controller/Workflows/Base/Statuses.cs")))
     checked["statuses"] = len(statuses)
     for status in sorted(statuses):
         if f"`{status}`" not in workflows:
             fail(f"result status {status} is not in docs/workflows.md")
 
     labels = set(re.findall(r'(?:FeatureLabel|BugLabel|IncidentLabel|PlanLabel|DocsLabel|QuickLabel|FullLabel|ForceLabel) = "([a-z-]+)"', "".join(
-        read(p) for p in [ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Routing/EventRouter.cs",
-                          ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Routing/WorkMode.cs",
-                          ROOT / "services/controller/src/DevFoundry.Controller/Agents/Coverage/Triage.cs"])))
+        read(p) for p in [ROOT / "src/controller/Workflows/Routing/EventRouter.cs",
+                          ROOT / "src/controller/Workflows/Routing/WorkMode.cs",
+                          ROOT / "src/controller/Agents/Coverage/Triage.cs"])))
     checked["labels"] = len(labels)
     for label in sorted(labels):
         if f"`{label}`" not in workflows:
