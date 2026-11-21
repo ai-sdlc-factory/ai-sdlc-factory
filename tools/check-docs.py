@@ -202,7 +202,7 @@ def check_templates() -> None:
 def check_statuses_and_labels() -> None:
     workflows = read(ROOT / "docs/workflows.md")
     statuses: set[str] = set()
-    statuses.update(re.findall(r'const string \w+ = "([a-z_]+)";', read(ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Statuses.cs")))
+    statuses.update(re.findall(r'const string \w+ = "([a-z_]+)";', read(ROOT / "services/controller/src/DevFoundry.Controller/Workflows/Base/Statuses.cs")))
     checked["statuses"] = len(statuses)
     for status in sorted(statuses):
         if f"`{status}`" not in workflows:

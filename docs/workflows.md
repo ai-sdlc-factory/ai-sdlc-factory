@@ -521,6 +521,6 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 
 ### Where the code is
 
-Decisions are in `Workflows/` (`EventRouter`, `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow` on a shared `FactoryWorkflowBase`), the
-parsers and prompts of each role in `Agents/<role>/`, and git handling in `Workspace/`. See the
+Decisions are in `Workflows/` (`Routing/EventRouter`, then `Tickets/` with `FeatureWorkflow`, `BugWorkflow`, `IncidentWorkflow`, `PlanWorkflow` on a shared `Base/FactoryWorkflowBase`), the
+parsers and prompts of each role in `Agents/<role>/`, and git handling in `Workspace/Git/`. See the
 [controller guide](../services/controller/README.md#code-layout). The scenario tests run the real workflows on a Temporal dev server with scripted agents.
