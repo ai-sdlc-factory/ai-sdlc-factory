@@ -53,7 +53,7 @@ Start at the [documentation index](docs/README.md).
 - [`templates/`](templates/README.md): working starter projects (.NET, Python, React, .NET + React) to copy, with every feature switched on.
 - [`sandboxes/`](src/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
 - [`src/contracts/`](src/contracts/Contracts.cs): the library the services share: wire types, with the git host list, triggers and webhook adapters in `Hosts/`.
-- [`tools/`](tools/): `check-docs.py` (the documentation check), `usage-report.py` (token totals from the usage log) and `check-clock.py`.
+- [`tools/`](tools/README.md): `check-docs.py` (the documentation check), `run-scenarios.py` (the workflow scenarios in parallel), `usage-report.py` (token totals from the usage log), `onboard-repo.py` (labels and webhook for a Forgejo repository) and `check-clock.py`.
 - [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the deployed-pipeline test.
 
 All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) (it holds `src/` and `tests/`) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
