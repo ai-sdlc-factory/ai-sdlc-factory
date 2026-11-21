@@ -32,13 +32,13 @@ public static partial class RepoNames
 /// One git host besides the default one, as <c>FACTORY_EXTRA_HOSTS</c> describes it. The API reads the name, the kind and the webhook secret; the controller reads the name, the kind,
 /// the address, the bot's token and the bot's login.
 /// </summary>
-public sealed record HostDefinition(string Name, string Type, string Url, string Token, string BotLogin, string WebhookSecret);
+public sealed record HostDefinition(string Name, string Type, string Url, string Token, string BotLogin, string WebhookSecret, TriggerRules? Triggers = null);
 
 public static class ExtraHostsSetting
 {
     /// <summary>
     /// Reads the <c>FACTORY_EXTRA_HOSTS</c> setting: a JSON array of <c>{"name","type","url","token","bot_login","webhook_secret"}</c> (<c>type</c> defaults to <c>forgejo</c>,
-    /// <c>bot_login</c> to <c>factory-bot</c>; <c>name</c> and <c>url</c> are required). Empty means no extra host. A setting that cannot be used stops the start with a message
+    /// <c>bot_login</c> to <c>factory-bot</c>; <c>name</c> and <c>url</c> are required; <c>triggers</c> is optional, see <see cref="TriggerRules"/>). Empty means no extra host. A setting that cannot be used stops the start with a message
     /// that names the host and the problem, never a secret.
     /// </summary>
     public static IReadOnlyList<HostDefinition> Parse(string? json)
@@ -86,7 +86,8 @@ public static class ExtraHostsSetting
                 {
                     throw new InvalidOperationException($"FACTORY_EXTRA_HOSTS: host \"{name}\" needs a \"webhook_secret\" of at least 32 characters.");
                 }
-                hosts.Add(new HostDefinition(name, type, url.TrimEnd('/'), Text(item, "token") ?? "", Text(item, "bot_login") is { Length: > 0 } login ? login : "factory-bot", secret));
+                var triggers = item.TryGetProperty("triggers", out var triggersValue) ? TriggerRules.Read(triggersValue, $"FACTORY_EXTRA_HOSTS: host \"{name}\"") : TriggerRules.Default;
+                hosts.Add(new HostDefinition(name, type, url.TrimEnd('/'), Text(item, "token") ?? "", Text(item, "bot_login") is { Length: > 0 } login ? login : "factory-bot", secret, triggers));
             }
             return hosts;
         }

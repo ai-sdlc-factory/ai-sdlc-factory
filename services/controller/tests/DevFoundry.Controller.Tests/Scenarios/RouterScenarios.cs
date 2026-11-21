@@ -84,6 +84,43 @@ public sealed class RouterScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_label_the_hosts_triggers_name_starts_the_workflow_and_the_factory_command_starts_one_when_the_host_allows_it()
+    {
+        var world = new FakeWorld().Agent("analyst", AgentReply.Says(Answers.Analyst("reject")), AgentReply.Says(Answers.Analyst("reject")));
+        world.Triggers = new TriggerRules(new Dictionary<string, IReadOnlyList<string>> { ["feature"] = ["enhancement"] }, Command: true);
+        var byLabel = "r" + Guid.NewGuid().ToString("N")[..10];
+        var byCommand = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "opened", byLabel, label: "enhancement"));
+            await Route(context, Event("issue_comment", "created", byCommand, comment: "/factory feature", label: "question"));
+            await WaitUntilAsync(() => world.Snapshot(world.CleanedUp).Count == 2);
+            return 0;
+        });
+
+        Assert.Equal(2, world.Calls("analyst").Count());
+        Assert.All(world.Snapshot(world.PrepareRequests), request => Assert.StartsWith("factory/issue-", request.Branch));
+    }
+
+    [SkippableFact]
+    public async Task Without_the_hosts_permission_the_factory_command_and_an_unknown_label_start_nothing()
+    {
+        var world = new FakeWorld();
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "/factory feature", label: "question"));
+            await Route(context, Event("issues", "opened", repo, label: "enhancement"));
+            return 0;
+        });
+
+        Assert.Empty(world.Calls("analyst"));
+        Assert.Empty(world.Snapshot(world.PrepareRequests));
+    }
+
+    [SkippableFact]
     public async Task A_comment_the_factory_wrote_itself_gets_no_notice()
     {
         var world = new FakeWorld();

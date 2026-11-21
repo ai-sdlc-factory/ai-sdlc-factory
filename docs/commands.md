@@ -23,7 +23,7 @@ What to type, where to type it, and what starts. Everything happens in Forgejo: 
 
 ## Labels
 
-A label on a ticket starts a workflow when the ticket is **opened**, **reopened** or **labelled**, and open. A ticket with no factory label is ignored (except for `/ask`).
+A label on a ticket starts a workflow when the ticket is **opened**, **reopened** or **labelled**, and open. A ticket with no factory label is ignored (except for `/ask` and `/setup`). The operator can [add more names](configuration.md) for a kind (`FACTORY_TRIGGERS`: `enhancement` for `feature`, say), map a host's work-item types, and turn on the **`/factory <kind>`** comment (`/factory feature`, `/factory bug`, ...), which asks for that workflow on an open ticket that carries no kind: it is off by default, because anyone who can comment could then start a run.
 
 | Label | Starts | Produces |
 | --- | --- | --- |

@@ -53,12 +53,13 @@ public enum RepoEventKind
 /// <param name="HeadRef">For a review: the branch the pull request comes from.</param>
 /// <param name="PullState">For a review: the pull request's state as the host says it (<c>open</c>), or null when it says none.</param>
 /// <param name="Actor">For a review: who submitted it.</param>
+/// <param name="ItemType">The ticket's work-item type on a host that has types (a bug, a story); null on a host that does not.</param>
 public sealed record RepoEvent(
     string Host, string DeliveryId, string EventName, RepoEventKind Kind, string? Action = null, string? Reference = null, string? Repository = null,
     string Owner = "", string Repo = "", int Number = 0, bool IsPullRequest = false, bool IsOpen = true,
     string Title = "", string Body = "", string Author = "", IReadOnlyList<string>? Labels = null,
     string CommentBody = "", string CommentAuthor = "",
-    string? HeadRef = null, string? PullState = null, string ReviewBody = "", string Actor = "")
+    string? HeadRef = null, string? PullState = null, string ReviewBody = "", string Actor = "", string? ItemType = null)
 {
     public IReadOnlyList<string> LabelNames => Labels ?? [];
 

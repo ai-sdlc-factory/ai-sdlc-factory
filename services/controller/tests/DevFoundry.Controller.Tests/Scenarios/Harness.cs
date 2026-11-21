@@ -178,6 +178,9 @@ public sealed class FakeWorld
     public List<ImprovementRequest> ImprovementRequests { get; } = [];
 
     /// <summary>What the usage log says about the week's pull requests, and what Forgejo says became of them; the report gets the second.</summary>
+    /// <summary>How the host's tickets say which workflow to run; by default only the plain labels.</summary>
+    public TriggerRules Triggers { get; set; } = TriggerRules.Default;
+
     public PullScope PullScope { get; set; } = new(["acme/shop"], [], []);
     public IReadOnlyList<PullOutcome> PullOutcomes { get; set; } = [];
     public Exception? PullOutcomesFailure { get; set; }
@@ -352,6 +355,9 @@ public sealed class FakeWorld
 
         [Activity("githost_find_factory_pull_request")]
         public int? FindFactoryPullRequest(TicketReference ticket) => world.OpenFactoryPull;
+
+        [Activity("githost_triggers")]
+        public TriggerRules ReadTriggers(string hostName) => world.Triggers;
 
         [Activity("workspace_pull_scope")]
         public PullScope ReadPullScope(ImprovementRequest request) => world.PullScope;

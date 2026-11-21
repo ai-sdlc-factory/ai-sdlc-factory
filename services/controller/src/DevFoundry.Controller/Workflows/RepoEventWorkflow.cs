@@ -19,13 +19,21 @@ public sealed class RepoEventWorkflow
         var adapter = WebhookAdapters.Find(input.Adapter)
             ?? throw new ApplicationFailureException($"No webhook adapter for the host type \"{input.Adapter}\".", nonRetryable: true);
         var repoEvent = adapter.Normalise(input);
-        await RouteAsync(repoEvent);
+        // The host's triggers come from an activity (the settings are not workflow code's to read), so a replayed delivery is routed by the rules it first met.
+        // Only a ticket event is decided by them; a push, a review or a pull request comment needs no lookup.
+        var triggers = repoEvent.Kind is RepoEventKind.TicketOpened or RepoEventKind.TicketReopened or RepoEventKind.TicketClosed or RepoEventKind.Other
+            || (repoEvent.Kind == RepoEventKind.Commented && !repoEvent.IsPullRequest)
+            ? await Workflow.ExecuteActivityAsync(
+                (GitHostActivities activities) => activities.ReadTriggersAsync(input.Host),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3))
+            : TriggerRules.Default;
+        await RouteAsync(repoEvent, triggers);
         return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
     }
 
-    private static Task RouteAsync(RepoEvent input)
+    private static Task RouteAsync(RepoEvent input, TriggerRules triggers)
     {
-        var decision = EventRouter.Decide(input);
+        var decision = EventRouter.Decide(input, triggers);
         return decision.Action switch
         {
             RoutingAction.StartFeature => StartFromTicketEventAsync(decision),

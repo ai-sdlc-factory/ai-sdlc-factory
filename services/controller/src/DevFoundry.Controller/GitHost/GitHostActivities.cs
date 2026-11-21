@@ -44,6 +44,11 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
 
     private const int MaxRepositories = 25;
 
+    /// <summary>How a host's tickets say which workflow to run, read at routing time so a replayed delivery sees the rules it was routed with.</summary>
+    [Activity("githost_triggers")]
+    public Task<TriggerRules> ReadTriggersAsync(string hostName) =>
+        Task.FromResult(settings.HostNamed(hostName).Triggers ?? TriggerRules.Default);
+
     [Activity("githost_post_issue_comment")]
     public Task PostIssueCommentAsync(CommentRequest request) =>
         host.PostIssueCommentAsync(

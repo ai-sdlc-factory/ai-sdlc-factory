@@ -267,6 +267,8 @@ services:
       FORGEJO_BOT_LOGIN: ${FORGEJO_BOT_LOGIN:-factory-bot}
       # Git hosts besides the default Forgejo, with the bot's token on each (see docs/configuration.md). Empty = none.
       FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
+      # How the default host's tickets say which workflow to run: more label names per kind, work-item types, the /factory command. Empty = the plain labels.
+      FACTORY_TRIGGERS: ${FACTORY_TRIGGERS:-}
       # What a project gets when its .factory/project.json "limits" do not say (see docs/configuration.md).
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}

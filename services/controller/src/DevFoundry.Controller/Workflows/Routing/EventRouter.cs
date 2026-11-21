@@ -44,7 +44,7 @@ public static partial class EventRouter
     /// <summary>Hidden marker on every comment the factory writes, so it never answers itself.</summary>
     public const string BotMarker = "<!-- dev-foundry:factory -->";
 
-    public static RoutingDecision Decide(RepoEvent input)
+    public static RoutingDecision Decide(RepoEvent input, TriggerRules? triggers = null)
     {
         switch (input.Kind)
         {
@@ -59,20 +59,17 @@ public static partial class EventRouter
             case RepoEventKind.Commented when input.IsPullRequest:
                 return DecidePullRequestComment(input);
             default:
-                return DecideTicketEvent(input);
+                return DecideTicketEvent(input, triggers ?? TriggerRules.Default);
         }
     }
 
     /// <summary>What a ticket event means: start the ticket's workflow, tell it the ticket closed, or hand it a person's comment.</summary>
-    private static RoutingDecision DecideTicketEvent(RepoEvent input)
+    private static RoutingDecision DecideTicketEvent(RepoEvent input, TriggerRules triggers)
     {
         var (owner, repo, issueNumber) = (input.Owner, input.Repo, input.Number);
-        // An incident is never built as a feature or a bug, and a plan is split into tickets, not built; a feature label wins over a bug label.
-        var kind = input.HasLabel(IncidentLabel) ? WorkIds.Incident
-            : input.HasLabel(PlanLabel) ? WorkIds.Plan
-            : input.HasLabel(FeatureLabel) ? WorkIds.Feature
-            : input.HasLabel(BugLabel) ? WorkIds.Bug
-            : input.HasLabel(DocsLabel) ? WorkIds.Docs : null;
+        // The ticket says which workflow it wants by a label (or tag, or work-item type, as the host's triggers say). An incident is never built as a feature or a bug,
+        // and a plan is split into tickets, not built; a feature wins over a bug (see TriggerRules.Kinds).
+        var kind = triggers.KindOf(input);
         var hasFeatureLabel = kind is not null;
         var isOpen = input.IsOpen;
         var commentAuthor = input.CommentAuthor;
@@ -114,6 +111,13 @@ public static partial class EventRouter
                 {
                     return new RoutingDecision(RoutingAction.RunSetup, "setup command on a ticket",
                         Setup: new WorkRequest(owner, repo, issueNumber, input.Title, input.Body, commentAuthor, Kind: WorkIds.Setup));
+                }
+                // `/factory <kind>` asks for a workflow on a ticket that has not asked for one, where the host's triggers allow it (off by default: see TriggerRules).
+                if (!hasFeatureLabel && triggers.Command && FactoryCommand.Parse(body) is { } asked)
+                {
+                    return isOpen
+                        ? new RoutingDecision(RoutingAction.StartFeature, "factory command on a ticket", Feature: TicketRequest(input, asked))
+                        : Ignore("ticket is closed");
                 }
                 if (!hasFeatureLabel)
                 {

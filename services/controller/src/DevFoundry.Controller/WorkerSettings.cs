@@ -12,8 +12,11 @@ public sealed class WorkerSettings
 
     /// <summary>Every git host the factory serves: the default one (the Forgejo settings) first, then the extra ones.</summary>
     public IReadOnlyList<HostSettings> Hosts =>
-        [new HostSettings(RepoNames.DefaultHost, ForgejoWebhookAdapter.TypeName, ForgejoUrl, ForgejoToken, ForgejoBotLogin),
-         .. ExtraHosts.Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin))];
+        [new HostSettings(RepoNames.DefaultHost, ForgejoWebhookAdapter.TypeName, ForgejoUrl, ForgejoToken, ForgejoBotLogin, DefaultHostTriggers),
+         .. ExtraHosts.Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers))];
+
+    /// <summary>How the default host's tickets say which workflow to run (<c>FACTORY_TRIGGERS</c>); the plain labels when not set.</summary>
+    public TriggerRules DefaultHostTriggers { get; init; } = TriggerRules.Default;
 
     /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
     public HostSettings HostNamed(string name) =>
@@ -78,6 +81,7 @@ public sealed class WorkerSettings
         ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
         ForgejoBotLogin = NonEmpty(configuration, "FORGEJO_BOT_LOGIN", "factory-bot"),
         ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
+        DefaultHostTriggers = TriggerRules.Parse(configuration["FACTORY_TRIGGERS"]),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),

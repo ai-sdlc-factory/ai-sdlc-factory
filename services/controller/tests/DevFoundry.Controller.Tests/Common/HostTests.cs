@@ -67,7 +67,7 @@ public sealed class ExtraHostsTests
     {
         var host = Assert.Single(ExtraHostsSetting.Parse($"[{Host()}]"));
 
-        Assert.Equal(new HostDefinition("codeberg", "forgejo", "https://codeberg.org", "tok", "factory-bot", Secret), host);
+        Assert.Equal(new HostDefinition("codeberg", "forgejo", "https://codeberg.org", "tok", "factory-bot", Secret, TriggerRules.Default), host);
     }
 
     [Theory]
@@ -112,7 +112,7 @@ public sealed class ExtraHostsTests
         var settings = Settings($"[{Host(login: "cb-bot")}]");
 
         Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
-        Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot"), settings.Hosts[0]);
+        Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default), settings.Hosts[0]);
         Assert.Equal("default-bot", settings.BotLoginFor("acme"));
         Assert.Equal("cb-bot", settings.BotLoginFor("codeberg:acme"));
         Assert.Equal(["default-token", "tok"], settings.HostTokens);
