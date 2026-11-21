@@ -28,7 +28,7 @@ Docker Compose runs all of it on one machine ([Infrastructure](../infra/README.m
 ## How a ticket flows
 
 1. A person creates or labels a ticket on a git host. The host sends a **signed webhook** to the api.
-2. The api verifies the signature (HMAC-SHA256 over the exact bytes) and starts `RepoEventWorkflow` in Temporal. How a host signs and words its events is the job of that host's **webhook adapter** (`libs/DevFoundry.Contracts/Webhooks.cs`; Forgejo's and GitHub's exist): the api serves one route per configured host (`/webhooks/<name>`), and the workflow reads the delivery through the same adapter into the factory's own `RepoEvent`, which is all the router ever sees. Repeated
+2. The api verifies the signature (HMAC-SHA256 over the exact bytes) and starts `RepoEventWorkflow` in Temporal. How a host signs and words its events is the job of that host's **webhook adapter** (`libs/DevFoundry.Contracts/Hosts/Webhooks.cs`; Forgejo's and GitHub's exist): the api serves one route per configured host (`/webhooks/<name>`), and the workflow reads the delivery through the same adapter into the factory's own `RepoEvent`, which is all the router ever sees. Repeated
    deliveries of the same id are ignored.
 3. That workflow is the **router**: with fixed rules it starts the ticket's own workflow (feature, bug, incident, plan or docs), starts
    the workflow a slash command asks for on a ticket or pull request (`/fix`, `/update`, `/qa`, `/review`, `/retry`), signals a

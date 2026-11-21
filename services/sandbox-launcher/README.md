@@ -109,7 +109,7 @@ The image must contain git, the OpenCode binary, the language's tooling and `/us
 
 ## Images from a repository
 
-Off unless `FACTORY_ALLOW_REPO_IMAGES=true`. A second activity, `sandbox_build_image`, builds the image a repository describes in `.factory/Dockerfile`. The Dockerfile text and a small context arrive in the request. The launcher accepts it only if the file passes [`RepoImagePolicy`](src/DevFoundry.SandboxLauncher/RepoImagePolicy.cs) (first instruction `FROM` one of the aliased images; only `RUN`, `COPY`, `ADD`, `ENV`, `ARG`, `LABEL`; no `--from`, URLs in `ADD`, `--mount`, or parser directives; at most 50 context files and 1 MB), then builds it with the classic builder (no frontend images are fetched) with memory and CPU limits and a time limit, labels it `dev-foundry.repo-image=true`, and refuses an image over 6 GB. The tag is `dev-foundry/repo:<hash>`, where the hash covers the base image id, the Dockerfile and the context, so identical content is built once. Runs refer to it by the alias `repo-<hash>`, which is accepted only while the switch is on and only for an image that carries our label.
+Off unless `FACTORY_ALLOW_REPO_IMAGES=true`. A second activity, `sandbox_build_image`, builds the image a repository describes in `.factory/Dockerfile`. The Dockerfile text and a small context arrive in the request. The launcher accepts it only if the file passes [`RepoImagePolicy`](src/DevFoundry.SandboxLauncher/RepoImages/RepoImagePolicy.cs) (first instruction `FROM` one of the aliased images; only `RUN`, `COPY`, `ADD`, `ENV`, `ARG`, `LABEL`; no `--from`, URLs in `ADD`, `--mount`, or parser directives; at most 50 context files and 1 MB), then builds it with the classic builder (no frontend images are fetched) with memory and CPU limits and a time limit, labels it `dev-foundry.repo-image=true`, and refuses an image over 6 GB. The tag is `dev-foundry/repo:<hash>`, where the hash covers the base image id, the Dockerfile and the context, so identical content is built once. Runs refer to it by the alias `repo-<hash>`, which is accepted only while the switch is on and only for an image that carries our label.
 Builds run on the host's Docker with the default network, **not** through the egress proxy: this is why the switch exists and defaults to off.
 
 ## Behavior
@@ -122,6 +122,10 @@ Builds run on the host's Docker with the default network, **not** through the eg
   Once the command may have run, nothing is retried, because a run can consume model usage.
 - On start the launcher checks Docker and that every egress network exists (it refuses to run
   otherwise), and removes sandbox containers left by a previous launcher process.
+
+## Code layout
+
+`src/DevFoundry.SandboxLauncher/` has `Sandbox/` (what a request may choose and how a run is made: `SandboxPolicy`, `SandboxRunner`, `SandboxSettings`, the activity), `Docker/` (the Docker client, the container spec, the log demultiplexer), `RepoImages/` (the policy, builder, names and janitor of a repository's own image), and the start-up files at the top. The tests mirror these folders.
 
 ## Tests
 

@@ -70,6 +70,10 @@ It stands on its own: it shares no code and no settings with the factory. It onl
 
 **Tokens.** Forgejo: a token with `write:issue` (and `write:repository` to create labels). GitHub: a fine-grained token with **Issues** read and write on the repositories of the routes. GitHub creates a label a ticket names if the repository has not got it.
 
+## Code layout
+
+`src/DevFoundry.AlertIntake/` has `Alerts/` (reading and deciding what an alert does: `AlertProcessor`, the redactor, the rate limiter, the memory of recent tickets, the ticket text), `Hosts/` (the host list, the `ITicketHost` port, the Forgejo and GitHub clients and the table of kinds), and at the top the web endpoints, the routes file, the settings, the log source and the metrics. The tests mirror these folders.
+
 ## Build and test
 
 It builds from this folder, with its own `Directory.Build.props` and `Directory.Packages.props`:
