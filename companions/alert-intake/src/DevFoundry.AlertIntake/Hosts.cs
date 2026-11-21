@@ -51,9 +51,9 @@ public static partial class HostList
                     throw new InvalidOperationException($"{Variable}: every host needs a name of its own (lower case letters, digits and -, starting with a letter, at most 31 characters); \"{Short(name)}\" cannot be used.");
                 }
                 var type = Text(item, "type") ?? Forgejo;
-                if (type is not (Forgejo or GitHub))
+                if (TicketHostKinds.Find(type) is null)
                 {
-                    throw new InvalidOperationException($"{Variable}: host \"{name}\" has the type \"{Short(type)}\", which the intake has no client for ({Forgejo}, {GitHub}).");
+                    throw new InvalidOperationException($"{Variable}: host \"{name}\" has the type \"{Short(type)}\", which the intake has no client for ({string.Join(", ", TicketHostKinds.All.Select(kind => kind.Type))}).");
                 }
                 var url = Text(item, "url") ?? "";
                 if (!Uri.TryCreate(url, UriKind.Absolute, out var address) || address.Scheme is not ("http" or "https"))

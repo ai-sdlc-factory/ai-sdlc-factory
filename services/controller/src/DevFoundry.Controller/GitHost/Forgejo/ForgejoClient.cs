@@ -14,6 +14,12 @@ namespace DevFoundry.Controller;
 /// </summary>
 public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
 {
+    /// <summary>Where the REST API is: the address of the host itself.</summary>
+    public static string ApiBase(string url) => url.TrimEnd('/');
+
+    /// <summary>The header git signs in with over HTTPS: <c>Authorization: token &lt;token&gt;</c>.</summary>
+    public static string GitAuthorization(string token) => "Authorization: token " + token;
+
     public async Task PostIssueCommentAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
@@ -94,15 +100,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
             throw Failure("pull request", response.StatusCode, response.ReasonPhrase);
         }
         using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-        var root = document.RootElement;
-        string Repository(JsonElement side) => Text(Child(side, "repo"), "full_name");
-
-        var head = Child(root, "head");
-        var @base = Child(root, "base");
-        return new PullRequestDetails(
-            number, Text(root, "title"), Text(root, "body"), Text(root, "state"),
-            root.TryGetProperty("merged", out var merged) && merged.ValueKind == JsonValueKind.True,
-            Text(head, "ref"), Text(head, "sha"), Repository(head), Repository(@base), Text(@base, "ref"), Text(Child(root, "user"), "login"));
+        return PullRequest(document.RootElement, number);
     }
 
     private const int FilesPerPage = 50;
@@ -146,9 +144,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
                 }
                 if (files.Count < GitHostLimits.MaxChangedFiles)
                 {
-                    files.Add(new ChangedFile(
-                        Text(item, "filename"), Text(item, "status"), Count(item, "additions"), Count(item, "deletions"),
-                        Text(item, "previous_filename") is { Length: > 0 } previous ? previous : null));
+                    files.Add(ChangedFile(item));
                 }
             }
             if (listed < FilesPerPage)
@@ -164,33 +160,8 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
         {
             throw Failure("diff", diffResponse.StatusCode, diffResponse.ReasonPhrase);
         }
-        await using var stream = await diffResponse.Content.ReadAsStreamAsync(cancellationToken);
-        // Read far enough to find the code after any run records at the top of the diff (.factory sorts first), but never an unbounded amount.
-        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(GitHostLimits.MaxRawDiffBytes + 1);
-        try
-        {
-            var read = 0;
-            while (read <= GitHostLimits.MaxRawDiffBytes)
-            {
-                var count = await stream.ReadAsync(buffer.AsMemory(read, GitHostLimits.MaxRawDiffBytes + 1 - read), cancellationToken);
-                if (count == 0)
-                {
-                    break;
-                }
-                read += count;
-            }
-            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, GitHostLimits.MaxRawDiffBytes)));
-            var cut = read > GitHostLimits.MaxRawDiffBytes || text.Length > GitHostLimits.MaxDiffBytes;
-            return new PullChanges(files, total, text.Length > GitHostLimits.MaxDiffBytes ? text[..GitHostLimits.MaxDiffBytes] : text, cut);
-        }
-        finally
-        {
-            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
-        }
+        return await DiffReader.ReadAsync(diffResponse, files, total, cancellationToken);
     }
-
-    private static int Count(JsonElement element, string name) =>
-        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : 0;
 
     /// <summary>
     /// Every review of a pull request that is still waiting to be acted on: by a person (not the bot), not dismissed, asking for changes or
@@ -243,19 +214,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
                         {
                             continue;
                         }
-                        int? line = null;
-                        foreach (var name in new[] { "line", "position", "original_position" })
-                        {
-                            if (comment.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var lineNumber) && lineNumber > 0)
-                            {
-                                line = lineNumber;
-                                break;
-                            }
-                        }
-                        comments.Add(new ReviewComment(
-                            comment.TryGetProperty("id", out var commentId) && commentId.ValueKind == JsonValueKind.Number ? commentId.GetInt64() : 0,
-                            Login(comment), Text(comment, "path") is { Length: > 0 } filePath ? filePath : null, line, Text(comment, "body"),
-                            Text(comment, "diff_hunk") is { Length: > 0 } hunk ? hunk : null));
+                        comments.Add(ReviewComment(comment, "line", "position", "original_position"));
                     }
                 }
             }

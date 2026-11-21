@@ -70,6 +70,17 @@ public sealed class HostTests
         Assert.Contains(message, error.Message);
     }
 
+    [Fact]
+    public void Each_kind_of_host_makes_the_client_of_its_own_and_reaches_its_own_api()
+    {
+        Assert.IsType<ForgejoClient>(TicketHostKinds.CreateClient(new IntakeHost("a", "forgejo", "http://forgejo:3000/", "t")));
+        Assert.IsType<GitHubClient>(TicketHostKinds.CreateClient(new IntakeHost("b", "github", "https://github.com", "t")));
+        Assert.Equal("https://api.github.com", TicketHostKinds.Find("github")!.ApiBase("https://github.com"));
+        Assert.Equal("https://git.example.com/api/v3", TicketHostKinds.Find("github")!.ApiBase("https://git.example.com"));
+        Assert.Equal("http://forgejo:3000", TicketHostKinds.Find("forgejo")!.ApiBase("http://forgejo:3000"));
+        Assert.Null(TicketHostKinds.Find("gitlab"));
+    }
+
     private sealed class Named(string name, List<string> log) : ITicketHost
     {
         private Task<T> Done<T>(string call, T value)

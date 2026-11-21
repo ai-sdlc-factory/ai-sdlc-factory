@@ -37,11 +37,7 @@ public static class ServiceRegistration
         // The git hosts there are (every one listed in FACTORY_HOSTS), behind one port that sends each call to the host its owner belongs to. The rest of the controller asks for IGitHost, never for a class.
         services.AddSingleton<IGitHost>(sp => new GitHostRouter(settings.Hosts.ToDictionary(
             host => host.Name,
-            host =>
-            {
-                var http = new HttpClient { BaseAddress = new Uri(host.ApiBase + "/"), Timeout = TimeSpan.FromSeconds(20) };
-                return host.Type == GitHubWebhookAdapter.TypeName ? (IGitHost)new GitHubClient(http, host.Token) : new ForgejoClient(http, host.Token);
-            })));
+            host => host.CreateClient())));
         services.AddSingleton<IWorkspaceStore>(sp => sp.GetRequiredService<GitWorkspace>());
         services.AddSingleton<IRunningWorkflows>(sp => new TemporalRunningWorkflows(sp.GetRequiredService<ITemporalClient>()));
         services.AddSingleton<IJanitorGitHost>(sp => sp.GetRequiredService<IGitHost>());

@@ -49,3 +49,37 @@ public static class GitHostLimits
     /// <summary>Bytes of its diff that are read at all.</summary>
     public const int MaxRawDiffBytes = 4 * 1024 * 1024;
 }
+
+/// <summary>Reads the start of a pull request's diff from a host's response, whatever the host: bounded, without the factory's own run records.</summary>
+internal static class DiffReader
+{
+    /// <summary>
+    /// The pull request's changes: the files already listed, and the diff text. It reads far enough to find the code after any run records at the top of the diff (<c>.factory</c> sorts first),
+    /// but never more than <see cref="GitHostLimits.MaxRawDiffBytes"/>, and keeps at most <see cref="GitHostLimits.MaxDiffBytes"/> characters of it.
+    /// </summary>
+    public static async Task<PullChanges> ReadAsync(HttpResponseMessage response, IReadOnlyList<ChangedFile> files, int total, CancellationToken cancellationToken)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(GitHostLimits.MaxRawDiffBytes + 1);
+        try
+        {
+            var read = 0;
+            while (read <= GitHostLimits.MaxRawDiffBytes)
+            {
+                var count = await stream.ReadAsync(buffer.AsMemory(read, GitHostLimits.MaxRawDiffBytes + 1 - read), cancellationToken);
+                if (count == 0)
+                {
+                    break;
+                }
+                read += count;
+            }
+            var text = RunRecords.WithoutRecords(System.Text.Encoding.UTF8.GetString(buffer, 0, Math.Min(read, GitHostLimits.MaxRawDiffBytes)));
+            var cut = read > GitHostLimits.MaxRawDiffBytes || text.Length > GitHostLimits.MaxDiffBytes;
+            return new PullChanges(files, total, text.Length > GitHostLimits.MaxDiffBytes ? text[..GitHostLimits.MaxDiffBytes] : text, cut);
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+}
