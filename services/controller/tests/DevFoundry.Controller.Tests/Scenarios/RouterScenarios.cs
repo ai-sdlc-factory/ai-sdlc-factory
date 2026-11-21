@@ -384,4 +384,32 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         Assert.Empty(world.Snapshot(world.CommandChecks));
         Assert.Empty(world.Snapshot(world.Notices));
     }
+
+    [SkippableFact]
+    public async Task A_review_that_asks_for_changes_is_checked_by_its_reviewer_not_by_a_commenter()
+    {
+        var verdict = new CommandVerdict(false, CommandRefusal.TooLittleAccess, "write", false);
+        var world = new FakeWorld { CommandVerdict = verdict };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+        var review = new WebhookDelivery(Guid.NewGuid().ToString(), "pull_request_rejected", JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            action = "reviewed",
+            repository = new { full_name = $"acme/{repo}" },
+            pull_request = new { number = 5, state = "open", head = new { @ref = "factory/issue-1" } },
+            review = new { type = "pull_request_review_rejected", content = "Please change this." },
+            sender = new { login = "mallory" },
+        })).RootElement);
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, review);
+            await Task.Delay(1500); // long enough for a revision that was wrongly started to show itself
+            return 0;
+        });
+
+        var check = Assert.Single(world.Snapshot(world.CommandChecks));
+        Assert.Equal(("forgejo", "acme", repo, "mallory"), (check.Host, check.Owner, check.Repo, check.Login));
+        Assert.Equal(TicketComments.CommandRefused(verdict), Assert.Single(world.Snapshot(world.Notices)));
+        Assert.DoesNotContain(world.Snapshot(world.Comments), comment => comment.Contains("review comment"));
+    }
 }

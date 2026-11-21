@@ -13,13 +13,15 @@ Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that r
 
 ## Built, and still to check live
 
-The factory serves several git hosts at once: Forgejo and GitHub, listed in `FACTORY_HOSTS` (the port, the neutral event, the host in the identity, per-host triggers, a client and a webhook adapter per kind; see [Several git hosts](operations.md#several-git-hosts)). It was run live on GitHub with a feature ticket, `/ask`, `/setup`, `/fix`, `/fix qa`, `/update` and `/qa`. One thing was not: a review that **requests changes** starting a revision on GitHub, because a pull request's author cannot request changes on it and the factory ignores reviews by its own account, so it needs a second GitHub account. It is covered by unit tests only.
+The factory serves several git hosts at once: Forgejo and GitHub, listed in `FACTORY_HOSTS` (the port, the neutral event, the host in the identity, per-host triggers, a client and a webhook adapter per kind; see [Several git hosts](operations.md#several-git-hosts)). It was run live on GitHub with a feature ticket, `/ask`, `/setup`, `/fix`, `/fix qa`, `/update` and `/qa`. One thing was not: a review that **requests changes** starting a revision on GitHub, because a pull request's author cannot request changes on it and the factory ignores reviews by its own account, so it needs a second GitHub account. It is covered by unit tests and a workflow scenario only.
+
+Who may steer the factory is built too: a host (and single repositories of it) can restrict commands to people with write or admin access, or to named people ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts), with the setup of both hosts in [Connecting a git host](git-hosts.md)). It was checked live on GitHub and Forgejo (levels, deny and allow lists, silent refusal, per-repository exceptions); the reviewer-of-a-review case is covered by a scenario, not live, for the same single-account reason.
 
 ## 1. More git hosts
 
 **Problem.** A team on GitLab, Azure DevOps or Bitbucket cannot use the factory. Everything else is host-neutral by now (the [port, the events and the identity](operations.md#several-git-hosts)), so a host is one client, one webhook adapter, a few settings and a live check.
 
-**How.** The recipe is the rule "a new kind of git host" in [AGENTS.md](../AGENTS.md): a webhook adapter in `libs/DevFoundry.Contracts/Hosts/` (with tests of its payloads and its signature or secret), an `IGitHost` client in `GitHost/<Kind>/` and one entry in `GitHostKinds` (a test checks that every adapter has one), a ticket client on `RestTicketHost` and an entry in `TicketHostKinds` in the alert intake if alerts should open tickets there, a section in [operations.md](operations.md) with the token scopes and the webhook events, and a live run on a real repository (the first GitHub run found two bugs that fakes could not).
+**How.** The recipe is the rule "a new kind of git host" in [AGENTS.md](../AGENTS.md): a webhook adapter in `libs/DevFoundry.Contracts/Hosts/` (with tests of its payloads and its signature or secret), an `IGitHost` client in `GitHost/<Kind>/` and one entry in `GitHostKinds` (a test checks that every adapter has one), a ticket client on `RestTicketHost` and an entry in `TicketHostKinds` in the alert intake if alerts should open tickets there, a column in [git-hosts.md](git-hosts.md) (the bot account, the token scopes, the webhook and its events, the permissions) and a row in the limitations of [operations.md](operations.md) if it differs, and a live run on a real repository (the first GitHub run found two bugs that fakes could not).
 
 | Host | Effort | Difficulty |
 | --- | --- | --- |
@@ -29,7 +31,7 @@ The factory serves several git hosts at once: Forgejo and GitHub, listed in `FAC
 
 **Must not.** Let a host decide anything (hosts only deliver events and carry results); treat a fork's pull request as trusted on a host where forks work differently (the review-reads-default-branch rule must hold on every host); lose the hidden `<!-- dev-foundry:factory -->` marker (check that the host renders HTML comments invisibly, or use another reliable way to recognise the bot's own comments, such as its user id); assume an identical set of review states.
 
-**Done when.** The new host runs the same path live (a feature ticket, `/ask`, a revision after a review, `/qa`) and its pull request is reviewed and merged by a person; it runs next to the others on one controller without sharing a workspace or a usage count; the documentation names its trigger setting and token scopes. The [commands rule](configuration.md#factory_hosts) (who may steer the factory) has to work on it too: an operation for a person's access on the host, or an honest "cannot say".
+**Done when.** The new host runs the same path live (a feature ticket, `/ask`, a revision after a review, `/qa`) and its pull request is reviewed and merged by a person; it runs next to the others on one controller without sharing a workspace or a usage count; [git-hosts.md](git-hosts.md) names its trigger setting, token scopes and webhook events. The [commands rule](configuration.md#factory_hosts) (who may steer the factory) has to work on it too: an operation for a person's access on the host, or an honest "cannot say".
 
 ## 2. Finer rules of who may steer the factory
 
