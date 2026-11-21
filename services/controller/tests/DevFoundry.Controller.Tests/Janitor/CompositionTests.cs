@@ -39,6 +39,25 @@ public sealed class CompositionTests
     }
 
     [Fact]
+    public void Every_workflow_the_controller_has_is_registered_on_the_worker()
+    {
+        // A workflow the scenario harness registers but the real worker does not looks fine in every test and then fails in production ("not registered on this worker").
+        using var provider = Build();
+        var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptionsMonitor<Temporalio.Extensions.Hosting.TemporalWorkerServiceOptions>>()
+            .Get(new WorkerSettings().TemporalTaskQueue);
+
+        var registered = options.Workflows.Select(workflow => workflow.Name).ToHashSet();
+        var all = typeof(FeatureWorkflow).Assembly.GetTypes()
+            .Select(type => (Type: type, Attribute: System.Reflection.CustomAttributeExtensions.GetCustomAttribute<Temporalio.Workflows.WorkflowAttribute>(type)))
+            .Where(item => item.Attribute is not null)
+            .Select(item => item.Attribute!.Name ?? item.Type.Name)
+            .ToList();
+
+        Assert.NotEmpty(all);
+        Assert.All(all, name => Assert.Contains(name, registered));
+    }
+
+    [Fact]
     public void Activities_and_workflows_are_registered_with_what_they_need()
     {
         using var provider = Build();
