@@ -412,4 +412,23 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         Assert.Equal(TicketComments.CommandRefused(verdict), Assert.Single(world.Snapshot(world.Notices)));
         Assert.DoesNotContain(world.Snapshot(world.Comments), comment => comment.Contains("review comment"));
     }
+
+    [SkippableFact]
+    public async Task The_check_is_told_which_commands_the_comment_carries()
+    {
+        var world = new FakeWorld { CommandVerdict = new CommandVerdict(false, CommandRefusal.TooLittleAccess, "admin", true) };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "Looks right.\n/option 2\n/hotfix"));
+            await Route(context, Event("issue_comment", "created", repo, comment: "Yes, use the second one."));
+            return 0;
+        });
+
+        var checks = world.Snapshot(world.CommandChecks);
+        Assert.Equal(2, checks.Count);
+        Assert.Equal(["option", "hotfix"], checks[0].Commands);
+        Assert.Equal(["reply"], checks[1].Commands);
+    }
 }

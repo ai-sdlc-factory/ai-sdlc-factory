@@ -56,5 +56,11 @@ public interface IGitHost : IJanitorGitHost
     /// </summary>
     Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// A small text file of the repository on its default branch (<paramref name="path"/> relative to the root), or null when there is none, it is not a file, or it is larger than
+    /// <see cref="GitHostLimits.MaxFileBytes"/>. Used for the one file the factory reads without a checkout: <c>.factory/project.json</c>.
+    /// </summary>
+    Task<string?> ReadFileAsync(string owner, string repo, string path, CancellationToken cancellationToken);
+
     // The janitor's five (repositories the bot can push to, branches, whether a ticket is closed, branches of open pull requests, deleting a branch) come from IJanitorGitHost.
 }

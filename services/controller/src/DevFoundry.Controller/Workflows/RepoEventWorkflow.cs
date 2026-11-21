@@ -57,7 +57,7 @@ public sealed class RepoEventWorkflow
         }
         var login = input.Kind == RepoEventKind.ChangesRequested ? input.Actor : input.CommentAuthor;
         var verdict = await Workflow.ExecuteActivityAsync(
-            (GitHostActivities activities) => activities.CheckCommandAsync(new CommandCheck(host, input.Owner, input.Repo, login)),
+            (GitHostActivities activities) => activities.CheckCommandAsync(new CommandCheck(host, input.Owner, input.Repo, login, CommandNameReader.Of(input, decision))),
             ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
         if (verdict.Allowed)
         {

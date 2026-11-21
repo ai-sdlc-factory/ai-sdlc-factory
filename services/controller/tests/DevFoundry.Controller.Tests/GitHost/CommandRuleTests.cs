@@ -279,9 +279,16 @@ public sealed class PermissionCacheTests
 
 public sealed class CheckCommandActivityTests
 {
-    private sealed class CountingHost(HostPermission answer, bool fail = false) : IGitHost
+    private sealed class CountingHost(HostPermission answer, bool fail = false, string? projectFile = null, bool failFile = false) : IGitHost
     {
         public int Lookups { get; private set; }
+        public int FileReads { get; private set; }
+
+        public Task<string?> ReadFileAsync(string owner, string repo, string path, CancellationToken ct)
+        {
+            FileReads++;
+            return failFile ? throw new HttpRequestException("host down") : Task.FromResult(projectFile);
+        }
 
         public Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken ct)
         {
@@ -396,5 +403,82 @@ public sealed class CheckCommandActivityTests
 
         Assert.Equal(CommandRefusal.CouldNotCheck, verdict.Refusal);
         Assert.Equal(2, host.Lookups);
+    }
+
+    private static Task<CommandVerdict> CheckCommand(GitHostActivities activities, string login, params string[] commands) =>
+        new ActivityEnvironment().RunAsync(() => activities.CheckCommandAsync(new CommandCheck("forgejo", "acme", "shop", login, commands)));
+
+    [Fact]
+    public async Task A_rule_for_one_command_asks_the_host_only_when_that_command_is_used()
+    {
+        var host = new CountingHost(HostPermission.Write);
+        var activities = new GitHostActivities(host, Settings("\"commands\":{\"each\":{\"approve\":\"admin\"}}"));
+
+        Assert.True((await CheckCommand(activities, "alice", "qa")).Allowed);
+        Assert.Equal(0, host.Lookups);
+        Assert.False((await CheckCommand(activities, "alice", "approve")).Allowed);
+        Assert.Equal(1, host.Lookups);
+    }
+
+    [Fact]
+    public async Task The_project_file_is_not_read_unless_the_operator_allowed_it()
+    {
+        var host = new CountingHost(HostPermission.Write, projectFile: """{"commands":"admin"}""");
+        var activities = new GitHostActivities(host, Settings("\"commands\":{\"who\":\"write\"}"));
+
+        Assert.True((await CheckCommand(activities, "alice", "qa")).Allowed);
+
+        Assert.Equal(0, host.FileReads);
+    }
+
+    [Fact]
+    public async Task Where_allowed_the_project_tightens_and_the_file_is_read_once_for_a_burst()
+    {
+        var host = new CountingHost(HostPermission.Write, projectFile: """{"commands":"admin"}""");
+        var activities = new GitHostActivities(host, Settings("\"commands\":{\"project\":true}"));
+
+        var first = await CheckCommand(activities, "alice", "qa");
+        var second = await CheckCommand(activities, "alice", "fix");
+
+        Assert.Equal((false, CommandRefusal.TooLittleAccess), (first.Allowed, first.Refusal));
+        Assert.False(second.Allowed);
+        Assert.Equal(1, host.FileReads);
+        Assert.Equal(1, host.Lookups);
+    }
+
+    [Fact]
+    public async Task A_project_without_the_key_or_without_a_file_or_with_an_unusable_key_changes_nothing()
+    {
+        foreach (var file in new string?[] { """{"image":"python"}""", null, """{"commands":{"allow":["alice"]}}""", "not json at all" })
+        {
+            var host = new CountingHost(HostPermission.Read, projectFile: file);
+            var activities = new GitHostActivities(host, Settings("\"commands\":{\"project\":true}"));
+
+            Assert.True((await CheckCommand(activities, "alice", "qa")).Allowed, file);
+            Assert.Equal(0, host.Lookups);
+        }
+    }
+
+    [Fact]
+    public async Task A_project_file_that_cannot_be_read_refuses_for_now_and_is_read_again_next_time()
+    {
+        var host = new CountingHost(HostPermission.Write, failFile: true);
+        var activities = new GitHostActivities(host, Settings("\"commands\":{\"project\":true}"));
+
+        var first = await CheckCommand(activities, "alice", "qa");
+        await CheckCommand(activities, "alice", "qa");
+
+        Assert.Equal((false, CommandRefusal.CouldNotCheck), (first.Allowed, first.Refusal));
+        Assert.Equal(2, host.FileReads);
+    }
+
+    [Fact]
+    public async Task A_person_the_operator_named_passes_the_project_without_asking_the_host()
+    {
+        var host = new CountingHost(HostPermission.None, projectFile: """{"commands":{"who":"admin","deny":["alice"]}}""");
+        var activities = new GitHostActivities(host, Settings("\"commands\":{\"allow\":[\"alice\"],\"project\":true}"));
+
+        Assert.True((await CheckCommand(activities, "alice", "qa")).Allowed);
+        Assert.Equal(0, host.Lookups);
     }
 }

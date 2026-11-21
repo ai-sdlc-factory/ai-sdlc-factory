@@ -7,7 +7,7 @@ What is left to build, as designs and not promises. Each says what problem it so
 | # | Idea | Solves | Size |
 | --- | --- | --- | --- |
 | 1 | [More git hosts](#1-more-git-hosts) | the factory serves Forgejo and GitHub only | days per host |
-| 2 | [Finer rules of who may steer the factory](#2-finer-rules-of-who-may-steer-the-factory) | one rule for every command, and only people or access levels | small |
+| 2 | [Teams in the rules of who may steer the factory](#2-teams-in-the-rules-of-who-may-steer-the-factory) | a team has to be written out as logins | small, but needs an organization to check live |
 
 Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
 
@@ -15,7 +15,7 @@ Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that r
 
 The factory serves several git hosts at once: Forgejo and GitHub, listed in `FACTORY_HOSTS` (the port, the neutral event, the host in the identity, per-host triggers, a client and a webhook adapter per kind; see [Several git hosts](operations.md#several-git-hosts)). It was run live on GitHub with a feature ticket, `/ask`, `/setup`, `/fix`, `/fix qa`, `/update` and `/qa`. One thing was not: a review that **requests changes** starting a revision on GitHub, because a pull request's author cannot request changes on it and the factory ignores reviews by its own account, so it needs a second GitHub account. It is covered by unit tests and a workflow scenario only.
 
-Who may steer the factory is built too: a host (and single repositories of it) can restrict commands to people with write or admin access, or to named people ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts), with the setup of both hosts in [Connecting a git host](git-hosts.md)). It was checked live on GitHub and Forgejo (levels, deny and allow lists, silent refusal, per-repository exceptions); the reviewer-of-a-review case is covered by a scenario, not live, for the same single-account reason.
+Who may steer the factory is built too: a host (and single repositories of it) can restrict commands to people with write or admin access, or to named people, with a rule on top for single commands and an opt-in tightening in the repository's own project file ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts), with the setup of both hosts in [Connecting a git host](git-hosts.md)). It was checked live on GitHub and Forgejo (levels, deny and allow lists, silent refusal, per-repository exceptions, a rule for one command); the reviewer-of-a-review case, and the project file's own `commands` key (it needs a merge into a default branch), are covered by tests and scenarios, not live.
 
 ## 1. More git hosts
 
@@ -33,14 +33,16 @@ Who may steer the factory is built too: a host (and single repositories of it) c
 
 **Done when.** The new host runs the same path live (a feature ticket, `/ask`, a revision after a review, `/qa`) and its pull request is reviewed and merged by a person; it runs next to the others on one controller without sharing a workspace or a usage count; [git-hosts.md](git-hosts.md) names its trigger setting, token scopes and webhook events. The [commands rule](configuration.md#factory_hosts) (who may steer the factory) has to work on it too: an operation for a person's access on the host, or an honest "cannot say".
 
-## 2. Finer rules of who may steer the factory
+## 2. Teams in the rules of who may steer the factory
 
-**Built.** A host (and a single repository of it) can say who may steer the factory: anyone, people with write or admin access, or only named people, with a list of people always refused ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts)). What is left is finer than that.
+**Built.** A host (and a single repository of it) can say who may steer the factory: anyone, people with write or admin access, or only named people, with a list of people always refused, a rule on top for single commands (`/approve` and `/hotfix` for administrators only, say), and, where the operator allows it, a tightening of its own in the repository's `.factory/project.json` ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts) and [in the project file](project-setup.md#who-may-steer-commands)). What is left is teams.
 
-**Problem.** One rule covers every comment that steers a run. Someone may want `/approve` and `/hotfix` (which open tickets and carry out incident advice) for administrators only, while anyone with write access may use `/qa` and `/fix`. And the rule knows people and access levels, not teams: a GitHub or Forgejo team has to be written out as logins.
+**Problem.** The rule knows people and access levels, not teams: a GitHub or Forgejo team has to be written out as logins, and kept up to date by hand when someone joins or leaves.
 
-**How.** A second level in the rule, per kind of command (`"approve"`, `"hotfix"` ...), that can only be stricter than the host's own; and, where a host can answer it cheaply, `"team": "acme/maintainers"` as one more way to be let in. A project's own `.factory/project.json` could be allowed to tighten the rule further (never loosen it): it was left out because reading the file costs a request for every command, even when nothing is configured, so it would need a cache or a different place to be read.
+**How.** Where a host can answer it cheaply, `"team": "acme/maintainers"` as one more way to be let in, next to `allow`: GitHub has `/orgs/{org}/teams/{slug}/memberships/{login}` (it needs the organization's Members permission on the token), Forgejo has team membership endpoints (it needs the `read:organization` scope and a team id looked up by name). The answer would be kept like a person's access is, for `FACTORY_PERMISSION_CACHE_SECONDS`.
 
-**Must not.** Let a repository loosen what the operator set; check a login taken from the comment text; ask the host for every command when the default is open.
+**Why it is not built.** Both lookups only exist for organizations, and each needs an extra token permission to be useful; it should be run live on a real organization on each host before it is trusted, and the factory has only been run on personal accounts so far. The access levels (`write`, `admin`) already cover most teams, because a team's members get their access from the team.
 
-**Done when.** A command with its own rule is refused for someone the host's rule lets in; a team member passes where the team is named; the default (no rule) still asks nothing of the host.
+**Must not.** Check a login taken from the comment text; ask the host for every command when the default is open; fail open when the host cannot say.
+
+**Done when.** A member of a named team is let in and a non-member is refused, on a real organization of each host; a token without the extra permission makes the answer "cannot say" and so no; the default (no rule) still asks nothing of the host.

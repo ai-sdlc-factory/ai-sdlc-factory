@@ -14,12 +14,15 @@ public sealed record PullRequestRequest(string Owner, string Repo, string Head, 
 /// <summary>A ticket, by number, whose open pull request of the factory is wanted.</summary>
 public sealed record TicketReference(string Owner, string Repo, int Number);
 
-/// <summary>Whose command to check: the host, the repository (the factory's qualified owner) and the login the host reported for the person.</summary>
-public sealed record CommandCheck(string Host, string Owner, string Repo, string Login);
+/// <summary>Whose command to check: the host, the repository (the factory's qualified owner), the login the host reported for the person, and the commands the comment carries (see <see cref="CommandNameReader"/>).</summary>
+public sealed record CommandCheck(string Host, string Owner, string Repo, string Login, IReadOnlyList<string>? Commands = null);
 
-public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, PermissionCache? permissions = null)
+public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, PermissionCache? permissions = null, ProjectRuleCache? projectRules = null)
 {
     private readonly PermissionCache cache = permissions ?? new PermissionCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds));
+    private readonly ProjectRuleCache projectCache = projectRules ?? new ProjectRuleCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds));
+
+    private const string ProjectFile = ".factory/project.json";
 
     /// <summary>The number of the factory's newest open pull request for the ticket, or null when it has none.</summary>
     [Activity("githost_find_factory_pull_request")]
@@ -55,16 +58,39 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, Pe
         Task.FromResult(settings.HostNamed(hostName).Triggers ?? TriggerRules.Default);
 
     /// <summary>
-    /// Whether a person may steer the factory on a repository, by the operator's rule for it (<c>commands</c> in <c>FACTORY_HOSTS</c>). With no rule, or a rule that names the person, the host is not
-    /// asked at all; otherwise it is, and a clear answer is kept for a while. A host that cannot say, or fails, makes the answer no.
+    /// Whether a person may steer the factory on a repository, by the operator's rule for it (<c>commands</c> in <c>FACTORY_HOSTS</c>): the rule, then the rule of each command the comment carries,
+    /// then, where the operator allowed it, what the repository's project file tightens. With no rule, or a rule that names the person, the host is not asked at all; otherwise it is, and a clear
+    /// answer is kept for a while. A host that cannot say, or fails, makes the answer no.
     /// </summary>
     [Activity("githost_check_command")]
     public async Task<CommandVerdict> CheckCommandAsync(CommandCheck check)
     {
         var rule = (settings.HostNamed(check.Host).Commands ?? HostCommandRules.Open).For(RepoNames.Split(check.Owner).Owner, check.Repo);
+        if (rule.IsOpen)
+        {
+            return CommandVerdict.Yes;
+        }
         var login = check.Login.Trim();
+        var commands = check.Commands ?? [];
+        var token = ActivityExecutionContext.Current.CancellationToken;
+
+        ProjectCommandRule? project = null;
+        if (rule.Project)
+        {
+            try
+            {
+                project = await ReadProjectRuleAsync(check.Owner, check.Repo, token);
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                // The repository may have asked for more than the operator did, and the file cannot be read: no, for now (not kept, so the next command reads it again).
+                ActivityExecutionContext.Current.Logger.LogWarning("Could not read the project file of {Repository}: {Error}", $"{check.Owner}/{check.Repo}", error.GetType().Name);
+                return new CommandVerdict(false, CommandRefusal.CouldNotCheck, "", rule.Silent);
+            }
+        }
+
         HostPermission? permission = null;
-        if (CommandPolicy.NeedsPermission(rule, login))
+        if (CommandPolicy.NeedsPermission(rule, login, commands, project))
         {
             if (cache.TryGet(check.Owner, check.Repo, login, out var kept))
             {
@@ -74,7 +100,7 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, Pe
             {
                 try
                 {
-                    permission = await host.GetPermissionAsync(check.Owner, check.Repo, login, ActivityExecutionContext.Current.CancellationToken);
+                    permission = await host.GetPermissionAsync(check.Owner, check.Repo, login, token);
                     cache.Keep(check.Owner, check.Repo, login, permission.Value);
                 }
                 catch (Exception error) when (error is not OperationCanceledException)
@@ -84,7 +110,35 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, Pe
                 }
             }
         }
-        return CommandPolicy.Decide(rule, login, permission);
+        return CommandPolicy.Decide(rule, login, permission, commands, project);
+    }
+
+    /// <summary>What the repository's <c>.factory/project.json</c> says about who may steer, kept for a while. No file, no key, or a key that cannot be used says nothing (the run's own warning names it).</summary>
+    private async Task<ProjectCommandRule> ReadProjectRuleAsync(string owner, string repo, CancellationToken token)
+    {
+        if (projectCache.TryGet(owner, repo, out var kept))
+        {
+            return kept;
+        }
+        var text = await host.ReadFileAsync(owner, repo, ProjectFile, token);
+        var rule = ProjectCommandRule.None;
+        if (text is not null)
+        {
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(text);
+                if (document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object && document.RootElement.TryGetProperty("commands", out var commands))
+                {
+                    rule = ProjectCommandRule.Read(commands, "commands in .factory/project.json");
+                }
+            }
+            catch (Exception error) when (error is System.Text.Json.JsonException or InvalidOperationException)
+            {
+                ActivityExecutionContext.Current.Logger.LogWarning("The project file of {Repository} says nothing usable about who may steer: {Error}", $"{owner}/{repo}", error.GetType().Name);
+            }
+        }
+        projectCache.Keep(owner, repo, rule);
+        return rule;
     }
 
     [Activity("githost_post_issue_comment")]

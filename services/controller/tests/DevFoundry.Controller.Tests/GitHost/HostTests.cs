@@ -162,6 +162,7 @@ public sealed class GitHostRouterTests
         }
 
         public Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken ct) => Done($"{name}: permission {owner}/{repo} {login}", HostPermission.Write);
+        public Task<string?> ReadFileAsync(string owner, string repo, string path, CancellationToken ct) => Done<string?>($"{name}: file {owner}/{repo} {path}", "{}");
         public Task PostIssueCommentAsync(string owner, string repo, int issueNumber, string body, CancellationToken ct) => Done($"{name}: comment {owner}/{repo}#{issueNumber}", 0);
         public Task<IReadOnlyList<string>> RecentCommentBodiesAsync(string owner, string repo, int issueNumber, int count, CancellationToken ct) => Done<IReadOnlyList<string>>($"{name}: bodies {owner}/{repo}", []);
         public Task<bool> PostNoticeOnceAsync(string owner, string repo, int issueNumber, string body, CancellationToken ct) => Done($"{name}: notice {owner}/{repo}", true);

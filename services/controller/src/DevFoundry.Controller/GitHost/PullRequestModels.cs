@@ -46,6 +46,9 @@ public static class GitHostLimits
     /// <summary>Characters of its diff that are kept.</summary>
     public const int MaxDiffBytes = 120_000;
 
+    /// <summary>The largest file read from a repository without a checkout.</summary>
+    public const int MaxFileBytes = 64 * 1024;
+
     /// <summary>Bytes of its diff that are read at all.</summary>
     public const int MaxRawDiffBytes = 4 * 1024 * 1024;
 }

@@ -28,6 +28,23 @@ internal static class HostJson
     public static int Count(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : 0;
 
+    /// <summary>The text of a file as Forgejo and GitHub both answer a contents request: a <c>file</c> with base64 <c>content</c>. Null for anything else, or a file that is too large.</summary>
+    public static string? FileText(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object || Text(root, "type") != "file" || Text(root, "encoding") != "base64" || Count(root, "size") > GitHostLimits.MaxFileBytes)
+        {
+            return null;
+        }
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(Text(root, "content")));
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>A pull request as Forgejo and GitHub both describe it (the same shape: <c>head</c>, <c>base</c>, <c>user</c>, <c>merged</c>).</summary>
     public static PullRequestDetails PullRequest(JsonElement root, int number)
     {

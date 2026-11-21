@@ -28,7 +28,9 @@ public sealed partial record CommandRule(
     CommandLevel Who = CommandLevel.Anyone,
     IReadOnlySet<string>? Allow = null,
     IReadOnlySet<string>? Deny = null,
-    bool Silent = false)
+    bool Silent = false,
+    IReadOnlyDictionary<string, CommandRule>? Each = null,
+    bool Project = false)
 {
     /// <summary>Everyone, as before there was a rule.</summary>
     public static readonly CommandRule Open = new();
@@ -38,21 +40,29 @@ public sealed partial record CommandRule(
 
     private static readonly IReadOnlySet<string> EmptyNames = new HashSet<string>();
 
-    /// <summary>True when nobody is held back: no one is denied and the level is the lowest.</summary>
-    public bool IsOpen => Who == CommandLevel.Anyone && Denied.Count == 0;
+    /// <summary>The rules of single commands (<see cref="CommandNames"/>), each on top of this one: a person has to pass both.</summary>
+    public IReadOnlyDictionary<string, CommandRule> EachCommand => Each ?? NoCommands;
+
+    private static readonly IReadOnlyDictionary<string, CommandRule> NoCommands = new Dictionary<string, CommandRule>();
+
+    /// <summary>True when nobody is held back and nothing has to be looked at: the lowest level, no one denied, no rule of a single command, and the repository may not add its own.</summary>
+    public bool IsOpen => Who == CommandLevel.Anyone && Denied.Count == 0 && EachCommand.Count == 0 && !Project;
+
+    /// <summary>This rule without the parts that belong to the whole (the rules of single commands, the project's say): what one command's own rule is.</summary>
+    public bool HoldsBack => Who != CommandLevel.Anyone || Denied.Count > 0;
 
     [GeneratedRegex(@"\A[A-Za-z0-9][A-Za-z0-9._@-]{0,99}\z")]
     private static partial Regex LoginPattern();
 
     /// <summary>One line for a log, with no one's name: what the rule asks of a person.</summary>
-    public string Describe() => (Who, IsOpen) switch
+    public string Describe() => (Who, HoldsBack) switch
     {
-        (CommandLevel.Anyone, true) => "anyone who can comment may use commands",
-        (CommandLevel.Anyone, false) => $"anyone who can comment may use commands, except {Denied.Count} named",
+        (CommandLevel.Anyone, false) => "anyone who can comment may use commands",
+        (CommandLevel.Anyone, true) => $"anyone who can comment may use commands, except {Denied.Count} named",
         (CommandLevel.Write, _) => $"commands need write access{Names()}",
         (CommandLevel.Admin, _) => $"commands need admin access{Names()}",
         _ => $"commands only for the {Allowed.Count} named" + (Denied.Count > 0 ? $" (and {Denied.Count} denied)" : ""),
-    };
+    } + (EachCommand.Count > 0 ? $"; {EachCommand.Count} commands have a rule of their own" : "") + (Project ? "; the repository may tighten it" : "");
 
     private string Names() => (Allowed.Count, Denied.Count) switch
     {
@@ -66,7 +76,9 @@ public sealed partial record CommandRule(
     /// Reads a <c>commands</c> setting: a level as text (<c>"write"</c>), or an object with <c>who</c> (a level), <c>allow</c> and <c>deny</c> (lists of logins) and <c>refusal</c> (<c>"comment"</c>, the default,
     /// or <c>"silent"</c>). A setting that cannot be used is an error that names where it is.
     /// </summary>
-    public static CommandRule Read(JsonElement value, string where)
+    public static CommandRule Read(JsonElement value, string where) => Read(value, where, nested: false);
+
+    private static CommandRule Read(JsonElement value, string where, bool nested)
     {
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -79,10 +91,23 @@ public sealed partial record CommandRule(
         var who = CommandLevel.Anyone;
         HashSet<string>? allow = null, deny = null;
         var silent = false;
+        var project = false;
+        JsonElement? each = null;
         foreach (var property in value.EnumerateObject())
         {
             switch (property.Name)
             {
+                case "each" when !nested:
+                    each = property.Value;
+                    break;
+                case "project" when !nested:
+                    project = property.Value.ValueKind switch
+                    {
+                        JsonValueKind.True => true,
+                        JsonValueKind.False => false,
+                        _ => throw new InvalidOperationException($"{where}: project must be true or false."),
+                    };
+                    break;
                 case "who":
                     who = Level(property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : null, $"{where}: who");
                     break;
@@ -102,10 +127,30 @@ public sealed partial record CommandRule(
                     };
                     break;
                 default:
-                    throw new InvalidOperationException($"{where}: unknown setting \"{Short(property.Name)}\" (who, allow, deny, refusal).");
+                    throw new InvalidOperationException($"{where}: unknown setting \"{Short(property.Name)}\" ({(nested ? "who, allow, deny, refusal" : "who, allow, deny, refusal, each, project")}).");
             }
         }
-        return new CommandRule(who, allow, deny, silent);
+        return new CommandRule(who, allow, deny, silent, each is null ? null : Commands(each.Value, silent, $"{where}: each"), project);
+    }
+
+    private static Dictionary<string, CommandRule> Commands(JsonElement list, bool silent, string where)
+    {
+        if (list.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException($"{where} must be an object of command names to rules.");
+        }
+        var rules = new Dictionary<string, CommandRule>();
+        foreach (var command in list.EnumerateObject())
+        {
+            if (!CommandNames.All.Contains(command.Name))
+            {
+                throw new InvalidOperationException($"{where}: \"{Short(command.Name)}\" is not a command name ({string.Join(", ", CommandNames.All)}).");
+            }
+            var own = Read(command.Value, $"{where}.{command.Name}", nested: true);
+            // A command's own rule refuses as quietly as the whole one unless it says otherwise by being louder: a public repository that is silent stays silent.
+            rules[command.Name] = silent && !own.Silent ? own with { Silent = true } : own;
+        }
+        return rules;
     }
 
     private static CommandLevel Level(string? text, string where) => text switch
@@ -116,6 +161,8 @@ public sealed partial record CommandRule(
         "none" => CommandLevel.None,
         _ => throw new InvalidOperationException($"{where} must be one of anyone, write, admin, none."),
     };
+
+    internal static HashSet<string> ReadLogins(JsonElement list, string where) => Logins(list, where);
 
     private static HashSet<string> Logins(JsonElement list, string where)
     {
@@ -137,6 +184,67 @@ public sealed partial record CommandRule(
     }
 
     private static string Short(string value) => value.Length > 30 ? value[..30] + "..." : value;
+}
+
+/// <summary>
+/// The names a rule can give to single commands: the slash commands (<c>fix</c> also stands for <c>/revise</c>, <c>option</c> for <c>/choose</c>), <c>reply</c> for an answer to an agent that is not a
+/// command, <c>changes</c> for a review that asks for changes, and <c>factory</c> for <c>/factory &lt;kind&gt;</c>.
+/// </summary>
+public static class CommandNames
+{
+    public static readonly IReadOnlyList<string> All = ["ask", "setup", "retry", "fix", "update", "qa", "review", "factory", "approve", "option", "hotfix", "resolved", "reply", "changes"];
+}
+
+/// <summary>
+/// What a repository's own <c>.factory/project.json</c> may say about who may steer the factory, where the operator allowed it (<see cref="CommandRule.Project"/>): only to tighten. A level
+/// of write or admin, and people to refuse. It can never let anyone in, and a person the operator named in <c>allow</c> is not touched by it.
+/// </summary>
+public sealed record ProjectCommandRule(CommandLevel Who, IReadOnlySet<string> Deny)
+{
+    /// <summary>A setting that says nothing.</summary>
+    public static readonly ProjectCommandRule None = new(CommandLevel.Anyone, new HashSet<string>());
+
+    public bool Tightens => Who != CommandLevel.Anyone || Deny.Count > 0;
+
+    /// <summary>Reads the <c>commands</c> key of a project file: <c>"write"</c> or <c>"admin"</c>, or an object with <c>who</c> and <c>deny</c>. Anything that could loosen (an <c>allow</c> list) is an error.</summary>
+    public static ProjectCommandRule Read(JsonElement value, string where)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            return new ProjectCommandRule(Level(value.GetString(), where), new HashSet<string>());
+        }
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException($"{where} must be \"write\", \"admin\" or an object with who and deny.");
+        }
+        var who = CommandLevel.Anyone;
+        var deny = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in value.EnumerateObject())
+        {
+            switch (property.Name)
+            {
+                case "who":
+                    who = Level(property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : null, $"{where}: who");
+                    break;
+                case "deny":
+                    foreach (var login in CommandRule.ReadLogins(property.Value, $"{where}: deny"))
+                    {
+                        deny.Add(login);
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException($"{where}: \"{(property.Name.Length > 30 ? property.Name[..30] + "..." : property.Name)}\" is not allowed here (a project can only tighten: who, deny).");
+            }
+        }
+        return new ProjectCommandRule(who, deny);
+    }
+
+    private static CommandLevel Level(string? text, string where) => text switch
+    {
+        "write" => CommandLevel.Write,
+        "admin" => CommandLevel.Admin,
+        _ => throw new InvalidOperationException($"{where} must be write or admin (a project can only tighten, and cannot name people to let in)."),
+    };
 }
 
 /// <summary>The command rule of a host: a default for its repositories, and the exceptions the operator made for single ones.</summary>

@@ -483,6 +483,25 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
     private static bool IsRateLimited(HttpResponseMessage response) =>
         response.StatusCode == HttpStatusCode.Forbidden && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining) && remaining.FirstOrDefault() == "0";
 
+    /// <summary>A small file on the default branch (<c>contents/{path}</c>).</summary>
+    public async Task<string?> ReadFileAsync(string owner, string repo, string path, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var escaped = string.Join('/', path.Split('/').Select(Uri.EscapeDataString));
+        using var request = Authorized(HttpMethod.Get, $"{RepoPath(owner, repo)}/contents/{escaped}");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("file", response);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return FileText(document.RootElement);
+    }
+
     private void RequireToken()
     {
         if (string.IsNullOrWhiteSpace(token))

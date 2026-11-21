@@ -9,7 +9,7 @@ namespace DevFoundry.Controller;
 /// </summary>
 public static class ProjectKeys
 {
-    private static readonly string[] Root = ["image", "gates", "reviewers", "ui", "record", "mode", "rules", "limits", "protected_paths", "verify"];
+    private static readonly string[] Root = ["image", "gates", "reviewers", "ui", "record", "mode", "rules", "limits", "protected_paths", "verify", "commands"];
     private static readonly string[] Gate = ["name", "command", "timeout_seconds", "cwd"];
     private static readonly string[] Ui = ["paths", "medium", "large"];
     private static readonly string[] Threshold = ["files", "lines"];
@@ -22,6 +22,18 @@ public static class ProjectKeys
     {
         var warnings = new List<string>();
         Check(root, Root, "", warnings);
+        if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("commands", out var commands))
+        {
+            // Who may steer the factory is read by the permission check, not by the run; say here when what the project wrote cannot be used.
+            try
+            {
+                ProjectCommandRule.Read(commands, "`commands`");
+            }
+            catch (InvalidOperationException error)
+            {
+                warnings.Add(error.Message);
+            }
+        }
         if (root.ValueKind == JsonValueKind.Object)
         {
             foreach (var gate in Items(root, "gates"))

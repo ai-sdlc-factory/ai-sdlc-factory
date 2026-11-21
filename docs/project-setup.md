@@ -92,6 +92,7 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 | `protected_paths` | no | none | Extra files the agents may never change, [below](#protected-paths) |
 | `record` | no | `false` | `true` commits a [run record](workflows.md#the-run-record) (prompts, answers, check output, tokens) to `.factory/runs/` on the pull request branch |
 | `verify` | no | none | How to start the application and run end-to-end tests for a [`/qa` run](workflows.md#qa-run), [below](#end-to-end-checks-verify) |
+| `commands` | no | none | Who may steer the factory in this repository, **only to tighten**, and only where the operator allowed it (`"project": true` in the host's rule): `"write"`, `"admin"`, or `{"who": "write", "deny": ["mallory"]}`. It can never let anyone in (no `allow`), and the people the operator named are not affected. Without the operator's permission it is ignored. [Below](#who-may-steer-commands) |
 | `mode` | no | `"full"` | `"quick"` makes [quick mode](workflows.md#quick-mode) the project's default. Anything other than `"full"` or `"quick"` is refused |
 
 Rules that apply to the whole file:
@@ -120,6 +121,16 @@ registries reachable and nothing else.
   Test it once: run your checks on a clean clone and look at `git status`. The [templates](../templates/README.md) all pass that test. Do **not** put the lockfile alone in `protected_paths`: see [Protected paths](#protected-paths).
 - **One concern per gate** (`test`, `lint`, `build`), so a failure names the cause. The end of a failing gate's output is sent back to the developer.
 - **Quick enough** for the timeout; slow suites need a larger `timeout_seconds` (at most 1800).
+
+### Who may steer (`commands`)
+
+By default anyone who can comment can use the factory's commands (see [Connecting a git host](git-hosts.md#who-may-start-and-steer-runs)). The **operator** can restrict that per host and per repository. If the operator also set `"project": true` in the rule for this repository, **you** can ask for more, in `.factory/project.json`:
+
+```json
+{ "commands": "admin" }
+```
+
+or `{ "commands": { "who": "write", "deny": ["mallory"] } }`. `"write"` and `"admin"` ask the git host what the person may do on the repository; `deny` names people to refuse. A project can only tighten: the operator's own rule always holds as well, it cannot name anyone to let in, and the people the operator named are never affected. The file is read from the default branch (and remembered for a few minutes), so a change applies to the next command after it is merged. If the operator did not allow it, the key does nothing.
 
 ### End-to-end checks (`verify`)
 
