@@ -7,9 +7,10 @@ What is left to build, as designs and not promises. Each says what problem it so
 | # | Idea | Solves | Size |
 | --- | --- | --- | --- |
 | 1 | [More git hosts](#1-more-git-hosts) | the factory serves Forgejo and GitHub only | days per host |
-| 2 | [Teams in the rules of who may steer the factory](#2-teams-in-the-rules-of-who-may-steer-the-factory) | a team has to be written out as logins | small, but needs an organization to check live |
 
 Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
+
+Also left out: teams in the rules of who may steer the factory (`"team": "org/team"` next to `allow`). The access levels (`write`, `admin`) already cover most teams, because a team's members get their access from it; team lookups only exist for organizations and need an extra token permission on each host (GitHub: Members read; Forgejo: `read:organization`), so they widen the bot's token for a convenience, and they could not be checked live without an organization on each host. If a long `allow` list going stale becomes the real problem, reading the list from a file is the cheaper fix.
 
 ## Built, and still to check live
 
@@ -32,17 +33,3 @@ Who may steer the factory is built too: a host (and single repositories of it) c
 **Must not.** Let a host decide anything (hosts only deliver events and carry results); treat a fork's pull request as trusted on a host where forks work differently (the review-reads-default-branch rule must hold on every host); lose the hidden `<!-- dev-foundry:factory -->` marker (check that the host renders HTML comments invisibly, or use another reliable way to recognise the bot's own comments, such as its user id); assume an identical set of review states.
 
 **Done when.** The new host runs the same path live (a feature ticket, `/ask`, a revision after a review, `/qa`) and its pull request is reviewed and merged by a person; it runs next to the others on one controller without sharing a workspace or a usage count; [git-hosts.md](git-hosts.md) names its trigger setting, token scopes and webhook events. The [commands rule](configuration.md#factory_hosts) (who may steer the factory) has to work on it too: an operation for a person's access on the host, or an honest "cannot say".
-
-## 2. Teams in the rules of who may steer the factory
-
-**Built.** A host (and a single repository of it) can say who may steer the factory: anyone, people with write or admin access, or only named people, with a list of people always refused, a rule on top for single commands (`/approve` and `/hotfix` for administrators only, say), and, where the operator allows it, a tightening of its own in the repository's `.factory/project.json` ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts) and [in the project file](project-setup.md#who-may-steer-commands)). What is left is teams.
-
-**Problem.** The rule knows people and access levels, not teams: a GitHub or Forgejo team has to be written out as logins, and kept up to date by hand when someone joins or leaves.
-
-**How.** Where a host can answer it cheaply, `"team": "acme/maintainers"` as one more way to be let in, next to `allow`: GitHub has `/orgs/{org}/teams/{slug}/memberships/{login}` (it needs the organization's Members permission on the token), Forgejo has team membership endpoints (it needs the `read:organization` scope and a team id looked up by name). The answer would be kept like a person's access is, for `FACTORY_PERMISSION_CACHE_SECONDS`.
-
-**Why it is not built.** Both lookups only exist for organizations, and each needs an extra token permission to be useful; it should be run live on a real organization on each host before it is trusted, and the factory has only been run on personal accounts so far. The access levels (`write`, `admin`) already cover most teams, because a team's members get their access from the team.
-
-**Must not.** Check a login taken from the comment text; ask the host for every command when the default is open; fail open when the host cannot say.
-
-**Done when.** A member of a named team is let in and a non-member is refused, on a real organization of each host; a token without the extra permission makes the answer "cannot say" and so no; the default (no rule) still asks nothing of the host.
