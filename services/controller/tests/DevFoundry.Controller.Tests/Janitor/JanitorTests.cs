@@ -91,7 +91,7 @@ public sealed class JanitorRunnerTests
     }
 
     private static JanitorRunner Make(Store store, Running running, Forgejo forgejo, bool deleteWip = false, string token = "t") =>
-        new(store, running, forgejo, new WorkerSettings { ForgejoToken = token, JanitorCheckoutDays = 2, JanitorWipDays = 30, JanitorDeleteWip = deleteWip },
+        new(store, running, forgejo, new WorkerSettings { Hosts = TestHosts.Forgejo(token), JanitorCheckoutDays = 2, JanitorWipDays = 30, JanitorDeleteWip = deleteWip },
             NullLogger<JanitorRunner>.Instance, () => Now);
 
     private static WorkspaceEntry Entry(string name, int daysAgo) => new(name, Now.AddDays(-daysAgo));
@@ -208,7 +208,7 @@ public sealed class WorkspaceListingTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
 
     private void Touch(string path, int daysAgo)
     {
@@ -276,7 +276,7 @@ public sealed class JanitorForgejoClientTests
     }
 
     private static ForgejoClient Client(Handler handler) =>
-        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
 
     [Fact]
     public async Task Only_repositories_the_bot_can_push_to_are_listed()
@@ -336,8 +336,7 @@ public sealed class JanitorForgejoClientTests
 public sealed class JanitorSettingsTests
 {
     private static WorkerSettings Settings(params (string Key, string Value)[] values) =>
-        WorkerSettings.FromConfiguration(new Microsoft.Extensions.Configuration.ConfigurationBuilder()
-            .AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
+        WorkerSettings.FromConfiguration(new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(TestHosts.Setting).AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
 
     [Fact]
     public void The_janitor_is_on_and_cautious_by_default()

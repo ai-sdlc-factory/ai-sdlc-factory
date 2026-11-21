@@ -61,7 +61,7 @@ public sealed class ExistingBranchTests : IDisposable
     }
 
     private GitWorkspace Workspace() =>
-        new(new WorkerSettings { WorkspaceRoot = root }, (_, _) => origin);
+        new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root }, (_, _) => origin);
 
     private static Task<WorkspaceInfo> Prepare(GitWorkspace workspace, string branch = Branch, bool existing = true) =>
         workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", Name, branch, existing), CancellationToken.None);

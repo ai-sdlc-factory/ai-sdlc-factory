@@ -54,53 +54,46 @@ public sealed class TriggerRulesTests
         Assert.Null(TriggerRules.Default.KindOf(Ticket([], "Bug"))); // types count only when the host lists them
     }
 
-    [Fact]
-    public void Triggers_are_read_from_json_and_nothing_means_the_defaults()
-    {
-        var read = TriggerRules.Parse("""{"labels":{"feature":["enhancement"]},"item_types":{"bug":["Bug"]},"command":true}""");
+    private const string Secret = "0123456789abcdef0123456789abcdef";
 
+    private static WorkerSettings Settings(string hosts) =>
+        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_HOSTS"] = hosts }).Build());
+
+    [Fact]
+    public void Triggers_are_read_with_their_host_and_nothing_means_the_defaults()
+    {
+        var settings = Settings($$$"""
+            [{"name":"forgejo","url":"http://forgejo:3000","triggers":{"labels":{"feature":["enhancement"]},"item_types":{"bug":["Bug"]},"command":true}},
+             {"name":"plain","url":"https://x.org"}]
+            """);
+
+        var read = settings.HostNamed("forgejo").Triggers!;
         Assert.True(read.Command);
         Assert.Equal(["enhancement"], read.Labels!["feature"]);
         Assert.Equal(["Bug"], read.ItemTypes!["bug"]);
-        Assert.Equal(TriggerRules.Default, TriggerRules.Parse(null));
-        Assert.Equal(TriggerRules.Default, TriggerRules.Parse("  "));
+        Assert.Equal(TriggerRules.Default, settings.HostNamed("plain").Triggers);
         Assert.False(TriggerRules.Default.Command);
     }
 
     [Theory]
-    [InlineData("not json")]
-    [InlineData("[]")]
     [InlineData("""{"command":"yes"}""")]
     [InlineData("""{"unknown":1}""")]
     [InlineData("""{"labels":{"epic":["x"]}}""")]
     [InlineData("""{"labels":{"feature":"x"}}""")]
     [InlineData("""{"labels":{"feature":[""]}}""")]
     [InlineData("""{"item_types":[]}""")]
-    public void A_setting_that_cannot_be_used_stops_the_start_and_names_where_it_is(string json) =>
-        Assert.Contains("FACTORY_TRIGGERS", Assert.Throws<InvalidOperationException>(() => TriggerRules.Parse(json)).Message);
-
-    [Fact]
-    public void An_extra_hosts_triggers_are_read_with_the_host_and_the_default_hosts_come_from_its_own_setting()
+    [InlineData("""[]""")]
+    public void Triggers_that_cannot_be_used_stop_the_start_and_name_the_host(string triggers)
     {
-        const string secret = "0123456789abcdef0123456789abcdef";
-        var extra = $$$"""[{"name":"codeberg","url":"https://codeberg.org","webhook_secret":"{{{secret}}}","triggers":{"command":true}}]""";
-        var settings = WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["FACTORY_EXTRA_HOSTS"] = extra, ["FACTORY_TRIGGERS"] = """{"labels":{"bug":["defect"]}}""",
-        }).Build());
+        var error = Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse($$$"""[{"name":"cb","url":"https://x.org","webhook_secret":"{{{Secret}}}","triggers":{{{triggers}}}}]"""));
 
-        Assert.False(settings.HostNamed("forgejo").Triggers!.Command);
-        Assert.Equal(["defect"], settings.HostNamed("forgejo").Triggers!.Labels!["bug"]);
-        Assert.True(settings.HostNamed("codeberg").Triggers!.Command);
-        var error = Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($$$"""[{"name":"cb","url":"https://x.org","webhook_secret":"{{{secret}}}","triggers":{"oops":1}}]"""));
         Assert.Contains("host \"cb\"", error.Message);
     }
 
     [Fact]
     public async Task The_activity_gives_a_host_its_own_rules()
     {
-        const string secret = "0123456789abcdef0123456789abcdef";
-        var settings = new WorkerSettings { ExtraHosts = [new HostDefinition("codeberg", "forgejo", "https://x.org", "", "bot", secret, new TriggerRules(Command: true))] };
+        var settings = new WorkerSettings { Hosts = [new HostSettings("codeberg", "forgejo", "https://x.org", "", "bot", new TriggerRules(Command: true)), TestHosts.Forgejo()[0]] };
         var activities = new GitHostActivities(null!, settings);
 
         Assert.True((await activities.ReadTriggersAsync("codeberg")).Command);

@@ -23,7 +23,7 @@ say "1/6 Checking what is needed"
 command -v docker >/dev/null 2>&1 || fail "Docker is not installed or not on the PATH."
 docker compose version >/dev/null 2>&1 || fail "Docker Compose (the 'docker compose' command) is not available."
 docker info >/dev/null 2>&1 || fail "Cannot talk to the Docker daemon. Is it running, and may you use it?"
-for tool in git curl; do command -v "$tool" >/dev/null 2>&1 || fail "$tool is needed."; done
+for tool in git curl python3; do command -v "$tool" >/dev/null 2>&1 || fail "$tool is needed."; done
 [ -r ../infra/.env ] || fail "infra/.env is missing: set up the factory first (docs/getting-started.md). The demo takes its source from the factory's Forgejo."
 
 env_value() { sed -n "s/^$1=//p" "$2" 2>/dev/null | head -n 1; }
@@ -35,25 +35,37 @@ mkdir -p secrets
 chmod 600 .env
 set_value() {
     # Replaces KEY=... in .env, or adds it. Values are plain tokens, so no quoting is needed.
+    escaped=$(printf '%s' "$2" | sed 's/[&|\\]/\\&/g')
     if grep -q "^$1=" .env; then
-        sed -i "s|^$1=.*|$1=$2|" .env
+        sed -i "s|^$1=.*|$1=$escaped|" .env
     else
         printf '%s=%s\n' "$1" "$2" >> .env
     fi
 }
 [ -n "$(env_value GRAFANA_ADMIN_PASSWORD .env)" ] || set_value GRAFANA_ADMIN_PASSWORD "$(random_secret 24)"
 [ -n "$(env_value ALERT_INTAKE_TOKEN .env)" ] || set_value ALERT_INTAKE_TOKEN "$(random_secret 40)"
-token=$(env_value FORGEJO_BOT_TOKEN ../infra/.env)
-[ -n "$token" ] || fail "FORGEJO_BOT_TOKEN is not set in infra/.env: the scripts need it to fetch the source."
-set_value FORGEJO_BOT_TOKEN "$token"
-if [ "$create_tickets" = true ]; then
-    set_value ALERT_INTAKE_DRY_RUN false
-    set_value INTAKE_FORGEJO_TOKEN "$token"
-else
-    # A dry run needs no token at all: it is only given to the intake when tickets are really wanted.
-    [ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] || set_value ALERT_INTAKE_DRY_RUN true
-    [ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] || set_value INTAKE_FORGEJO_TOKEN ""
-fi
+# The factory's git hosts are listed in FACTORY_HOSTS (infra/.env). The demo's scripts fetch the source from the first Forgejo with its token; the alert intake gets the
+# same list without the webhook secrets, and without the tokens too while it only does a dry run (it is given them only when tickets are really wanted).
+[ "$create_tickets" = true ] && set_value ALERT_INTAKE_DRY_RUN false
+[ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] || set_value ALERT_INTAKE_DRY_RUN true
+with_tokens=false
+[ "$(env_value ALERT_INTAKE_DRY_RUN .env)" = false ] && with_tokens=true
+python3 - ../infra/.env "$with_tokens" > .hosts.tmp <<'PY' || fail "FACTORY_HOSTS is not set in infra/.env, or has no Forgejo with a token: the scripts need it to fetch the source."
+import json, sys
+text = ""
+for line in open(sys.argv[1], encoding="utf-8"):
+    if line.startswith("FACTORY_HOSTS="):
+        text = line.partition("=")[2].strip().strip("'")
+hosts = json.loads(text)
+forgejo = next(h for h in hosts if h.get("type", "forgejo") == "forgejo" and h.get("token"))
+with_tokens = sys.argv[2] == "true"
+intake = [{k: v for k, v in h.items() if k in ("name", "type", "url")} | ({"token": h.get("token", "")} if with_tokens else {}) for h in hosts]
+print(forgejo["token"])
+print(json.dumps(intake, separators=(",", ":")))
+PY
+set_value FORGEJO_BOT_TOKEN "$(sed -n 1p .hosts.tmp)"
+set_value FACTORY_HOSTS "$(sed -n 2p .hosts.tmp)"
+rm -f .hosts.tmp
 # Alertmanager reads the intake's token from a file, so it is never written into a config.
 umask 077
 printf '%s' "$(env_value ALERT_INTAKE_TOKEN .env)" > secrets/intake-token

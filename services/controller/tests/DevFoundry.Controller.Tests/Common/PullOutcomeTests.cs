@@ -55,7 +55,7 @@ public sealed class PullOutcomeTests : IDisposable
     [Fact]
     public async Task The_usage_log_names_the_repositories_the_kinds_and_the_revisions_that_were_pushed()
     {
-        var workspace = new GitWorkspace(new WorkerSettings { WorkspaceRoot = root });
+        var workspace = new GitWorkspace(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
         UsageLogEntry Entry(string run, string kind, string status, string repo, int number) =>
             new($"{kind}-{run}", run, kind, repo, number, status, new TokenUsage(1000, 0, 0, 0, 0, 1000, 0, 1));
         await workspace.LogUsageAsync(Entry("a", "feature", "pr_opened", "acme/shop", 1), DateTimeOffset.Parse("2026-11-10T09:00:00Z"));
@@ -88,7 +88,7 @@ public sealed class PullOutcomeTests : IDisposable
         var handler = new Handler(request => request.RequestUri!.Query.Contains("page=1")
             ? """[{"number":3,"state":"closed","merged":true,"title":"SECRET TITLE","body":"SECRET BODY","head":{"ref":"factory/issue-1"},"user":{"login":"factory-bot"},"created_at":"2026-11-10T10:00:00Z","merged_at":"2026-11-11T10:00:00Z"},{"state":"open"}]"""
             : "[]");
-        var client = new ForgejoClient(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        var client = new ForgejoClient(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
 
         var pulls = await client.ListAllPullRequestsAsync("acme", "shop", CancellationToken.None);
 

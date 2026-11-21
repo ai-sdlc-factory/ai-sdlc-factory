@@ -38,7 +38,7 @@ public sealed class GitWorkspaceTests : IDisposable
     }
 
     private GitWorkspace Workspace(string root, string origin) =>
-        new(new WorkerSettings { WorkspaceRoot = root }, (_, _) => origin);
+        new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root }, (_, _) => origin);
 
     private static WorkspaceRequest Request(string name = "feature-acme-shop-1") =>
         new("acme", "shop", name, "factory/issue-1");
@@ -78,7 +78,7 @@ public sealed class GitWorkspaceTests : IDisposable
     {
         var root = Path.Combine(temp, "root");
         Directory.CreateDirectory(root);
-        var workspace = new GitWorkspace(new WorkerSettings { WorkspaceRoot = root, ForgejoToken = "secret-token-value" }, (_, _) => Origin());
+        var workspace = new GitWorkspace(new WorkerSettings { WorkspaceRoot = root, Hosts = TestHosts.Forgejo("secret-token-value") }, (_, _) => Origin());
 
         var info = await workspace.PrepareAsync(Request(), CancellationToken.None);
 
@@ -149,7 +149,7 @@ public sealed class GitWorkspaceTests : IDisposable
     public async Task Missing_workspace_root_is_a_configuration_error()
     {
         var error = await Assert.ThrowsAsync<ApplicationFailureException>(
-            () => new GitWorkspace(new WorkerSettings()).PrepareAsync(Request(), CancellationToken.None));
+            () => new GitWorkspace(new WorkerSettings { Hosts = TestHosts.Forgejo() }).PrepareAsync(Request(), CancellationToken.None));
         Assert.True(error.NonRetryable);
     }
 }

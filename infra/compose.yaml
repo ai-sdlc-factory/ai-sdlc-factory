@@ -231,9 +231,8 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
-      FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
-      # Git hosts besides the default Forgejo (see docs/configuration.md): each gets its own webhook route and secret. Empty = none.
-      FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
+      # The git hosts the factory serves (see docs/configuration.md): each gets its own webhook route /webhooks/<name> and secret.
+      FACTORY_HOSTS: ${FACTORY_HOSTS:?Set FACTORY_HOSTS in .env}
     networks: [control, hooks]
     ports:
       - "127.0.0.1:${CONTROLLER_API_PORT:-8000}:8000"
@@ -259,16 +258,10 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-factory-events}
-      FORGEJO_URL: http://forgejo:3000
       # How a person opens the Temporal web UI; used for the link to a run's record in ticket comments.
       TEMPORAL_UI_URL: ${TEMPORAL_UI_URL:-http://localhost:${TEMPORAL_UI_PORT:-8080}}
-      FORGEJO_BOT_TOKEN: ${FORGEJO_BOT_TOKEN:-}
-      # The factory only revises pull requests this account opened.
-      FORGEJO_BOT_LOGIN: ${FORGEJO_BOT_LOGIN:-factory-bot}
-      # Git hosts besides the default Forgejo, with the bot's token on each (see docs/configuration.md). Empty = none.
-      FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
-      # How the default host's tickets say which workflow to run: more label names per kind, work-item types, the /factory command. Empty = the plain labels.
-      FACTORY_TRIGGERS: ${FACTORY_TRIGGERS:-}
+      # The git hosts the factory serves, with the bot's token and login on each, and how each one's tickets pick a workflow (see docs/configuration.md).
+      FACTORY_HOSTS: ${FACTORY_HOSTS:?Set FACTORY_HOSTS in .env}
       # What a project gets when its .factory/project.json "limits" do not say (see docs/configuration.md).
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}
@@ -477,7 +470,7 @@ services:
       API_TEST_URL: http://api:8000
       TEMPORAL_TEST_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_TEST_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
-      FORGEJO_WEBHOOK_SECRET: ${FORGEJO_WEBHOOK_SECRET:?Set FORGEJO_WEBHOOK_SECRET in .env}
+      FACTORY_HOSTS: ${FACTORY_HOSTS:?Set FACTORY_HOSTS in .env}
 
   # Gives the OpenCode login volume to the factory user. The login helper and the disposable sandboxes
   # run as that user, so they can share one login without anyone being root.

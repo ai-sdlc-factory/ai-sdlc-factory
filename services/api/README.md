@@ -9,8 +9,8 @@ Temporal workflows. This service has its own project and Docker image. It sends 
 ## Run
 
 Complete the [infrastructure setup](../../infra/README.md#start). Set
-`FORGEJO_WEBHOOK_SECRET` in `infra/.env` to at least 32 characters
-(`openssl rand -hex 32`), matching the secret configured in Forgejo.
+`FACTORY_HOSTS` in `infra/.env` so that every host has a `webhook_secret` of at least 32 characters
+(`openssl rand -hex 32`), matching the secret configured in that host's webhook.
 
 From `infra/`:
 
@@ -31,7 +31,7 @@ them, even if the worker is temporarily stopped.
 
 Settings come from `infra/.env`: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
 (default `default`), `TEMPORAL_TASK_QUEUE` (default `factory-events`),
-`CONTROLLER_API_PORT` (default `8000`), and `FORGEJO_WEBHOOK_SECRET`.
+`CONTROLLER_API_PORT` (default `8000`), and `FACTORY_HOSTS` (the hosts and their webhook secrets).
 
 ## Connect Forgejo
 
@@ -42,7 +42,7 @@ In a repository, open **Settings > Webhooks > Add webhook > Forgejo**:
 | Target URL | `http://api:8000/webhooks/forgejo` |
 | Method | `POST` |
 | Content type | `application/json` |
-| Secret | `FORGEJO_WEBHOOK_SECRET` from `infra/.env` |
+| Secret | the host's `webhook_secret` from `FACTORY_HOSTS` in `infra/.env` |
 | Trigger on | Custom events: **Issues**, **Issue Label**, **Issue Comment** (all the factory reads; see [Setting up a project](../../docs/project-setup.md#2-add-the-webhook)) |
 
 Enable the webhook and use **Test Delivery**. Forgejo uses the Compose hostname

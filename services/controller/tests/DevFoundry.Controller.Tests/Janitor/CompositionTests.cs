@@ -10,7 +10,7 @@ public sealed class CompositionTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddFactoryController(new WorkerSettings { WorkspaceRoot = "/tmp/x", ForgejoToken = "t" });
+        services.AddFactoryController(new WorkerSettings { WorkspaceRoot = "/tmp/x", Hosts = TestHosts.Forgejo("t") });
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = false, ValidateScopes = true });
     }
 

@@ -10,7 +10,7 @@ public sealed class ResumeStoreTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
 
     private static ResumeState Full() => new(
         ResumeState.CurrentVersion, "fingerprint", "abc123",

@@ -96,7 +96,7 @@ docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
   --username factory-bot --token-name controller --scopes "write:issue,write:repository" --raw
 ```
 
-Put the printed token in `.env` as `FORGEJO_BOT_TOKEN`, then recreate the controller (`docker compose up -d --force-recreate controller`). The controller reaches Forgejo over the dedicated `forge` network, so the
+Put the printed token in the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `.env`, then recreate the controller (`docker compose up -d --force-recreate controller`). The controller reaches Forgejo over the dedicated `forge` network, so the
 bot needs no other access. The bot must be a collaborator with write access on each repository it serves ([project setup](../docs/project-setup.md#1-give-the-bot-access)).
 
 ## OpenCode login

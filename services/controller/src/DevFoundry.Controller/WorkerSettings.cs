@@ -5,23 +5,14 @@ public sealed class WorkerSettings
     public string TemporalAddress { get; init; } = "localhost:7233";
     public string TemporalNamespace { get; init; } = "default";
     public string TemporalTaskQueue { get; init; } = "factory-events";
-    public string ForgejoUrl { get; init; } = "http://forgejo:3000";
 
-    /// <summary>The git hosts besides the default one (<c>FACTORY_EXTRA_HOSTS</c>). The default one is the Forgejo above.</summary>
-    public IReadOnlyList<HostDefinition> ExtraHosts { get; init; } = [];
-
-    /// <summary>Every git host the factory serves: the default one (the Forgejo settings) first, then the extra ones.</summary>
-    public IReadOnlyList<HostSettings> Hosts =>
-        [new HostSettings(RepoNames.DefaultHost, ForgejoWebhookAdapter.TypeName, ForgejoUrl, ForgejoToken, ForgejoBotLogin, DefaultHostTriggers),
-         .. ExtraHosts.Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers))];
-
-    /// <summary>How the default host's tickets say which workflow to run (<c>FACTORY_TRIGGERS</c>); the plain labels when not set.</summary>
-    public TriggerRules DefaultHostTriggers { get; init; } = TriggerRules.Default;
+    /// <summary>Every git host the factory serves (<c>FACTORY_HOSTS</c>): where it is, the bot's token and login on it, and how its tickets pick a workflow.</summary>
+    public IReadOnlyList<HostSettings> Hosts { get; init; } = [];
 
     /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
     public HostSettings HostNamed(string name) =>
         Hosts.FirstOrDefault(host => host.Name == name)
-        ?? throw new Temporalio.Exceptions.ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_EXTRA_HOSTS).", nonRetryable: true);
+        ?? throw new Temporalio.Exceptions.ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_HOSTS).", nonRetryable: true);
 
     /// <summary>The host a qualified owner (<c>acme</c>, or <c>codeberg:acme</c>) belongs to.</summary>
     public HostSettings HostFor(string qualifiedOwner) => HostNamed(RepoNames.Split(qualifiedOwner).Host);
@@ -34,10 +25,6 @@ public sealed class WorkerSettings
 
     /// <summary>Address of the Temporal web UI as a person opens it, used for the link to a run's full record.</summary>
     public string TemporalUiUrl { get; init; } = "http://localhost:8080";
-    /// <summary>Access token of the factory's Forgejo bot account; empty disables ticket actions.</summary>
-    public string ForgejoToken { get; init; } = "";
-    /// <summary>The bot account's login: the factory only revises pull requests this account opened. Not read from the API, which would need a wider token.</summary>
-    public string ForgejoBotLogin { get; init; } = "factory-bot";
     /// <summary>Absolute host path where per-run checkouts live; the same path inside every container.</summary>
     public string WorkspaceRoot { get; init; } = "";
     /// <summary>The factory's agent folder (read-only), used only to name the model each role is configured with.</summary>
@@ -76,12 +63,8 @@ public sealed class WorkerSettings
         TemporalAddress = NonEmpty(configuration, "TEMPORAL_ADDRESS", "localhost:7233"),
         TemporalNamespace = NonEmpty(configuration, "TEMPORAL_NAMESPACE", "default"),
         TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
-        ForgejoUrl = NonEmpty(configuration, "FORGEJO_URL", "http://forgejo:3000"),
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
-        ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
-        ForgejoBotLogin = NonEmpty(configuration, "FORGEJO_BOT_LOGIN", "factory-bot"),
-        ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
-        DefaultHostTriggers = TriggerRules.Parse(configuration["FACTORY_TRIGGERS"]),
+        Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers)).ToList(),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),

@@ -1,6 +1,6 @@
 # A "production" for the demo: the weather application, run from the default branch of its repository, with monitoring around it.
 # Prometheus checks that the API and the web page answer and watches the containers, Loki keeps their logs, Grafana shows both, and an alert
-# fires into Alertmanager, which sends it to the alert intake. The intake opens a ticket in Forgejo (or only logs it: a dry run is the default).
+# fires into Alertmanager, which sends it to the alert intake. The intake opens a ticket on a git host (or only logs it: a dry run is the default).
 # Start it with ./setup.sh; read README.md first. Ports are bound to 127.0.0.1 only.
 name: dev-foundry-demo
 
@@ -155,10 +155,8 @@ services:
       ALERT_INTAKE_MAX_TICKETS_PER_HOUR: ${ALERT_INTAKE_MAX_TICKETS_PER_HOUR:-6}
       ALERT_INTAKE_GROUP_MINUTES: ${ALERT_INTAKE_GROUP_MINUTES:-15}
       ALERT_INTAKE_LOKI_URL: http://loki:3100
-      FORGEJO_URL: http://forgejo:3000
-      FORGEJO_BOT_TOKEN: ${INTAKE_FORGEJO_TOKEN:-}
-      # Other git hosts a route may name with "host" (see docs/configuration.md); the same setting the factory reads. Empty = only the Forgejo above.
-      FACTORY_EXTRA_HOSTS: ${FACTORY_EXTRA_HOSTS:-}
+      # The git hosts a route may name with "host": the factory's FACTORY_HOSTS (docs/configuration.md) without the webhook secrets, and without the tokens during a dry run. ./setup.sh writes it.
+      FACTORY_HOSTS: ${FACTORY_HOSTS:?Run ./setup.sh first}
     volumes:
       - ./alert-intake/mapping.json:/etc/alert-intake/mapping.json:ro
     networks: [default, forge]

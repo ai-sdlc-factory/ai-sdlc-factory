@@ -20,7 +20,7 @@ public sealed class HostTests
     [Fact]
     public void A_route_can_name_another_configured_host_and_its_owner_then_carries_the_host()
     {
-        var route = RouteTable.Parse(Routes("codeberg"), new HashSet<string> { "forgejo", "codeberg" }).Find(new Dictionary<string, string> { ["service"] = "weather" })!;
+        var route = RouteTable.Parse(Routes("codeberg"), ["forgejo", "codeberg"]).Find(new Dictionary<string, string> { ["service"] = "weather" })!;
 
         Assert.Equal(("codeberg:acme", "weather"), (route.Owner, route.Repo));
     }
@@ -38,15 +38,18 @@ public sealed class HostTests
     }
 
     [Fact]
-    public void The_hosts_come_from_the_settings_the_intake_always_had_and_the_same_extra_hosts_setting_the_factory_reads()
+    public void The_hosts_come_from_the_same_setting_the_factory_reads_and_a_route_without_a_host_uses_the_first()
     {
         var settings = IntakeSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ALERT_INTAKE_TOKEN"] = "0123456789abcdef", ["FORGEJO_URL"] = "http://forgejo:3000", ["FORGEJO_BOT_TOKEN"] = "t1",
-            ["FACTORY_EXTRA_HOSTS"] = $$"""[{"name":"codeberg","url":"https://codeberg.org","token":"t2","webhook_secret":"{{Secret}}"}]""",
+            ["ALERT_INTAKE_TOKEN"] = "0123456789abcdef",
+            ["FACTORY_HOSTS"] = """[{"name":"github","type":"github","url":"https://github.com","token":"t1"},{"name":"codeberg","url":"https://codeberg.org","token":"t2"}]""",
         }).Build());
 
-        Assert.Equal([new IntakeHost("forgejo", "http://forgejo:3000", "t1"), new IntakeHost("codeberg", "https://codeberg.org", "t2")], settings.Hosts);
+        Assert.Equal([new IntakeHost("github", "https://github.com", "t1"), new IntakeHost("codeberg", "https://codeberg.org", "t2")], settings.Hosts);
+        var names = settings.Hosts.Select(host => host.Name).ToList();
+        Assert.Equal("github:acme", RouteTable.Parse(Routes(null), names).Find(new Dictionary<string, string> { ["service"] = "weather" })!.Owner);
+        Assert.Equal("codeberg:acme", RouteTable.Parse(Routes("codeberg"), names).Find(new Dictionary<string, string> { ["service"] = "weather" })!.Owner);
     }
 
     private sealed class Named(string name, List<string> log) : IForgejo

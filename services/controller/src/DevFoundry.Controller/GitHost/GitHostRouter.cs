@@ -13,7 +13,7 @@ public sealed class GitHostRouter(IReadOnlyDictionary<string, IGitHost> hosts) :
         var (name, owner) = RepoNames.Split(qualifiedOwner);
         return hosts.TryGetValue(name, out var host)
             ? (host, owner)
-            : throw new ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_EXTRA_HOSTS).", nonRetryable: true);
+            : throw new ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_HOSTS).", nonRetryable: true);
     }
 
     public Task PostIssueCommentAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)

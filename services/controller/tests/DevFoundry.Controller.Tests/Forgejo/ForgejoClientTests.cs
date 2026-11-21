@@ -25,7 +25,7 @@ public sealed class ForgejoClientTests
     {
         var handler = new RecordingHandler(status);
         var http = new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") };
-        return (new ForgejoClient(http, new WorkerSettings { ForgejoToken = token }), handler);
+        return (new ForgejoClient(http, token), handler);
     }
 
     private sealed class Conversation(params string[] existing) : HttpMessageHandler
@@ -42,7 +42,7 @@ public sealed class ForgejoClientTests
     }
 
     private static ForgejoClient WithComments(Conversation conversation) =>
-        new(new HttpClient(conversation) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        new(new HttpClient(conversation) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
 
     /// <summary>Forgejo's pull request endpoints: the changed files in pages of 50, and the diff.</summary>
     private sealed class PullEndpoints(int files, string diff, HttpStatusCode filesStatus = HttpStatusCode.OK, HttpStatusCode diffStatus = HttpStatusCode.OK) : HttpMessageHandler
@@ -70,7 +70,7 @@ public sealed class ForgejoClientTests
     }
 
     private static ForgejoClient WithPull(PullEndpoints endpoints) =>
-        new(new HttpClient(endpoints) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        new(new HttpClient(endpoints) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
 
     [Fact]
     public async Task The_changed_files_are_read_page_by_page_with_renames_and_line_counts_and_the_diff_comes_with_them()
@@ -118,7 +118,7 @@ public sealed class ForgejoClientTests
     [Fact]
     public async Task The_factorys_own_run_records_are_not_part_of_what_a_pull_request_changes_and_do_not_crowd_the_code_out_of_the_diff()
     {
-        var changes = await new ForgejoClient(new HttpClient(new RecordedPull()) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" })
+        var changes = await new ForgejoClient(new HttpClient(new RecordedPull()) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token")
             .GetPullChangesAsync("acme", "shop", 7, CancellationToken.None);
 
         Assert.Equal(["src/app.py"], changes.Files.Select(file => file.Path));
@@ -185,8 +185,8 @@ public sealed class ForgejoClientTests
 
     private static Task<QaContext> ReadQaContext(HttpStatusCode files)
     {
-        var client = new ForgejoClient(new HttpClient(new WholePullRequest(files)) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
-        var activities = new GitHostActivities(client, new WorkerSettings { ForgejoToken = "secret-token", ForgejoBotLogin = "factory-bot" });
+        var client = new ForgejoClient(new HttpClient(new WholePullRequest(files)) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
+        var activities = new GitHostActivities(client, new WorkerSettings { Hosts = TestHosts.Forgejo("secret-token") });
         return new Temporalio.Testing.ActivityEnvironment().RunAsync(() => activities.ReadQaContextAsync(new QaRequest("acme", "shop", 7, true, null, "bob")));
     }
 
@@ -324,7 +324,7 @@ public sealed class CreateIssueTests
     }
 
     private static ForgejoClient Client(Handler handler) =>
-        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
 
     [Fact]
     public async Task A_ticket_is_opened_with_the_ids_of_the_labels_asked_for_by_name()
@@ -393,7 +393,7 @@ public sealed class RevisionClientTests
     }
 
     private static ForgejoClient Client(Forgejo handler) =>
-        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "secret-token" });
+        new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
 
     private const string Pulls = "/api/v1/repos/acme/shop/pulls/7";
 

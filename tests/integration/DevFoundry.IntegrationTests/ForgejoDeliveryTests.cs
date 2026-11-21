@@ -15,9 +15,17 @@ public sealed class ForgejoDeliveryTests
         ?? fallback
         ?? throw new InvalidOperationException($"Set {name}.");
 
+    /// <summary>The first Forgejo in <c>FACTORY_HOSTS</c>: its name is the end of its webhook route, and its secret signs the deliveries.</summary>
+    private static (string Name, string Secret) ForgejoHost()
+    {
+        using var hosts = JsonDocument.Parse(Env("FACTORY_HOSTS"));
+        var host = hosts.RootElement.EnumerateArray().First(item => !item.TryGetProperty("type", out var type) || type.GetString() == "forgejo");
+        return (host.GetProperty("name").GetString()!, host.GetProperty("webhook_secret").GetString()!);
+    }
+
     private static HttpRequestMessage Request(byte[] body, string deliveryId, string signature)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/webhooks/forgejo")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/webhooks/{ForgejoHost().Name}")
         {
             Content = new ByteArrayContent(body),
         };
@@ -31,7 +39,7 @@ public sealed class ForgejoDeliveryTests
     [Fact]
     public async Task Signed_webhook_completes_once_in_temporal()
     {
-        var secret = Env("FORGEJO_WEBHOOK_SECRET");
+        var secret = ForgejoHost().Secret;
         var body = Encoding.UTF8.GetBytes(
             """{"repository":{"full_name":"test/controller"},"action":"opened"}""");
         var deliveryId = Guid.NewGuid().ToString();
@@ -54,7 +62,7 @@ public sealed class ForgejoDeliveryTests
         Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
         var receipt = await response.Content.ReadFromJsonAsync<JsonElement>();
         var workflowId = receipt.GetProperty("workflow_id").GetString()!;
-        Assert.Equal($"forgejo-{deliveryId}", workflowId);
+        Assert.Equal($"{ForgejoHost().Name}-{deliveryId}", workflowId);
 
         var result = await temporal.GetWorkflowHandle(workflowId)
             .GetResultAsync<JsonElement>()

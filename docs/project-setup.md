@@ -29,10 +29,10 @@ branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests.
 
 | Field | Value |
 | --- | --- |
-| Target URL | `http://api:8000/webhooks/forgejo` (the Compose hostname; Forgejo's allowed host list already contains it) |
+| Target URL | `http://api:8000/webhooks/<name>`, where `<name>` is the host's `name` in `FACTORY_HOSTS` (`forgejo` for the usual one; the Compose hostname, which Forgejo's allowed host list already contains) |
 | HTTP method | `POST` |
 | Content type | `application/json` |
-| Secret | the `FORGEJO_WEBHOOK_SECRET` from `infra/.env` (the same for every repository) |
+| Secret | the host's `webhook_secret` from `FACTORY_HOSTS` in `infra/.env` (the same for every repository on that host) |
 | Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** (this also carries the slash commands on pull requests: `/fix`, `/update`, `/qa` and `/review`). Add **Pull Request Review Rejected** if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
 | Active | yes |
 

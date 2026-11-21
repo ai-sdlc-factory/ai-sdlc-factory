@@ -20,7 +20,7 @@ builder.Services.AddSingleton(services => IntakeSettings.FromConfiguration(servi
 builder.Services.AddSingleton(services =>
 {
     var settings = services.GetRequiredService<IntakeSettings>();
-    return RouteTable.Load(settings.MappingFile, settings.Hosts.Select(host => host.Name).ToHashSet());
+    return RouteTable.Load(settings.MappingFile, settings.Hosts.Select(host => host.Name).ToList());
 });
 builder.Services.AddSingleton(services =>
     new RateLimiter(services.GetRequiredService<IntakeSettings>().MaxTicketsPerHour, TimeProvider.System));

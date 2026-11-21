@@ -100,22 +100,4 @@ public sealed record TriggerRules(
         }
         return lists;
     }
-
-    /// <summary>Reads the <c>FACTORY_TRIGGERS</c> setting (the default host's triggers); empty means the defaults.</summary>
-    public static TriggerRules Parse(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return Default;
-        }
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            return Read(document.RootElement, "FACTORY_TRIGGERS");
-        }
-        catch (JsonException)
-        {
-            throw new InvalidOperationException("FACTORY_TRIGGERS must be a JSON object.");
-        }
-    }
 }

@@ -29,7 +29,7 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
     public Route? Find(IReadOnlyDictionary<string, string> labels) =>
         routes.FirstOrDefault(route => route.Match.All(pair => labels.TryGetValue(pair.Key, out var value) && value == pair.Value));
 
-    public static RouteTable Load(string path, IReadOnlySet<string>? knownHosts = null)
+    public static RouteTable Load(string path, IReadOnlyList<string>? knownHosts = null)
     {
         string text;
         try
@@ -43,8 +43,8 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
         return Parse(text, knownHosts);
     }
 
-    /// <param name="knownHosts">The names of the hosts a route may name with <c>host</c>; null means only the default host.</param>
-    public static RouteTable Parse(string json, IReadOnlySet<string>? knownHosts = null)
+    /// <param name="knownHosts">The names of the hosts a route may name with <c>host</c>, in the order of <c>FACTORY_HOSTS</c>; the first is the host of a route that names none. Null means only a host called forgejo.</param>
+    public static RouteTable Parse(string json, IReadOnlyList<string>? knownHosts = null)
     {
         JsonDocument document;
         try
@@ -69,13 +69,13 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
             var routes = new List<Route>();
             foreach (var item in list.EnumerateArray())
             {
-                routes.Add(ReadRoute(item, routes.Count + 1, knownHosts ?? new HashSet<string> { RepoNames.DefaultHost }));
+                routes.Add(ReadRoute(item, routes.Count + 1, knownHosts is { Count: > 0 } ? knownHosts : [RepoNames.DefaultHost]));
             }
             return new RouteTable(routes);
         }
     }
 
-    private static Route ReadRoute(JsonElement item, int number, IReadOnlySet<string> knownHosts)
+    private static Route ReadRoute(JsonElement item, int number, IReadOnlyList<string> knownHosts)
     {
         var repository = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("repository", out var repo) && repo.ValueKind == JsonValueKind.String ? repo.GetString() : null;
         if (repository is null || !Repository().IsMatch(repository))
@@ -83,8 +83,8 @@ public sealed partial class RouteTable(IReadOnlyList<Route> routes)
             throw new InvalidOperationException($"Route {number}: \"repository\" must look like owner/name.");
         }
 
-        // A route may name the git host its tickets go to ("host": "codeberg"); without one it is the default host, as it always was.
-        var host = RepoNames.DefaultHost;
+        // A route may name the git host its tickets go to ("host": "github"); without one it is the first configured host.
+        var host = knownHosts[0];
         if (item.TryGetProperty("host", out var hostValue))
         {
             host = hostValue.ValueKind == JsonValueKind.String ? hostValue.GetString() ?? "" : "";

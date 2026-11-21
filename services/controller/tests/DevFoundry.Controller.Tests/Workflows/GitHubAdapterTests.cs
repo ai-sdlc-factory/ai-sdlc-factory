@@ -168,7 +168,7 @@ public sealed class GitHubAdapterTests
     {
         Assert.NotNull(WebhookAdapters.Find("github"));
         Assert.NotNull(WebhookAdapters.Find("forgejo"));
-        var host = Assert.Single(ExtraHostsSetting.Parse($$$"""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"vacant","webhook_secret":"{{{Secret}}}"}]"""));
+        var host = Assert.Single(HostsSetting.Parse($$$"""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"vacant","webhook_secret":"{{{Secret}}}"}]"""));
         Assert.Equal("github", host.Type);
     }
 }

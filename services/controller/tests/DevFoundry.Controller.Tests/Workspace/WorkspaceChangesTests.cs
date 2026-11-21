@@ -56,7 +56,7 @@ public sealed class WorkspaceChangesTests : IDisposable
     }
 
     private GitWorkspace Workspace(string token = "") =>
-        new(new WorkerSettings { WorkspaceRoot = root, ForgejoToken = token }, (_, _) => origin);
+        new(new WorkerSettings { WorkspaceRoot = root, Hosts = TestHosts.Forgejo(token) }, (_, _) => origin);
 
     private async Task<WorkspaceInfo> Prepared(GitWorkspace workspace, string name = "feature-acme-shop-1") =>
         await workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", name, "factory/issue-1"), CancellationToken.None);
@@ -68,7 +68,7 @@ public sealed class WorkspaceChangesTests : IDisposable
         var settings = new WorkerSettings
         {
             WorkspaceRoot = root,
-            ExtraHosts = [new HostDefinition("codeberg", "forgejo", "https://codeberg.example", "cb-token", "cb-bot", "0123456789abcdef0123456789abcdef")],
+            Hosts = [.. TestHosts.Forgejo(), new HostSettings("codeberg", "forgejo", "https://codeberg.example", "cb-token", "cb-bot")],
         };
         var workspace = new GitWorkspace(settings, (owner, repo) => { urls.Add($"{owner}/{repo}"); return origin; });
 
@@ -101,7 +101,7 @@ public sealed class WorkspaceChangesTests : IDisposable
         var empty = Path.Combine(temp, "empty.git");
         Directory.CreateDirectory(empty);
         Git(empty, "init", "--quiet", "--bare", "--initial-branch=main");
-        var workspace = new GitWorkspace(new WorkerSettings { WorkspaceRoot = root }, (_, _) => empty);
+        var workspace = new GitWorkspace(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root }, (_, _) => empty);
 
         var error = await Assert.ThrowsAsync<ApplicationFailureException>(() =>
             workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", "feature-acme-shop-9", "factory/issue-9"), CancellationToken.None));
@@ -612,7 +612,7 @@ public sealed class RescueTests : IDisposable
     }
 
     private GitWorkspace Workspace(string token = "") =>
-        new(new WorkerSettings { WorkspaceRoot = root, ForgejoToken = token }, (_, _) => origin);
+        new(new WorkerSettings { WorkspaceRoot = root, Hosts = TestHosts.Forgejo(token) }, (_, _) => origin);
 
     private static async Task<WorkspaceInfo> Prepare(GitWorkspace workspace, string name = "feature-acme-shop-1") =>
         await workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", name, "factory/issue-1"), CancellationToken.None);

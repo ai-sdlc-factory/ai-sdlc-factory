@@ -45,7 +45,7 @@ The comment on a resolved alert carries the factory's own marker, so the factory
 ```
 
 - `match`: 1 to 10 alert labels that must all be equal. The first matching route wins. At most 50 routes.
-- `repository`: `owner/name`. `host` (optional): the name of a git host from `FACTORY_EXTRA_HOSTS` where the ticket opens; without it, the default Forgejo. `labels`: at most 5 ticket labels. A label the repository does not have yet is created.
+- `repository`: `owner/name`. `host` (optional): the name of a git host from `FACTORY_HOSTS` where the ticket opens; without it, the first host of that list. `labels`: at most 5 ticket labels. A label the repository does not have yet is created.
 - `evidence`: at most 3 Loki queries, run when a ticket is opened (needs `ALERT_INTAKE_LOKI_URL`). Each adds at most 15 lines of the last 15 minutes, each at most 200 characters, 3,000 characters in all, in a code block. A log source that fails never stops the ticket.
 
 ## Metrics

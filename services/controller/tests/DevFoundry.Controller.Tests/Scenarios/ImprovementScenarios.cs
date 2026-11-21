@@ -198,7 +198,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
 
         var (first, second) = await world.RunAsync(fixture, async context =>
         {
-            var settings = new WorkerSettings { TemporalTaskQueue = context.Queue };
+            var settings = new WorkerSettings { Hosts = TestHosts.Forgejo(), TemporalTaskQueue = context.Queue };
             var service = new ImprovementService(context.Client, settings, NullLogger<ImprovementService>.Instance, () => new DateTimeOffset(2026, 11, 18, 12, 0, 0, TimeSpan.Zero));
             var started = await service.StartForLastWeekAsync();
             var handle = context.Client.GetWorkflowHandle("improvement-2026-w46");
@@ -219,7 +219,7 @@ public sealed class ImprovementScenarios(TemporalFixture fixture)
 
         var (status, second) = await world.RunAsync(fixture, async context =>
         {
-            var service = new ImprovementService(context.Client, new WorkerSettings { TemporalTaskQueue = context.Queue }, NullLogger<ImprovementService>.Instance, () => new DateTimeOffset(2026, 11, 25, 12, 0, 0, TimeSpan.Zero));
+            var service = new ImprovementService(context.Client, new WorkerSettings { Hosts = TestHosts.Forgejo(), TemporalTaskQueue = context.Queue }, NullLogger<ImprovementService>.Instance, () => new DateTimeOffset(2026, 11, 25, 12, 0, 0, TimeSpan.Zero));
             await service.StartForLastWeekAsync();
             var failed = await context.Client.GetWorkflowHandle("improvement-2026-w47").GetResultAsync<WorkResult>();
             return (failed.Status, await service.StartForLastWeekAsync());

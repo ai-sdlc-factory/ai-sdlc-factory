@@ -6,7 +6,7 @@ public static class WebhookEndpoints
 {
     public static IEndpointRouteBuilder MapWebhookEndpoints(this IEndpointRouteBuilder app)
     {
-        // One route per host the factory takes webhooks from (the default one and the extra ones), so a host that is not there is an ordinary 404 and the OpenAPI document lists each.
+        // One route per host the factory takes webhooks from (every one listed in FACTORY_HOSTS), so a host that is not there is an ordinary 404 and the OpenAPI document lists each.
         var configured = app.ServiceProvider.GetRequiredService<ApiSettings>();
         foreach (var host in configured.Hosts)
         {

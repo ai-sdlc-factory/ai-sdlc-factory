@@ -86,7 +86,7 @@ public static class Setup
 
     public static IntakeSettings Settings(bool dryRun = false, int perHour = 6, int maxBody = 262_144, int group = 0) => new()
     {
-        Token = Token, ForgejoToken = "forgejo-token", DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
+        Token = Token, Hosts = [new IntakeHost("forgejo", "http://forgejo:3000", "forgejo-token")], DryRun = dryRun, MaxTicketsPerHour = perHour, MaxBodyBytes = maxBody, GroupMinutes = group,
     };
 
     public static AlertProcessor Processor(FakeForgejo forgejo, IntakeSettings? settings = null, string routes = WeatherRoutes, TimeProvider? clock = null, ILogSource? logs = null, IntakeMetrics? metrics = null)

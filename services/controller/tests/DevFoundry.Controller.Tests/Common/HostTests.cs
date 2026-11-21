@@ -46,26 +46,25 @@ public sealed class RepoNamesTests
     }
 }
 
-public sealed class ExtraHostsTests
+public sealed class HostsSettingTests
 {
     private const string Secret = "0123456789abcdef0123456789abcdef";
 
     private static string Host(string name = "codeberg", string? type = null, string url = "https://codeberg.org/", string secret = Secret, string token = "tok", string? login = null) =>
         JsonSerializer.Serialize(new { name, type, url, token, bot_login = login, webhook_secret = secret });
 
-    [Fact]
-    public void Nothing_set_means_no_extra_host()
-    {
-        Assert.Empty(ExtraHostsSetting.Parse(null));
-        Assert.Empty(ExtraHostsSetting.Parse(""));
-        Assert.Empty(ExtraHostsSetting.Parse("  "));
-        Assert.Empty(ExtraHostsSetting.Parse("[]"));
-    }
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("[]")]
+    public void No_host_at_all_stops_the_start_and_shows_what_to_write(string? json) =>
+        Assert.Contains("at least one", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse(json)).Message);
 
     [Fact]
     public void A_host_is_read_with_defaults_for_its_kind_and_its_bot_and_a_trailing_slash_is_dropped()
     {
-        var host = Assert.Single(ExtraHostsSetting.Parse($"[{Host()}]"));
+        var host = Assert.Single(HostsSetting.Parse($"[{Host()}]"));
 
         Assert.Equal(new HostDefinition("codeberg", "forgejo", "https://codeberg.org", "tok", "factory-bot", Secret, TriggerRules.Default), host);
     }
@@ -74,42 +73,49 @@ public sealed class ExtraHostsTests
     [InlineData("not json")]
     [InlineData("{}")]
     public void Anything_but_an_array_stops_the_start(string json) =>
-        Assert.Contains("JSON array", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse(json)).Message);
+        Assert.Contains("JSON array", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse(json)).Message);
 
     [Theory]
     [InlineData("Codeberg")]
-    [InlineData("forgejo")]
     [InlineData("")]
     [InlineData("a:b")]
-    public void A_host_needs_a_name_of_its_own_that_is_not_the_default_hosts(string name) =>
-        Assert.Contains("name of its own", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(name)}]")).Message);
+    public void A_host_needs_a_valid_name_of_its_own(string name) =>
+        Assert.Contains("name of its own", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse($"[{Host(name)}]")).Message);
 
     [Fact]
     public void Two_hosts_cannot_share_a_name() =>
-        Assert.Contains("name of its own", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host()},{Host()}]")).Message);
+        Assert.Contains("name of its own", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse($"[{Host()},{Host()}]")).Message);
 
     [Fact]
     public void A_kind_without_an_adapter_an_unusable_address_and_a_short_secret_are_refused_without_echoing_the_secret()
     {
-        Assert.Contains("no adapter", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(type: "gitlab")}]")).Message);
-        Assert.Contains("http or https", Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(url: "ftp://x")}]")).Message);
-        var error = Assert.Throws<InvalidOperationException>(() => ExtraHostsSetting.Parse($"[{Host(secret: "short-secret-123")}]"));
+        Assert.Contains("no adapter", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse($"[{Host(type: "gitlab")}]")).Message);
+        Assert.Contains("http or https", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse($"[{Host(url: "ftp://x")}]")).Message);
+        var error = Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse($"[{Host(secret: "short-secret-123")}]", needWebhookSecret: true));
         Assert.Contains("webhook_secret", error.Message);
         Assert.DoesNotContain("short-secret-123", error.Message);
     }
 
+    [Fact]
+    public void The_controller_and_the_intake_need_no_webhook_secret_but_the_api_does()
+    {
+        const string json = """[{"name":"github","type":"github","url":"https://github.com","token":"t"}]""";
+
+        Assert.Single(HostsSetting.Parse(json));
+        Assert.Contains("webhook_secret", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse(json, needWebhookSecret: true)).Message);
+    }
+
     // ---- what the controller makes of them
 
-    private static WorkerSettings Settings(string? extra) =>
-        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["FORGEJO_URL"] = "http://forgejo:3000", ["FORGEJO_BOT_TOKEN"] = "default-token", ["FORGEJO_BOT_LOGIN"] = "default-bot", ["FACTORY_EXTRA_HOSTS"] = extra,
-        }).Build());
+    private static WorkerSettings Settings(string? hosts) =>
+        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_HOSTS"] = hosts }).Build());
+
+    private static string Forgejo() => Host("forgejo", url: "http://forgejo:3000", token: "default-token", login: "default-bot");
 
     [Fact]
-    public void The_default_host_comes_first_from_the_settings_it_always_had_and_the_extra_ones_follow()
+    public void The_hosts_come_in_the_order_they_are_listed_each_with_its_own_bot_and_token()
     {
-        var settings = Settings($"[{Host(login: "cb-bot")}]");
+        var settings = Settings($"[{Forgejo()},{Host(login: "cb-bot")}]");
 
         Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
         Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default), settings.Hosts[0]);
@@ -119,14 +125,23 @@ public sealed class ExtraHostsTests
     }
 
     [Fact]
-    public void Without_extra_hosts_there_is_one_host_and_a_repository_on_an_unknown_one_fails_for_good()
+    public void A_repository_on_a_host_that_is_not_listed_fails_for_good()
     {
-        var settings = Settings(null);
+        var settings = Settings($"[{Forgejo()}]");
 
         Assert.Single(settings.Hosts);
         var error = Assert.Throws<Temporalio.Exceptions.ApplicationFailureException>(() => settings.HostFor("nowhere:acme"));
         Assert.Contains("nowhere", error.Message);
         Assert.True(error.NonRetryable);
+    }
+
+    [Fact]
+    public void A_factory_without_a_forgejo_still_works_with_every_owner_qualified()
+    {
+        var settings = Settings("""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"vacant"}]""");
+
+        Assert.Equal("vacant", settings.BotLoginFor("github:acme"));
+        Assert.Equal("github:acme", RepoNames.Qualify("github", "acme"));
     }
 
     [Fact]

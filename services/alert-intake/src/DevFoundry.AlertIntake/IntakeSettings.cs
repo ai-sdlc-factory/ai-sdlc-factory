@@ -9,18 +9,12 @@ public sealed record IntakeHost(string Name, string Url, string Token);
 public sealed class IntakeSettings
 {
     public required string Token { get; init; }
-    public string ForgejoUrl { get; init; } = "http://forgejo:3000";
-    public string ForgejoToken { get; init; } = "";
 
-    /// <summary>The git hosts besides the default Forgejo (<c>FACTORY_EXTRA_HOSTS</c>, the same setting the factory reads): a route may name one with <c>host</c>.</summary>
-    public IReadOnlyList<HostDefinition> ExtraHosts { get; init; } = [];
-
-    /// <summary>Every host a route may name: the default one first (<c>forgejo</c>, from FORGEJO_URL and FORGEJO_BOT_TOKEN), then the extra ones.</summary>
-    public IReadOnlyList<IntakeHost> Hosts =>
-        [new IntakeHost(RepoNames.DefaultHost, ForgejoUrl, ForgejoToken), .. ExtraHosts.Select(host => new IntakeHost(host.Name, host.Url, host.Token))];
+    /// <summary>Every git host a route may name with <c>host</c> (<c>FACTORY_HOSTS</c>, the same setting the factory reads; the intake uses the name, address and token). A route that names none uses the first.</summary>
+    public IReadOnlyList<IntakeHost> Hosts { get; init; } = [];
     public string MappingFile { get; init; } = "/etc/alert-intake/mapping.json";
 
-    /// <summary>When true nothing is written to Forgejo: the ticket that would be opened is only logged.</summary>
+    /// <summary>When true nothing is written to a git host: the ticket that would be opened is only logged.</summary>
     public bool DryRun { get; init; } = true;
 
     /// <summary>Where Loki answers, for the log lines a route adds to its tickets. Empty means no log evidence.</summary>
@@ -37,9 +31,7 @@ public sealed class IntakeSettings
         var settings = new IntakeSettings
         {
             Token = configuration["ALERT_INTAKE_TOKEN"] ?? "",
-            ForgejoUrl = NonEmpty(configuration, "FORGEJO_URL", "http://forgejo:3000"),
-            ForgejoToken = configuration["FORGEJO_BOT_TOKEN"] ?? "",
-            ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
+            Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new IntakeHost(host.Name, host.Url, host.Token)).ToList(),
             MappingFile = NonEmpty(configuration, "ALERT_INTAKE_MAPPING_FILE", "/etc/alert-intake/mapping.json"),
             DryRun = configuration.GetValue("ALERT_INTAKE_DRY_RUN", true),
             LokiUrl = configuration["ALERT_INTAKE_LOKI_URL"] ?? "",
@@ -57,13 +49,13 @@ public sealed class IntakeSettings
         {
             throw new InvalidOperationException("ALERT_INTAKE_TOKEN must be set to at least 16 characters.");
         }
-        if (!DryRun && string.IsNullOrWhiteSpace(ForgejoToken))
+        if (Hosts.Count == 0)
         {
-            throw new InvalidOperationException("FORGEJO_BOT_TOKEN must be set when ALERT_INTAKE_DRY_RUN is false.");
+            throw new InvalidOperationException("FACTORY_HOSTS must list at least one git host.");
         }
-        if (!Uri.TryCreate(ForgejoUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+        if (!DryRun && Hosts.Any(host => string.IsNullOrWhiteSpace(host.Token)))
         {
-            throw new InvalidOperationException("FORGEJO_URL must be an http or https address.");
+            throw new InvalidOperationException("Every host in FACTORY_HOSTS needs a token when ALERT_INTAKE_DRY_RUN is false.");
         }
         if (LokiUrl.Length > 0 && (!Uri.TryCreate(LokiUrl, UriKind.Absolute, out var loki) || loki.Scheme is not ("http" or "https")))
         {

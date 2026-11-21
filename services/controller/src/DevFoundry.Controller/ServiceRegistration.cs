@@ -34,7 +34,7 @@ public static class ServiceRegistration
 
         services.AddSingleton(settings);
         services.AddSingleton(new GitWorkspace(settings));
-        // The git hosts there are (the default one and the extra ones), behind one port that sends each call to the host its owner belongs to. The rest of the controller asks for IGitHost, never for a class.
+        // The git hosts there are (every one listed in FACTORY_HOSTS), behind one port that sends each call to the host its owner belongs to. The rest of the controller asks for IGitHost, never for a class.
         services.AddSingleton<IGitHost>(sp => new GitHostRouter(settings.Hosts.ToDictionary(
             host => host.Name,
             host =>

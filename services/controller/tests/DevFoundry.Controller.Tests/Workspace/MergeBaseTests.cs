@@ -83,7 +83,7 @@ public sealed class MergeBaseTests : IDisposable
     private void MainChangesTheSameLine() =>
         Push("main", dir => File.WriteAllText(Path.Combine(dir, "app.py"), "def greet():\n    return 'hello from main'\n\n\ndef farewell():\n    return 'bye'\n"));
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { WorkspaceRoot = root }, (_, _) => origin);
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root }, (_, _) => origin);
 
     private static Task<WorkspaceInfo> Prepare(GitWorkspace workspace) =>
         workspace.PrepareAsync(new WorkspaceRequest("acme", "shop", Name, Branch, ExistingBranch: true), CancellationToken.None);

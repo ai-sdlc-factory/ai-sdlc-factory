@@ -14,18 +14,13 @@ namespace DevFoundry.Controller;
 /// </summary>
 public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
 {
-    /// <summary>A client for the default host, with the bot's token from the settings.</summary>
-    public ForgejoClient(HttpClient http, WorkerSettings settings) : this(http, settings.ForgejoToken)
-    {
-    }
-
     public async Task PostIssueCommentAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(token))
         {
             throw new ApplicationFailureException(
-                "FORGEJO_BOT_TOKEN is not configured for the controller.", nonRetryable: true);
+                "The Forgejo host has no token in FACTORY_HOSTS.", nonRetryable: true);
         }
 
         using var request = new HttpRequestMessage(
@@ -592,7 +587,7 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
     {
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new ApplicationFailureException("FORGEJO_BOT_TOKEN is not configured for the controller.", nonRetryable: true);
+            throw new ApplicationFailureException("The Forgejo host has no token in FACTORY_HOSTS.", nonRetryable: true);
         }
     }
 

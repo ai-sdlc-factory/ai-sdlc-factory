@@ -246,7 +246,7 @@ public sealed class PullRequestClientTests
     private static (ForgejoClient Client, ScriptedHandler Handler) Create(params (HttpStatusCode, string)[] responses)
     {
         var handler = new ScriptedHandler(responses);
-        return (new ForgejoClient(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, new WorkerSettings { ForgejoToken = "tok" }), handler);
+        return (new ForgejoClient(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "tok"), handler);
     }
 
     [Fact]

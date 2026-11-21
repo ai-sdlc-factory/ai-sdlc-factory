@@ -8,15 +8,10 @@ public sealed class ApiSettings
     public string TemporalAddress { get; init; } = "localhost:7233";
     public string TemporalNamespace { get; init; } = "default";
     public string TemporalTaskQueue { get; init; } = "factory-events";
-    public required string ForgejoWebhookSecret { get; init; }
     public int MaxWebhookBytes { get; init; } = 1_048_576;
 
-    /// <summary>The hosts besides the default one (<c>FACTORY_EXTRA_HOSTS</c>): each has its own route, kind and secret.</summary>
-    public IReadOnlyList<HostDefinition> ExtraHosts { get; init; } = [];
-
-    /// <summary>The hosts this API takes webhooks from: the default one (<c>FORGEJO_WEBHOOK_SECRET</c>) and the extra ones. Each has a route <c>/webhooks/&lt;name&gt;</c>.</summary>
-    public IReadOnlyList<WebhookHost> Hosts =>
-        [new WebhookHost(RepoNames.DefaultHost, ForgejoWebhookAdapter.TypeName, ForgejoWebhookSecret), .. ExtraHosts.Select(host => new WebhookHost(host.Name, host.Type, host.WebhookSecret))];
+    /// <summary>The hosts this API takes webhooks from (<c>FACTORY_HOSTS</c>): each has a route <c>/webhooks/&lt;name&gt;</c>, its own kind and its own secret.</summary>
+    public IReadOnlyList<WebhookHost> Hosts { get; init; } = [];
 
     /// <summary>The secret a host's webhooks are signed with, or null for a host this API has none for (its route then answers 404).</summary>
     public string? WebhookSecretFor(string host) => Hosts.FirstOrDefault(known => known.Name == host)?.Secret;
@@ -28,9 +23,8 @@ public sealed class ApiSettings
             TemporalAddress = NonEmpty(configuration, "TEMPORAL_ADDRESS", "localhost:7233"),
             TemporalNamespace = NonEmpty(configuration, "TEMPORAL_NAMESPACE", "default"),
             TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
-            ForgejoWebhookSecret = configuration["FORGEJO_WEBHOOK_SECRET"] ?? "",
             MaxWebhookBytes = configuration.GetValue("MAX_WEBHOOK_BYTES", 1_048_576),
-            ExtraHosts = ExtraHostsSetting.Parse(configuration["FACTORY_EXTRA_HOSTS"]),
+            Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable], needWebhookSecret: true).Select(host => new WebhookHost(host.Name, host.Type, host.WebhookSecret)).ToList(),
         };
         settings.Validate();
         return settings;
@@ -39,10 +33,10 @@ public sealed class ApiSettings
     // Messages name the setting but never echo its value.
     public void Validate()
     {
-        if (ForgejoWebhookSecret.Length < 32)
+        if (Hosts.Count == 0 || Hosts.Any(host => host.Secret.Length < 32))
         {
             throw new InvalidOperationException(
-                "FORGEJO_WEBHOOK_SECRET must be set to at least 32 characters.");
+                "FACTORY_HOSTS must list at least one git host, and every host needs a webhook_secret of at least 32 characters.");
         }
         if (MaxWebhookBytes is < 1 or > 1_048_576)
         {

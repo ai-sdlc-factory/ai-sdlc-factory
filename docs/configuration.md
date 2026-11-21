@@ -23,18 +23,35 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | --- | --- | --- |
 | `POSTGRES_PASSWORD`, `FORGEJO_DB_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | database and admin passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, all different |
 | `PGADMIN_DEFAULT_EMAIL` | pgAdmin login | any email |
-| `FORGEJO_WEBHOOK_SECRET` | the shared secret of the webhook signature; at least 32 characters | `openssl rand -hex 32` |
+| `FACTORY_HOSTS` | the git hosts the factory serves, as one line of JSON, **the one place** that says where they are and how to reach them (see [FACTORY_HOSTS](#factory_hosts) below) | written by hand; secrets with `openssl rand -hex 32` |
 | `FACTORY_WORKSPACE_ROOT` | absolute host path of the checkouts, the same path inside every container | `mkdir -p` it first, owned by you |
 | `FACTORY_UID`, `FACTORY_GID` | the host user that owns the workspaces; the controller and the sandboxes run as it. Must not be root | `id -u`, `id -g` |
 | `DOCKER_GID` | the group of the Docker socket, so the launcher does not run as root | `stat -c %g /var/run/docker.sock` |
+
+### FACTORY_HOSTS
+
+The git hosts the factory serves, as one line of JSON in `infra/.env`. The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught; the Forgejo container of the Compose file is listed here like any other host.
+
+```bash
+FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_login":"factory-bot","webhook_secret":"..."},{"name":"github","type":"github","url":"https://github.com","token":"...","bot_login":"my-bot","webhook_secret":"..."}]
+```
+
+| Field | What | Default |
+| --- | --- | --- |
+| `name` | lower case letters, digits and `-`, starting with a letter, at most 31. It is the end of the host's webhook route (`/webhooks/<name>`) and the qualifier of its repositories: they are named `<name>:owner/repo` in runs, folders and logs. A host called `forgejo` keeps plain `owner/repo`, the way the factory has always named them, so renaming nothing | required |
+| `url` | where the host is, as the controller reaches it: `http://forgejo:3000` for the bundled Forgejo, `https://github.com`, or the address of a GitHub Enterprise Server | required |
+| `type` | `forgejo` or `github` | `forgejo` |
+| `token` | the bot's access token on that host (Forgejo scopes `write:issue`, `write:repository`; GitHub: see [Several git hosts](operations.md#several-git-hosts)). Only the controller needs it to act; empty disables all ticket actions on that host | empty |
+| `bot_login` | the bot account's username. The factory revises only pull requests this account opened, and compares the author with it (the token's own scopes do not allow asking the host) | `factory-bot` |
+| `webhook_secret` | the HMAC key of that host's webhook signature, 32+ characters, the same one you paste into each repository's webhook | required by the api |
+| `triggers` | how its tickets say which workflow to run: `{"labels":{"feature":["enhancement"]},"item_types":{"bug":["Bug"]},"command":true}`. `labels` and `item_types` add names per kind (`incident`, `plan`, `feature`, `bug`, `docs`; the plain labels always work; at most 20 names of at most 50 characters each); `command: true` turns on `/factory <kind>` in a comment on a ticket that has no kind. **Turning the command on lets anyone who can comment start a run**, where only someone who can label could before | the plain labels |
+
+The first host of the list is the one a route of the alert intake uses when it names none. At least one host is needed. A setting that cannot be used stops the api, the controller and the alert intake at start, with a message that names the host and the problem and never prints a secret. **Every service that reads the list receives the tokens and secrets in it**; the api needs only the secrets, and the alert intake only names, addresses and (when it opens tickets) tokens.
 
 ### Needed for the factory to work, but optional for the stack to start
 
 | Key | What | Default |
 | --- | --- | --- |
-| `FORGEJO_BOT_LOGIN` | the bot account's username. The factory revises only pull requests this account opened, and compares the author with it (the token's own scopes do not allow asking Forgejo) | `factory-bot` |
-| `FACTORY_EXTRA_HOSTS` | more git hosts than the Forgejo above, as one line of JSON: `[{"name":"codeberg","type":"forgejo","url":"https://codeberg.org","token":"...","bot_login":"factory-bot","webhook_secret":"..."}]`. `name` (lower case letters, digits and `-`, at most 31, not `forgejo`) and `url` and a `webhook_secret` of 32+ characters are required; `type` (`forgejo`, the default, or `github`; for `github` the `url` is `https://github.com` or the address of a GitHub Enterprise Server) and `bot_login` (`factory-bot`) have defaults. Each host gets its own webhook route, `/webhooks/<name>`, signed with its own secret, and its repositories are named `<name>:owner/repo` in runs, folders and logs; the default host's stay `owner/repo`. A setting that cannot be used stops the api and the controller at start, with a message that names the host and never prints a secret. See [Several git hosts](operations.md#several-git-hosts) | none |
-| `FACTORY_TRIGGERS` | how the default host's tickets say which workflow to run, as one line of JSON: `{"labels":{"feature":["enhancement"]},"item_types":{"bug":["Bug"]},"command":true}`. `labels` and `item_types` add names per kind (`incident`, `plan`, `feature`, `bug`, `docs`; the plain labels always work; at most 20 names of at most 50 characters each); `command: true` turns on `/factory <kind>` in a comment on a ticket that has no kind. **Turning the command on lets anyone who can comment start a run**, where only someone who can label could before. Each extra host has its own `triggers` in [`FACTORY_EXTRA_HOSTS`](operations.md#several-git-hosts). A setting that cannot be used stops the controller at start | none (the plain labels) |
 | `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
 | `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
 | `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
@@ -51,7 +68,6 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 | `FACTORY_JANITOR_CHECKOUT_DAYS` | a checkout is removed only if its run is no longer running **and** nothing has touched it for this many days, 1 to 30 | `2` |
 | `FACTORY_JANITOR_WIP_DAYS` | a work-in-progress branch (`factory/issue-<n>-wip`) is listed in the controller log once its last commit is this many days old, 1 to 365 | `30` |
 | `FACTORY_JANITOR_DELETE_WIP` | `true` lets the janitor **delete** those branches, but only when their ticket is closed and no open pull request uses them. Off: they are only listed | `false` |
-| `FORGEJO_BOT_TOKEN` | the factory bot's access token (scopes `write:issue`, `write:repository`). Only the controller receives it. Empty disables all ticket actions | empty |
 | `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. Point it at the repository's own folder: a **copy** must be refreshed after every update, because a role added since the copy was made is missing and its agent then runs without its instructions (the run stops with "the role file ... is missing"). The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
 
 **Example: tune the defaults for every project at once** (in `infra/.env`, then `docker compose up -d --force-recreate controller`). A project's own `limits` in `.factory/project.json` still win, within the same ranges:
@@ -98,9 +114,8 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `FORGEJO_WEBHOOK_SECRET` | none (required, 32+ characters) | the HMAC key for webhook signatures |
+| `FACTORY_HOSTS` | none (required) | the git hosts (see above): the api reads each one's name, kind and `webhook_secret` (32+ characters, the HMAC key of its webhook signature) and serves `/webhooks/<name>` |
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | `localhost:7233`, `default`, `factory-events` | where to start workflows |
-| `FACTORY_EXTRA_HOSTS` | none | the extra git hosts (see above): the api reads each one's name, kind and `webhook_secret` and serves `/webhooks/<name>` |
 | `MAX_WEBHOOK_BYTES` | `1048576` | largest accepted webhook body (1 to 1,048,576) |
 
 ### controller
@@ -108,11 +123,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | as above | the queue the workflows run on |
-| `FORGEJO_URL` | `http://forgejo:3000` | where the controller reaches Forgejo (over the `forge` network) |
-| `FORGEJO_BOT_TOKEN` | empty | the bot's token |
-| `FORGEJO_BOT_LOGIN` | `factory-bot` | the bot's username, used to recognise the factory's own pull requests |
-| `FACTORY_TRIGGERS` | none | the default host's triggers (see above) |
-| `FACTORY_EXTRA_HOSTS` | none | the extra git hosts (see above): the controller reads each one's address, token and bot login. Every host's token is kept out of logs and records like the default one |
+| `FACTORY_HOSTS` | none (required) | the git hosts (see above): the controller reads each one's address, token, bot login and triggers. Every host's token is kept out of logs and records |
 | `FACTORY_MAX_TOKENS_PER_RUN`, `FACTORY_DAILY_TOKEN_LIMIT`, `FACTORY_REPO_DAILY_TOKEN_LIMIT`, `FACTORY_CONFIRM_OVER_TOKENS` | `0`, `0`, `0`, `0` (set by Compose) | token limits, as above; a value that is not `0` or a whole number from 10000 stops the controller at start with a message, so a typo cannot switch a limit off |
 | `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | whether a repository's own image is mentioned and used, as above; the launcher enforces the same switch |
 | `FACTORY_JANITOR`, `FACTORY_JANITOR_INTERVAL_HOURS`, `FACTORY_JANITOR_CHECKOUT_DAYS`, `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` | `true`, `24`, `2`, `30`, `false` (set by Compose) | the janitor, described under [Cleaning up](operations.md#cleaning-up); a value out of range stops the controller at start with a message |
@@ -128,15 +139,13 @@ The service that turns monitoring alerts into tickets ([its README](../services/
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ALERT_INTAKE_TOKEN` | none (required, 16+ characters) | the bearer token Alertmanager sends with every notification |
-| `ALERT_INTAKE_DRY_RUN` | `true` | `true` writes nothing to Forgejo and only logs the ticket that would be opened |
+| `ALERT_INTAKE_DRY_RUN` | `true` | `true` writes nothing to a git host and only logs the ticket that would be opened |
 | `ALERT_INTAKE_MAPPING_FILE` | `/etc/alert-intake/mapping.json` | the operator's route table: which alert goes to which repository, with which labels and log queries |
 | `ALERT_INTAKE_MAX_TICKETS_PER_HOUR` | `6` | at most this many new tickets in any hour (1 to 100) |
 | `ALERT_INTAKE_GROUP_MINUTES` | `15` | an alert of a route that already has an **open ticket opened in the last this-many minutes** is added to that ticket as a comment instead of opening a second one, so one outage is one ticket and one incident run (0 switches it off, up to 1440). Alerts of different routes are never grouped |
 | `ALERT_INTAKE_MAX_BODY_BYTES` | `262144` | largest accepted notification (1,024 to 1,048,576) |
 | `ALERT_INTAKE_LOKI_URL` | empty | where Loki answers, for the log lines a route adds to its tickets; empty means no log evidence |
-| `FORGEJO_URL` | `http://forgejo:3000` | where Forgejo is (as for the controller) |
-| `FORGEJO_BOT_TOKEN` | empty | the bot's token; required unless `ALERT_INTAKE_DRY_RUN` is `true` |
-| `FACTORY_EXTRA_HOSTS` | none | the same setting as for the [factory](operations.md#several-git-hosts): a route in the mapping file may name one of these hosts with `"host"`, and its tickets open there (the intake reads each host's name, address and token). A route without `host` goes to the default Forgejo above |
+| `FACTORY_HOSTS` | none (required) | the same setting as for the [factory](operations.md#several-git-hosts); the intake reads each host's name, address and token (a token is required on every host unless `ALERT_INTAKE_DRY_RUN` is `true`). A route in the mapping file may name a host with `"host"`, and its tickets open there; a route without `host` goes to the first host of the list |
 
 ### sandbox-launcher
 

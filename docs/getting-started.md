@@ -29,12 +29,11 @@ Open `infra/.env` and set the values below. Everything else has a working defaul
 | --- | --- | --- |
 | `POSTGRES_PASSWORD`, `FORGEJO_DB_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | **yes** | four different passwords: `openssl rand -hex 24` |
 | `PGADMIN_DEFAULT_EMAIL` | yes | any login email for pgAdmin |
-| `FORGEJO_WEBHOOK_SECRET` | **yes** | at least 32 characters: `openssl rand -hex 32` (you paste it into each repository's webhook later) |
+| `FACTORY_HOSTS` | **yes** | the git hosts the factory serves, as one line of JSON. For the bundled Forgejo, with the token still empty: `[{"name":"forgejo","url":"http://forgejo:3000","token":"","webhook_secret":"<openssl rand -hex 32>"}]`. The secret is what you paste into each repository's webhook later. For GitHub, or several hosts, see [Configuration](configuration.md#factory_hosts) |
 | `FACTORY_WORKSPACE_ROOT` | **yes** | an absolute host path for the checkouts. **Create it first**: `mkdir -p /var/tmp/dev-foundry-workspaces` (Docker would create it as root otherwise) |
 | `FACTORY_UID`, `FACTORY_GID` | **yes** | your user: `id -u`, `id -g` |
 | `DOCKER_GID` | **yes** | the group of the Docker socket: `stat -c %g /var/run/docker.sock` |
 | `FACTORY_GLOBAL_CONFIG` | **yes, in practice** | the absolute path of this repository's `agents/` folder, for example `/home/you/dev-foundry/agents`. Without it the sandboxes run without the role files and the agents cannot work |
-| `FORGEJO_BOT_TOKEN` | **yes** (step 4) | leave empty for now |
 | `SANDBOX_EGRESS` | no | `enforce` (default), `audit` or `open`: how strictly the sandboxes' internet access is limited |
 
 The `.env` file is ignored by Git. Never commit it.
@@ -83,7 +82,7 @@ Adding another language is described in the [launcher guide](../services/sandbox
      --username factory-bot --token-name controller --scopes "write:issue,write:repository" --raw
    ```
 
-3. Put the printed token into `infra/.env` as `FORGEJO_BOT_TOKEN` and recreate the controller:
+3. Put the printed token into the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `infra/.env` and recreate the controller:
 
    ```bash
    docker compose up -d --force-recreate controller
@@ -150,7 +149,7 @@ Once the factory works, [`demo/`](../demo/README.md) runs the weather applicatio
 | `docker compose up` stops with "Set ... in .env" | a required password or secret is empty ([step 1](#1-get-the-code-and-configure-the-environment)) |
 | the launcher restarts or logs a network error | the internal sandbox networks clash with one you use: change `SANDBOX_NET_BASE` and recreate |
 | the ticket gets no comment at all | the webhook is missing or wrong ([project setup](project-setup.md#2-add-the-webhook)); in Forgejo use **Test Delivery**, then `docker compose logs api` |
-| "FORGEJO_BOT_TOKEN is not configured" | step 4.3 was skipped or the controller was not recreated |
+| "The Forgejo host has no token in FACTORY_HOSTS" | step 4.3 was skipped or the controller was not recreated |
 | "OpenCode is not signed in" on a ticket | step 5; no restart is needed afterwards |
 | a run fails on the first agent step with an image error | the sandbox image for the project's `image` was not built (step 3) |
 

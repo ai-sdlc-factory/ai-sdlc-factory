@@ -485,7 +485,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
     {
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new ApplicationFailureException("The GitHub host has no token in FACTORY_EXTRA_HOSTS.", nonRetryable: true);
+            throw new ApplicationFailureException("The GitHub host has no token in FACTORY_HOSTS.", nonRetryable: true);
         }
     }
 

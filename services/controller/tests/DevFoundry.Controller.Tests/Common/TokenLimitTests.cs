@@ -157,7 +157,7 @@ public sealed class TokenLimitsTests
     }
 
     private static WorkerSettings Settings(params (string Key, string Value)[] values) =>
-        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
+        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(TestHosts.Setting).AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
 
     [Fact]
     public void The_operators_token_limits_are_off_unless_set()
@@ -201,7 +201,7 @@ public sealed class UsageTodayTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
 
     private static UsageLogEntry Entry(string run, string repository, long input = 1000) =>
         new($"feature-{run}", run, "feature", repository, 1, "pr_opened", new TokenUsage(input, 200, 30, 9_999, 40, 12_000, 0, 3));
@@ -281,7 +281,7 @@ public sealed class UsageEstimateTests : IDisposable
 
     public void Dispose() => Directory.Delete(root, recursive: true);
 
-    private GitWorkspace Workspace() => new(new WorkerSettings { WorkspaceRoot = root });
+    private GitWorkspace Workspace() => new(new WorkerSettings { Hosts = TestHosts.Forgejo(), WorkspaceRoot = root });
 
     private static UsageLogEntry Entry(string run, long input, string kind = "feature", string repository = "acme/shop") =>
         new($"{kind}-{run}", run, kind, repository, 1, "pr_opened", new TokenUsage(input, 0, 0, 99_999, 0, input + 99_999, 0, 3));
@@ -379,8 +379,7 @@ public sealed class UsageEstimateTests : IDisposable
     [Fact]
     public void The_confirmation_setting_is_read_from_the_environment_and_a_typo_stops_the_start()
     {
-        WorkerSettings Load(string? value) => WorkerSettings.FromConfiguration(new Microsoft.Extensions.Configuration.ConfigurationBuilder()
-            .AddInMemoryCollection(value is null ? [] : new Dictionary<string, string?> { ["FACTORY_CONFIRM_OVER_TOKENS"] = value }).Build());
+        WorkerSettings Load(string? value) => WorkerSettings.FromConfiguration(new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(TestHosts.Setting).AddInMemoryCollection(value is null ? [] : new Dictionary<string, string?> { ["FACTORY_CONFIRM_OVER_TOKENS"] = value }).Build());
 
         Assert.Equal(0, Load(null).Defaults.ConfirmOverTokens);
         Assert.Equal(500_000, Load("500000").Defaults.ConfirmOverTokens);

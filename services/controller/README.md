@@ -39,7 +39,7 @@ docker compose logs -f controller
 ```
 
 Settings (full list in the [configuration reference](../../docs/configuration.md#controller)): `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` (the api and controller must agree on the
-namespace and queue), `FORGEJO_BOT_TOKEN`, `FACTORY_WORKSPACE_ROOT`, `FORGEJO_URL`, `TEMPORAL_UI_URL`, and `FACTORY_AGENTS_DIR`. The controller does **not** receive the webhook secret. Without a bot token, ticket workflows fail
+namespace and queue), `FACTORY_HOSTS` (each git host, with the bot's token on it), `FACTORY_WORKSPACE_ROOT`, `TEMPORAL_UI_URL`, and `FACTORY_AGENTS_DIR`. The same `FACTORY_HOSTS` carries the webhook secrets, which only the api needs; the controller ignores them. Without a bot token, ticket workflows fail
 at their first comment and every other event still works.
 
 The controller talks to Forgejo only through `ForgejoClient`, and to the Docker world only through Temporal.

@@ -104,7 +104,7 @@ public sealed class LimitsTests
     }
 
     private static WorkerSettings Settings(params (string Key, string Value)[] values) =>
-        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
+        WorkerSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(TestHosts.Setting).AddInMemoryCollection(values.ToDictionary(v => v.Key, v => (string?)v.Value)).Build());
 
     [Fact]
     public void The_factorys_defaults_are_three_three_and_three_unless_configured()

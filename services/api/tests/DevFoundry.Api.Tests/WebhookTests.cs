@@ -68,7 +68,7 @@ public sealed class WebhookTests
             {
                 services.AddSingleton(new ApiSettings
                 {
-                    ForgejoWebhookSecret = Secret,
+                    Hosts = [new WebhookHost("forgejo", "forgejo", Secret)],
                     MaxWebhookBytes = maxBytes,
                 });
                 services.AddSingleton<ITemporalGateway>(gateway);
@@ -236,8 +236,7 @@ public sealed class WebhookTests
             {
                 services.AddSingleton(new ApiSettings
                 {
-                    ForgejoWebhookSecret = Secret,
-                    ExtraHosts = [new HostDefinition("codeberg", "forgejo", "https://codeberg.example", "", "factory-bot", OtherSecret)],
+                    Hosts = [new WebhookHost("forgejo", "forgejo", Secret), new WebhookHost("codeberg", "forgejo", OtherSecret)],
                 });
                 services.AddSingleton<ITemporalGateway>(gateway);
             })).CreateClient();
@@ -253,7 +252,7 @@ public sealed class WebhookTests
     }
 
     [Fact]
-    public async Task An_extra_host_has_a_route_and_a_secret_of_its_own_and_its_deliveries_say_where_they_came_from()
+    public async Task A_second_host_has_a_route_and_a_secret_of_its_own_and_its_deliveries_say_where_they_came_from()
     {
         var client = CreateClientWithOtherHost();
 
@@ -273,12 +272,12 @@ public sealed class WebhookTests
     }
 
     [Fact]
-    public void The_extra_hosts_are_read_from_the_environment_and_a_bad_one_stops_the_start()
+    public void The_hosts_are_read_from_the_environment_and_a_bad_one_stops_the_start()
     {
-        var extra = $$"""[{"name":"codeberg","url":"https://codeberg.example","webhook_secret":"{{OtherSecret}}"}]""";
+        var hosts = $$"""[{"name":"forgejo","url":"http://forgejo:3000","webhook_secret":"{{Secret}}"},{"name":"codeberg","url":"https://codeberg.example","webhook_secret":"{{OtherSecret}}"}]""";
         var settings = ApiSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["FORGEJO_WEBHOOK_SECRET"] = Secret, ["FACTORY_EXTRA_HOSTS"] = extra,
+            ["FACTORY_HOSTS"] = hosts,
         }).Build());
 
         Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
@@ -286,7 +285,7 @@ public sealed class WebhookTests
         Assert.Null(settings.WebhookSecretFor("github"));
         Assert.Throws<InvalidOperationException>(() => ApiSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["FORGEJO_WEBHOOK_SECRET"] = Secret, ["FACTORY_EXTRA_HOSTS"] = """[{"name":"x"}]""",
+            ["FACTORY_HOSTS"] = """[{"name":"x"}]""",
         }).Build()));
     }
 
@@ -300,8 +299,7 @@ public sealed class WebhookTests
             {
                 services.AddSingleton(new ApiSettings
                 {
-                    ForgejoWebhookSecret = Secret,
-                    ExtraHosts = [new HostDefinition("github", "github", "https://github.com", "", "vacant", GitHubSecret)],
+                    Hosts = [new WebhookHost("forgejo", "forgejo", Secret), new WebhookHost("github", "github", GitHubSecret)],
                 });
                 services.AddSingleton<ITemporalGateway>(gateway);
             })).CreateClient();
@@ -352,12 +350,12 @@ public sealed class SettingsTests
     {
         const string invalid = "test-secret-too-short";
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["FORGEJO_WEBHOOK_SECRET"] = invalid })
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_HOSTS"] = $$"""[{"name":"forgejo","url":"http://forgejo:3000","webhook_secret":"{{invalid}}"}]""" })
             .Build();
 
         var error = Assert.Throws<InvalidOperationException>(
             () => { ApiSettings.FromConfiguration(configuration); });
         Assert.DoesNotContain(invalid, error.Message);
-        Assert.Contains("FORGEJO_WEBHOOK_SECRET", error.Message);
+        Assert.Contains("webhook_secret", error.Message);
     }
 }
