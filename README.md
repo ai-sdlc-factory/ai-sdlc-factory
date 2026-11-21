@@ -47,15 +47,14 @@ Start at the [documentation index](docs/README.md).
 
 - [`infra/`](infra/README.md): Docker Compose and environment settings.
 - [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and git host handling.
-  [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach.
+  [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach, with its [allowlist](services/egress-proxy/ALLOWLIST.md) (`profiles.json`).
 - [`companions/`](companions/): things that run beside the factory, each with its own README, Compose file or Dockerfile and no shared code: [`forgejo/`](companions/forgejo/README.md) (a Forgejo to try the factory on), [`alert-intake/`](companions/alert-intake/README.md) (turns monitoring alerts into tickets) and [`demo/`](companions/demo/README.md) (a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose).
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.
 - [`templates/`](templates/README.md): working starter projects (.NET, Python, React, .NET + React) to copy, with every feature switched on.
 - [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
-- [`services/egress-proxy/`](services/egress-proxy/ALLOWLIST.md): the internet allowlist (`profiles.json`) for the sandboxes, next to the proxy that enforces it.
 - [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services.
 - [`tools/`](tools/): `check-docs.py` (the documentation check), `usage-report.py` (token totals from the usage log) and `check-clock.py`.
-- [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the integration tests.
+- [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the deployed-pipeline test.
 
 All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
 [`Directory.Packages.props`](Directory.Packages.props); change a package version there, not in a project file.

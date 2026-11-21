@@ -33,6 +33,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Workflows and workspace handling | [controller](../services/controller/README.md) |
 | Starting sandboxes | [sandbox-launcher](../services/sandbox-launcher/README.md) |
 | Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../services/egress-proxy/ALLOWLIST.md) |
+| A Forgejo to try the factory on | [forgejo](../companions/forgejo/README.md) |
 | Alerts to tickets | [alert-intake](../companions/alert-intake/README.md) |
 | Demo production and monitoring | [demo](../companions/demo/README.md) |
 | Deployed-pipeline test | [deployed-pipeline test](../services/api/README.md#tests) |
