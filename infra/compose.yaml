@@ -398,10 +398,13 @@ services:
     restart: "no"
 
   integration-tests:
-    image: dev-foundry/integration-tests:local
+    # The api's own test image, running only its tests of the deployed stack (they skip themselves anywhere else).
+    image: dev-foundry/api-test:local
     build:
       context: ..
-      dockerfile: tests/integration/Dockerfile
+      dockerfile: services/api/Dockerfile
+      target: test
+    command: ["dotnet", "test", "services/api/tests/DevFoundry.Api.Tests", "-c", "Release", "--no-build", "--filter", "Category=Deployed"]
     profiles: ["test"]
     restart: "no"
     networks: [control]

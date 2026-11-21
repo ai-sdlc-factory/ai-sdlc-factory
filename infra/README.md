@@ -20,7 +20,7 @@ docker compose ps -a
 
 The api, controller, sandbox launcher and egress proxy build separate images. The build context is the repository root, so every image can use the shared build settings and contracts library. The first start initializes
 the databases: `temporal-schema` and `temporal-namespace` should exit with code `0`; the other services keep running. Optional profiles are excluded from a normal start: `images` (the sandbox images),
-`opencode-tools` (the login helper) and `test` (the [integration tests](../tests/integration/README.md)).
+`opencode-tools` (the login helper) and `test` (the [deployed-pipeline test](../services/api/README.md#tests)).
 
 ## Services
 

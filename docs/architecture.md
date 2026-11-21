@@ -103,6 +103,5 @@ The [egress guide](../services/egress-proxy/ALLOWLIST.md) describes the network 
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`infra/`](../infra) | Docker Compose and environment settings |
-| [`tests/integration`](../tests/integration) | API-to-controller test over HTTP and Temporal |
 
 The controller's code layout is in its [guide](../services/controller/README.md#code-layout).

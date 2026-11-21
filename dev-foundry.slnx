@@ -12,7 +12,4 @@
     <Project Path="services/sandbox-launcher/src/DevFoundry.SandboxLauncher/DevFoundry.SandboxLauncher.csproj" />
     <Project Path="services/sandbox-launcher/tests/DevFoundry.SandboxLauncher.Tests/DevFoundry.SandboxLauncher.Tests.csproj" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/integration/DevFoundry.IntegrationTests/DevFoundry.IntegrationTests.csproj" />
-  </Folder>
 </Solution>

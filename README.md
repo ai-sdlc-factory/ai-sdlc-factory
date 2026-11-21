@@ -54,7 +54,7 @@ Start at the [documentation index](docs/README.md).
 - [`sandboxes/`](services/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
 - [`services/egress-proxy/`](services/egress-proxy/ALLOWLIST.md): the internet allowlist (`profiles.json`) for the sandboxes, next to the proxy that enforces it.
 - [`libs/DevFoundry.Contracts/`](libs/DevFoundry.Contracts/Contracts.cs): wire types shared by the services.
-- [`tests/integration/`](tests/integration/README.md): the deployed pipeline test. [`tools/`](tools/): `check-docs.py` (the documentation check), `usage-report.py` (token totals from the usage log) and `check-clock.py`.
+- [`tools/`](tools/): `check-docs.py` (the documentation check), `usage-report.py` (token totals from the usage log) and `check-clock.py`.
 - [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the integration tests.
 
 All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in

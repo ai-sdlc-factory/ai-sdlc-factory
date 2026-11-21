@@ -35,7 +35,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Internet access of the sandboxes | [egress-proxy](../services/egress-proxy/README.md) and the [allowlist](../services/egress-proxy/ALLOWLIST.md) |
 | Alerts to tickets | [alert-intake](../companions/alert-intake/README.md) |
 | Demo production and monitoring | [demo](../companions/demo/README.md) |
-| Deployed-pipeline test | [integration tests](../tests/integration/README.md) |
+| Deployed-pipeline test | [deployed-pipeline test](../services/api/README.md#tests) |
 
 ## The diagrams
 

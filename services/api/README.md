@@ -65,5 +65,12 @@ docker build --target test -f services/api/Dockerfile -t dev-foundry/api-test .
 docker run --rm dev-foundry/api-test
 ```
 
-These xUnit tests run without Temporal or the worker. Use the
-[integration tests](../../tests/integration/README.md) to verify the full pipeline.
+These xUnit tests run without Temporal or the worker. One of them, `DeployedPipelineTests`, tests the **deployed** stack instead and skips itself unless `API_TEST_URL` is set: for each git host of `FACTORY_HOSTS` it sends a synthetic signed issue event with a unique delivery id, waits for the real controller to complete it in Temporal, checks duplicate handling after completion, and verifies that a tampered request is rejected. It creates one workflow per host in the configured namespace and needs no repository on any host. Run it against the running stack:
+
+```bash
+cd infra
+docker compose up -d --build api controller
+docker compose --profile test run --build --rm --no-deps integration-tests
+```
+
+The `test` profile is excluded from a normal start; it runs the api's test image with the filter `Category=Deployed`, and Compose supplies only the api URL, the Temporal connection settings and `FACTORY_HOSTS`.
