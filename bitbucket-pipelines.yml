@@ -59,7 +59,7 @@ pipelines:
           # Throwaway credentials for this run only.
           - cp infra/.env.example infra/.env
           - |
-            for key in POSTGRES_PASSWORD FORGEJO_DB_PASSWORD TEMPORAL_DB_PASSWORD PGADMIN_DEFAULT_PASSWORD; do
+            for key in POSTGRES_PASSWORD TEMPORAL_DB_PASSWORD PGADMIN_DEFAULT_PASSWORD; do
               sed -i "s|^$key=.*|$key=$(openssl rand -hex 24)|" infra/.env
             done
             sed -i "s|^FACTORY_HOSTS=.*|FACTORY_HOSTS=[{\"name\":\"forgejo\",\"url\":\"http://forgejo:3000\",\"webhook_secret\":\"$(openssl rand -hex 32)\"}]|" infra/.env

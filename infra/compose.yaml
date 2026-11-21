@@ -3,8 +3,8 @@ name: dev-foundry
 # Networks limit what each service can reach:
 #   data    PostgreSQL and its direct clients
 #   control Temporal clients and the trusted controller services
-#   hooks   Forgejo webhook delivery to the controller API
-#   forge   Forgejo API and git access for the controller (ticket comments, branches, pull requests)
+#   hooks   a git host's webhook delivery to the api (a host that runs in Docker, such as ../forgejo, joins this network)
+#   forge   the controller's way to such a host: its API and git access (ticket comments, branches, pull requests)
 #   agents  the OpenCode login helper only: internet access for the browser login, no factory service
 #   egress  the egress proxy's way to the internet; nothing else joins it
 #   sandbox-model, sandbox-packages, sandbox-developer
@@ -57,7 +57,6 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-      FORGEJO_DB_PASSWORD: ${FORGEJO_DB_PASSWORD:?Set FORGEJO_DB_PASSWORD in .env}
       TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
     networks: [data]
     ports:
@@ -71,61 +70,6 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
-
-  mailpit:
-    image: axllent/mailpit:v1.32.0
-    restart: unless-stopped
-    environment:
-      MP_DATABASE: /data/mailpit.db
-      MP_MAX_MESSAGES: "5000"
-    networks: [data]
-    ports:
-      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
-      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
-    volumes:
-      - mailpit-data:/data
-    healthcheck:
-      test: ["CMD", "/mailpit", "readyz"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-
-  forgejo:
-    image: codeberg.org/forgejo/forgejo:17.0.1
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      mailpit:
-        condition: service_healthy
-    environment:
-      USER_UID: "1000"
-      USER_GID: "1000"
-      FORGEJO__database__DB_TYPE: postgres
-      FORGEJO__database__HOST: postgres:5432
-      FORGEJO__database__NAME: forgejo
-      FORGEJO__database__USER: forgejo
-      FORGEJO__database__PASSWD: ${FORGEJO_DB_PASSWORD:?Set FORGEJO_DB_PASSWORD in .env}
-      FORGEJO__server__DOMAIN: localhost
-      FORGEJO__server__ROOT_URL: http://localhost:${FORGEJO_HTTP_PORT:-3000}/
-      FORGEJO__server__SSH_DOMAIN: localhost
-      FORGEJO__server__SSH_PORT: ${FORGEJO_SSH_PORT:-2222}
-      FORGEJO__service__DISABLE_REGISTRATION: "true"
-      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "true"
-      FORGEJO__service__ENABLE_NOTIFY_MAIL: "true"
-      FORGEJO__mailer__ENABLED: "true"
-      FORGEJO__mailer__PROTOCOL: smtp
-      FORGEJO__mailer__SMTP_ADDR: ${SMTP_HOST:-mailpit}
-      FORGEJO__mailer__SMTP_PORT: ${SMTP_PORT:-1025}
-      FORGEJO__mailer__FROM: forgejo@dev-foundry.test
-      FORGEJO__webhook__ALLOWED_HOST_LIST: external,api
-    networks: [data, hooks, forge]
-    ports:
-      - "127.0.0.1:${FORGEJO_HTTP_PORT:-3000}:3000"
-      - "127.0.0.1:${FORGEJO_SSH_PORT:-2222}:22"
-    volumes:
-      - forgejo-data:/data
 
   pgadmin:
     image: dpage/pgadmin4:9.18.0
@@ -527,7 +471,5 @@ networks:
 volumes:
   egress-log:
   postgres-data:
-  forgejo-data:
   pgadmin-data:
-  mailpit-data:
   opencode-data:

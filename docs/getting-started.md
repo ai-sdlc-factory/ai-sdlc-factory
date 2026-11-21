@@ -27,7 +27,7 @@ Open `infra/.env` and set the values below. Everything else has a working defaul
 
 | Setting | Required | What to put |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD`, `FORGEJO_DB_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | **yes** | four different passwords: `openssl rand -hex 24` |
+| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | **yes** | three different passwords: `openssl rand -hex 24` |
 | `PGADMIN_DEFAULT_EMAIL` | yes | any login email for pgAdmin |
 | `FACTORY_HOSTS` | **yes** | the git hosts the factory serves, as one line of JSON. For the bundled Forgejo, with the token still empty: `[{"name":"forgejo","url":"http://forgejo:3000","token":"","webhook_secret":"<openssl rand -hex 32>"}]`. The secret is what you paste into each repository's webhook later. For GitHub, or several hosts, see [Configuration](configuration.md#factory_hosts) |
 | `FACTORY_WORKSPACE_ROOT` | **yes** | an absolute host path for the checkouts. **Create it first**: `mkdir -p /var/tmp/dev-foundry-workspaces` (Docker would create it as root otherwise) |
@@ -45,6 +45,8 @@ docker compose up -d --build
 docker compose ps -a
 ```
 
+(The factory starts no git host. Step 4 sets one up.)
+
 The first start initialises the databases. `temporal-schema` and `temporal-namespace` should exit with code `0`; everything else keeps running.
 Check the stack:
 
@@ -53,7 +55,6 @@ Check the stack:
 | `docker compose ps -a` | all services `running` or `healthy`; the two Temporal setup services `exited (0)` |
 | http://localhost:8000/health/ready | `200`: the api can reach Temporal |
 | http://localhost:8080 | the Temporal UI |
-| http://localhost:3000 | Forgejo's installer or login page |
 
 ## 3. Build the sandbox images
 
@@ -68,20 +69,17 @@ docker compose --profile images build sandbox-image-dotnet-node sandbox-image-py
 Build only the ones you need; a project that asks for an image that does not exist fails its first agent run with a clear message.
 Adding another language is described in the [launcher guide](../services/sandbox-launcher/README.md#images).
 
-## 4. Set up Forgejo and the factory's bot account
+## 4. Set up a git host and the factory's bot account
 
-1. Open http://localhost:3000 and finish the installation. Create an **administrator** account. Database settings are supplied by Compose and public
-   registration is disabled.
-2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account. The password is random and not needed afterwards:
+The factory works with the hosts listed in `FACTORY_HOSTS`. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`forgejo/`](../forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
+
+1. Start Forgejo (the factory's stack must be up, because Forgejo joins two of its networks), open http://localhost:3000, finish the installation and create an **administrator** account:
 
    ```bash
-   docker compose exec -u 1000 forgejo forgejo admin user create \
-     --username factory-bot --email factory-bot@dev-foundry.test \
-     --random-password --must-change-password=false
-   docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
-     --username factory-bot --token-name controller --scopes "write:issue,write:repository" --raw
+   cd ../forgejo && cp -n .env.example .env && docker compose up -d && cd ../infra
    ```
 
+2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account: [the commands](../forgejo/README.md#the-factory-bot-account) print its token.
 3. Put the printed token into the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `infra/.env` and recreate the controller:
 
    ```bash
@@ -135,8 +133,7 @@ docker compose stop                          # stop; data is kept
 docker compose up -d --build controller      # rebuild and restart one service after a code change
 ```
 
-`docker compose down` removes the containers and keeps the data; `docker compose down --volumes` deletes **everything**, including Forgejo's
-repositories, the databases and the OpenCode login.
+`docker compose down` removes the containers and keeps the data; `docker compose down --volumes` deletes **everything** in this stack, including the databases and the OpenCode login.
 
 ## Optional: watch a demo production
 

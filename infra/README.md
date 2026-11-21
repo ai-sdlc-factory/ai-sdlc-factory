@@ -26,33 +26,28 @@ the databases: `temporal-schema` and `temporal-namespace` should exit with code 
 
 | Service | Local address | Purpose |
 | --- | --- | --- |
-| Forgejo | http://localhost:3000 (SSH: port `2222`) | repositories, tickets, pull requests |
 | api | http://localhost:8000 ([OpenAPI](http://localhost:8000/openapi/v1.json), `/health/live`, `/health/ready`) | [webhook intake](../services/api/README.md) |
 | Temporal | `localhost:7233` (gRPC) | workflow engine |
 | Temporal UI | http://localhost:8080 | every workflow, with each prompt, answer and check output |
 | controller | task queue `factory-events`; no HTTP port | [the workflows](../services/controller/README.md) |
 | sandbox-launcher | task queue `sandbox`; no HTTP port | [starts the agent containers](../services/sandbox-launcher/README.md) (the only service with the Docker socket) |
 | egress-proxy | internal only | [the sandboxes' only way out](../services/egress-proxy/README.md) |
-| PostgreSQL | `localhost:5432` | Forgejo and Temporal data |
+| PostgreSQL | `localhost:5432` | Temporal data |
 | pgAdmin | http://localhost:5050 | database browser (development) |
-| Mailpit inbox | http://localhost:8025 (SMTP: port `1025`) | catches Forgejo's emails; nothing is delivered externally |
 
-Compose isolates services on separate networks: `data` (PostgreSQL and its clients), `control` (Temporal, the api, the controller and the launcher), `hooks` (Forgejo to the api), `forge` (Forgejo and the controller)
+Compose isolates services on separate networks: `data` (PostgreSQL and its clients), `control` (Temporal, the api, the controller and the launcher), `hooks` (a git host to the api) and `forge` (the controller to a git host; the Forgejo of [`../forgejo`](../forgejo/README.md) joins both)
 and `agents` (the OpenCode login helper only, which has internet access for the browser login). The disposable agent containers run on three **internal** networks (`sandbox-model`, `sandbox-packages`, `sandbox-developer`)
 that have no route out and no external DNS; the only thing on them besides the sandboxes is the egress proxy, which lets each profile reach just the hosts listed in [`egress/profiles.json`](../egress/README.md).
-The sandboxes cannot reach PostgreSQL, Forgejo, Temporal or the api. Their networks use `10.250.x.0/24`; set `SANDBOX_NET_BASE` in `.env` if that clashes with a network you use. `SANDBOX_EGRESS` (`enforce`, `audit`, `open`) and
+The sandboxes cannot reach PostgreSQL, a git host, Temporal or the api. Their networks use `10.250.x.0/24`; set `SANDBOX_NET_BASE` in `.env` if that clashes with a network you use. `SANDBOX_EGRESS` (`enforce`, `audit`, `open`) and
 `EGRESS_PROFILES` (your own allowlist file) change how strict this is; see the [egress guide](../egress/README.md#modes-and-your-own-rules). See what a sandbox tried to reach with `docker compose logs egress-proxy`.
 
-Host ports can be changed in `.env`. All published ports bind to localhost. This is a local development stack; Temporal and Mailpit have no authentication.
+Host ports can be changed in `.env`. All published ports bind to localhost. This is a local development stack; Temporal has no authentication.
 
 ## First use
 
-**Forgejo:** finish the installation at http://localhost:3000 and create an administrator account. Database settings are supplied by Compose and public registration is disabled. Then create the
-[factory bot account](../docs/getting-started.md#4-set-up-forgejo-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md).
+**A git host:** the factory serves the hosts of `FACTORY_HOSTS` and starts none itself. To try it on a Forgejo of your own, run the one in [`../forgejo`](../forgejo/README.md) (a project of its own), then create the [factory bot account](../docs/getting-started.md#4-set-up-a-git-host-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md). For GitHub, see [Several git hosts](../docs/operations.md#several-git-hosts).
 
 **pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **Dev Foundry PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
-
-**Mailpit:** Forgejo emails appear at http://localhost:8025 and are not delivered externally. No login is needed. Messages persist across restarts; the newest 5,000 are retained.
 
 **Temporal:** the setup service creates `TEMPORAL_NAMESPACE` (default `default`) with `TEMPORAL_RETENTION` (default `7d`) for closed workflows. Retention is applied only when the namespace is created.
 
@@ -62,9 +57,8 @@ Host ports can be changed in `.env`. All published ports bind to localhost. This
 | --- | --- | --- |
 | PostgreSQL | `localhost:5432` | `postgres:5432` |
 | Temporal | `localhost:7233` | `temporal:7233` |
-| SMTP | `localhost:1025` | `mailpit:1025` (no authentication or TLS) |
 
-The addresses above use the default host ports. Compose passes each container only its explicitly mapped variables from `.env`. `TEMPORAL_ADDRESS`, `SMTP_HOST`, and `SMTP_PORT` configure internal connections; host port
+The addresses above use the default host ports. Compose passes each container only its explicitly mapped variables from `.env`. `TEMPORAL_ADDRESS` configures an internal connection; host port
 overrides do not change container ports. Give future applications their own database accounts.
 
 ## Workspaces and sandboxes
@@ -86,18 +80,7 @@ Checkouts are removed when a ticket's workflow ends; folders of runs you termina
 
 ## Factory bot account
 
-The controller comments on tickets, pushes branches and opens pull requests as a dedicated Forgejo user, so the factory never uses a personal account. Create it once (the password is random and not needed afterwards):
-
-```bash
-docker compose exec -u 1000 forgejo forgejo admin user create \
-  --username factory-bot --email factory-bot@dev-foundry.test \
-  --random-password --must-change-password=false
-docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
-  --username factory-bot --token-name controller --scopes "write:issue,write:repository" --raw
-```
-
-Put the printed token in the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `.env`, then recreate the controller (`docker compose up -d --force-recreate controller`). The controller reaches Forgejo over the dedicated `forge` network, so the
-bot needs no other access. The bot must be a collaborator with write access on each repository it serves ([project setup](../docs/project-setup.md#1-give-the-bot-access)).
+The controller comments on tickets, pushes branches and opens pull requests as a dedicated user of each git host, so the factory never uses a personal account. How to create it on the Forgejo of [`../forgejo`](../forgejo/README.md#the-factory-bot-account), or on GitHub ([Several git hosts](../docs/operations.md#several-git-hosts)); put its token in the `"token"` of that host in `FACTORY_HOSTS` in `.env`, then recreate the controller (`docker compose up -d --force-recreate controller`). The bot must be a collaborator with write access on each repository it serves ([project setup](../docs/project-setup.md#1-give-the-bot-access)).
 
 ## OpenCode login
 
@@ -116,5 +99,4 @@ docker compose stop      # Stop services
 docker compose down      # Remove containers/network; keep data
 ```
 
-Data persists in named volumes (`postgres-data`, `forgejo-data`, `pgadmin-data`, `mailpit-data`, `opencode-data`, `egress-log`). `docker compose down --volumes` deletes all stack data, including repositories, databases,
-captured emails, and the OpenCode login. Database initialization and pgAdmin login setup run only on empty volumes; changing passwords in `.env` does not update the existing database accounts or the existing pgAdmin login.
+Data persists in named volumes (`postgres-data`, `pgadmin-data`, `opencode-data`, `egress-log`). `docker compose down --volumes` deletes all stack data, including the databases and the OpenCode login. Database initialization and pgAdmin login setup run only on empty volumes; changing passwords in `.env` does not update the existing database accounts or the existing pgAdmin login.

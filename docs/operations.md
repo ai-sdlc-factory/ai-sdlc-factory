@@ -50,9 +50,9 @@ shows what the router decided.
 
 ## Several git hosts
 
-The factory serves every host listed in [`FACTORY_HOSTS`](configuration.md#factory_hosts), at once, from one controller. Forgejo and GitHub are the kinds it has an adapter for (see [architecture](architecture.md#how-a-ticket-flows)); the Forgejo that ships in the Compose file is listed there like any other host, not something the factory is built around.
+The factory serves every host listed in [`FACTORY_HOSTS`](configuration.md#factory_hosts), at once, from one controller. Forgejo and GitHub are the kinds it has an adapter for (see [architecture](architecture.md#how-a-ticket-flows)); the Forgejo of the [`forgejo/`](../forgejo/README.md) folder is a separate Compose project, listed there like any other host, not something the factory is built around.
 
-- **Names.** A host has a name (`codeberg`). The default host is called `forgejo`. A repository on any other host is written **`<host>:owner/repo`** everywhere the factory names a repository: in comments that name it, in the usage log's `repository` field, in the weekly report, and in the ids of workflows and the names of checkout folders (which carry a hash of it). The default host's repositories keep the plain `owner/repo`, so **nothing that exists is renamed** when a second host is added.
+- **Names.** A host has a name (`codeberg`, `github`). A repository on a host is written **`<host>:owner/repo`** everywhere the factory names a repository: in comments that name it, in the usage log's `repository` field, in the weekly report, and in the ids of workflows and the names of checkout folders (which carry a hash of it). A host called `forgejo` keeps the plain `owner/repo` (the way every id and folder of an older install is named), so **nothing that exists is renamed** when another host is added.
 - **Nothing is shared.** The same owner, repository and ticket number on two hosts are two different runs: different workflow ids, different checkouts, different usage counts. A token is used only for its own host (the clone remembers which in `.git/factory-host`), and every host's token is kept out of logs, run records and pushed files.
 - **Setting one up.** Add it to `FACTORY_HOSTS`, restart the api and the controller, give the bot account on that host write access to the repositories, and add a webhook there that points at `http://<api>/webhooks/<name>` with the host's `webhook_secret` (the same events as for the default host: [Setting up a project](project-setup.md#2-add-the-webhook)). The labels have to exist on each host's repositories; `tools/onboard-repo.py` knows Forgejo hosts only (`--host <name>`), so on GitHub create them by hand.
 - **What loops over hosts.** The janitor lists every host's writable repositories (a host that cannot be listed fails that pass rather than leaving a partial list), and the weekly report asks each host about its own pull requests, with each host's own bot login. The repository for the report's ticket (`FACTORY_IMPROVEMENT_REPO`) is on the host called `forgejo`, or the first one if there is none.
@@ -83,7 +83,7 @@ Still manual:
 
 ## Backups and data
 
-Everything that matters is in five named volumes: `forgejo-data` (repositories, tickets), `postgres-data` (Forgejo and Temporal databases), `pgadmin-data`, `mailpit-data`, and `opencode-data`
+Everything that matters in this stack is in named volumes: `postgres-data` (the Temporal databases), `pgadmin-data` and `opencode-data`
 (the login, replaceable by signing in again). A simple backup stops the stack and archives the volumes:
 
 ```bash
@@ -117,7 +117,7 @@ docker compose up -d
 
 - **Tokens.** The bot token needs only `write:issue` and `write:repository`. It lives in `infra/.env` and in the controller; it never enters a sandbox, a repository or Temporal history. To rotate it, create a new token,
   update the host's `token` in `FACTORY_HOSTS`, recreate the controller, and revoke the old one. To rotate the webhook secret, change the host's `webhook_secret` in `FACTORY_HOSTS` and update **every** repository's webhook on that host.
-- **Local only.** All ports bind to `127.0.0.1`. Temporal, Mailpit and pgAdmin have no authentication of their own; do not publish them.
+- **Local only.** All ports bind to `127.0.0.1`. Temporal and pgAdmin have no authentication of their own; do not publish them.
 - **Egress mode.** Keep `SANDBOX_EGRESS=enforce`. `audit` is for finding out what a tool needs and logs everything over HTTPS; `open` removes the restriction entirely and the launcher prints a warning at start.
 - **Who can steer a run.** Anyone who can comment on a ticket can answer an agent's questions and, on incidents, use `/hotfix`. Forgejo's repository permissions are the access control.
 - **Review every pull request** like any other. The checks catch protected files, symbolic links, oversized files and common credential shapes, but they are a safety net, not a guarantee.

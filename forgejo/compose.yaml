@@ -1,0 +1,71 @@
+# A Forgejo to try the factory on: a git host like any other, run as a project of its own. The factory (../infra) does not need it and knows nothing about it; it serves the hosts
+# its FACTORY_HOSTS lists, and this one is listed there as http://forgejo:3000. Start the factory first (this project joins two of its networks), then:
+#   cd forgejo && cp -n .env.example .env && docker compose up -d
+# It keeps its data in SQLite. A Forgejo that was started from the factory's own stack and keeps its database in the factory's PostgreSQL continues with compose.shared-postgres.yaml
+# (see README.md). Ports are bound to 127.0.0.1 only. Mailpit catches the emails Forgejo sends; nothing is delivered externally.
+name: dev-foundry-forgejo
+
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:17.0.1
+    restart: unless-stopped
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      FORGEJO__database__DB_TYPE: sqlite3
+      FORGEJO__server__DOMAIN: localhost
+      FORGEJO__server__ROOT_URL: http://localhost:${FORGEJO_HTTP_PORT:-3000}/
+      FORGEJO__server__SSH_DOMAIN: localhost
+      FORGEJO__server__SSH_PORT: ${FORGEJO_SSH_PORT:-2222}
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "true"
+      FORGEJO__service__ENABLE_NOTIFY_MAIL: "true"
+      FORGEJO__mailer__ENABLED: "true"
+      FORGEJO__mailer__PROTOCOL: smtp
+      FORGEJO__mailer__SMTP_ADDR: mailpit
+      FORGEJO__mailer__SMTP_PORT: "1025"
+      FORGEJO__mailer__FROM: forgejo@dev-foundry.test
+      # The factory's api, as Forgejo reaches it over the hooks network.
+      FORGEJO__webhook__ALLOWED_HOST_LIST: external,api
+    depends_on:
+      mailpit:
+        condition: service_healthy
+    # hooks: Forgejo to the factory's api (webhooks). forge: the factory's controller to Forgejo (API and git).
+    networks: [default, hooks, forge]
+    ports:
+      - "127.0.0.1:${FORGEJO_HTTP_PORT:-3000}:3000"
+      - "127.0.0.1:${FORGEJO_SSH_PORT:-2222}:22"
+    volumes:
+      - forgejo-data:/data
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "5000"
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+networks:
+  default:
+  # The factory's networks, created when its stack is up (its Compose project is dev-foundry unless you named it otherwise).
+  hooks:
+    external: true
+    name: ${FACTORY_PROJECT:-dev-foundry}_hooks
+  forge:
+    external: true
+    name: ${FACTORY_PROJECT:-dev-foundry}_forge
+
+volumes:
+  forgejo-data:
+  mailpit-data:

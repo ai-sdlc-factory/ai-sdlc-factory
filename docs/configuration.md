@@ -21,7 +21,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 
 | Key | What | How to get it |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD`, `FORGEJO_DB_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | database and admin passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, all different |
+| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | database and admin passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, all different |
 | `PGADMIN_DEFAULT_EMAIL` | pgAdmin login | any email |
 | `FACTORY_HOSTS` | the git hosts the factory serves, as one line of JSON, **the one place** that says where they are and how to reach them (see [FACTORY_HOSTS](#factory_hosts) below) | written by hand; secrets with `openssl rand -hex 32` |
 | `FACTORY_WORKSPACE_ROOT` | absolute host path of the checkouts, the same path inside every container | `mkdir -p` it first, owned by you |
@@ -30,7 +30,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 
 ### FACTORY_HOSTS
 
-The git hosts the factory serves, as one line of JSON in `infra/.env`. The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught; the Forgejo container of the Compose file is listed here like any other host.
+The git hosts the factory serves, as one line of JSON in `infra/.env`. The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
 
 ```bash
 FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_login":"factory-bot","webhook_secret":"..."},{"name":"github","type":"github","url":"https://github.com","token":"...","bot_login":"my-bot","webhook_secret":"..."}]
@@ -88,21 +88,18 @@ FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST=5
 | `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | shared Temporal connection settings; the api and controller must agree on the namespace and queue | `temporal:7233`, `default`, `factory-events` |
 | `TEMPORAL_RETENTION` | how long Temporal keeps a finished workflow's history, which is also the window for duplicate-delivery detection and for reading a run's full record. Applied only when the namespace is **first created** | `7d` |
 | `TEMPORAL_UI_URL` | how a person opens the Temporal UI; used for the trace link in ticket comments | `http://localhost:<TEMPORAL_UI_PORT>` |
-| `SMTP_HOST`, `SMTP_PORT` | Forgejo's mail server (Mailpit by default; mail is not delivered externally) | `mailpit`, `1025` |
 | `COMPOSE_PROJECT_NAME` | the Compose project name; it prefixes the network and volume names (`dev-foundry_opencode-data`, ...) | `dev-foundry` |
 
 ### Host ports (all bind to localhost only)
 
 | Key | Service | Default |
 | --- | --- | --- |
-| `FORGEJO_HTTP_PORT` / `FORGEJO_SSH_PORT` | Forgejo web / SSH | `3000` / `2222` |
 | `CONTROLLER_API_PORT` | the webhook api (`/health/live`, `/health/ready`, `/webhooks/forgejo`, OpenAPI document) | `8000` |
 | `TEMPORAL_PORT` / `TEMPORAL_UI_PORT` | Temporal gRPC / web UI | `7233` / `8080` |
 | `POSTGRES_PORT` | PostgreSQL | `5432` |
 | `PGADMIN_PORT` | pgAdmin | `5050` |
-| `MAILPIT_UI_PORT` / `MAILPIT_SMTP_PORT` | Mailpit inbox / SMTP | `8025` / `1025` |
 
-Services inside Docker always use the standard ports; host port overrides only change what you open from your machine. Temporal and Mailpit have no
+Services inside Docker always use the standard ports; host port overrides only change what you open from your machine. Temporal has no
 authentication, which is why everything binds to localhost.
 
 ## Service settings

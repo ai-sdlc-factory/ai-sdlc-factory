@@ -1,0 +1,23 @@
+# For a Forgejo that was first started from the factory's own stack (before it had a project of its own): it keeps using that stack's PostgreSQL database and its
+# data volume, so nothing is moved. Use it with the main file, every time:
+#   docker compose -f compose.yaml -f compose.shared-postgres.yaml up -d
+# FORGEJO_DB_PASSWORD (in .env here) is the password the "forgejo" database role of that PostgreSQL has.
+services:
+  forgejo:
+    environment:
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: postgres:5432
+      FORGEJO__database__NAME: forgejo
+      FORGEJO__database__USER: forgejo
+      FORGEJO__database__PASSWD: ${FORGEJO_DB_PASSWORD:?Set FORGEJO_DB_PASSWORD in .env}
+    networks: [default, hooks, forge, data]
+
+networks:
+  data:
+    external: true
+    name: ${FACTORY_PROJECT:-dev-foundry}_data
+
+volumes:
+  forgejo-data:
+    external: true
+    name: ${FACTORY_PROJECT:-dev-foundry}_forgejo-data
