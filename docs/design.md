@@ -9,7 +9,7 @@ Anthropic's *AI-native SDLC playbook*: every stage produces a reviewable artifac
 
 1. **Agents advise, code decides.** Every agent run ends with one JSON verdict in a fixed shape. Strict parsers check the shape, values, limits and paths; the workflow maps the verdict to the next step in code.
    Wherever an agent claims something that can be checked, the factory checks it itself: cited files and commits exist, a bug's test fails and then passes, only the allowed file was written.
-2. **Small trusted core, disposable everything else.** One service holds the Docker socket, one holds the Forgejo token, and each agent runs in its own throwaway container with a fixed isolation policy and no route out
+2. **Small trusted core, disposable everything else.** One service holds the Docker socket, one holds the git host tokens, and each agent runs in its own throwaway container with a fixed isolation policy and no route out
    except an allowlisting proxy. See [Architecture](architecture.md#trust-boundaries).
 3. **The repository is untrusted input.** `.factory/project.json` can choose among options the factory offers; it cannot widen anything. Ticket and repository text reach a model only as marked, clipped data.
 4. **Humans own the gates.** Humans decide scope (the ticket), answer questions on the ticket, review every pull request, and merge. For incidents, humans carry out every action; the factory only advises.

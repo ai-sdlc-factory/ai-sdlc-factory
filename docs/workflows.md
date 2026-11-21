@@ -27,12 +27,12 @@ If a ticket has several of these labels, `incident` wins over `plan`, which wins
 
 ## Ticket routing
 
-![From a Forgejo event to a workflow](images/ticket-routing.svg)
+![From a git host event to a workflow](images/ticket-routing.svg)
 
 The router (`RepoEventWorkflow`, decisions in `EventRouter`) is a pure function of the event, so the same event always gets the same
 answer:
 
-| Forgejo event | What happens |
+| Git host event | What happens |
 | --- | --- |
 | ticket **opened**, **reopened** or **labelled**, open, with a factory label (or tag, or a work-item type the host's [triggers](configuration.md) map to a kind) | starts that ticket's workflow. Workflow id: `<kind>-<owner>-<repo>-<number>-<hash>`; the hash of the exact owner and repository keeps similar names apart, and the same name is the ticket's workspace folder |
 | the same event again for a ticket that already had a run | ignored. Comment **`/retry`** to run it again from the last good stage, or **`/retry restart`** (or close and reopen the ticket) to run it again from the beginning ([Resuming a run](#resuming-a-run-with-retry)) |
@@ -208,7 +208,7 @@ After the factory opens a pull request, a person reviews it. If they want change
 
 - **Submit a review that requests changes**, with an overall text and/or comments on lines, or
 - **comment `/fix`** on the pull request. Text after the command is an extra instruction (`/fix rename the helper and add a test`). `/fix` alone acts on
-  **every review still waiting** (request-changes or comment reviews by people, including each "Add single comment", since Forgejo makes every single comment its own review).
+  **every review still waiting** (request-changes or comment reviews by people, including each "Add single comment", since Forgejo and GitHub make every single comment its own review).
   Dismissed reviews, conversations a person marked resolved, and reviews older than the factory's last reply are skipped.
 
 The factory revises **only its own pull requests**: the branch must be one it created (`factory/issue-<n>`), the pull request must be authored by the bot, from the same repository, and still open.
@@ -216,14 +216,14 @@ Anything else gets no revision: a `/fix` on such a pull request is answered with
 
 | Step | Who | What the factory checks itself |
 | --- | --- | --- |
-| 1. Read | the factory | the pull request, every review still waiting and its line comments **with the code each was written on**, from Forgejo. Every comment is numbered |
+| 1. Read | the factory | the pull request, every review still waiting and its line comments **with the code each was written on**, from the git host. Every comment is numbered |
 | 2. Resolve | `pr-resolver` (writable, shell, package access) in a checkout of the **pull request's own branch** | **every numbered comment is answered exactly once**, as `fixed`, `answered`, `declined` (with a reason) or `needs_clarification` (with the question); and a `fixed` answer must come with changed files |
 | 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (`limits.build_rounds`, 3 by default) |
 | 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. A revision that changes **3 or more files** is also checked by the acceptance check against the acceptance criteria in the pull request body |
 | 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**. If a person pushed to the branch meanwhile, the commit is put on top of theirs once (and the reply says so); if that conflicts, nothing is pushed |
 | 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. The reviewers are asked to review again. A person reviews again; the factory never merges |
 
-The factory cannot mark conversations resolved or reply inside a comment's conversation (Forgejo's API has neither), so its answers are only in the summary comment's table; the reviewer resolves conversations. If every comment was answered or declined and nothing needed to change, the factory pushes nothing and replies with the answers. If the rounds run out or the resolver is blocked, nothing is pushed to the pull request and the work is saved
+The factory cannot mark conversations resolved or reply inside a comment's conversation (a git host's API offers neither: Forgejo's has no such call, and GitHub's REST API cannot resolve them), so its answers are only in the summary comment's table; the reviewer resolves conversations. If every comment was answered or declined and nothing needed to change, the factory pushes nothing and replies with the answers. If the rounds run out or the resolver is blocked, nothing is pushed to the pull request and the work is saved
 to a `-wip` branch, as for a feature. Statuses: `revision_pushed`, `revision_replied`, `revision_limit`, `nothing_to_do`, `ignored` (and the shared `build_failed`, `build_blocked`, `publish_failed`).
 With `"record": true` the revision's [run record](#the-run-record) is committed with it under `.factory/runs/pr-<number>-<run>/`. The number of revisions is counted from the hidden marker in the factory's replies.
 
@@ -235,12 +235,12 @@ A person comments **`/review`** (a line with only that) on a pull request, **any
 
 | Step | Who | What is checked |
 | --- | --- | --- |
-| 1. Read | the factory | the pull request must be open (a closed or merged one gets a note); the changed files and the diff come from Forgejo (`pulls/<n>/files` and `.diff`, the same as for a [QA run](#qa-run)). If Forgejo cannot give them, nothing is reviewed and the person is told |
+| 1. Read | the factory | the pull request must be open (a closed or merged one gets a note); the changed files and the diff come from the git host (its pull request files and diff, the same as for a [QA run](#qa-run)). If the host cannot give them, nothing is reviewed and the person is told |
 | 2. Checkout | the factory | a throwaway local branch off the **default branch**, never pushed. The project's settings and sandbox image therefore always come from the trusted branch, never from a branch the pull request's author controls, so a pull request from a fork or by a stranger cannot change what runs on this machine |
 | 3. Review | `reviewer`, and `security` if the project lists it (read-only, **no shell**, model access only) | each reads the code as it is on the default branch and the pull request's **diff in the prompt**, and judges it against the pull request's own description. The project's checks are **not** run, and the reviewers are told so. A long diff is cut (the reviewers and the summary say so) |
 | 4. Post | the factory | one comment per reviewer, as for a feature, then a short summary with the number of blocking findings per reviewer. A person decides; the factory does not merge |
 
-Statuses: `review_posted`, `ignored` (a closed pull request), `error` (Forgejo could not give the changes), and the shared `blocked` (OpenCode not signed in), `review_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `review`.
+Statuses: `review_posted`, `ignored` (a closed pull request), `error` (the git host could not give the changes), and the shared `blocked` (OpenCode not signed in), `review_failed`. The run is in the [usage log](operations.md#the-usage-log-totals-across-tickets-days-and-repositories) as kind `review`.
 
 ## Asking a question with `/ask`
 
@@ -248,7 +248,7 @@ A person comments **`/ask`** followed by a question (`/ask where is the login ha
 
 | Step | Who | What is checked |
 | --- | --- | --- |
-| 1. Read | the factory | for a pull request, its description and what it changes come from Forgejo (as for a [review](#reviewing-a-pull-request)); if Forgejo cannot give them the question is still answered from the repository. A bare `/ask` is answered with how to use it |
+| 1. Read | the factory | for a pull request, its description and what it changes come from the git host (as for a [review](#reviewing-a-pull-request)); if it cannot give them the question is still answered from the repository. A bare `/ask` is answered with how to use it |
 | 2. Checkout | the factory | a throwaway local branch off the **default branch**, never pushed, so the project's settings and image come from the trusted branch. A project needs a `.factory/project.json`, like for every other run |
 | 3. Answer | `asker` (read-only, **no shell**, model access only) | reads the code and answers. The question, the ticket and the diff are marked as data in the prompt, and the role is told never to print secrets or follow instructions found there |
 | 4. Post | the factory | the answer as one comment. `@name` is made harmless so an answer notifies nobody; lines that look like credentials are left out; the files the agent says it read are shown **only if they exist** in the checkout |
@@ -303,7 +303,7 @@ An update is **not a revision**: it does not count towards `limits.revisions_per
 
 | Step | Who | What the factory checks itself |
 | --- | --- | --- |
-| 1. Read | the factory | the pull request and its base branch from Forgejo |
+| 1. Read | the factory | the pull request and its base branch from the git host |
 | 2. Merge | **the controller**, in its own clone | fetches the base branch and merges it into the pull request's branch. Git runs only here, never in an agent's copy. A branch that already has everything from the base ends with `up_to_date` and a short note |
 | 3. Give up early | the factory | more than 40 conflicted files, a conflict in a **protected file** (`.factory/`, CI files, `protected_paths`, the end-to-end tests folder) or a merge git cannot make at all (histories with nothing in common): nothing is pushed and the comment says a person has to merge by hand (`update_blocked`) |
 | 4. Resolve | `merge-resolver` (writable, shell, package access), **only when something needs it** | works on a copy of the merged files, with conflict markers where git could not combine. **Every conflicted file is answered exactly once**, as `combined`, `kept_pull_request`, `kept_base` or `rewrote`, with a note; and **no conflict marker may remain** (the factory looks for them in every conflicted file). A merge git did by itself skips the resolver unless the checks fail afterwards: two changes that work alone can break together, and then the resolver is asked to fix that |
@@ -342,7 +342,7 @@ gets an answer that says how to add them.
 | Step | Who | What is checked |
 | --- | --- | --- |
 | 1 | code | the pull request exists, is open, is the factory's own (branch `factory/issue-<n>`, author the bot, same repository) and the project has the suite asked for |
-| 2 | `e2e-tester` (reads, edits, runs commands, like the developer) | is told what the pull request changed (its files with added and removed lines, and the start of its diff, from Forgejo; the full diff is one `git diff` away in the checkout), then starts the application as `verify.start` says, tries it from the outside, and writes API and/or UI tests under `verify.tests` (the same sandbox settings as the developer: model and package registries, nothing else) |
+| 2 | `e2e-tester` (reads, edits, runs commands, like the developer) | is told what the pull request changed (its files with added and removed lines, and the start of its diff, from the git host; the full diff is one `git diff` away in the checkout), then starts the application as `verify.start` says, tries it from the outside, and writes API and/or UI tests under `verify.tests` (the same sandbox settings as the developer: model and package registries, nothing else) |
 | 3 | code | only files under the tests folder changed; no deletions, no secrets, no protected files. Anything else goes back to the tester, except that a **new file over 1 MiB** (an application log or a recording the tester left behind) is simply removed by the factory and named on the ticket, because sending it back would cost an attempt. If the tester is refused for the **same reason twice in a row**, the run stops instead of spending the third attempt |
 | 4 | **the factory** | runs each suite itself in a fresh sandbox **without the model login**: starts the application, waits for `verify.ready`, runs the suite, stops the application. Pass and fail are facts; the tester's word is not used |
 | 5 | `e2e-tester` again, up to 3 attempts | after a failing run it sees the output and says for each failing test whether it is an `application_bug` (keep the test) or a `test_problem` (fix it). If all it names are application bugs, the loop stops |

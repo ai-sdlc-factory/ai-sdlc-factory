@@ -10,7 +10,7 @@ public sealed record WorkspaceInfo(string Name, string Path, string Branch, stri
 
 /// <summary>
 /// Creates and removes the per-run git checkouts that sandboxes mount. Only the controller does
-/// this, because only it holds the Forgejo token; the token is handed to git through the
+/// this, because only it holds the git host tokens; the token is handed to git through the
 /// environment, so it appears in no argument list and is never written to the repository config.
 /// </summary>
 public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, string, string>? remoteUrl = null) : IWorkspaceStore

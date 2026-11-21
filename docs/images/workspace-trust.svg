@@ -15,11 +15,11 @@
 <path fill="white" stroke="#c3cad2" d="M876.8,-290.53C876.8,-290.53 1182.8,-290.53 1182.8,-290.53 1188.8,-290.53 1194.8,-296.53 1194.8,-302.53 1194.8,-302.53 1194.8,-657.55 1194.8,-657.55 1194.8,-663.55 1188.8,-669.55 1182.8,-669.55 1182.8,-669.55 876.8,-669.55 876.8,-669.55 870.8,-669.55 864.8,-663.55 864.8,-657.55 864.8,-657.55 864.8,-302.53 864.8,-302.53 864.8,-296.53 870.8,-290.53 876.8,-290.53"/>
 <text text-anchor="middle" x="890.42" y="-656.05" font-family="DejaVu Sans" font-size="10.00">Legend</text>
 </g>
-<!-- forgejo -->
+<!-- host -->
 <g id="node1" class="node">
-<title>forgejo</title>
-<path fill="#e1f0e3" stroke="#2f855a" d="M781.85,-640.8C781.85,-640.8 683.75,-640.8 683.75,-640.8 677.75,-640.8 671.75,-634.8 671.75,-628.8 671.75,-628.8 671.75,-616.8 671.75,-616.8 671.75,-610.8 677.75,-604.8 683.75,-604.8 683.75,-604.8 781.85,-604.8 781.85,-604.8 787.85,-604.8 793.85,-610.8 793.85,-616.8 793.85,-616.8 793.85,-628.8 793.85,-628.8 793.85,-634.8 787.85,-640.8 781.85,-640.8"/>
-<text text-anchor="middle" x="732.8" y="-619.1" font-family="DejaVu Sans" font-size="11.00">Forgejo repository</text>
+<title>host</title>
+<path fill="#e1f0e3" stroke="#2f855a" d="M783.35,-640.8C783.35,-640.8 682.25,-640.8 682.25,-640.8 676.25,-640.8 670.25,-634.8 670.25,-628.8 670.25,-628.8 670.25,-616.8 670.25,-616.8 670.25,-610.8 676.25,-604.8 682.25,-604.8 682.25,-604.8 783.35,-604.8 783.35,-604.8 789.35,-604.8 795.35,-610.8 795.35,-616.8 795.35,-616.8 795.35,-628.8 795.35,-628.8 795.35,-634.8 789.35,-640.8 783.35,-640.8"/>
+<text text-anchor="middle" x="732.8" y="-619.1" font-family="DejaVu Sans" font-size="11.00">Git host repository</text>
 </g>
 <!-- base -->
 <g id="node2" class="node">
@@ -29,9 +29,9 @@
 <text text-anchor="middle" x="732.8" y="-527.84" font-family="DejaVu Sans" font-size="11.00">only the controller touches it</text>
 <text text-anchor="middle" x="732.8" y="-514.34" font-family="DejaVu Sans" font-size="11.00">git runs ONLY here (hooks disabled)</text>
 </g>
-<!-- forgejo&#45;&gt;base -->
+<!-- host&#45;&gt;base -->
 <g id="edge1" class="edge">
-<title>forgejo&#45;&gt;base</title>
+<title>host&#45;&gt;base</title>
 <path fill="none" stroke="#4a5568" d="M732.8,-604.59C732.8,-594.01 732.8,-580.08 732.8,-567.29"/>
 <polygon fill="#4a5568" stroke="#4a5568" points="735.6,-567.32 732.8,-559.32 730,-567.32 735.6,-567.32"/>
 <text text-anchor="middle" x="779.3" y="-578.25" font-family="DejaVu Sans" font-size="9.00">git clone (bot token)</text>

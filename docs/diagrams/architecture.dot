@@ -12,16 +12,16 @@ digraph architecture {
   subgraph cluster_stack {
     label="Docker Compose stack on your machine"; style="rounded,dashed"; color="#8a94a0"; fontsize=11;
 
-    forgejo [label="Forgejo\ntickets · repositories · PRs", fillcolor="#e1f0e3", color="#2f855a"];
+    host [label="Git host\n(Forgejo or GitHub)\ntickets · repositories · PRs", fillcolor="#e1f0e3", color="#2f855a"];
 
     subgraph cluster_control {
       label="control plane (no model, no Docker)"; style="rounded"; color="#9aa5b1"; fillcolor="#fafbfc"; style="rounded,filled";
       api        [label="api\nchecks the webhook signature,\nstarts a workflow"];
       temporal   [label="Temporal\nstores every workflow's history\n(7 days by default)", fillcolor="#dbe8ff", color="#2b6cb0"];
-      controller [label="controller\nthe workflows and all decisions\nholds the Forgejo token\nruns git on the pristine clone", fillcolor="#dbe8ff", color="#2b6cb0"];
+      controller [label="controller\nthe workflows and all decisions\nholds the git host tokens\nruns git on the pristine clone", fillcolor="#dbe8ff", color="#2b6cb0"];
     }
 
-    postgres [label="PostgreSQL\n(Forgejo + Temporal data)", shape=cylinder, fillcolor="#eef2f6"];
+    postgres [label="PostgreSQL\n(Temporal data)", shape=cylinder, fillcolor="#eef2f6"];
 
     subgraph cluster_sandboxing {
       label="agent sandboxing (the only place with Docker access)"; style="rounded,filled"; color="#c05621"; fillcolor="#fff6ec";
@@ -35,11 +35,11 @@ digraph architecture {
     agents     [label="agents/ folder\nrole files, read-only", shape=folder, fillcolor="#fdf2c8", color="#b7791f"];
   }
 
-  person -> forgejo [label="tickets, comments,\nPR reviews"];
-  forgejo -> api [label="signed webhook\n(issues, comments)"];
+  person -> host [label="tickets, comments,\nPR reviews"];
+  host -> api [label="signed webhook\n(issues, comments)"];
   api -> temporal [label="start\nRepoEventWorkflow"];
   temporal -> controller [label="task queue\nfactory-events", dir=both];
-  controller -> forgejo [label="comments, branches,\npull requests (bot token)"];
+  controller -> host [label="comments, branches,\npull requests (bot token)"];
   controller -> workspaces [label="clone · copy · inspect\ncommit · push"];
   controller -> temporal [label="sandbox_run activity\nqueue: sandbox", style=dashed];
   temporal -> launcher [style=dashed];
@@ -50,7 +50,6 @@ digraph architecture {
   sandbox -> proxy [label="HTTPS_PROXY"];
   proxy -> model;
   proxy -> registry [label="packages /\ndeveloper profile"];
-  forgejo -> postgres [style=dotted, arrowhead=none];
   temporal -> postgres [style=dotted, arrowhead=none];
   controller -> agents [style=dotted, label="model names only"];
 }

@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Workflows](workflows.md) | [Setting up a project](project-setup.md)
 
-What to type, where to type it, and what starts. Everything happens in Forgejo: a **label** on a ticket starts a workflow, and a **comment** on a ticket or a pull request steers it. The factory never merges: a person reads and merges every pull request.
+What to type, where to type it, and what starts. Everything happens on the git host: a **label** on a ticket starts a workflow, and a **comment** on a ticket or a pull request steers it. The factory never merges: a person reads and merges every pull request.
 
 ## I want to ...
 
@@ -116,7 +116,7 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 ## Good to know
 
 - **One at a time.** A second `/qa`, `/update`, `/review`, `/ask` or revision on the same ticket or pull request while one runs gets a notice; comment again afterwards. A `/fix` that arrives during a revision is queued and read by a follow-up.
-- **Anyone who can comment can use the commands.** Forgejo's repository permissions are the access control; the factory does not check the commenter itself yet ([known limitations](operations.md#known-limitations)).
+- **Anyone who can comment can use the commands.** The git host's repository permissions are the access control; the factory does not check the commenter itself yet ([known limitations](operations.md#known-limitations)).
 - **The webhook** must send **Issues**, **Issue Label**, **Issue Comment** and **Pull Request Review Rejected** events ([setup](project-setup.md#2-add-the-webhook)); a comment on a pull request arrives as an Issue Comment.
 - **Every run needs `.factory/project.json`** in the default branch. Without it the ticket gets a note saying so.
 - **Limits.** Revisions per pull request, build rounds, tokens per run and per day: [Limits](project-setup.md#limits) and [Token limits](operations.md#token-limits).

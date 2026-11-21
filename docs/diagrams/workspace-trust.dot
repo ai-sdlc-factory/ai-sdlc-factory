@@ -4,7 +4,7 @@ digraph workspace_trust {
   edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
   label="Two copies of the checkout: git never runs where the agent can write";
 
-  forgejo [label="Forgejo repository", shape=box, style="rounded,filled", fillcolor="#e1f0e3", color="#2f855a"];
+  host [label="Git host repository", shape=box, style="rounded,filled", fillcolor="#e1f0e3", color="#2f855a"];
   base    [label=".base/<ticket>  pristine clone\nonly the controller touches it\ngit runs ONLY here (hooks disabled)", shape=folder, style="filled", fillcolor="#fdf2c8", color="#b7791f"];
   work    [label="<ticket>  the copy the agent works in\nmounted into the sandbox\ngit NEVER runs here (it could hold hostile hooks)", shape=folder, style="filled", fillcolor="#ffe3c7", color="#c05621"];
   sandbox [label="sandbox\nagent edits files, runs the project's checks", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
@@ -14,7 +14,7 @@ digraph workspace_trust {
   rec     [label=".records/<ticket>\nprompts · answers · check output · tokens\n(redacted for secrets)", shape=folder, style="filled", fillcolor="#fdf2c8", color="#b7791f"];
   runs    [label=".factory/runs/issue-N-<run>/\non the branch, if the project sets\n\"record\": true", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
 
-  forgejo -> base [label="git clone (bot token)"];
+  host -> base [label="git clone (bot token)"];
   base -> work [label="cp -a"];
   work -> sandbox [dir=both, label="mounted"];
   work -> inspect [label="read"];

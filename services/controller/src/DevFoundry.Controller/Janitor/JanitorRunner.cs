@@ -9,7 +9,7 @@ public sealed record JanitorReport(
 /// Anything it cannot establish (the running list, a ticket's state) means it does nothing for that item.
 /// </summary>
 public sealed class JanitorRunner(
-    IWorkspaceStore workspaces, IRunningWorkflows running, IJanitorGitHost forgejo, WorkerSettings settings, ILogger<JanitorRunner> log, Func<DateTimeOffset>? clock = null)
+    IWorkspaceStore workspaces, IRunningWorkflows running, IJanitorGitHost host, WorkerSettings settings, ILogger<JanitorRunner> log, Func<DateTimeOffset>? clock = null)
 {
     private readonly Func<DateTimeOffset> now = clock ?? (() => DateTimeOffset.UtcNow);
 
@@ -72,7 +72,7 @@ public sealed class JanitorRunner(
         IReadOnlyList<(string Owner, string Repo)> repositories;
         try
         {
-            repositories = await forgejo.ListWritableRepositoriesAsync(cancellationToken);
+            repositories = await host.ListWritableRepositoriesAsync(cancellationToken);
         }
         catch (Exception error) when (error is not OperationCanceledException)
         {
@@ -85,18 +85,18 @@ public sealed class JanitorRunner(
         {
             try
             {
-                var branches = (await forgejo.ListBranchesAsync(owner, repo, cancellationToken))
+                var branches = (await host.ListBranchesAsync(owner, repo, cancellationToken))
                     .Where(branch => JanitorRules.WipIssueNumber(branch.Name) is not null && now() - branch.LastCommit >= TimeSpan.FromDays(settings.JanitorWipDays))
                     .ToList();
                 if (branches.Count == 0)
                 {
                     continue;
                 }
-                var openHeads = await forgejo.OpenPullRequestBranchesAsync(owner, repo, cancellationToken);
+                var openHeads = await host.OpenPullRequestBranchesAsync(owner, repo, cancellationToken);
                 foreach (var branch in branches)
                 {
                     var number = JanitorRules.WipIssueNumber(branch.Name)!.Value;
-                    var closed = await forgejo.IssueIsClosedAsync(owner, repo, number, cancellationToken);
+                    var closed = await host.IssueIsClosedAsync(owner, repo, number, cancellationToken);
                     var action = JanitorRules.DecideWip(now() - branch.LastCommit, closed, openHeads.Contains(branch.Name), settings.JanitorWipDays, settings.JanitorDeleteWip);
                     if (action == WipAction.Keep)
                     {
@@ -107,7 +107,7 @@ public sealed class JanitorRunner(
                     old.Add(label);
                     if (action == WipAction.Delete)
                     {
-                        await forgejo.DeleteBranchAsync(owner, repo, branch.Name, cancellationToken);
+                        await host.DeleteBranchAsync(owner, repo, branch.Name, cancellationToken);
                         deleted.Add(label);
                         log.LogInformation("Janitor: deleted {Branch} in {Owner}/{Repo} ({Days} days old, ticket #{Number} is closed)", branch.Name, owner, repo, days, number);
                     }

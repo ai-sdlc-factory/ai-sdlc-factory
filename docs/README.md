@@ -1,6 +1,6 @@
 # Documentation
 
-Dev Foundry is an AI development factory: a Forgejo ticket becomes a reviewed pull request (features and bug fixes) or advice (incidents), produced by role agents that run in
+Dev Foundry is an AI development factory: a ticket on a git host (Forgejo or GitHub) becomes a reviewed pull request (features and bug fixes) or advice (incidents), produced by role agents that run in
 disposable, isolated containers. A person reviews and merges; the factory never merges.
 
 ![System overview](images/architecture.svg)
@@ -44,7 +44,7 @@ Every picture is a Graphviz source in [`diagrams/`](diagrams/) with a rendered S
 | Diagram | Shows |
 | --- | --- |
 | [architecture](images/architecture.svg) | the parts and how they talk |
-| [ticket-routing](images/ticket-routing.svg) | from a Forgejo event to a workflow |
+| [ticket-routing](images/ticket-routing.svg) | from a git host event to a workflow |
 | [feature-workflow](images/feature-workflow.svg) | a feature ticket to a pull request |
 | [bug-workflow](images/bug-workflow.svg) | the red-then-green bug fix |
 | [pr-revision](images/pr-revision.svg) | a review becomes one new commit on the same branch |

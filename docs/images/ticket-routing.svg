@@ -9,17 +9,17 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(21.6 605.59)">
 <title>ticket_routing</title>
 <polygon fill="white" stroke="none" points="-21.6,21.6 -21.6,-605.59 2519.28,-605.59 2519.28,21.6 -21.6,21.6"/>
-<text text-anchor="middle" x="125.38" y="-567.64" font-family="DejaVu Sans" font-size="13.00">From a Forgejo event to a workflow</text>
+<text text-anchor="middle" x="126.12" y="-567.64" font-family="DejaVu Sans" font-size="13.00">From a git host event to a workflow</text>
 <g id="clust1" class="cluster">
 <title>cluster_legend</title>
 <path fill="white" stroke="#c3cad2" d="M2171.68,-204.68C2171.68,-204.68 2477.68,-204.68 2477.68,-204.68 2483.68,-204.68 2489.68,-210.68 2489.68,-216.68 2489.68,-216.68 2489.68,-539.49 2489.68,-539.49 2489.68,-545.49 2483.68,-551.49 2477.68,-551.49 2477.68,-551.49 2171.68,-551.49 2171.68,-551.49 2165.68,-551.49 2159.68,-545.49 2159.68,-539.49 2159.68,-539.49 2159.68,-216.68 2159.68,-216.68 2159.68,-210.68 2165.68,-204.68 2171.68,-204.68"/>
 <text text-anchor="middle" x="2185.3" y="-537.99" font-family="DejaVu Sans" font-size="10.00">Legend</text>
 </g>
-<!-- forgejo -->
+<!-- host -->
 <g id="node1" class="node">
-<title>forgejo</title>
+<title>host</title>
 <polygon fill="#e1f0e3" stroke="#2f855a" points="1027.6,-530.75 769.75,-530.75 769.75,-478.73 1027.6,-478.73 1027.6,-530.75"/>
-<text text-anchor="middle" x="898.68" y="-514.54" font-family="DejaVu Sans" font-size="11.00">Forgejo</text>
+<text text-anchor="middle" x="898.68" y="-514.54" font-family="DejaVu Sans" font-size="11.00">Git host</text>
 <text text-anchor="middle" x="898.68" y="-501.04" font-family="DejaVu Sans" font-size="11.00">issue opened · reopened · labelled · closed</text>
 <text text-anchor="middle" x="898.68" y="-487.54" font-family="DejaVu Sans" font-size="11.00">comment created</text>
 </g>
@@ -31,9 +31,9 @@
 <text text-anchor="middle" x="898.68" y="-401.77" font-family="DejaVu Sans" font-size="11.00">verifies the HMAC signature</text>
 <text text-anchor="middle" x="898.68" y="-388.27" font-family="DejaVu Sans" font-size="11.00">rejects repeats of the same delivery id</text>
 </g>
-<!-- forgejo&#45;&gt;api -->
+<!-- host&#45;&gt;api -->
 <g id="edge1" class="edge">
-<title>forgejo&#45;&gt;api</title>
+<title>host&#45;&gt;api</title>
 <path fill="none" stroke="#4a5568" d="M898.68,-478.44C898.68,-466.95 898.68,-453.2 898.68,-440.8"/>
 <polygon fill="#4a5568" stroke="#4a5568" points="901.48,-441.16 898.68,-433.16 895.88,-441.16 901.48,-441.16"/>
 <text text-anchor="middle" x="935.43" y="-452.18" font-family="DejaVu Sans" font-size="9.00">signed webhook</text>

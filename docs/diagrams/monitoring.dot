@@ -22,7 +22,7 @@ digraph monitoring {
 
   am     [label="Alertmanager\ngroups alerts, repeats every 12 h", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   intake [label="alert-intake  (fixed rules, no AI)\nroute table · dedup by fingerprint · rate limit\nredacted, bounded evidence · dry run by default", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  forgejo[label="Forgejo ticket\nlabel: incident", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  host[label="Ticket on a git host\nlabel: incident", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
   inc    [label="Incident workflow\nassessment · causes · options\n(advice only)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
   person [label="A person decides\n/option · /hotfix · /resolved", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
 
@@ -33,9 +33,9 @@ digraph monitoring {
   prom -> grafana; deploy -> grafana [label="marker", style=dotted];
   prom -> am [label="alert"]; promtail -> am [label="log alert", style=dashed];
   am -> intake [label="webhook + token"];
-  intake -> forgejo [label="opens one ticket\ncomments when resolved"];
+  intake -> host [label="opens one ticket\ncomments when resolved"];
   intake -> promtail [label="recent log lines", style=dotted, constraint=false];
-  forgejo -> inc [label="webhook"];
+  host -> inc [label="webhook"];
   inc -> person;
 
   subgraph cluster_legend {

@@ -2,9 +2,9 @@ digraph ticket_routing {
   graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
   node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
   edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
-  label="From a Forgejo event to a workflow";
+  label="From a git host event to a workflow";
 
-  forgejo [label="Forgejo\nissue opened · reopened · labelled · closed\ncomment created", shape=box, style="filled", fillcolor="#e1f0e3", color="#2f855a"];
+  host [label="Git host\nissue opened · reopened · labelled · closed\ncomment created", shape=box, style="filled", fillcolor="#e1f0e3", color="#2f855a"];
   api     [label="api\nverifies the HMAC signature\nrejects repeats of the same delivery id", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   router  [label="RepoEventWorkflow  (the router)\nstored in Temporal, decides with fixed rules", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   kind    [label="which label?\nincident  >  plan  >  feature  >  bug  >  docs", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
@@ -26,7 +26,7 @@ digraph ticket_routing {
   retry   [label="/retry on an open ticket\nstarts the run again, like reopening\n(a notice if one is still running)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   ignored [label="ignored\nother pull request events · factory's own comments\ntickets with none of the factory labels", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   reopen  [label="reopened\nstarts a new run\n(label changes alone do nothing)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  forgejo -> api [label="signed webhook"];
+  host -> api [label="signed webhook"];
   api -> router [label="Temporal workflow"];
   router -> kind [label="opened / labelled"];
   router -> reopen [style=dashed];

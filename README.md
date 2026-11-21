@@ -1,6 +1,6 @@
 # Dev Foundry
 
-An AI development factory built around Forgejo, Temporal and disposable agent containers. You label a Forgejo ticket; role agents analyse it, write the code (or the fix, or the
+An AI development factory built around a git host (Forgejo or GitHub), Temporal and disposable agent containers. You label a ticket on the host; role agents analyse it, write the code (or the fix, or the
 incident advice) in isolated sandboxes, and the factory hands you a **reviewed pull request**. A person reviews and merges; the factory never merges.
 
 ![System overview](docs/images/architecture.svg)
@@ -46,7 +46,7 @@ Start at the [documentation index](docs/README.md).
 ## Repository
 
 - [`infra/`](infra/README.md): Docker Compose and environment settings.
-- [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and Forgejo handling.
+- [`services/api/`](services/api/README.md): webhook intake. [`services/controller/`](services/controller/README.md): workflows, agent prompts and parsers, workspace and git host handling.
   [`services/sandbox-launcher/`](services/sandbox-launcher/README.md): the only service with Docker access. [`services/egress-proxy/`](services/egress-proxy/README.md): the proxy that decides what sandboxes may reach.
 - [`alert-intake/`](alert-intake/README.md): a tool outside the factory that turns monitoring alerts into tickets. [`demo/`](demo/README.md): a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose.
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.

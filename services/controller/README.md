@@ -2,7 +2,7 @@
 
 [Documentation index](../../docs/README.md) | [Workflows](../../docs/workflows.md) | [Architecture](../../docs/architecture.md) | [Infrastructure](../../infra/README.md)
 
-The trusted core of the factory: a standalone Temporal worker (.NET 10) that runs all the workflows, decides every next step in code, holds the only Forgejo token, and runs git on
+The trusted core of the factory: a standalone Temporal worker (.NET 10) that runs all the workflows, decides every next step in code, holds the only git host tokens, and runs git on
 the pristine clone of each ticket. It exposes no HTTP port and does not reference the API project.
 
 What the workflows do for a ticket is described in the [workflows guide](../../docs/workflows.md) (with diagrams); this page is about the service itself.
@@ -42,7 +42,7 @@ Settings (full list in the [configuration reference](../../docs/configuration.md
 namespace and queue), `FACTORY_HOSTS` (each git host, with the bot's token on it), `FACTORY_WORKSPACE_ROOT`, `TEMPORAL_UI_URL`, and `FACTORY_AGENTS_DIR`. The same `FACTORY_HOSTS` carries the webhook secrets, which only the api needs; the controller ignores them. Without a bot token, ticket workflows fail
 at their first comment and every other event still works.
 
-The controller talks to Forgejo only through `ForgejoClient`, and to the Docker world only through Temporal.
+The controller talks to a git host only through the `IGitHost` port (one client per kind of host: `ForgejoClient`, `GitHubClient`), and to the Docker world only through Temporal.
 
 ## Code layout
 
@@ -54,7 +54,7 @@ The controller talks to Forgejo only through `ForgejoClient`, and to the Docker 
 | `Agents/<role>/` | per role: its prompt builder and the parser that validates its answer (`Analyst`, `Coverage` with triage and the evidence check, `Architect`, `Developer` with the build feedback and pull request text, `Review` with the acceptance check and the UX decision, `Bug`, `Incident`, `Plan`, `Revision`, `Qa`, `Update`, `Docs`) |
 | `Workspace/` | `GitWorkspace` (`.Changes`, `.Publish`, `.Record`, `.Process` parts), its activities, the change checks (`ProtectedPaths`, `SecretScan`) and the run record |
 | `GitHost/` | the git host port (`IGitHost`), its activities, the models it returns, ticket comment texts |
-| `Forgejo/` | the one implementation of that port today: the Forgejo API client |
+| `Forgejo/`, `GitHub/` | the implementations of that port: the Forgejo and the GitHub API clients |
 | `Project/` | `.factory/project.json` parsing, the known keys (`ProjectKeys`), limits, rules and the `verify` settings |
 | `Improvement/` | the weekly report: reading the logs, the rules that flag what repeats, the improver's answer and prompt, the scheduler |
 | `Janitor/` | removing leftover checkouts and reporting old work-in-progress branches |
