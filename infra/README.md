@@ -80,6 +80,8 @@ Checkouts are removed when a ticket's workflow ends; folders of runs you termina
 
 ## Factory bot account
 
+(Forgejo and GitHub side by side, with token scopes, webhooks and permissions: [Connecting a git host](../docs/git-hosts.md).)
+
 The controller comments on tickets, pushes branches and opens pull requests as a dedicated user of each git host, so the factory never uses a personal account. How to create it on the Forgejo of [`../companions/forgejo`](../companions/forgejo/README.md#the-factory-bot-account), or on GitHub ([Several git hosts](../docs/operations.md#several-git-hosts)); put its token in the `"token"` of that host in `FACTORY_HOSTS` in `.env`, then recreate the controller (`docker compose up -d --force-recreate controller`). The bot must be a collaborator with write access on each repository it serves ([project setup](../docs/project-setup.md#1-give-the-bot-access)).
 
 ## OpenCode login

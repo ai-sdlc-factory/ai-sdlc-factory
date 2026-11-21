@@ -71,7 +71,7 @@ Adding another language is described in the [launcher guide](../services/sandbox
 
 ## 4. Set up a git host and the factory's bot account
 
-The factory works with the hosts listed in `FACTORY_HOSTS`. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`companions/forgejo/`](../companions/forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
+The factory works with the hosts listed in `FACTORY_HOSTS`. Everything a host needs (the bot account, the token and its permissions, webhooks and their events, labels, who may steer) is in [Connecting a git host](git-hosts.md); this step is the short path for the bundled Forgejo. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`companions/forgejo/`](../companions/forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
 
 1. Start Forgejo (the factory's stack must be up, because Forgejo joins two of its networks), open http://localhost:3000, finish the installation and create an **administrator** account:
 

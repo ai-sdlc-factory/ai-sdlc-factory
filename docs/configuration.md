@@ -30,7 +30,7 @@ Copy `infra/.env.example` to `infra/.env` (`cp -n`, `chmod 600`). The file is ig
 
 ### FACTORY_HOSTS
 
-The git hosts the factory serves, as one line of JSON in `infra/.env`. The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
+The git hosts the factory serves, as one line of JSON in `infra/.env`. How to get each value on Forgejo and GitHub (the bot account, the token and its permissions, the webhook and its events) is in [Connecting a git host](git-hosts.md). The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
 
 ```bash
 FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_login":"factory-bot","webhook_secret":"..."},{"name":"github","type":"github","url":"https://github.com","token":"...","bot_login":"my-bot","webhook_secret":"..."}]

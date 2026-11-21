@@ -18,6 +18,8 @@ connects one repository to it. It takes about five minutes.
 
 ## 1. Give the bot access
 
+> Accounts, tokens, webhooks and permissions for **Forgejo and GitHub**, side by side, are in [Connecting a git host](git-hosts.md). Steps 1 to 3 below are the per-repository part.
+
 In the repository: **Settings > Collaborators > add `factory-bot` with Write access** (or make the bot the owner). The bot comments on tickets, pushes
 branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests. It cannot merge and never does.
 
