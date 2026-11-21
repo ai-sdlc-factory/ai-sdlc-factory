@@ -33,7 +33,7 @@ public static partial class RepoNames
 /// One git host as <c>FACTORY_HOSTS</c> describes it. The API reads the name, the kind and the webhook secret; the controller reads the name, the kind, the address, the bot's
 /// token and the bot's login; the alert intake reads the name, the address and the token.
 /// </summary>
-public sealed record HostDefinition(string Name, string Type, string Url, string Token, string BotLogin, string WebhookSecret, TriggerRules? Triggers = null);
+public sealed record HostDefinition(string Name, string Type, string Url, string Token, string BotLogin, string WebhookSecret, TriggerRules? Triggers = null, HostCommandRules? Commands = null);
 
 public static class HostsSetting
 {
@@ -43,8 +43,8 @@ public static class HostsSetting
 
     /// <summary>
     /// Reads the <c>FACTORY_HOSTS</c> setting, the one place that says which git hosts the factory serves: a JSON array of
-    /// <c>{"name","type","url","token","bot_login","webhook_secret","triggers"}</c> (<c>type</c> defaults to <c>forgejo</c>, <c>bot_login</c> to <c>factory-bot</c>; <c>name</c> and
-    /// <c>url</c> are required; <c>webhook_secret</c> is required where <paramref name="needWebhookSecret"/> is set, which is the API; <c>triggers</c> is optional, see <see cref="TriggerRules"/>).
+    /// <c>{"name","type","url","token","bot_login","webhook_secret","triggers","commands","repositories"}</c> (<c>type</c> defaults to <c>forgejo</c>, <c>bot_login</c> to <c>factory-bot</c>; <c>name</c> and
+    /// <c>url</c> are required; <c>webhook_secret</c> is required where <paramref name="needWebhookSecret"/> is set, which is the API; <c>triggers</c> is optional, see <see cref="TriggerRules"/>; <c>commands</c> and <c>repositories</c> are optional, see <see cref="CommandRule"/>).
     /// The first host is the one a route of the alert intake uses when it names none. At least one host is needed. A setting that cannot be used stops the start with a message
     /// that names the host and the problem, never a secret.
     /// </summary>
@@ -94,7 +94,8 @@ public static class HostsSetting
                     throw new InvalidOperationException($"{Variable}: host \"{name}\" needs a \"webhook_secret\" of at least 32 characters.");
                 }
                 var triggers = item.TryGetProperty("triggers", out var triggersValue) ? TriggerRules.Read(triggersValue, $"{Variable}: host \"{name}\"") : TriggerRules.Default;
-                hosts.Add(new HostDefinition(name, type, url.TrimEnd('/'), Text(item, "token") ?? "", Text(item, "bot_login") is { Length: > 0 } login ? login : "factory-bot", secret, triggers));
+                var commands = HostCommandRules.Read(item, $"{Variable}: host \"{name}\"");
+                hosts.Add(new HostDefinition(name, type, url.TrimEnd('/'), Text(item, "token") ?? "", Text(item, "bot_login") is { Length: > 0 } login ? login : "factory-bot", secret, triggers, commands));
             }
             return hosts;
         }

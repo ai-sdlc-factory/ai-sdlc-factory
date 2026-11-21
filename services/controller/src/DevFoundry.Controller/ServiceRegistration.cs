@@ -34,6 +34,8 @@ public static class ServiceRegistration
 
         services.AddSingleton(settings);
         services.AddSingleton(new GitWorkspace(settings));
+        // What the git host said a person may do, kept for FACTORY_PERMISSION_CACHE_SECONDS; the activities that check who may steer the factory use it.
+        services.AddSingleton(new PermissionCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds)));
         // The git hosts there are (every one listed in FACTORY_HOSTS), behind one port that sends each call to the host its owner belongs to. The rest of the controller asks for IGitHost, never for a class.
         services.AddSingleton<IGitHost>(sp => new GitHostRouter(settings.Hosts.ToDictionary(
             host => host.Name,

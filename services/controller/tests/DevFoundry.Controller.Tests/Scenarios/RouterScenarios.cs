@@ -309,4 +309,79 @@ public sealed class RouterScenarios(TemporalFixture fixture)
 
         Assert.Single(world.Calls("analyst"));
     }
+
+    // ---- who may steer the factory
+
+    [SkippableFact]
+    public async Task A_refused_command_starts_nothing_and_gets_one_notice_that_names_the_rule_not_the_person()
+    {
+        var verdict = new CommandVerdict(false, CommandRefusal.TooLittleAccess, "write", false);
+        var world = new FakeWorld { CommandVerdict = verdict };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "/ask where is the greeting?"));
+            await Route(context, Event("issue_comment", "created", repo, comment: "/ask and now?"));
+            await Task.Delay(1500); // long enough for a child workflow that was wrongly started to show itself
+            return 0;
+        });
+
+        var notice = Assert.Single(world.Snapshot(world.Notices)); // the same refusal on the same ticket is not repeated
+        Assert.Equal(TicketComments.CommandRefused(verdict), notice);
+        Assert.DoesNotContain("bob", notice);
+        Assert.Empty(world.PrepareRequests);
+        Assert.All(world.Snapshot(world.CommandChecks), check => Assert.Equal(("forgejo", "acme", repo, "bob"), (check.Host, check.Owner, check.Repo, check.Login)));
+    }
+
+    [SkippableFact]
+    public async Task A_refusal_that_is_silent_says_nothing_at_all()
+    {
+        var world = new FakeWorld { CommandVerdict = new CommandVerdict(false, CommandRefusal.NotListed, "", true) };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "/ask where is the greeting?"));
+            await Task.Delay(1000);
+            return 0;
+        });
+
+        Assert.Empty(world.Snapshot(world.Notices));
+        Assert.Empty(world.Snapshot(world.Comments));
+        Assert.Single(world.Snapshot(world.CommandChecks));
+    }
+
+    [SkippableFact]
+    public async Task An_allowed_command_is_started_as_before()
+    {
+        var world = new FakeWorld().Agent("asker", AgentReply.Says(Answers.Ask(files: "hello.py")));
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "/ask where is the greeting?"));
+            await WaitUntilAsync(() => world.Snapshot(world.PrepareRequests).Count > 0);
+            return 0;
+        });
+
+        Assert.Single(world.Snapshot(world.CommandChecks));
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
+
+    [SkippableFact]
+    public async Task A_label_that_starts_a_run_is_the_hosts_to_limit_so_nobody_is_checked_for_it()
+    {
+        var world = new FakeWorld { CommandVerdict = new CommandVerdict(false, CommandRefusal.Denied, "", false) };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "labeled", repo));
+            return 0;
+        });
+
+        Assert.Empty(world.Snapshot(world.CommandChecks));
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
 }

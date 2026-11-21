@@ -73,7 +73,7 @@ onto the pristine clone, and commits and pushes from there. A test plants a host
 
 - **Data sent to an allowed host.** The model provider receives whatever is in a prompt, and a package registry accepts requests from anyone. The proxy sees host names, not content.
 - **Commands in `.factory/project.json`.** The project's checks run in the sandbox with package access and no model access. A repository owner decides what they do; they get no more reach than the agent has.
-- **A person with comment access** on a ticket can steer a run (answer questions, use incident commands). The git host's repository permissions are the access control.
+- **A person with comment access** on a ticket can steer a run (answer questions, use incident commands) unless the operator restricted who: the git host's repository permissions are the access control by default, and a `commands` rule in `FACTORY_HOSTS` can ask for write or admin access, or name the people (the controller asks the host, keeps the answer briefly, and refuses when it cannot find out).
 
 The [egress guide](../services/egress-proxy/ALLOWLIST.md) describes the network rules in detail; [Operations](operations.md#security-notes) lists the practical checks.
 

@@ -16,6 +16,12 @@ public sealed class GitHostRouter(IReadOnlyDictionary<string, IGitHost> hosts) :
             : throw new ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_HOSTS).", nonRetryable: true);
     }
 
+    public Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.GetPermissionAsync(plain, repo, login, cancellationToken);
+    }
+
     public Task PostIssueCommentAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
         var (host, plain) = For(owner);

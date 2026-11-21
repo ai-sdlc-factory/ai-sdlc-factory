@@ -45,6 +45,23 @@ FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_
 | `bot_login` | the bot account's username. The factory revises only pull requests this account opened, and compares the author with it (the token's own scopes do not allow asking the host) | `factory-bot` |
 | `webhook_secret` | the HMAC key of that host's webhook signature, 32+ characters, the same one you paste into each repository's webhook | required by the api |
 | `triggers` | how its tickets say which workflow to run: `{"labels":{"feature":["enhancement"]},"item_types":{"bug":["Bug"]},"command":true}`. `labels` and `item_types` add names per kind (`incident`, `plan`, `feature`, `bug`, `docs`; the plain labels always work; at most 20 names of at most 50 characters each); `command: true` turns on `/factory <kind>` in a comment on a ticket that has no kind. **Turning the command on lets anyone who can comment start a run**, where only someone who can label could before | the plain labels |
+| `commands` | who may steer the factory on this host's repositories with a comment (a slash command, an answer to an agent) or a review that asks for a revision. A level as text, or an object: `"write"` (anyone with write access to the repository), `"admin"`, `"none"` (only the people named), `"anyone"` (the default), or `{"who":"write","allow":["alice"],"deny":["mallory"],"refusal":"silent"}`. `allow` names people let in whatever their access, `deny` people always refused, even administrators (deny first, then allow, then the level); logins are the host's own, written the way the host writes them (case does not matter). `refusal` is `"comment"` (the default: one short note on the ticket that names the rule, never the person) or `"silent"`. Starting a run by a label is not covered: the host already limits who may label | anyone |
+| `repositories` | rules for single repositories of this host, `{"owner/name":{"commands":{...}}}`, which replace the host's own `commands` there (they can loosen as well as tighten: they are yours, not the repository's) | none |
+
+**Who may steer the factory** (`commands`, `repositories`) is optional, and with nothing set anyone who can comment may use commands, as the factory always worked. On a public repository you will want a rule, because anyone can comment there. Examples:
+
+```bash
+# Only you and a colleague on the public GitHub repository (and /factory <kind> on, so you can start a run on a stranger's issue by a comment)
+{"name":"github","type":"github","url":"https://github.com","token":"...","webhook_secret":"...","triggers":{"command":true},"commands":{"who":"none","allow":["you","colleague"]}}
+
+# The team on a Forgejo (anyone with write access), but only two people on one public repository
+{"name":"forgejo","url":"http://forgejo:3000","token":"...","webhook_secret":"...","commands":"write","repositories":{"acme/public-site":{"commands":{"who":"none","allow":["you","colleague"]}}}}
+
+# Write access, one outside contributor let in, one person blocked
+"commands":{"who":"write","allow":["outside-contributor"],"deny":["mallory"]}
+```
+
+The rule covers every comment that steers a run: the slash commands (`/fix`, `/qa`, `/review`, `/update`, `/retry`, `/ask`, `/setup`, `/approve`, `/hotfix`, `/option` and the rest), `/factory <kind>`, an answer to an agent's question, and a review that asks for changes (the reviewer's login is checked). It does not cover a label, which the host limits itself. For `write` and `admin` the controller asks the host what the person may do (Forgejo and GitHub: the collaborator permission. GitHub's needs a token with write access to the repository; Forgejo answers about other people only to a repository administrator, so the bot has to be one, or the answer is "cannot say", which refuses. A rule that only names people needs none of this; a host that cannot say makes the answer no) and keeps the answer for [`FACTORY_PERMISSION_CACHE_SECONDS`](#needed-for-the-factory-to-work-but-optional-for-the-stack-to-start). A rule that only names people (`none`, `allow`, `deny`) never asks the host. The controller logs each host's rule when it starts.
 
 At least one host is needed. A setting that cannot be used stops the api and the controller at start, with a message that names the host and the problem and never prints a secret. **Every service that reads the list receives the tokens and secrets in it**; the api needs only the secrets, and the controller only the rest.
 
@@ -52,6 +69,7 @@ At least one host is needed. A setting that cannot be used stops the api and the
 
 | Key | What | Default |
 | --- | --- | --- |
+| `FACTORY_PERMISSION_CACHE_SECONDS` | how long what a git host said a person may do on a repository is kept, where a host's [`commands`](#factory_hosts) rule asks for access (`write` or `admin`). A burst of commands from one person then asks the host once. `0` asks every time; at most 3600. A person whose access was just taken away still passes until the answer expires. A host that fails or cannot say is never remembered: the person is refused for now | `300` |
 | `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
 | `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
 | `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
@@ -124,6 +142,7 @@ to that service's `environment` block in `infra/compose.yaml` (they are not in `
 | `FACTORY_MAX_TOKENS_PER_RUN`, `FACTORY_DAILY_TOKEN_LIMIT`, `FACTORY_REPO_DAILY_TOKEN_LIMIT`, `FACTORY_CONFIRM_OVER_TOKENS` | `0`, `0`, `0`, `0` (set by Compose) | token limits, as above; a value that is not `0` or a whole number from 10000 stops the controller at start with a message, so a typo cannot switch a limit off |
 | `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | whether a repository's own image is mentioned and used, as above; the launcher enforces the same switch |
 | `FACTORY_JANITOR`, `FACTORY_JANITOR_INTERVAL_HOURS`, `FACTORY_JANITOR_CHECKOUT_DAYS`, `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` | `true`, `24`, `2`, `30`, `false` (set by Compose) | the janitor, described under [Cleaning up](operations.md#cleaning-up); a value out of range stops the controller at start with a message |
+| `FACTORY_PERMISSION_CACHE_SECONDS` | `300` (set by Compose) | how long a person's access on the host is kept (see above); a value out of range stops the controller at start |
 | `FACTORY_DEFAULT_BUILD_ROUNDS`, `FACTORY_DEFAULT_CLARIFICATION_ROUNDS`, `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | `3`, `3`, `3` (set by Compose) | defaults for a project's `limits`; a value outside its range stops the controller at start with a message |
 | `FACTORY_WORKSPACE_ROOT` | none (required) | where checkouts live |
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |

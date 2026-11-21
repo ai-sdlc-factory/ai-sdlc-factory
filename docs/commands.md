@@ -116,7 +116,7 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 ## Good to know
 
 - **One at a time.** A second `/qa`, `/update`, `/review`, `/ask` or revision on the same ticket or pull request while one runs gets a notice; comment again afterwards. A `/fix` that arrives during a revision is queued and read by a follow-up.
-- **Anyone who can comment can use the commands.** The git host's repository permissions are the access control; the factory does not check the commenter itself yet ([known limitations](operations.md#known-limitations)).
+- **By default anyone who can comment can use the commands.** The git host's repository permissions are the access control, unless the operator set a [`commands` rule](configuration.md#factory_hosts) for the host or the repository: write or admin access, or only named people. A person it refuses gets one short note (or nothing, if the rule says silent) and nothing runs. A label is not covered by the rule: the host limits who may label.
 - **The webhook** must send **Issues**, **Issue Label**, **Issue Comment** and **Pull Request Review Rejected** events ([setup](project-setup.md#2-add-the-webhook)); a comment on a pull request arrives as an Issue Comment.
 - **Every run needs `.factory/project.json`** in the default branch. Without it the ticket gets a note saying so.
 - **Limits.** Revisions per pull request, build rounds, tokens per run and per day: [Limits](project-setup.md#limits) and [Token limits](operations.md#token-limits).

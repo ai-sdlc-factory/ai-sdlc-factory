@@ -539,6 +539,35 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
         return new PullRequestInfo(root.GetProperty("number").GetInt32(), root.GetProperty("html_url").GetString() ?? "");
     }
 
+    /// <summary>A person's access to a repository: <c>collaborators/{login}/permission</c> says none, read, write, admin or owner.</summary>
+    public async Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Get, $"api/v1/repos/{Uri.EscapeDataString(owner)}/{Uri.EscapeDataString(repo)}/collaborators/{Uri.EscapeDataString(login)}/permission");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return HostPermission.None;
+        }
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return HostPermission.Unknown; // the token may not look at other people's access
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("permission lookup", response.StatusCode, response.ReasonPhrase);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return Text(document.RootElement, "permission") switch
+        {
+            "owner" or "admin" => HostPermission.Admin,
+            "write" => HostPermission.Write,
+            "read" => HostPermission.Read,
+            "none" => HostPermission.None,
+            _ => HostPermission.Unknown,
+        };
+    }
+
     private void RequireToken()
     {
         if (string.IsNullOrWhiteSpace(token))

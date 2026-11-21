@@ -27,13 +27,60 @@ public sealed class RepoEventWorkflow
                 (GitHostActivities activities) => activities.ReadTriggersAsync(input.Host),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3))
             : TriggerRules.Default;
-        await RouteAsync(repoEvent, triggers);
+        var decision = EventRouter.Decide(repoEvent, triggers);
+        if (!await MayProceedAsync(input.Host, repoEvent, decision))
+        {
+            return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
+        }
+        await RouteAsync(decision);
         return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
     }
 
-    private static Task RouteAsync(RepoEvent input, TriggerRules triggers)
+    /// <summary>Whether a person is steering the factory: a command, an answer to an agent, or a review that asks for a revision. A label that starts a run is the host's to limit, not ours.</summary>
+    private static bool IsSteering(RepoEvent input, RoutingDecision decision) => decision.Action switch
     {
-        var decision = EventRouter.Decide(input, triggers);
+        RoutingAction.RevisePullRequest or RoutingAction.RetryFeature or RoutingAction.RunQa or RoutingAction.ConfirmQa or RoutingAction.UpdatePullRequest
+            or RoutingAction.ReviewPullRequest or RoutingAction.AskQuestion or RoutingAction.RunSetup or RoutingAction.ReplyToFeature => true,
+        RoutingAction.StartFeature => input.Kind == RepoEventKind.Commented, // `/factory <kind>`
+        _ => false,
+    };
+
+    /// <summary>
+    /// The operator's rule of who may steer the factory, applied before anything is started. A person it refuses gets one short comment (unless the rule says to stay silent) and nothing runs.
+    /// With no rule the activity answers yes without asking the host anything.
+    /// </summary>
+    private static async Task<bool> MayProceedAsync(string host, RepoEvent input, RoutingDecision decision)
+    {
+        if (!IsSteering(input, decision))
+        {
+            return true;
+        }
+        var login = input.Kind == RepoEventKind.ChangesRequested ? input.Actor : input.CommentAuthor;
+        var verdict = await Workflow.ExecuteActivityAsync(
+            (GitHostActivities activities) => activities.CheckCommandAsync(new CommandCheck(host, input.Owner, input.Repo, login)),
+            ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
+        if (verdict.Allowed)
+        {
+            return true;
+        }
+        if (!verdict.Silent)
+        {
+            try
+            {
+                await Workflow.ExecuteActivityAsync(
+                    (GitHostActivities activities) => activities.PostNoticeUniqueAsync(new CommentRequest(input.Owner, input.Repo, input.Number, TicketComments.CommandRefused(verdict))),
+                    ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+            }
+            catch (ActivityFailureException)
+            {
+                // Best effort: the command is refused either way.
+            }
+        }
+        return false;
+    }
+
+    private static Task RouteAsync(RoutingDecision decision)
+    {
         return decision.Action switch
         {
             RoutingAction.StartFeature => StartFromTicketEventAsync(decision),

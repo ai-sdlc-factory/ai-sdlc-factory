@@ -2,44 +2,43 @@
 
 [Documentation index](README.md) | [Operations](operations.md)
 
-One thing that would change real outcomes, picked after the live tests of 2026-11-15. It is not built. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs`, an entry in [project-setup.md](project-setup.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
+What is left to build, as designs and not promises. Each says what problem it solves, how it would work in this codebase, what it must not do, and how to know it is done. They follow the rules in [AGENTS.md](../AGENTS.md): **the controller decides, agents advise**; a new setting needs parsing, tests, a place in `ProjectKeys.cs` (for a `project.json` key), an entry in [project-setup.md](project-setup.md) or [configuration.md](configuration.md) and, with a factory default, a `FACTORY_DEFAULT_*` variable; a new role needs a role file, a row in [configuration.md](configuration.md), a prompt builder and a parser. Delete an idea from this file when it is built.
 
 | # | Idea | Solves | Size |
 | --- | --- | --- | --- |
-| 1 | [Other git hosts, in parallel](#1-other-git-hosts-in-parallel) | the factory only works with Forgejo | medium refactor, then days per host |
+| 1 | [More git hosts](#1-more-git-hosts) | the factory serves Forgejo and GitHub only | days per host |
+| 2 | [Finer rules of who may steer the factory](#2-finer-rules-of-who-may-steer-the-factory) | one rule for every command, and only people or access levels | small |
 
-Left out on purpose, for now: auto-triage of unlabelled tickets and a permission check on commands (needed the day a second person uses the factory).
+Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
 
-## 1. Other git hosts, in parallel
+## Built, and still to check live
 
-**Problem.** Everything the factory reads from or writes to a repository goes through Forgejo. A team on GitHub, GitLab, Azure DevOps or Bitbucket cannot use it, and one factory cannot serve repositories on two hosts.
+The factory serves several git hosts at once: Forgejo and GitHub, listed in `FACTORY_HOSTS` (the port, the neutral event, the host in the identity, per-host triggers, a client and a webhook adapter per kind; see [Several git hosts](operations.md#several-git-hosts)). It was run live on GitHub with a feature ticket, `/ask`, `/setup`, `/fix`, `/fix qa`, `/update` and `/qa`. One thing was not: a review that **requests changes** starting a revision on GitHub, because a pull request's author cannot request changes on it and the factory ignores reviews by its own account, so it needs a second GitHub account. It is covered by unit tests only.
 
-**Where Forgejo is built in** (measured 2026-11-15):
-- Controller: 33 files, about 140 mentions. `ForgejoClient` has 17 operations (comments, issues, pull requests and their files, reviews, review requests, branches, a repository list), wrapped by `GitHostActivities`. `EventRouter` reads Forgejo's webhook JSON directly (`issues`, `issue_comment`, `pull_request_rejected`, labels, `is_pull`).
-- API service: `WebhookEndpoints` and `WebhookVerifier` check Forgejo's HMAC-SHA256 signature on one fixed route.
-- Alert intake: its own small client (`Forgejo.cs`: find a ticket by marker, create, comment, add a marker).
-- Identity: `owner/repo` is the key everywhere (`WorkIds.For` hashes it into workflow ids and workspace folders, the usage log, the janitor's prefixes, the weekly report). There is **no host** in any of it.
-- Not affected: the agents, sandboxes, workflows, gates, QA, reviewers, token limits, and cloning and pushing (plain git over HTTPS with a token).
+## 1. More git hosts
 
-**How.** In this order, each step keeping every test green. **Built so far: steps 1 to 5, and the GitHub adapter of step 6** (the `IGitHost` port, the `RepoEvent` and the webhook adapters, the host in the identity with `FACTORY_EXTRA_HOSTS`, per-host triggers, the alert intake naming a host per route, and GitHub: webhook adapter, REST client, Basic-auth cloning; see [Several git hosts](operations.md#several-git-hosts)). The GitHub adapter is covered by unit tests; its live check (a feature ticket, `/ask`, a `/fix` after a review, on a real repository) is still to do. GitLab, Azure DevOps and Bitbucket are not started.
-1. **A host port.** Turn the operations of `ForgejoClient` into an interface (`IGitHost`) with Forgejo as the only implementation, and have `GitHostActivities` call the interface. No behaviour change.
-2. **A neutral event.** One `RepoEvent` (kind, repository, number, is it a pull request, comment text, labels, author, action, head ref, state, review state) that `EventRouter` works on, and a **webhook adapter per host** that verifies and normalises (`IWebhookAdapter`: `Verify(headers, body)`, `Normalise(payload)`). The API serves `/webhooks/<host>`; each host has its own secret. Many tests build Forgejo payloads by hand: they become tests of the Forgejo adapter, and the router tests use neutral events.
-3. **Host in the identity.** A repository is `host:owner/repo` (the default host keeps today's ids, so nothing running is renamed). Settings carry a list of hosts (`FACTORY_HOSTS`: type, base URL, token); `WorkIds`, the workspace folders, the janitor, the usage log and the report take the host into account. The janitor and the report loop over hosts.
-4. **Configurable triggers.** Today a label starts a run, which not every host has. Per repository (in `.factory/project.json`, or per host): a label, a tag, a work-item type, or a comment command (`/factory feature`). Slash commands in comments are portable as they are.
-5. **Alert intake** gets the same port (or one client per host in its mapping file).
-6. **Adapters**, one at a time.
+**Problem.** A team on GitLab, Azure DevOps or Bitbucket cannot use the factory. Everything else is host-neutral by now (the [port, the events and the identity](operations.md#several-git-hosts)), so a host is one client, one webhook adapter, a few settings and a live check.
 
-| Host | Effort (after step 1-5) | Difficulty |
+**How.** The recipe is the rule "a new kind of git host" in [AGENTS.md](../AGENTS.md): a webhook adapter in `libs/DevFoundry.Contracts/Hosts/` (with tests of its payloads and its signature or secret), an `IGitHost` client in `GitHost/<Kind>/` and one entry in `GitHostKinds` (a test checks that every adapter has one), a ticket client on `RestTicketHost` and an entry in `TicketHostKinds` in the alert intake if alerts should open tickets there, a section in [operations.md](operations.md) with the token scopes and the webhook events, and a live run on a real repository (the first GitHub run found two bugs that fakes could not).
+
+| Host | Effort | Difficulty |
 | --- | --- | --- |
-| GitHub | 2-4 days | Closest to Forgejo: nearly the same issues, pulls and reviews API, HMAC-SHA256 webhook header, request-changes reviews exist. The best first proof. |
 | GitLab | 4-7 days | Merge requests and notes; no "request changes" (approvals and resolved threads instead); the webhook carries a secret token, not an HMAC. Can run locally (GitLab CE in Docker), so it can be tested without an account. |
 | Azure DevOps | 5-8 days | Work items and pull requests are separate things; tags instead of labels; comments are threads; the review state is a vote; PAT auth and service hooks. |
-| Bitbucket Cloud | 5-8 days | The built-in issue tracker has no labels (and is often replaced by Jira), so triggers must come from pull request comments; Bitbucket Server is a different API again. |
+| Bitbucket Cloud | 5-8 days | The built-in issue tracker has no labels (and is often replaced by Jira), so triggers must come from pull request comments (the `/factory <kind>` command exists for that); Bitbucket Server is a different API again. |
 
-Steps 1-5 are about 1-2 weeks for someone who knows this code, mostly in the tests that build Forgejo payloads. Serving several hosts at once costs little after that: it is only the host in the identity and the routing.
+**Must not.** Let a host decide anything (hosts only deliver events and carry results); treat a fork's pull request as trusted on a host where forks work differently (the review-reads-default-branch rule must hold on every host); lose the hidden `<!-- dev-foundry:factory -->` marker (check that the host renders HTML comments invisibly, or use another reliable way to recognise the bot's own comments, such as its user id); assume an identical set of review states.
 
-**Must not.** Let a host decide anything (hosts only deliver events and carry results); treat a fork's pull request as trusted on a host where forks work differently (the review-reads-default-branch rule must hold on every host); lose the hidden `<!-- dev-foundry:factory -->` marker (check that each host renders HTML comments invisibly, or use another reliable way to recognise the bot's own comments, such as its user id); assume an identical set of review states.
+**Done when.** The new host runs the same path live (a feature ticket, `/ask`, a revision after a review, `/qa`) and its pull request is reviewed and merged by a person; it runs next to the others on one controller without sharing a workspace or a usage count; the documentation names its trigger setting and token scopes. The [commands rule](configuration.md#factory_hosts) (who may steer the factory) has to work on it too: an operation for a person's access on the host, or an honest "cannot say".
 
-**Needs a decision first.** The permission check on commands ("anyone who can comment can use `/approve`") stops being something to postpone once more than one host is involved, because each host has its own idea of who may comment.
+## 2. Finer rules of who may steer the factory
 
-**Done when.** The Forgejo behaviour is byte-for-byte the same after steps 1-3 (the whole suite and the live checks of 2026-11-15 pass unchanged); a second host runs the same ticket-to-pull-request path live (a feature ticket, `/ask`, a `/fix` after a review) and its pull request is reviewed and merged by a person; both hosts run at the same time on one controller without sharing a workspace or a usage count; the documentation names each host's trigger setting and token scopes.
+**Built.** A host (and a single repository of it) can say who may steer the factory: anyone, people with write or admin access, or only named people, with a list of people always refused ([`commands` in `FACTORY_HOSTS`](configuration.md#factory_hosts)). What is left is finer than that.
+
+**Problem.** One rule covers every comment that steers a run. Someone may want `/approve` and `/hotfix` (which open tickets and carry out incident advice) for administrators only, while anyone with write access may use `/qa` and `/fix`. And the rule knows people and access levels, not teams: a GitHub or Forgejo team has to be written out as logins.
+
+**How.** A second level in the rule, per kind of command (`"approve"`, `"hotfix"` ...), that can only be stricter than the host's own; and, where a host can answer it cheaply, `"team": "acme/maintainers"` as one more way to be let in. A project's own `.factory/project.json` could be allowed to tighten the rule further (never loosen it): it was left out because reading the file costs a request for every command, even when nothing is configured, so it would need a cache or a different place to be read.
+
+**Must not.** Let a repository loosen what the operator set; check a login taken from the comment text; ask the host for every command when the default is open.
+
+**Done when.** A command with its own rule is refused for someone the host's rule lets in; a team member passes where the team is named; the default (no rule) still asks nothing of the host.

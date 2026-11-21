@@ -14,8 +14,13 @@ public sealed record PullRequestRequest(string Owner, string Repo, string Head, 
 /// <summary>A ticket, by number, whose open pull request of the factory is wanted.</summary>
 public sealed record TicketReference(string Owner, string Repo, int Number);
 
-public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
+/// <summary>Whose command to check: the host, the repository (the factory's qualified owner) and the login the host reported for the person.</summary>
+public sealed record CommandCheck(string Host, string Owner, string Repo, string Login);
+
+public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, PermissionCache? permissions = null)
 {
+    private readonly PermissionCache cache = permissions ?? new PermissionCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds));
+
     /// <summary>The number of the factory's newest open pull request for the ticket, or null when it has none.</summary>
     [Activity("githost_find_factory_pull_request")]
     public Task<int?> FindFactoryPullRequestAsync(TicketReference ticket) =>
@@ -48,6 +53,39 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings)
     [Activity("githost_triggers")]
     public Task<TriggerRules> ReadTriggersAsync(string hostName) =>
         Task.FromResult(settings.HostNamed(hostName).Triggers ?? TriggerRules.Default);
+
+    /// <summary>
+    /// Whether a person may steer the factory on a repository, by the operator's rule for it (<c>commands</c> in <c>FACTORY_HOSTS</c>). With no rule, or a rule that names the person, the host is not
+    /// asked at all; otherwise it is, and a clear answer is kept for a while. A host that cannot say, or fails, makes the answer no.
+    /// </summary>
+    [Activity("githost_check_command")]
+    public async Task<CommandVerdict> CheckCommandAsync(CommandCheck check)
+    {
+        var rule = (settings.HostNamed(check.Host).Commands ?? HostCommandRules.Open).For(RepoNames.Split(check.Owner).Owner, check.Repo);
+        var login = check.Login.Trim();
+        HostPermission? permission = null;
+        if (CommandPolicy.NeedsPermission(rule, login))
+        {
+            if (cache.TryGet(check.Owner, check.Repo, login, out var kept))
+            {
+                permission = kept;
+            }
+            else
+            {
+                try
+                {
+                    permission = await host.GetPermissionAsync(check.Owner, check.Repo, login, ActivityExecutionContext.Current.CancellationToken);
+                    cache.Keep(check.Owner, check.Repo, login, permission.Value);
+                }
+                catch (Exception error) when (error is not OperationCanceledException)
+                {
+                    // Not kept, and the person is refused for now: the next command asks again. Only the kind of failure is logged, never what the host sent back.
+                    ActivityExecutionContext.Current.Logger.LogWarning("Could not look up a person's access to {Repository}: {Error}", $"{check.Owner}/{check.Repo}", error.GetType().Name);
+                }
+            }
+        }
+        return CommandPolicy.Decide(rule, login, permission);
+    }
 
     [Activity("githost_post_issue_comment")]
     public Task PostIssueCommentAsync(CommentRequest request) =>

@@ -66,7 +66,7 @@ public sealed class HostsSettingTests
     {
         var host = Assert.Single(HostsSetting.Parse($"[{Host()}]"));
 
-        Assert.Equal(new HostDefinition("codeberg", "forgejo", "https://codeberg.org", "tok", "factory-bot", Secret, TriggerRules.Default), host);
+        Assert.Equal(new HostDefinition("codeberg", "forgejo", "https://codeberg.org", "tok", "factory-bot", Secret, TriggerRules.Default, HostCommandRules.Open), host);
     }
 
     [Theory]
@@ -118,7 +118,7 @@ public sealed class HostsSettingTests
         var settings = Settings($"[{Forgejo()},{Host(login: "cb-bot")}]");
 
         Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
-        Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default), settings.Hosts[0]);
+        Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default, HostCommandRules.Open), settings.Hosts[0]);
         Assert.Equal("default-bot", settings.BotLoginFor("acme"));
         Assert.Equal("cb-bot", settings.BotLoginFor("codeberg:acme"));
         Assert.Equal(["default-token", "tok"], settings.HostTokens);
@@ -161,6 +161,7 @@ public sealed class GitHostRouterTests
             return Task.FromResult(value);
         }
 
+        public Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken ct) => Done($"{name}: permission {owner}/{repo} {login}", HostPermission.Write);
         public Task PostIssueCommentAsync(string owner, string repo, int issueNumber, string body, CancellationToken ct) => Done($"{name}: comment {owner}/{repo}#{issueNumber}", 0);
         public Task<IReadOnlyList<string>> RecentCommentBodiesAsync(string owner, string repo, int issueNumber, int count, CancellationToken ct) => Done<IReadOnlyList<string>>($"{name}: bodies {owner}/{repo}", []);
         public Task<bool> PostNoticeOnceAsync(string owner, string repo, int issueNumber, string body, CancellationToken ct) => Done($"{name}: notice {owner}/{repo}", true);
@@ -185,6 +186,16 @@ public sealed class GitHostRouterTests
     private readonly Recording other = new("other");
 
     private GitHostRouter Router() => new(new Dictionary<string, IGitHost> { ["forgejo"] = main, ["codeberg"] = other });
+
+    [Fact]
+    public async Task A_permission_lookup_goes_to_the_host_of_the_owner_too()
+    {
+        var permission = await Router().GetPermissionAsync("codeberg:acme", "shop", "alice", CancellationToken.None);
+
+        Assert.Equal(HostPermission.Write, permission);
+        Assert.Equal(["other: permission acme/shop alice"], other.Calls);
+        Assert.Empty(main.Calls);
+    }
 
     [Fact]
     public async Task A_call_goes_to_the_host_its_owner_belongs_to_with_the_qualifier_taken_off()

@@ -9,6 +9,9 @@ public sealed class WorkerSettings
     /// <summary>Every git host the factory serves (<c>FACTORY_HOSTS</c>): where it is, the bot's token and login on it, and how its tickets pick a workflow.</summary>
     public IReadOnlyList<HostSettings> Hosts { get; init; } = [];
 
+    /// <summary>How long what the git host said a person may do on a repository is kept (<c>FACTORY_PERMISSION_CACHE_SECONDS</c>); 0 asks the host every time. Only used where a rule asks for access.</summary>
+    public int PermissionCacheSeconds { get; init; } = 300;
+
     /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
     public HostSettings HostNamed(string name) =>
         Hosts.FirstOrDefault(host => host.Name == name)
@@ -64,7 +67,8 @@ public sealed class WorkerSettings
         TemporalNamespace = NonEmpty(configuration, "TEMPORAL_NAMESPACE", "default"),
         TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
-        Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers)).ToList(),
+        Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
+        PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),

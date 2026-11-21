@@ -181,6 +181,10 @@ public sealed class FakeWorld
     /// <summary>How the host's tickets say which workflow to run; by default only the plain labels.</summary>
     public TriggerRules Triggers { get; set; } = TriggerRules.Default;
 
+    /// <summary>What the check of who may steer the factory answers (everyone, by default), and who it was asked about.</summary>
+    public CommandVerdict CommandVerdict { get; set; } = CommandVerdict.Yes;
+    public List<CommandCheck> CommandChecks { get; } = [];
+
     public PullScope PullScope { get; set; } = new(["acme/shop"], [], []);
     public IReadOnlyList<PullOutcome> PullOutcomes { get; set; } = [];
     public Exception? PullOutcomesFailure { get; set; }
@@ -358,6 +362,16 @@ public sealed class FakeWorld
 
         [Activity("githost_triggers")]
         public TriggerRules ReadTriggers(string hostName) => world.Triggers;
+
+        [Activity("githost_check_command")]
+        public CommandVerdict CheckCommand(CommandCheck check)
+        {
+            lock (world.gate)
+            {
+                world.CommandChecks.Add(check);
+            }
+            return world.CommandVerdict;
+        }
 
         [Activity("workspace_pull_scope")]
         public PullScope ReadPullScope(ImprovementRequest request) => world.PullScope;

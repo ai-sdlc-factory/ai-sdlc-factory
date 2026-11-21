@@ -371,4 +371,40 @@ public sealed class GitHubClientTests
         Assert.Equal("Authorization: token fj_secret", forgejo);
         Assert.Equal("", new HostSettings("github", "github", "https://github.com", "", "b").GitAuthorization);
     }
+
+    [Theory]
+    [InlineData("admin", "admin", HostPermission.Admin)]
+    [InlineData("maintain", "write", HostPermission.Write)]
+    [InlineData("write", "write", HostPermission.Write)]
+    [InlineData("triage", "read", HostPermission.Read)]
+    [InlineData("read", "read", HostPermission.Read)]
+    [InlineData("", "none", HostPermission.None)]
+    [InlineData("", "strange", HostPermission.Unknown)]
+    public async Task A_persons_access_is_read_from_the_role_and_a_triager_cannot_write(string role, string permission, HostPermission expected)
+    {
+        var (client, handler) = Client(_ => Ok(Json(new { permission, role_name = role })));
+
+        Assert.Equal(expected, await client.GetPermissionAsync("vacant", "factory-test", "alice", CancellationToken.None));
+        Assert.Equal("/repos/vacant/factory-test/collaborators/alice/permission", Assert.Single(handler.Requests).Url);
+    }
+
+    [Fact]
+    public async Task A_person_github_does_not_know_has_no_access_and_a_token_that_may_not_look_is_unknown()
+    {
+        var (missing, _) = Client(_ => (HttpStatusCode.NotFound, "{}", null));
+        var (forbidden, _) = Client(_ => (HttpStatusCode.Forbidden, "{}", null));
+
+        Assert.Equal(HostPermission.None, await missing.GetPermissionAsync("a", "b", "alice", CancellationToken.None));
+        Assert.Equal(HostPermission.Unknown, await forbidden.GetPermissionAsync("a", "b", "alice", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Running_out_of_requests_is_an_error_to_try_again_not_an_unknown_answer()
+    {
+        var (client, _) = Client(_ => (HttpStatusCode.Forbidden, "{}", new Dictionary<string, string> { ["X-RateLimit-Remaining"] = "0" }));
+
+        var error = await Assert.ThrowsAsync<Temporalio.Exceptions.ApplicationFailureException>(() => client.GetPermissionAsync("a", "b", "alice", CancellationToken.None));
+
+        Assert.False(error.NonRetryable);
+    }
 }

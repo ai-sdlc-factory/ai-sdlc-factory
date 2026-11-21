@@ -442,6 +442,47 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
         }
     }
 
+    /// <summary>
+    /// A person's access to a repository: <c>collaborators/{login}/permission</c>. Its <c>role_name</c> tells a maintainer (who may write) and a triager (who may only read) apart; the older
+    /// <c>permission</c> field is the fallback.
+    /// </summary>
+    public async Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        using var request = Authorized(HttpMethod.Get, $"{RepoPath(owner, repo)}/collaborators/{Uri.EscapeDataString(login)}/permission");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return HostPermission.None;
+        }
+        if (response.StatusCode == HttpStatusCode.Forbidden && !IsRateLimited(response))
+        {
+            return HostPermission.Unknown; // the token may not look at other people's access
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("permission lookup", response);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return Text(document.RootElement, "role_name") switch
+        {
+            "admin" => HostPermission.Admin,
+            "maintain" or "write" => HostPermission.Write,
+            "triage" or "read" => HostPermission.Read,
+            _ => Text(document.RootElement, "permission") switch
+            {
+                "admin" => HostPermission.Admin,
+                "write" => HostPermission.Write,
+                "read" => HostPermission.Read,
+                "none" => HostPermission.None,
+                _ => HostPermission.Unknown,
+            },
+        };
+    }
+
+    private static bool IsRateLimited(HttpResponseMessage response) =>
+        response.StatusCode == HttpStatusCode.Forbidden && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining) && remaining.FirstOrDefault() == "0";
+
     private void RequireToken()
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -464,7 +505,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
     private static ApplicationFailureException Failure(string what, HttpResponseMessage response)
     {
         var status = response.StatusCode;
-        var rateLimited = status == HttpStatusCode.Forbidden && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining) && remaining.FirstOrDefault() == "0";
+        var rateLimited = IsRateLimited(response);
         var retryable = (int)status >= 500 || status is HttpStatusCode.TooManyRequests or HttpStatusCode.RequestTimeout || rateLimited;
         return new ApplicationFailureException($"GitHub rejected the {what}: {(int)status} {response.ReasonPhrase}", nonRetryable: !retryable);
     }

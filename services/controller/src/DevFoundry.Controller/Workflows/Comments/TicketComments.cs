@@ -240,6 +240,16 @@ public static class TicketComments
         "A revision of this pull request is running. I noted this and will look at it as a follow-up when that one is done.";
 
     /// <summary>Hidden marker on a notice about a comment that could not be used, so the same notice is not repeated.</summary>
+    /// <summary>What a person is told when the operator's rule keeps them from steering the factory. It never names anyone, so the same text on the same ticket is posted once.</summary>
+    public static string CommandRefused(CommandVerdict verdict) => verdict.Refusal switch
+    {
+        CommandRefusal.Denied => "I did not run this command: you may not steer the factory on this repository.",
+        CommandRefusal.NotListed => "I did not run this command: on this repository only the people the operator named may steer the factory.",
+        CommandRefusal.TooLittleAccess => $"I did not run this command: steering the factory on this repository needs {verdict.Needs} access to it.",
+        _ => $"I did not run this command: I could not find out whether you have {(verdict.Needs.Length > 0 ? verdict.Needs + " access" : "the access it needs")} to this repository, so I did not take the risk. "
+            + "Try again in a moment; if it keeps happening, the operator should check the factory's token.",
+    };
+
     public const string NoticeMarker = "<!-- dev-foundry:notice -->";
 
     /// <summary>A comment arrived while the build was running, which no longer takes new input.</summary>

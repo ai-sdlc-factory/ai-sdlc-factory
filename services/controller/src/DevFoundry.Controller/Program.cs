@@ -6,4 +6,15 @@ var settings = WorkerSettings.FromConfiguration(builder.Configuration);
 builder.Services.AddFactoryController(settings);
 builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(25));
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+
+// Who may steer the factory on each git host, said once at start: an open rule ("anyone who can comment") is easy to forget on a public repository.
+var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DevFoundry.Controller");
+foreach (var host in settings.Hosts)
+{
+    var rules = host.Commands ?? HostCommandRules.Open;
+    log.LogInformation("Git host {Host} ({Type}): {Rule}{Exceptions}", host.Name, host.Type, rules.Default.Describe(),
+        rules.Repositories.Count > 0 ? $"; {rules.Repositories.Count} repositories have a rule of their own" : "");
+}
+
+await app.RunAsync();

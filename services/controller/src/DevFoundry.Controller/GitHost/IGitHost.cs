@@ -50,5 +50,11 @@ public interface IGitHost : IJanitorGitHost
     /// <summary>Opens a pull request from a pushed branch; when one already exists for the branch (a retried attempt) that one is returned.</summary>
     Task<PullRequestInfo> CreatePullRequestAsync(string owner, string repo, string head, string baseBranch, string title, string body, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// What a person may do on a repository (<see cref="HostPermission.Write"/> includes a maintainer), by the host's own answer. A person the host does not know has none; a host that cannot say
+    /// (the token may not look at other people's access) answers <see cref="HostPermission.Unknown"/>. Only a failure of the host itself is an exception.
+    /// </summary>
+    Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken);
+
     // The janitor's five (repositories the bot can push to, branches, whether a ticket is closed, branches of open pull requests, deleting a branch) come from IJanitorGitHost.
 }

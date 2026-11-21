@@ -172,7 +172,7 @@ Write these on their own line in a comment on the incident ticket:
 | `/resolved` | the incident is over: `postmortem-writer` drafts `docs/postmortems/<date>-incident-<n>.md` from the ticket's record only (comments, assessment, hypotheses, options, timeline), marked "unknown" where the record is silent. The factory accepts exactly that one new file and opens a pull request |
 | any other comment | **new information**: the investigator and mitigator look again (3 times at most; then the ticket is told to use a command or close it) |
 
-Closing the ticket ends the run; so does 7 days without a reply. Anyone who can comment on the ticket can use the commands.
+Closing the ticket ends the run; so does 7 days without a reply. Whoever may comment on the ticket can use the commands (the operator can [restrict who](configuration.md#factory_hosts)).
 
 ## Plan workflow
 
@@ -198,7 +198,7 @@ breath, nothing is created and the plan changes first. A ticket that cannot be o
 reported, tickets already created stay, and a new `/approve` tries the rest; each ticket is tried once, so a lost answer cannot open one twice.
 
 The run ends with `plan_created` once the whole plan is created, and waits up to 7 days while tickets remain. Closing the ticket ends it.
-As with the other workflows, anyone who can comment on the ticket can use the commands (nothing checks the commenter's write access yet; see [Known limitations](operations.md#known-limitations)).
+As with the other workflows, whoever may comment on the ticket can use the commands, unless the operator [restricted who](configuration.md#factory_hosts) (see [Known limitations](operations.md#known-limitations)).
 
 ## Pull request revisions
 

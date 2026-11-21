@@ -493,4 +493,49 @@ public sealed class RevisionClientTests
         Assert.Equal(2, history.Count);
         Assert.Equal(DateTimeOffset.Parse("2026-05-03T00:00:00Z"), history.LastAt);
     }
+
+    private sealed class PermissionHandler(HttpStatusCode status, string body) : HttpMessageHandler
+    {
+        public List<string> Paths { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Paths.Add(request.RequestUri!.AbsolutePath);
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
+        }
+    }
+
+    [Theory]
+    [InlineData("owner", HostPermission.Admin)]
+    [InlineData("admin", HostPermission.Admin)]
+    [InlineData("write", HostPermission.Write)]
+    [InlineData("read", HostPermission.Read)]
+    [InlineData("none", HostPermission.None)]
+    [InlineData("strange", HostPermission.Unknown)]
+    public async Task A_persons_access_is_read_from_the_collaborator_permission(string permission, HostPermission expected)
+    {
+        var handler = new PermissionHandler(HttpStatusCode.OK, $$"""{"permission":"{{permission}}","role_name":"x"}""");
+        var client = new ForgejoClient(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
+
+        Assert.Equal(expected, await client.GetPermissionAsync("acme", "shop", "a b", CancellationToken.None));
+        Assert.Equal(["/api/v1/repos/acme/shop/collaborators/a%20b/permission"], handler.Paths);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound, HostPermission.None)]
+    [InlineData(HttpStatusCode.Forbidden, HostPermission.Unknown)]
+    public async Task A_person_the_host_does_not_know_has_no_access_and_a_token_that_may_not_look_is_unknown(HttpStatusCode status, HostPermission expected)
+    {
+        var client = new ForgejoClient(new HttpClient(new PermissionHandler(status, "{}")) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
+
+        Assert.Equal(expected, await client.GetPermissionAsync("acme", "shop", "alice", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_failing_host_is_an_error_not_an_answer()
+    {
+        var client = new ForgejoClient(new HttpClient(new PermissionHandler(HttpStatusCode.InternalServerError, "{}")) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
+
+        await Assert.ThrowsAsync<Temporalio.Exceptions.ApplicationFailureException>(() => client.GetPermissionAsync("acme", "shop", "alice", CancellationToken.None));
+    }
 }
