@@ -365,7 +365,7 @@ public sealed class QaScenarios(TemporalFixture fixture)
             .Changes(Tests("e2e/api/goodbye.test", "e2e/ui/goodbye.spec"), Tests("e2e/api/goodbye.test", "e2e/ui/goodbye.spec"), Tests("e2e/api/goodbye.test", "e2e/ui/goodbye.spec"))
             .Agent("e2e-tester", Reply(Answers.Tester(suite: "ui")))
             .Agent("ux", Reply(Answers.Review(("major", "The button has no label."))))
-            .Check(string.Join(' ', VerifyScript.ReadEvidence(verify)), new SandboxRunResult(0, false, "=== e2e/evidence/home.txt\nheading: Weather\nbutton: (no label)\n", "", false));
+            .Check(string.Join(' ', VerifyScript.ReadEvidence(verify)), new SandboxRunResult(0, false, "=== e2e/evidence/home.txt\nheading: Shop\nbutton: (no label)\n", "", false));
 
         var result = await world.RunAsync(fixture, context => context.RunQaAsync(ScenarioContext.Qa()));
 

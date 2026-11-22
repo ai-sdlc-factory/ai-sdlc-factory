@@ -3,8 +3,8 @@ using Temporalio.Exceptions;
 namespace DevFoundry.Controller;
 
 /// <summary>
-/// The git host port when there is more than one host: each call goes to the host the owner belongs to (<c>acme</c> is the default host's, <c>codeberg:acme</c> is the host named
-/// <c>codeberg</c>'s; see <see cref="RepoNames"/>), with the qualifier taken off, so no host ever sees another's name. Listing repositories asks every host and qualifies what comes back.
+/// The git host port when there is more than one host: each call goes to the host the owner belongs to (<c>acme</c> is the default host's, <c>work:acme</c> is the host named
+/// <c>work</c>'s; see <see cref="RepoNames"/>), with the qualifier taken off, so no host ever sees another's name. Listing repositories asks every host and qualifies what comes back.
 /// </summary>
 public sealed class GitHostRouter(IReadOnlyDictionary<string, IGitHost> hosts) : IGitHost
 {

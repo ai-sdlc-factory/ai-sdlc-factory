@@ -22,7 +22,7 @@ public sealed class WorkerSettings
         Hosts.FirstOrDefault(host => host.Name == name)
         ?? throw new Temporalio.Exceptions.ApplicationFailureException($"No git host named \"{name}\" is configured (see FACTORY_HOSTS).", nonRetryable: true);
 
-    /// <summary>The host a qualified owner (<c>acme</c>, or <c>codeberg:acme</c>) belongs to.</summary>
+    /// <summary>The host a qualified owner (<c>acme</c>, or <c>work:acme</c>) belongs to.</summary>
     public HostSettings HostFor(string qualifiedOwner) => HostNamed(RepoNames.Split(qualifiedOwner).Host);
 
     /// <summary>The login of the bot on the host a qualified owner belongs to: the factory only revises pull requests that account opened.</summary>

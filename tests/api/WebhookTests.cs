@@ -236,7 +236,7 @@ public sealed class WebhookTests
             {
                 services.AddSingleton(new ApiSettings
                 {
-                    Hosts = [new WebhookHost("forgejo", "forgejo", Secret), new WebhookHost("codeberg", "forgejo", OtherSecret)],
+                    Hosts = [new WebhookHost("forgejo", "forgejo", Secret), new WebhookHost("work", "forgejo", OtherSecret)],
                 });
                 services.AddSingleton<ITemporalGateway>(gateway);
             })).CreateClient();
@@ -256,8 +256,8 @@ public sealed class WebhookTests
     {
         var client = CreateClientWithOtherHost();
 
-        var accepted = await client.SendAsync(OtherRequest("/webhooks/codeberg", OtherSecret, Body));
-        var wrongSecret = await client.SendAsync(OtherRequest("/webhooks/codeberg", Secret, Body));
+        var accepted = await client.SendAsync(OtherRequest("/webhooks/work", OtherSecret, Body));
+        var wrongSecret = await client.SendAsync(OtherRequest("/webhooks/work", Secret, Body));
         var defaultStillWorks = await client.SendAsync(OtherRequest("/webhooks/forgejo", Secret, Body));
         var crossed = await client.SendAsync(OtherRequest("/webhooks/forgejo", OtherSecret, Body));
 
@@ -266,22 +266,22 @@ public sealed class WebhookTests
         Assert.Equal(HttpStatusCode.Accepted, defaultStillWorks.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, crossed.StatusCode);
         var (workflowId, delivery) = gateway.Started[0];
-        Assert.Equal("codeberg-12345678-1234-1234-1234-123456789abc", workflowId);
-        Assert.Equal(("codeberg", "forgejo"), (delivery.Host, delivery.Adapter));
+        Assert.Equal("work-12345678-1234-1234-1234-123456789abc", workflowId);
+        Assert.Equal(("work", "forgejo"), (delivery.Host, delivery.Adapter));
         Assert.Equal("forgejo-12345678-1234-1234-1234-123456789abc", gateway.Started[1].WorkflowId);
     }
 
     [Fact]
     public void The_hosts_are_read_from_the_environment_and_a_bad_one_stops_the_start()
     {
-        var hosts = $$"""[{"name":"forgejo","url":"http://forgejo:3000","webhook_secret":"{{Secret}}"},{"name":"codeberg","url":"https://codeberg.example","webhook_secret":"{{OtherSecret}}"}]""";
+        var hosts = $$"""[{"name":"forgejo","url":"http://forgejo:3000","webhook_secret":"{{Secret}}"},{"name":"work","url":"https://work.example","webhook_secret":"{{OtherSecret}}"}]""";
         var settings = ApiSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["FACTORY_HOSTS"] = hosts,
         }).Build());
 
-        Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
-        Assert.Equal(OtherSecret, settings.WebhookSecretFor("codeberg"));
+        Assert.Equal(["forgejo", "work"], settings.Hosts.Select(host => host.Name));
+        Assert.Equal(OtherSecret, settings.WebhookSecretFor("work"));
         Assert.Null(settings.WebhookSecretFor("github"));
         Assert.Throws<InvalidOperationException>(() => ApiSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

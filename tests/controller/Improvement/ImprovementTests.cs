@@ -140,10 +140,10 @@ public sealed class ImprovementSettingsTests
     [Fact]
     public void The_settings_are_read()
     {
-        var settings = Settings(("FACTORY_IMPROVEMENT", "false"), ("FACTORY_IMPROVEMENT_REPO", " valters/dev-foundry "), ("FACTORY_EGRESS_DENIED_LOG", "/var/log/egress/denied.jsonl"));
+        var settings = Settings(("FACTORY_IMPROVEMENT", "false"), ("FACTORY_IMPROVEMENT_REPO", " acme/factory "), ("FACTORY_EGRESS_DENIED_LOG", "/var/log/egress/denied.jsonl"));
 
         Assert.False(settings.ImprovementEnabled);
-        Assert.Equal("valters/dev-foundry", settings.ImprovementRepository);
+        Assert.Equal("acme/factory", settings.ImprovementRepository);
         Assert.Equal("/var/log/egress/denied.jsonl", settings.EgressDeniedLog);
     }
 

@@ -68,14 +68,14 @@ public sealed class WorkspaceChangesTests : IDisposable
         var settings = new WorkerSettings
         {
             WorkspaceRoot = root,
-            Hosts = [.. TestHosts.One(), new HostSettings("codeberg", "forgejo", "https://codeberg.example", "cb-token", "cb-bot")],
+            Hosts = [.. TestHosts.One(), new HostSettings("work", "forgejo", "https://work.example", "cb-token", "cb-bot")],
         };
         var workspace = new GitWorkspace(settings, (owner, repo) => { urls.Add($"{owner}/{repo}"); return origin; });
 
-        var info = await workspace.PrepareAsync(new WorkspaceRequest("codeberg:acme", "shop", "feature-codeberg-acme-shop-1", "factory/issue-1"), CancellationToken.None);
+        var info = await workspace.PrepareAsync(new WorkspaceRequest("work:acme", "shop", "feature-work-acme-shop-1", "factory/issue-1"), CancellationToken.None);
 
-        Assert.Equal(["codeberg:acme/shop"], urls);
-        Assert.Equal("codeberg", File.ReadAllText($"{root}/.base/{info.Name}/.git/factory-host"));
+        Assert.Equal(["work:acme/shop"], urls);
+        Assert.Equal("work", File.ReadAllText($"{root}/.base/{info.Name}/.git/factory-host"));
         Assert.DoesNotContain("factory-host", Git($"{root}/.base/{info.Name}", "status", "--porcelain")); // inside .git: never committed
     }
 

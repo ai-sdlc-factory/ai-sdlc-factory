@@ -358,7 +358,7 @@ public sealed class GitHubClientTests
         Assert.Equal("https://api.github.com", new HostSettings("github", "github", "https://github.com", "t", "b").ApiBase);
         Assert.Equal("https://api.github.com", new HostSettings("github", "github", "https://github.com/", "t", "b").ApiBase);
         Assert.Equal("https://ghe.example.com/api/v3", new HostSettings("work", "github", "https://ghe.example.com", "t", "b").ApiBase);
-        Assert.Equal("https://codeberg.org", new HostSettings("codeberg", "forgejo", "https://codeberg.org/", "t", "b").ApiBase);
+        Assert.Equal("https://git.example.org", new HostSettings("work", "forgejo", "https://git.example.org/", "t", "b").ApiBase);
     }
 
     [Fact]

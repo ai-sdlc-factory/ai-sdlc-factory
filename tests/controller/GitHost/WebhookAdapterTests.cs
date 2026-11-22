@@ -44,16 +44,16 @@ public sealed class WebhookAdapterTests
         object payload = new { action = "opened", repository = new { full_name = "acme/shop" }, issue = Issue() };
         var element = JsonSerializer.SerializeToElement(payload);
 
-        var other = Adapter.Normalise(new WebhookDelivery(Delivery, "issues", element, Host: "codeberg"));
+        var other = Adapter.Normalise(new WebhookDelivery(Delivery, "issues", element, Host: "work"));
         var plain = Adapter.Normalise(new WebhookDelivery(Delivery, "issues", element));
 
-        Assert.Equal(("codeberg", "codeberg:acme", "acme/shop"), (other.Host, other.Owner, other.Repository));
+        Assert.Equal(("work", "work:acme", "acme/shop"), (other.Host, other.Owner, other.Repository));
         Assert.Equal(("forgejo", "acme"), (plain.Host, plain.Owner));
         var review = Adapter.Normalise(new WebhookDelivery(Delivery, "pull_request_rejected", JsonSerializer.SerializeToElement(new
         {
             repository = new { full_name = "acme/shop" }, pull_request = new { number = 9, head = new { @ref = "factory/issue-4" } },
-        }), Host: "codeberg"));
-        Assert.Equal("codeberg:acme", review.Owner);
+        }), Host: "work"));
+        Assert.Equal("work:acme", review.Owner);
     }
 
     [Fact]
@@ -189,10 +189,10 @@ public sealed class NeutralRouterTests
     public void The_same_ticket_number_on_two_hosts_is_two_runs()
     {
         var onDefault = EventRouter.Decide(Ticket(RepoEventKind.TicketOpened) with { Owner = "acme" });
-        var onOther = EventRouter.Decide(Ticket(RepoEventKind.TicketOpened) with { Owner = "codeberg:acme" });
+        var onOther = EventRouter.Decide(Ticket(RepoEventKind.TicketOpened) with { Owner = "work:acme" });
 
         Assert.NotEqual(onDefault.Feature!.WorkflowId, onOther.Feature!.WorkflowId);
-        Assert.Equal("codeberg:acme", onOther.Feature.Owner);
+        Assert.Equal("work:acme", onOther.Feature.Owner);
     }
 
     [Fact]

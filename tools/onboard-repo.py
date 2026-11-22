@@ -2,7 +2,7 @@
 """Sets a Forgejo repository up for the factory: the labels and the webhook (steps 2 and 3 of docs/project-setup.md), and checks .factory/project.json.
 
     python3 tools/onboard-repo.py owner/repo                   # do it, on the first Forgejo in FACTORY_HOSTS
-    python3 tools/onboard-repo.py owner/repo --host codeberg   # on the host of that name
+    python3 tools/onboard-repo.py owner/repo --host work   # on the host of that name
     python3 tools/onboard-repo.py owner/repo --dry-run         # say what would be done, change nothing
 
 It needs an existing repository (the bot's token cannot create one). It reads the host's token and webhook secret from FACTORY_HOSTS in deploy/.env (or the environment) and

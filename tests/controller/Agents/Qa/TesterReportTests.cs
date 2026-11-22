@@ -17,7 +17,7 @@ public sealed class TesterReportTests
     [Fact]
     public void A_complete_answer_is_read()
     {
-        const string findings = """[{"severity":"major","message":"Empty id gives 500.","steps":"GET /api/weather?cityId="}]""";
+        const string findings = """[{"severity":"major","message":"Empty id gives 500.","steps":"GET /api/products?id="}]""";
         const string assessments = """[{"test":"goodbye","verdict":"application_bug","explanation":"Returns Hello."}]""";
         Assert.True(TesterParser.TryParse(Json(findings: findings, assessments: assessments), out var report, out var error), error);
 

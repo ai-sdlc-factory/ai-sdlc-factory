@@ -7,7 +7,7 @@ public sealed class RepoNamesTests
 {
     [Theory]
     [InlineData("forgejo", "acme", "acme")]
-    [InlineData("codeberg", "acme", "codeberg:acme")]
+    [InlineData("work", "acme", "work:acme")]
     public void The_default_hosts_owners_stay_plain_and_any_others_carry_their_host(string host, string owner, string expected)
     {
         Assert.Equal(expected, RepoNames.Qualify(host, owner));
@@ -16,13 +16,13 @@ public sealed class RepoNamesTests
 
     [Theory]
     [InlineData("acme", "forgejo", "acme")]
-    [InlineData("codeberg:acme", "codeberg", "acme")]
+    [InlineData("work:acme", "work", "acme")]
     [InlineData(":acme", "forgejo", ":acme")]
     public void An_owner_without_a_qualifier_belongs_to_the_default_host(string qualified, string host, string owner) =>
         Assert.Equal((host, owner), RepoNames.Split(qualified));
 
     [Theory]
-    [InlineData("codeberg", true)]
+    [InlineData("work", true)]
     [InlineData("a", true)]
     [InlineData("my-host-2", true)]
     [InlineData("", false)]
@@ -38,7 +38,7 @@ public sealed class RepoNamesTests
     public void Two_hosts_can_never_share_a_run_a_checkout_or_a_count_even_for_the_same_owner_and_repository()
     {
         var plain = WorkIds.For("acme", "shop", 7);
-        var other = WorkIds.For(RepoNames.Qualify("codeberg", "acme"), "shop", 7);
+        var other = WorkIds.For(RepoNames.Qualify("work", "acme"), "shop", 7);
 
         Assert.NotEqual(plain, other);
         Assert.Matches(@"\A[a-z0-9][a-z0-9._-]{0,127}\z", other); // still a valid workspace name
@@ -50,7 +50,7 @@ public sealed class HostsSettingTests
 {
     private const string Secret = "0123456789abcdef0123456789abcdef";
 
-    private static string Host(string name = "codeberg", string? type = null, string url = "https://codeberg.org/", string secret = Secret, string token = "tok", string? login = null) =>
+    private static string Host(string name = "work", string? type = null, string url = "https://git.example.org/", string secret = Secret, string token = "tok", string? login = null) =>
         JsonSerializer.Serialize(new { name, type, url, token, bot_login = login, webhook_secret = secret });
 
     [Theory]
@@ -66,7 +66,7 @@ public sealed class HostsSettingTests
     {
         var host = Assert.Single(HostsSetting.Parse($"[{Host()}]"));
 
-        Assert.Equal(new HostDefinition("codeberg", "forgejo", "https://codeberg.org", "tok", "factory-bot", Secret, TriggerRules.Default, HostCommandRules.Open), host);
+        Assert.Equal(new HostDefinition("work", "forgejo", "https://git.example.org", "tok", "factory-bot", Secret, TriggerRules.Default, HostCommandRules.Open), host);
     }
 
     [Theory]
@@ -76,7 +76,7 @@ public sealed class HostsSettingTests
         Assert.Contains("JSON array", Assert.Throws<InvalidOperationException>(() => HostsSetting.Parse(json)).Message);
 
     [Theory]
-    [InlineData("Codeberg")]
+    [InlineData("Work")]
     [InlineData("")]
     [InlineData("a:b")]
     public void A_host_needs_a_valid_name_of_its_own(string name) =>
@@ -117,10 +117,10 @@ public sealed class HostsSettingTests
     {
         var settings = Settings($"[{Forgejo()},{Host(login: "cb-bot")}]");
 
-        Assert.Equal(["forgejo", "codeberg"], settings.Hosts.Select(host => host.Name));
+        Assert.Equal(["forgejo", "work"], settings.Hosts.Select(host => host.Name));
         Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default, HostCommandRules.Open), settings.Hosts[0]);
         Assert.Equal("default-bot", settings.BotLoginFor("acme"));
-        Assert.Equal("cb-bot", settings.BotLoginFor("codeberg:acme"));
+        Assert.Equal("cb-bot", settings.BotLoginFor("work:acme"));
         Assert.Equal(["default-token", "tok"], settings.HostTokens);
     }
 
@@ -186,12 +186,12 @@ public sealed class GitHostRouterTests
     private readonly Recording main = new("main");
     private readonly Recording other = new("other");
 
-    private GitHostRouter Router() => new(new Dictionary<string, IGitHost> { ["forgejo"] = main, ["codeberg"] = other });
+    private GitHostRouter Router() => new(new Dictionary<string, IGitHost> { ["forgejo"] = main, ["work"] = other });
 
     [Fact]
     public async Task A_permission_lookup_goes_to_the_host_of_the_owner_too()
     {
-        var permission = await Router().GetPermissionAsync("codeberg:acme", "shop", "alice", CancellationToken.None);
+        var permission = await Router().GetPermissionAsync("work:acme", "shop", "alice", CancellationToken.None);
 
         Assert.Equal(HostPermission.Write, permission);
         Assert.Equal(["other: permission acme/shop alice"], other.Calls);
@@ -204,8 +204,8 @@ public sealed class GitHostRouterTests
         var router = Router();
 
         await router.PostIssueCommentAsync("acme", "shop", 7, "hi", CancellationToken.None);
-        await router.PostIssueCommentAsync("codeberg:acme", "shop", 7, "hi", CancellationToken.None);
-        var found = await router.FindFactoryPullRequestAsync("codeberg:acme", "shop", 3, CancellationToken.None);
+        await router.PostIssueCommentAsync("work:acme", "shop", 7, "hi", CancellationToken.None);
+        var found = await router.FindFactoryPullRequestAsync("work:acme", "shop", 3, CancellationToken.None);
 
         Assert.Equal(["main: comment acme/shop#7"], main.Calls);
         Assert.Equal(["other: comment acme/shop#7", "other: find acme/shop#3"], other.Calls);
@@ -216,7 +216,7 @@ public sealed class GitHostRouterTests
     public async Task Every_operation_is_forwarded_to_the_owners_host()
     {
         var router = Router();
-        const string owner = "codeberg:acme";
+        const string owner = "work:acme";
         var ct = CancellationToken.None;
 
         await router.RecentCommentBodiesAsync(owner, "shop", 1, 5, ct);
@@ -237,7 +237,7 @@ public sealed class GitHostRouterTests
 
         Assert.Equal(15, other.Calls.Count);
         Assert.All(other.Calls, call => Assert.Contains("acme/shop", call));
-        Assert.DoesNotContain(other.Calls, call => call.Contains("codeberg"));
+        Assert.DoesNotContain(other.Calls, call => call.Contains("work"));
         Assert.Empty(main.Calls);
     }
 
@@ -246,7 +246,7 @@ public sealed class GitHostRouterTests
     {
         var all = await Router().ListWritableRepositoriesAsync(CancellationToken.None);
 
-        Assert.Equal([("acme", "shop"), ("codeberg:acme", "shop")], all);
+        Assert.Equal([("acme", "shop"), ("work:acme", "shop")], all);
     }
 
     [Fact]
