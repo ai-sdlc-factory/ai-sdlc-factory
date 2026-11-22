@@ -30,7 +30,7 @@ Copy `deploy/.env.example` to `deploy/.env` (`cp -n`, `chmod 600`). The file is 
 
 ### FACTORY_HOSTS
 
-The git hosts the factory serves, as one line of JSON in `deploy/.env`. How to get each value on Forgejo and GitHub (the bot account, the token and its permissions, the webhook and its events) is in [Connecting a git host](git-hosts.md). The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../companions/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
+The git hosts the factory serves, as one line of JSON in `deploy/.env`. How to get each value on Forgejo and GitHub (the bot account, the token and its permissions, the webhook and its events) is in [Connecting a git host](git-hosts.md). The factory itself knows nothing about any one host; Forgejo is only the first kind it was taught. The Forgejo of the [`forgejo/`](../deploy/forgejo/README.md) folder is a separate Compose project (with its own settings) that you list here like any other host.
 
 ```bash
 FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"...","bot_login":"factory-bot","webhook_secret":"..."},{"name":"github","type":"github","url":"https://github.com","token":"...","bot_login":"my-bot","webhook_secret":"..."}]
@@ -153,7 +153,7 @@ to that service's `environment` block in `deploy/compose.yaml` (they are not in 
 
 ### alert-intake
 
-The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](../companions/alert-intake/README.md#settings). The [demo environment](../companions/demo/README.md) runs it.
+The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](../alert-intake/README.md#settings).
 
 ### sandbox-launcher
 

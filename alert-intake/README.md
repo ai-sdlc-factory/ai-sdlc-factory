@@ -1,6 +1,6 @@
 # alert-intake
 
-Turns a monitoring alert into a ticket. It receives Alertmanager notifications, decides with **fixed rules (no AI)** whether an alert becomes a ticket, and opens it on a git host (Forgejo or GitHub). If the ticket carries the factory's `incident` label, the factory's [incident workflow](../../docs/workflows.md#incident-workflow) then starts on it, like on any ticket a person wrote.
+Turns a monitoring alert into a ticket. It receives Alertmanager notifications, decides with **fixed rules (no AI)** whether an alert becomes a ticket, and opens it on a git host (Forgejo or GitHub). If the ticket carries the factory's `incident` label, the factory's [incident workflow](../docs/workflows.md#incident-workflow) then starts on it, like on any ticket a person wrote.
 
 The design: agents never get production access, and what monitoring says is **data**, never an instruction.
 
@@ -26,7 +26,7 @@ The comment on a resolved alert carries the factory's own marker, so the factory
 - **Bounded input.** The body is limited (`ALERT_INTAKE_MAX_BODY_BYTES`, default 256 KB, also when the length is not announced), at most 50 alerts per notification, strict parsing.
 - **Redacted and inert text.** Everything that goes into a ticket (titles, annotations, labels, log lines) is cut to a fixed length, secrets are masked (`password=...`, bearer tokens, credentials in URLs, long opaque tokens), e-mail addresses are masked, `@` mentions cannot notify anyone, and a backtick can never close a code block. The ticket itself says that its content is data, not instructions.
 - **A dry run is the default.** With `ALERT_INTAKE_DRY_RUN=true` nothing is written to a git host and none is even asked: the ticket that would be opened is logged. The tokens are then not needed.
-- **Least privilege.** The intake has its own list of hosts and tokens (`ALERT_INTAKE_HOSTS`), not the factory's; in the demo stack the tokens are given to it only when tickets are really wanted.
+- **Least privilege.** The intake has its own list of hosts and tokens (`ALERT_INTAKE_HOSTS`), not the factory's; give it a token only when tickets are really wanted.
 
 ## Routes
 
@@ -79,8 +79,24 @@ It stands on its own: it shares no code and no settings with the factory. It onl
 It builds from this folder, with its own `Directory.Build.props` and `Directory.Packages.props`:
 
 ```bash
-docker build --target test -t alert-intake-test companions/alert-intake && docker run --rm alert-intake-test
-docker build --target runtime -t alert-intake companions/alert-intake
+docker build --target test -t alert-intake-test alert-intake && docker run --rm alert-intake-test
+docker build --target runtime -t alert-intake alert-intake
 ```
 
-The service is used by the demo environment in [`demo/`](../demo/README.md), which writes its settings and runs it next to a monitoring stack.
+## Try it
+
+A dry run needs no git host and no token. Write a routes file, start the service and send it an alert like Alertmanager would:
+
+```bash
+cat > routes.json <<'J'
+{ "routes": [ { "match": { "service": "shop" }, "repository": "acme/shop", "labels": ["incident"] } ] }
+J
+docker run --rm -p 8000:8000 -v "$PWD/routes.json:/etc/alert-intake/mapping.json:ro" \
+  -e ALERT_INTAKE_HOSTS='[{"name":"forgejo","type":"forgejo","url":"http://localhost:3000","token":"unused"}]' \
+  -e ALERT_INTAKE_DRY_RUN=true -e ALERT_INTAKE_TOKEN=local-test-token-1234 \
+  -e ALERT_INTAKE_MAPPING_FILE=/etc/alert-intake/mapping.json alert-intake
+curl -s -X POST localhost:8000/alerts -H 'Authorization: Bearer local-test-token-1234' -H 'Content-Type: application/json' \
+  -d '{"status":"firing","alerts":[{"status":"firing","fingerprint":"f1","labels":{"alertname":"HighErrors","service":"shop"},"annotations":{"summary":"5xx rate above 5%"}}]}'
+```
+
+The log shows the ticket it would open. In Alertmanager, point a receiver's `webhook_configs` at `http://<host>:8000/alerts` with the same token as `http_config.authorization`.

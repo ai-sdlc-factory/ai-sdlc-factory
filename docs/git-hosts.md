@@ -28,7 +28,7 @@ The bot comments on tickets, pushes branches named `factory/issue-<n>` and `fact
 
 | | Forgejo | GitHub |
 | --- | --- | --- |
-| **Create it** | As an administrator: Site Administration, User Accounts, Create. Or on the command line (the bundled Forgejo): `docker compose exec -u 1000 forgejo forgejo admin user create --username factory-bot --email factory-bot@example.test --random-password --must-change-password=false` (see [the bundled Forgejo](../companions/forgejo/README.md#the-factory-bot-account)) | An ordinary GitHub user (a "machine user"), for example `factory-bot`, with its own e-mail address. Using your own account works, but the factory's comments and pull requests are then yours, and you cannot review your own pull requests |
+| **Create it** | As an administrator: Site Administration, User Accounts, Create. Or on the command line (the bundled Forgejo): `docker compose exec -u 1000 forgejo forgejo admin user create --username factory-bot --email factory-bot@example.test --random-password --must-change-password=false` (see [the bundled Forgejo](../deploy/forgejo/README.md#the-factory-bot-account)) | An ordinary GitHub user (a "machine user"), for example `factory-bot`, with its own e-mail address. Using your own account works, but the factory's comments and pull requests are then yours, and you cannot review your own pull requests |
 | **Its login** | goes into `bot_login` of the host entry (default `factory-bot`). The factory only revises pull requests that account opened, and compares the author with it | the same |
 
 ## 2. The token

@@ -12,7 +12,7 @@ boundaries are. How each kind of ticket is handled is in [Workflows](workflows.m
 
 | Part | What it does | Why it is separate |
 | --- | --- | --- |
-| **Git host** (Forgejo or GitHub; as many as `FACTORY_HOSTS` lists) | Holds the repositories, tickets, labels and pull requests. People work here. | It is the human interface; the factory needs no other one, and no host is built in: each kind has an adapter. A Forgejo to try it on is a separate project ([`forgejo/`](../companions/forgejo/README.md)). |
+| **Git host** (Forgejo or GitHub; as many as `FACTORY_HOSTS` lists) | Holds the repositories, tickets, labels and pull requests. People work here. | It is the human interface; the factory needs no other one, and no host is built in: each kind has an adapter. A Forgejo to try it on is a separate project ([`forgejo/`](../deploy/forgejo/README.md)). |
 | **api** ([guide](../src/api/README.md)) | Receives signed webhooks from the git hosts, checks the signature, starts a Temporal workflow. | It faces the network (webhooks) but has no git host token, no Docker and no business logic. |
 | **Temporal** | Durable workflows: every step, prompt, answer and check output is stored in its history; waits for people cost nothing. | A run can take days (waiting for answers) and survives restarts. |
 | **controller** ([guide](../src/controller/README.md)) | Runs the workflows. Decides every next step in code, holds the only git host tokens, runs git, validates what agents answer. Also runs the janitor and starts the weekly report on what repeated. | All decisions live in one reviewed, tested place. |
@@ -100,8 +100,7 @@ The [egress guide](../src/egress-proxy/ALLOWLIST.md) describes the network rules
 | [`src/egress-proxy`](../src/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
 | [`src/contracts`](../src/contracts) | the library the services share: wire types, the git host list, triggers and the webhook adapters of each kind of host |
 | [`tests/`](../tests) | the tests of each service, one folder each (the workflow scenarios run on a Temporal dev server) |
-| [`companions/alert-intake`](../companions/alert-intake) | a tool outside the factory: turns monitoring alerts into tickets (the demo runs it) |
-| [`companions/demo`](../companions/demo) | a demo production with Prometheus, Alertmanager, Grafana and Loki, and the scripts around it |
+| [`alert-intake`](../alert-intake) | a component outside the factory, with its own build and tests: turns monitoring alerts into tickets |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`deploy/`](../deploy) | Docker Compose and environment settings |

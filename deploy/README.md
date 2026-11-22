@@ -35,7 +35,7 @@ the databases: `temporal-schema` and `temporal-namespace` should exit with code 
 | PostgreSQL | `localhost:5432` | Temporal data |
 | pgAdmin | http://localhost:5050 | database browser (development) |
 
-Compose isolates services on separate networks: `data` (PostgreSQL and its clients), `control` (Temporal, the api, the controller and the launcher), `hooks` (a git host to the api) and `forge` (the controller to a git host; the Forgejo of [`../companions/forgejo`](../companions/forgejo/README.md) joins both)
+Compose isolates services on separate networks: `data` (PostgreSQL and its clients), `control` (Temporal, the api, the controller and the launcher), `hooks` (a git host to the api) and `forge` (the controller to a git host; the Forgejo of [`../deploy/forgejo`](../deploy/forgejo/README.md) joins both)
 and `agents` (the OpenCode login helper only, which has internet access for the browser login). The disposable agent containers run on three **internal** networks (`sandbox-model`, `sandbox-packages`, `sandbox-developer`)
 that have no route out and no external DNS; the only thing on them besides the sandboxes is the egress proxy, which lets each profile reach just the hosts listed in [`src/egress-proxy/profiles.json`](../src/egress-proxy/ALLOWLIST.md).
 The sandboxes cannot reach PostgreSQL, a git host, Temporal or the api. Their networks use `10.250.x.0/24`; set `SANDBOX_NET_BASE` in `.env` if that clashes with a network you use. `SANDBOX_EGRESS` (`enforce`, `audit`, `open`) and
@@ -45,7 +45,7 @@ Host ports can be changed in `.env`. All published ports bind to localhost. This
 
 ## First use
 
-**A git host:** the factory serves the hosts of `FACTORY_HOSTS` and starts none itself. To try it on a Forgejo of your own, run the one in [`../companions/forgejo`](../companions/forgejo/README.md) (a project of its own), then create the [factory bot account](../docs/getting-started.md#4-set-up-a-git-host-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md). For GitHub, see [Several git hosts](../docs/operations.md#several-git-hosts).
+**A git host:** the factory serves the hosts of `FACTORY_HOSTS` and starts none itself. To try it on a Forgejo of your own, run the one in [`../deploy/forgejo`](../deploy/forgejo/README.md) (a project of its own), then create the [factory bot account](../docs/getting-started.md#4-set-up-a-git-host-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md). For GitHub, see [Several git hosts](../docs/operations.md#several-git-hosts).
 
 **pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **Dev Foundry PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
 
@@ -82,7 +82,7 @@ Checkouts are removed when a ticket's workflow ends; folders of runs you termina
 
 (Forgejo and GitHub side by side, with token scopes, webhooks and permissions: [Connecting a git host](../docs/git-hosts.md).)
 
-The controller comments on tickets, pushes branches and opens pull requests as a dedicated user of each git host, so the factory never uses a personal account. How to create it on the Forgejo of [`../companions/forgejo`](../companions/forgejo/README.md#the-factory-bot-account), or on GitHub ([Several git hosts](../docs/operations.md#several-git-hosts)); put its token in the `"token"` of that host in `FACTORY_HOSTS` in `.env`, then recreate the controller (`docker compose up -d --force-recreate controller`). The bot must be a collaborator with write access on each repository it serves ([project setup](../docs/project-setup.md#1-give-the-bot-access)).
+The controller comments on tickets, pushes branches and opens pull requests as a dedicated user of each git host, so the factory never uses a personal account. How to create it on the Forgejo of [`../deploy/forgejo`](../deploy/forgejo/README.md#the-factory-bot-account), or on GitHub ([Several git hosts](../docs/operations.md#several-git-hosts)); put its token in the `"token"` of that host in `FACTORY_HOSTS` in `.env`, then recreate the controller (`docker compose up -d --force-recreate controller`). The bot must be a collaborator with write access on each repository it serves ([project setup](../docs/project-setup.md#1-give-the-bot-access)).
 
 ## OpenCode login
 

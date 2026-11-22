@@ -35,7 +35,7 @@ Settings come from `deploy/.env`: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`
 
 ## Connect a git host
 
-In a repository on the host, add a webhook that points at `http://<api>/webhooks/<name>` (`<name>` is the host's `name` in `FACTORY_HOSTS`), with the host's `webhook_secret` and content type `application/json`. The events to send, the labels and the rest are in [Setting up a project](../../docs/project-setup.md#2-add-the-webhook); GitHub's setup is under [Several git hosts](../../docs/operations.md#several-git-hosts). On a Forgejo that runs in Docker (the one in [`forgejo/`](../../companions/forgejo/README.md)), the target is `http://api:8000/webhooks/forgejo`: it reaches the api over the Compose hostname `api`, which Forgejo's webhook host list allows. Use the host's **Test Delivery** (or **Redeliver**) to try it.
+In a repository on the host, add a webhook that points at `http://<api>/webhooks/<name>` (`<name>` is the host's `name` in `FACTORY_HOSTS`), with the host's `webhook_secret` and content type `application/json`. The events to send, the labels and the rest are in [Setting up a project](../../docs/project-setup.md#2-add-the-webhook); GitHub's setup is under [Several git hosts](../../docs/operations.md#several-git-hosts). On a Forgejo that runs in Docker (the one in [`forgejo/`](../../deploy/forgejo/README.md)), the target is `http://api:8000/webhooks/forgejo`: it reaches the api over the Compose hostname `api`, which Forgejo's webhook host list allows. Use the host's **Test Delivery** (or **Redeliver**) to try it.
 
 A valid delivery returns `202` with a `workflow_id`. Find it in
 http://localhost:8080 under the configured namespace. The controller records an event

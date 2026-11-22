@@ -14,7 +14,7 @@ incident advice) in isolated sandboxes, and the factory hands you a **reviewed p
 | `docs` | a pull request that writes or updates `AGENTS.md`, `README.md` and `docs/` from the code, checked by the reviewers |
 | `incident` | an assessment, ranked likely causes (every cited file and commit is verified) and mitigation options, driven by `/option`, `/hotfix` and `/resolved`; a draft postmortem on request. It never touches production |
 
-On top of the labels, people steer with comments on a ticket or pull request (the [commands and labels cheat sheet](docs/commands.md) says what to type where): `/fix` (revise the pull request), `/update` (merge the base branch into it, resolving conflicts), `/review` (have the reviewers read any pull request and post findings), `/ask` (ask a question about the repository on any ticket or pull request; a read-only agent answers from the code), `/retry` (run a ticket again from the last good stage, or `/retry restart` from the beginning), `/qa` (test the running application, with `/qa full` and `/fix qa`), and `/option`, `/hotfix` and `/resolved` on incidents. A [demo "production"](companions/demo/README.md) with Prometheus, Grafana and Loki shows the incident side: an alert opens a ticket by itself and the factory starts on it.
+On top of the labels, people steer with comments on a ticket or pull request (the [commands and labels cheat sheet](docs/commands.md) says what to type where): `/fix` (revise the pull request), `/update` (merge the base branch into it, resolving conflicts), `/review` (have the reviewers read any pull request and post findings), `/ask` (ask a question about the repository on any ticket or pull request; a read-only agent answers from the code), `/retry` (run a ticket again from the last good stage, or `/retry restart` from the beginning), `/qa` (test the running application, with `/qa full` and `/fix qa`), and `/option`, `/hotfix` and `/resolved` on incidents. The [alert intake](alert-intake/README.md) shows the incident side: a monitoring alert opens a ticket by itself and the factory starts on it.
 
 Everything is deterministic where it matters: agents only advise with one validated JSON verdict, and code decides every next step. Each agent runs in a throwaway container with no route to the
 internet except an allowlisting proxy. See [Architecture](docs/architecture.md) and [Workflows](docs/workflows.md).
@@ -39,7 +39,6 @@ Start at the [documentation index](docs/README.md).
 | [Operations](docs/operations.md) | Watching runs, troubleshooting, cleaning up, backups, security notes |
 | [Design and decisions](docs/design.md) | Why it is built this way, and findings from running it |
 | [Deployment](deploy/README.md) | Compose services, local addresses, the bot account |
-| [Demo and monitoring](companions/demo/README.md) | A demo production for the weather app with Prometheus, Alertmanager, Grafana and Loki, where alerts open tickets |
 | [Agents](agents/README.md) | The role files, permissions and models |
 | [OpenCode login](docs/opencode-login.md) | Signing the agents in with a ChatGPT account |
 
@@ -48,7 +47,7 @@ Start at the [documentation index](docs/README.md).
 - [`deploy/`](deploy/README.md): Docker Compose and environment settings.
 - [`src/`](src/): the code, one folder per service with its own Dockerfile and README, and the library they share; their tests are in [`tests/`](tests/), one folder per service. [`src/api/`](src/api/README.md): webhook intake. [`src/controller/`](src/controller/README.md): workflows, agent prompts and parsers, workspace and git host handling.
   [`src/sandbox-launcher/`](src/sandbox-launcher/README.md): the only service with Docker access. [`src/egress-proxy/`](src/egress-proxy/README.md): the proxy that decides what sandboxes may reach, with its [allowlist](src/egress-proxy/ALLOWLIST.md) (`profiles.json`).
-- [`companions/`](companions/): things that run beside the factory, each with its own README, Compose file or Dockerfile and no shared code: [`forgejo/`](companions/forgejo/README.md) (a Forgejo to try the factory on), [`alert-intake/`](companions/alert-intake/README.md) (turns monitoring alerts into tickets) and [`demo/`](companions/demo/README.md) (a demo production with monitoring, and the scripts to set it up, deliver code to it and break it on purpose).
+- [`alert-intake/`](alert-intake/README.md): a component of its own, outside the factory, that turns monitoring alerts into tickets (own Dockerfile and tests, no shared code). [`deploy/forgejo/`](deploy/forgejo/README.md) is a Forgejo to try the factory on.
 - [`agents/`](agents/README.md): one Markdown file per agent role, plus shared OpenCode settings.
 - [`templates/`](templates/README.md): working starter projects (.NET, Python, React, .NET + React) to copy, with every feature switched on.
 - [`sandboxes/`](src/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).

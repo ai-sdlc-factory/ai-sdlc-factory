@@ -9,7 +9,7 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(21.6 690.59)">
 <title>monitoring</title>
 <polygon fill="white" stroke="none" points="-21.6,21.6 -21.6,-690.59 2222.01,-690.59 2222.01,21.6 -21.6,21.6"/>
-<text text-anchor="middle" x="278" y="-652.64" font-family="DejaVu Sans" font-size="13.00">The demo production: from a delivered commit to a ticket the factory can act on</text>
+<text text-anchor="middle" x="164.75" y="-652.64" font-family="DejaVu Sans" font-size="13.00">From an alert to a ticket the factory can act on</text>
 <g id="clust3" class="cluster">
 <title>cluster_legend</title>
 <path fill="white" stroke="#c3cad2" d="M99.53,-563.49C99.53,-563.49 1246.1,-563.49 1246.1,-563.49 1252.1,-563.49 1258.1,-569.49 1258.1,-575.49 1258.1,-575.49 1258.1,-624.49 1258.1,-624.49 1258.1,-630.49 1252.1,-636.49 1246.1,-636.49 1246.1,-636.49 99.53,-636.49 99.53,-636.49 93.53,-636.49 87.53,-630.49 87.53,-624.49 87.53,-624.49 87.53,-575.49 87.53,-575.49 87.53,-569.49 93.53,-563.49 99.53,-563.49"/>

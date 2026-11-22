@@ -8,7 +8,9 @@ What is left to build, as designs and not promises. Each says what problem it so
 | --- | --- | --- | --- |
 | 1 | [More git hosts](#1-more-git-hosts) | the factory serves Forgejo and GitHub only | days per host |
 
-Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
+Left out on purpose, for now: a self-contained monitoring example (Prometheus, Loki and Alertmanager wired to the alert intake) to run against any repository; the demo it would replace only worked against a private repository. The alert intake's README has a dry-run "Try it" instead.
+
+Also left out: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
 
 Also left out: teams in the rules of who may steer the factory (`"team": "org/team"` next to `allow`). The access levels (`write`, `admin`) already cover most teams, because a team's members get their access from it; team lookups only exist for organizations and need an extra token permission on each host (GitHub: Members read; Forgejo: `read:organization`), so they widen the bot's token for a convenience, and they could not be checked live without an organization on each host. If a long `allow` list going stale becomes the real problem, reading the list from a file is the cheaper fix.
 

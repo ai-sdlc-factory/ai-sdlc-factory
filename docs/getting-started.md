@@ -71,15 +71,15 @@ Adding another language is described in the [launcher guide](../src/sandbox-laun
 
 ## 4. Set up a git host and the factory's bot account
 
-The factory works with the hosts listed in `FACTORY_HOSTS`. Everything a host needs (the bot account, the token and its permissions, webhooks and their events, labels, who may steer) is in [Connecting a git host](git-hosts.md); this step is the short path for the bundled Forgejo. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`companions/forgejo/`](../companions/forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
+The factory works with the hosts listed in `FACTORY_HOSTS`. Everything a host needs (the bot account, the token and its permissions, webhooks and their events, labels, who may steer) is in [Connecting a git host](git-hosts.md); this step is the short path for the bundled Forgejo. The quickest host to try it on is a Forgejo of your own, which runs as a project of its own in [`deploy/forgejo/`](../deploy/forgejo/README.md); for GitHub, create the bot account and token as described under [Several git hosts](operations.md#several-git-hosts), put them into `FACTORY_HOSTS` and skip to step 5.
 
 1. Start Forgejo (the factory's stack must be up, because Forgejo joins two of its networks), open http://localhost:3000, finish the installation and create an **administrator** account:
 
    ```bash
-   cd ../companions/forgejo && cp -n .env.example .env && docker compose up -d && cd ../../deploy
+   cd forgejo && cp -n .env.example .env && docker compose up -d && cd ..
    ```
 
-2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account: [the commands](../companions/forgejo/README.md#the-factory-bot-account) print its token.
+2. Create the **bot account** the factory uses to comment, push branches and open pull requests, so it never uses a personal account: [the commands](../deploy/forgejo/README.md#the-factory-bot-account) print its token.
 3. Put the printed token into the `"token"` of the Forgejo entry of `FACTORY_HOSTS` in `deploy/.env` and recreate the controller:
 
    ```bash
@@ -134,10 +134,6 @@ docker compose up -d --build controller      # rebuild and restart one service a
 ```
 
 `docker compose down` removes the containers and keeps the data; `docker compose down --volumes` deletes **everything** in this stack, including the databases and the OpenCode login.
-
-## Optional: watch a demo production
-
-Once the factory works, [`companions/demo/`](../companions/demo/README.md) runs the weather application from its repository's default branch with monitoring around it. Alerts become tickets, and the factory's incident workflow starts on them. `cd demo && ./setup.sh` prepares everything; alerts are only logged until you ask for real tickets (`./setup.sh --create-tickets`, which spends model tokens).
 
 ## If something does not work
 

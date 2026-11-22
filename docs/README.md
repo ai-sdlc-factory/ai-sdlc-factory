@@ -21,7 +21,6 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | **operate** it: watch runs, troubleshoot, clean up, back up, update | [Operations](operations.md) |
 | change an **agent**, its model or its permissions | [Agents](../agents/README.md) |
 | sign the agents in with ChatGPT | [OpenCode login](opencode-login.md) |
-| run a **demo "production"** with monitoring (Prometheus, Grafana, Loki) where alerts open tickets | [Demo and monitoring](../companions/demo/README.md) |
 | know the **limits** of what is built | [Known limitations](operations.md#known-limitations) |
 | see **what could be built next** and why (designs, not promises) | [Ideas for later](ideas.md) |
 
@@ -34,9 +33,8 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Workflows and workspace handling | [controller](../src/controller/README.md) |
 | Starting sandboxes | [sandbox-launcher](../src/sandbox-launcher/README.md) |
 | Internet access of the sandboxes | [egress-proxy](../src/egress-proxy/README.md) and the [allowlist](../src/egress-proxy/ALLOWLIST.md) |
-| A Forgejo to try the factory on | [forgejo](../companions/forgejo/README.md) |
-| Alerts to tickets | [alert-intake](../companions/alert-intake/README.md) |
-| Demo production and monitoring | [demo](../companions/demo/README.md) |
+| A Forgejo to try the factory on | [forgejo](../deploy/forgejo/README.md) |
+| Alerts to tickets | [alert-intake](../alert-intake/README.md) |
 | Deployed-pipeline test | [deployed-pipeline test](../src/api/README.md#tests) |
 
 ## The diagrams
@@ -55,7 +53,7 @@ Every picture is a Graphviz source in [`diagrams/`](diagrams/) with a rendered S
 | [incident-workflow](images/incident-workflow.svg) | advice, commands and the postmortem |
 | [agent-run](images/agent-run.svg) | one agent run, from request to verdict |
 | [workspace-trust](images/workspace-trust.svg) | the two copies of the checkout |
-| [monitoring](images/monitoring.svg) | the demo production, its monitoring and how an alert becomes a ticket |
+| [monitoring](images/monitoring.svg) | how a monitoring alert becomes a ticket the factory can act on |
 
 ## Keeping it correct
 

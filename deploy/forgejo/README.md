@@ -1,13 +1,13 @@
 # Forgejo, a git host to try the factory on
 
-A Forgejo that runs as a project of its own. The factory ([`../../deploy`](../../deploy/README.md)) does not need it and knows nothing about it: it serves the hosts its `FACTORY_HOSTS` lists, and this one is listed there like any other (`"url":"http://forgejo:3000"`). Use another host (GitHub, a Forgejo you already have) and you can leave this folder alone.
+A Forgejo that runs as a project of its own. The factory ([`..`](../README.md)) does not need it and knows nothing about it: it serves the hosts its `FACTORY_HOSTS` lists, and this one is listed there like any other (`"url":"http://forgejo:3000"`). Use another host (GitHub, a Forgejo you already have) and you can leave this folder alone.
 
 ## Start
 
 Start the factory first: this project joins two of its networks, `hooks` (Forgejo to the factory's api, for webhooks) and `forge` (the factory's controller to Forgejo, for its API and git).
 
 ```bash
-cd companions/forgejo
+cd deploy/forgejo
 cp -n .env.example .env
 docker compose up -d
 ```
@@ -43,7 +43,7 @@ Before this folder existed, Forgejo ran inside the factory's Compose project and
 # 1. stop and remove the old containers (named for the factory's Compose project; the data stays in the volume and the database)
 docker rm -f dev-foundry-forgejo-1 dev-foundry-mailpit-1
 # 2. here: put the old FORGEJO_DB_PASSWORD (the password of the "forgejo" role) into .env, then
-cd ../companions/forgejo && docker compose -f compose.yaml -f compose.shared-postgres.yaml up -d
+docker compose -f compose.yaml -f compose.shared-postgres.yaml up -d
 ```
 
 Use both `-f` files for every later command too. `compose.shared-postgres.yaml` points Forgejo at that PostgreSQL (over the factory's `data` network) and at that volume. A fresh install does not need it.
