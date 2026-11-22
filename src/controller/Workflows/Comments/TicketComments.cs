@@ -425,7 +425,7 @@ public static class TicketComments
 
     /// <summary>A run that ended without its result says what it cost, because a failed run is where tokens are wasted.</summary>
     public static string TokensOfStoppedRun(long tokens) =>
-        $"This run used about {Rounded(tokens):N0} tokens before it stopped (input, output, reasoning and cache writes).";
+        $"This run used about {Rounded(tokens):N0} tokens before it stopped (input, output, reasoning and cache writes). That is only what it cost: a token limit is never the reason unless the message above says so (`budget_exceeded` or a daily limit).";
 
     /// <summary>A <c>/qa</c> run is estimated over the project's confirmation threshold, so it waits for a person to say go.</summary>
     public static string QaWaitingForConfirmation(UsageEstimate estimate, long threshold) =>

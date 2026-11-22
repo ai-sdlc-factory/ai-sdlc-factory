@@ -78,7 +78,7 @@ public sealed class CostGuardScenarios(TemporalFixture fixture)
         var done = await ok.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
 
         Assert.Equal("analysis_failed", failed.Status);
-        Assert.Contains(failing.Comments, c => c == "This run used about 80,000 tokens before it stopped (input, output, reasoning and cache writes).");
+        Assert.Contains(failing.Comments, c => c == "This run used about 80,000 tokens before it stopped (input, output, reasoning and cache writes). That is only what it cost: a token limit is never the reason unless the message above says so (`budget_exceeded` or a daily limit).");
         Assert.Equal("pr_opened", done.Status);
         Assert.DoesNotContain(ok.Comments, c => c.Contains("before it stopped"));
     }
