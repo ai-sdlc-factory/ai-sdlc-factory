@@ -9,6 +9,8 @@ Open work on the project itself, in the order it matters. Delete a line when it 
 - [ ] Read `README.md` as a stranger would: can they tell what it is and start in ten minutes?
 - [ ] Keep one throwaway repository per git host as the live-check fixture (`AGENTS.md` describes it without naming one; `valters/weather` is gone).
 
+- [ ] Try one permanent way in for GitHub webhooks end to end (a named Cloudflare Tunnel with the address rule is the suggested one) and correct [exposing-webhooks.md](docs/exposing-webhooks.md) where reality differs; it is written from the providers' documentation and not tested.
+
 ## Optional
 - [ ] `CONTRIBUTING.md`: three lines pointing to `AGENTS.md` (GitHub then links it from pull requests).
 - [ ] `CODE_OF_CONDUCT.md` (the Contributor Covenant needs a contact address): when there is a community.

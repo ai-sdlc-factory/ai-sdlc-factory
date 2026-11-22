@@ -11,6 +11,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | --- | --- |
 | **run the factory** for the first time | [Getting started](getting-started.md) |
 | **connect a git host** (Forgejo or GitHub): the bot account, tokens and their permissions, webhooks and events, labels, who may steer | [Connecting a git host](git-hosts.md) |
+| **let GitHub reach the factory**: a permanent tunnel or proxy for the webhook, and how to allow only GitHub | [Letting GitHub reach the factory](exposing-webhooks.md) |
 | **connect a repository** and understand `.factory/project.json` (what is required, what is optional) | [Setting up a project](project-setup.md) |
 | start from a **working example project** (.NET, Python, React, or .NET + React) with every feature switched on | [Templates](../templates/README.md) |
 | copy a ready-made **`AGENTS.md` and `project.json`** for a .NET or React project | [Examples](../templates/examples/README.md) |

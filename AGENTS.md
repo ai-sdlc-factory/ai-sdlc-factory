@@ -12,7 +12,7 @@ Code is in `src/` (one folder per service: the project, its `Dockerfile` and `RE
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
 - `sandboxes/`, `deploy/`: the agent images, the Compose stack (the egress allowlist, `profiles.json`, sits with its service in `src/egress-proxy/`)
 - `templates/`: small working starter projects with every factory feature on (a test checks their settings with the real parser)
-- `tools/`: `check-docs.py`, `check-clock.py`, `usage-report.py` (token totals from the usage log), `onboard-repo.py` (labels and webhook for a new repository, Forgejo or GitHub; its tests are in `tests/tools/`)
+- `tools/`: `check-docs.py`, `check-clock.py`, `usage-report.py` (token totals from the usage log), `onboard-repo.py` (labels and webhook for a new repository, Forgejo or GitHub), `github-hook-ips.py` (GitHub's webhook addresses for a firewall); their tests are in `tests/tools/`
 - `docs/`: documentation with diagrams (`docs/diagrams/*.dot` render to `docs/images/*.svg`)
 
 ## Commands (from the repository root)
