@@ -1,7 +1,6 @@
 ---
 description: Reads the factory's weekly report on what repeats and proposes changes to its prompts and settings, for people to review
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
   bash: deny

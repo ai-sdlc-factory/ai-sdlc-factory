@@ -1,7 +1,6 @@
 ---
 description: Reads a bug report against the code base and reports what behaviour is wrong
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

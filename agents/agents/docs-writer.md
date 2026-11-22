@@ -1,7 +1,6 @@
 ---
 description: Writes or updates a repository's AGENTS.md, README and docs so that they match the code
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: deny

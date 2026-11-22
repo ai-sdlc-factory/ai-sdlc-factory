@@ -74,6 +74,9 @@ public sealed class SandboxSettings
     /// </summary>
     public string? AuthVolume { get; init; }
 
+    /// <summary>The model for every agent whose role file names none (<c>FACTORY_MODEL</c>); null leaves the default in <c>opencode.json</c>. Given to model runs as OpenCode's inline configuration, which ranks above the file.</summary>
+    public string? Model { get; init; }
+
     /// <summary>
     /// Read-only keeps the login unchangeable by an agent, but OpenCode cannot then save a refreshed
     /// token. Read-write is the default so a long-lived login keeps working.
@@ -104,6 +107,7 @@ public sealed class SandboxSettings
             DockerSocket = NonEmpty(configuration, "DOCKER_SOCKET", "/var/run/docker.sock"),
             AuthVolume = NullIfEmpty(configuration["SANDBOX_AUTH_VOLUME"]),
             AuthReadOnly = configuration.GetValue("SANDBOX_AUTH_READONLY", false),
+            Model = ModelNames.Read(configuration[ModelNames.Variable]),
             AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
             JanitorImageDays = configuration.GetValue("FACTORY_JANITOR_IMAGE_DAYS", 60),
         };

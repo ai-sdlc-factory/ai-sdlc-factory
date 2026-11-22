@@ -9,7 +9,7 @@ digraph agent_run {
   pol  [label="sandbox-launcher validates the request\nknown image alias · workspace exists and is not a symlink\nenv names · timeout cap · profile exists", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
   rej  [label="refused, never retried", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
   box  [label="disposable container  (fixed by the launcher, not by the request)\nnon-root · read-only root · all capabilities dropped · no-new-privileges\nmemory · CPU · process limits · tmpfs /tmp\nmounts: the workspace (read-only or writable) · the agents folder (read-only)\nthe ChatGPT login only for model runs\nnetwork: none, or one internal network with its own proxy", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  run  [label="opencode run --agent <role> --format json\nthe role file sets permissions, model and variant", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+  run  [label="opencode run --agent <role> --format json\nthe role file sets permissions (and, if it wants, model and variant)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
   proxy[label="egress-proxy\nonly the hosts of that profile", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   out  [label="exit code · stdout (OpenCode events)\ncontainer removed, even on cancel or timeout", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
   pars [label="controller extracts the final text\nand sums tokens and cost for the record", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];

@@ -1,7 +1,6 @@
 ---
 description: Finds the root cause of a reproduced bug and says whether the fix is small enough
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

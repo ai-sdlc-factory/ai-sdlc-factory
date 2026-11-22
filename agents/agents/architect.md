@@ -1,7 +1,6 @@
 ---
 description: Designs a change that is too big or risky to build without a plan
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

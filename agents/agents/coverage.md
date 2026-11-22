@@ -1,7 +1,6 @@
 ---
 description: Checks which acceptance criteria the existing code already satisfies
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

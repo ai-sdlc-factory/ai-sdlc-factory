@@ -1,7 +1,6 @@
 ---
 description: Looks for the likely causes of an incident in the code and its git history
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
   bash: allow

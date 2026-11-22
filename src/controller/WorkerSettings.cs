@@ -17,6 +17,9 @@ public sealed class WorkerSettings
 
     public string GitAuthorEmail { get; init; } = "factory-bot@dev-foundry.test";
 
+    /// <summary>The model every agent uses unless its role file names another (<c>FACTORY_MODEL</c>); null means the default in <c>opencode.json</c>. The launcher applies it; the controller only records it.</summary>
+    public string? Model { get; init; }
+
     /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
     public HostSettings HostNamed(string name) =>
         Hosts.FirstOrDefault(host => host.Name == name)
@@ -74,6 +77,7 @@ public sealed class WorkerSettings
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
         Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
         PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
+        Model = ModelNames.Read(configuration[ModelNames.Variable]),
         GitAuthorName = Identity(configuration, "FACTORY_GIT_AUTHOR_NAME", "Dev Foundry"),
         GitAuthorEmail = Identity(configuration, "FACTORY_GIT_AUTHOR_EMAIL", "factory-bot@dev-foundry.test"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",

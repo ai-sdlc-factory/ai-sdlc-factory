@@ -100,6 +100,18 @@ public sealed class AgentCatalogTests : IDisposable
     }
 
     [Fact]
+    public void The_factory_model_beats_the_default_but_not_a_role_s_own_model()
+    {
+        Role("qa", "---\ndescription: x\n---\nPrompt\n");
+        Role("developer", "---\ndescription: x\nmodel: openai/own-model\n---\nPrompt\n");
+        File.WriteAllText($"{directory}/opencode.json", """{ "model": "openai/default-model" }""");
+
+        Assert.Equal("openai/factory-model", AgentCatalog.ModelFor(directory, "qa", "openai/factory-model"));
+        Assert.Equal("openai/own-model", AgentCatalog.ModelFor(directory, "developer", "openai/factory-model"));
+        Assert.Equal("openai/default-model", AgentCatalog.ModelFor(directory, "qa", null));
+    }
+
+    [Fact]
     public void A_model_line_in_the_prompt_text_is_not_mistaken_for_configuration()
     {
         Role("analyst", "---\ndescription: x\n---\nmodel: not-this-one\n");

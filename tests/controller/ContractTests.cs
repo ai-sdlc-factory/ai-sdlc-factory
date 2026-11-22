@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using System.Text;
 using System.Text.Json;
 using DevFoundry.Controller;
@@ -75,6 +76,39 @@ public sealed class ContractTests
         var receipt = await new RepoEventWorkflow().RunAsync(input);
 
         Assert.Equal(new EventReceipt(DeliveryId, "push", null, null, null), receipt);
+    }
+
+    [Theory]
+    [InlineData("openai/gpt-6.1-sol")]
+    [InlineData("anthropic/claude-sonnet-5-5")]
+    [InlineData("ollama/llama3:8b")]
+    [InlineData("openrouter/anthropic/claude-sonnet-5-5")]
+    public void A_model_name_is_provider_slash_model(string name) => Assert.Equal(name, ModelNames.Read($" {name} "));
+
+    [Theory]
+    [InlineData("gpt-6.1-sol")]
+    [InlineData("openai/")]
+    [InlineData("/model")]
+    [InlineData("openai/model name")]
+    [InlineData("openai/model\"}")]
+    [InlineData("OpenAI/model")]
+    public void Anything_else_stops_the_start(string name) => Assert.Contains("FACTORY_MODEL", Assert.Throws<InvalidOperationException>(() => ModelNames.Read(name)).Message);
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void An_empty_model_setting_means_no_override(string? value) => Assert.Null(ModelNames.Read(value));
+
+    [Fact]
+    public void The_controller_reads_the_model_setting_and_rejects_a_bad_one()
+    {
+        WorkerSettings Load(string? value) => WorkerSettings.FromConfiguration(new ConfigurationBuilder()
+            .AddInMemoryCollection(TestHosts.Setting).AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_MODEL"] = value }).Build());
+
+        Assert.Null(Load(null).Model);
+        Assert.Equal("openai/other-model", Load("openai/other-model").Model);
+        Assert.Throws<InvalidOperationException>(() => Load("other-model"));
     }
 
     [Fact]

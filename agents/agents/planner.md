@@ -1,7 +1,6 @@
 ---
 description: Splits a large request into feature tickets for a person to approve
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

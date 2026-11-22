@@ -1,7 +1,6 @@
 ---
 description: Writes a test that fails because of a reported bug, without fixing it
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: allow

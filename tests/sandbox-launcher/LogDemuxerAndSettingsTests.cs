@@ -1,9 +1,27 @@
+using Microsoft.Extensions.Configuration;
 using System.Text;
 
 namespace DevFoundry.SandboxLauncher.Tests;
 
 public sealed class LogDemuxerAndSettingsTests
 {
+    [Fact]
+    public void The_launcher_reads_the_model_setting_and_rejects_a_bad_one()
+    {
+        SandboxSettings Load(string? model) => SandboxSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["FACTORY_WORKSPACE_ROOT"] = "/work",
+            ["SANDBOX_IMAGES"] = "dotnet=dev-foundry/sandbox-dotnet:local",
+            ["SANDBOX_NETWORKS"] = "model=dev-foundry_sandbox-model",
+            ["SANDBOX_PROXIES"] = "model=http://10.250.1.2:3128",
+            ["FACTORY_MODEL"] = model,
+        }).Build());
+
+        Assert.Null(Load(null).Model);
+        Assert.Equal("openai/other-model", Load("openai/other-model").Model);
+        Assert.Contains("FACTORY_MODEL", Assert.Throws<InvalidOperationException>(() => Load("other-model")).Message);
+    }
+
     private static byte[] Frame(byte stream, string text)
     {
         var payload = Encoding.UTF8.GetBytes(text);

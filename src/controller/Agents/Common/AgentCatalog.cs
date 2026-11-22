@@ -4,12 +4,12 @@ namespace DevFoundry.Controller;
 
 /// <summary>
 /// Looks up which model a role is configured to use, from the same agent folder the sandboxes get. OpenCode does
-/// not say which model answered, so this is the configured model: the role file's <c>model:</c> line, or the default
-/// in <c>opencode.json</c>.
+/// not say which model answered, so this is the configured model: the role file's <c>model:</c> line, else <c>FACTORY_MODEL</c>,
+/// else the default in <c>opencode.json</c>.
 /// </summary>
 public static class AgentCatalog
 {
-    public static string? ModelFor(string? directory, string role)
+    public static string? ModelFor(string? directory, string role, string? factoryModel = null)
     {
         if (string.IsNullOrWhiteSpace(directory) || !RunRecord.IsValidSlug(role))
         {
@@ -21,6 +21,10 @@ public static class AgentCatalog
             if (File.Exists(file) && FrontMatterModel(File.ReadLines(file)) is { } fromRole)
             {
                 return fromRole;
+            }
+            if (!string.IsNullOrWhiteSpace(factoryModel))
+            {
+                return factoryModel;
             }
             var config = $"{directory.TrimEnd('/')}/opencode.json";
             if (File.Exists(config))

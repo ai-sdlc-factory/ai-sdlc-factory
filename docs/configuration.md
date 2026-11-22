@@ -90,6 +90,7 @@ At least one host is needed. A setting that cannot be used stops the api and the
 | `FACTORY_JANITOR_CHECKOUT_DAYS` | a checkout is removed only if its run is no longer running **and** nothing has touched it for this many days, 1 to 30 | `2` |
 | `FACTORY_JANITOR_WIP_DAYS` | a work-in-progress branch (`factory/issue-<n>-wip`) is listed in the controller log once its last commit is this many days old, 1 to 365 | `30` |
 | `FACTORY_JANITOR_DELETE_WIP` | `true` lets the janitor **delete** those branches, but only when their ticket is closed and no open pull request uses them. Off: they are only listed | `false` |
+| `FACTORY_MODEL` | the model every agent uses, as OpenCode writes it: `provider/model` (for example `openai/gpt-6.1-sol`). Empty keeps the default in `agents/opencode.json`. The launcher gives it to every run that calls the model, as OpenCode's inline configuration, which ranks above the file; the controller records it. A role file that names its own `model:` keeps that one. It must be one your login or key can use, on a provider `agents/opencode.json` enables (`enabled_providers`) and the [egress allowlist](../src/egress-proxy/ALLOWLIST.md) reaches (see [other ways to sign in](opencode-login.md#other-ways-to-sign-in)). A value that is not `provider/model` stops the controller and the launcher at start | empty (the default in `opencode.json`) |
 | `FACTORY_GLOBAL_CONFIG` | absolute path of the repository's `agents/` folder, mounted read-only into every sandbox. Empty means sandboxes run **without** role files and the agents cannot work. Point it at the repository's own folder: a **copy** must be refreshed after every update, because a role added since the copy was made is missing and its agent then runs without its instructions (the run stops with "the role file ... is missing"). The controller also mounts it read-only, only to read each role's model name | empty (the controller falls back to `../agents`) |
 
 **Example: tune the defaults for every project at once** (in `deploy/.env`, then `docker compose up -d --force-recreate controller`). A project's own `limits` in `.factory/project.json` still win, within the same ranges:
@@ -149,6 +150,7 @@ to that service's `environment` block in `deploy/compose.yaml` (they are not in 
 | `FACTORY_PERMISSION_CACHE_SECONDS` | `300` (set by Compose) | how long a person's access on the host is kept (see above); a value out of range stops the controller at start |
 | `FACTORY_GIT_AUTHOR_NAME`, `FACTORY_GIT_AUTHOR_EMAIL` | `Dev Foundry`, `factory-bot@dev-foundry.test` (set by Compose) | the author of the factory's commits (see above) |
 | `FACTORY_DEFAULT_BUILD_ROUNDS`, `FACTORY_DEFAULT_CLARIFICATION_ROUNDS`, `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | `3`, `3`, `3` (set by Compose) | defaults for a project's `limits`; a value outside its range stops the controller at start with a message |
+| `FACTORY_MODEL` | empty (set by Compose, controller and launcher) | the model for every role that names none (see above) |
 | `FACTORY_WORKSPACE_ROOT` | none (required) | where checkouts live |
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |
 | `TEMPORAL_UI_URL` | `http://localhost:8080` | base of the trace link in comments |
@@ -215,7 +217,7 @@ permission:
 
 | Key | Meaning |
 | --- | --- |
-| `model` | the model for this role. `opencode.json` has a default for roles that leave it out. Today every role uses `openai/gpt-6.1-sol` |
+| `model` | optional: the model for this role. A role that leaves it out uses `FACTORY_MODEL`, else the default in `opencode.json` (`openai/gpt-6.1-sol`). None of the shipped roles names one |
 | `variant` | OpenCode's reasoning preset for the model, for example `low` or `high`; which values exist depends on the model |
 | `reasoningEffort`, `temperature` | passed through to the provider; accepted by OpenCode in a role file (checked with `opencode debug agent <role>`) |
 | `permission` | what the role may do. The baseline in `opencode.json` is deny-all except reading (`read`, `glob`, `grep`); a role adds `edit: allow` and/or `bash: allow` |
@@ -246,7 +248,7 @@ Roles are chosen in code, never by a repository or an agent.
 
 Choosing a model: check it works with your login first (`opencode models openai` from the [login guide](opencode-login.md); a refused model makes that role fail with an unclear
 "exited with code" message). Re-check the role after a change: prompts and the strict JSON answers were tuned on one model. Reasoning tokens and cost per role appear in each
-[run record](workflows.md#the-run-record), so you can compare settings. See the [agents guide](../agents/README.md#choosing-the-model-per-role).
+[run record](workflows.md#the-run-record), so you can compare settings. See the [agents guide](../agents/README.md#choosing-the-model).
 
 ## Fixed limits (not configurable)
 

@@ -47,10 +47,10 @@ The workflow chooses the role and runs `opencode run --agent <role>`. Every role
 - **Ticket and repository text is data.** Each prompt says so; it is also why project files can add context but never widen permissions.
 - **The network is chosen in code**, by role, never by an agent or a repository ([table](../docs/configuration.md#agents-and-models)).
 
-## Choosing the model per role
+## Choosing the model
 
-Every role file sets its own model in the front matter (`model: openai/gpt-6.1-sol`), so each role can be changed on its own by editing that one line. `opencode.json` has a `model` too, which is only the fallback for a
-role file that leaves the line out. Changes apply to the next run; no rebuild or restart. OpenCode also accepts these in a role file (checked with `opencode debug agent <role>`):
+One model serves every role, and none of the shipped role files names one. It comes from `FACTORY_MODEL` in `deploy/.env` (recreate the controller and the launcher after changing it), or, when that is empty, from the `model` in `opencode.json` (`openai/gpt-6.1-sol`). To give **one role** another model, add a `model: provider/model` line to its front matter: that role keeps it whatever `FACTORY_MODEL` says.
+A change in a role file or in `opencode.json` applies to the next run, with no rebuild or restart. OpenCode also accepts these in a role file (checked with `opencode debug agent <role>`):
 
 ```yaml
 variant: high           # the model's reasoning preset, e.g. low or high; the available values depend on the model

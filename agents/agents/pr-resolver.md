@@ -1,7 +1,6 @@
 ---
 description: Addresses the comments of a review on a pull request the factory opened, in the pull request's own branch
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: allow

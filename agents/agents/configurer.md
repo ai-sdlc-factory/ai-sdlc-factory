@@ -1,7 +1,6 @@
 ---
 description: Reads a repository and proposes the settings file (.factory/project.json) the factory needs for it
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
   bash: deny

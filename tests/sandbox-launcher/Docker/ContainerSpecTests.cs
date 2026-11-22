@@ -138,6 +138,30 @@ public sealed class ModelAuthTests
     }
 
     [Fact]
+    public void A_configured_model_reaches_model_runs_as_inline_opencode_configuration()
+    {
+        var spec = Spec(Support.Request(modelAuth: true), Support.Settings(model: "openai/other-model"));
+
+        Assert.Contains(spec.GetProperty("Env").EnumerateArray(), e => e.GetString() == """OPENCODE_CONFIG_CONTENT={"model":"openai/other-model"}""");
+    }
+
+    [Fact]
+    public void Without_a_configured_model_the_default_of_opencode_json_stays()
+    {
+        var spec = Spec(Support.Request(modelAuth: true), Support.Settings());
+
+        Assert.DoesNotContain(spec.GetProperty("Env").EnumerateArray(), e => e.GetString()!.StartsWith("OPENCODE_CONFIG_CONTENT"));
+    }
+
+    [Fact]
+    public void Runs_without_model_access_get_no_model_setting_even_when_one_is_configured()
+    {
+        var spec = Spec(Support.Request(), Support.Settings(model: "openai/other-model"));
+
+        Assert.DoesNotContain(spec.GetProperty("Env").EnumerateArray(), e => e.GetString()!.StartsWith("OPENCODE_CONFIG_CONTENT"));
+    }
+
+    [Fact]
     public void Model_runs_are_rejected_when_no_login_volume_is_configured() =>
         Assert.Throws<Temporalio.Exceptions.ApplicationFailureException>(() =>
             SandboxPolicy.Validate(Support.Request(modelAuth: true), Support.Settings(authVolume: null), _ => true));

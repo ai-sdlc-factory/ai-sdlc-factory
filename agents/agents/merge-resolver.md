@@ -1,7 +1,6 @@
 ---
 description: Resolves the conflicts of a merge of the base branch into a pull request the factory opened, and fixes what the merge broke
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: allow

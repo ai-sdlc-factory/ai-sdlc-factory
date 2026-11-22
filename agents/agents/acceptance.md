@@ -1,7 +1,6 @@
 ---
 description: Checks that a finished change meets every acceptance criterion (reads the diff; never runs the application)
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
   bash: deny

@@ -1,7 +1,6 @@
 ---
 description: Reads an incident ticket and reports how serious it is, what is affected and what is missing
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
 ---

@@ -1,7 +1,6 @@
 ---
 description: Writes a draft postmortem from the record of a resolved incident ticket
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: deny

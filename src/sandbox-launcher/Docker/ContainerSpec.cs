@@ -70,6 +70,11 @@ public static class ContainerSpec
             // NoCopy: never seed the volume from image content. The entrypoint links auth.json from here.
             mounts.Add(new MountSpec("volume", settings.AuthVolume!, AuthTarget, settings.AuthReadOnly, new VolumeOptionsSpec(true)));
             env.Add("FACTORY_REQUIRE_AUTH=1");
+            if (settings.Model is { } model)
+            {
+                // OpenCode's inline configuration ranks above the settings file, so this changes the default of every role that names no model of its own.
+                env.Add("OPENCODE_CONFIG_CONTENT=" + System.Text.Json.JsonSerializer.Serialize(new { model }));
+            }
         }
 
         return new CreateContainerBody

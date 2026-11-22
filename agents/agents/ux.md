@@ -1,7 +1,6 @@
 ---
 description: Reviews a user interface change for usability, accessibility and consistency
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: deny
   bash: deny

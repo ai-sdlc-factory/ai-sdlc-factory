@@ -1,7 +1,6 @@
 ---
 description: Tries a finished change from the outside and writes end-to-end API and UI tests for it
 mode: primary
-model: openai/gpt-6.1-sol
 permission:
   edit: allow
   bash: allow
