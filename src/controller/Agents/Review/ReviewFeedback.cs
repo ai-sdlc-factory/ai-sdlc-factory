@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What goes back to the developer when a review or the acceptance check asks for changes.</summary>
 public static class ReviewFeedback

@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Temporalio.Testing;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class FinerCommandRuleParsingTests
 {

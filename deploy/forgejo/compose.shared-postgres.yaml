@@ -15,9 +15,9 @@ services:
 networks:
   data:
     external: true
-    name: ${FACTORY_PROJECT:-dev-foundry}_data
+    name: ${FACTORY_PROJECT:-ai-sdlc-factory}_data
 
 volumes:
   forgejo-data:
     external: true
-    name: ${FACTORY_PROJECT:-dev-foundry}_forgejo-data
+    name: ${FACTORY_PROJECT:-ai-sdlc-factory}_forgejo-data

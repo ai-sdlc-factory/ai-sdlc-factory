@@ -1,6 +1,6 @@
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One run per feature ticket, following docs/feature-factory.md: the analyst, the coverage check, triage, the

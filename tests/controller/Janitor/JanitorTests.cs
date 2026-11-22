@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class JanitorRulesTests
 {

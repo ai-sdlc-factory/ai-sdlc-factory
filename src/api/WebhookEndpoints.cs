@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 public static class WebhookEndpoints
 {

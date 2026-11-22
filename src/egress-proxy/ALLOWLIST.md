@@ -25,7 +25,7 @@ Your own rules: write a file in the format below and set `EGRESS_PROFILES` in `.
 to `deploy/` or absolute) instead of editing `src/egress-proxy/profiles.json`. Add hosts, add ports, or define more
 profiles. A file the proxy cannot parse stops it from starting with the reason, so no sandbox gets any
 network until it is fixed. Switching back from `open` leaves an unused `<project>_sandbox-open` network
-behind; remove it with `docker network rm dev-foundry_sandbox-open` if you like.
+behind; remove it with `docker network rm ai-sdlc-factory_sandbox-open` if you like.
 
 ## Profiles
 

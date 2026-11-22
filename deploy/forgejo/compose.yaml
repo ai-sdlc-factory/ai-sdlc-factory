@@ -3,7 +3,7 @@
 #   cd deploy/forgejo && cp -n .env.example .env && docker compose up -d
 # It keeps its data in SQLite. A Forgejo that was started from the factory's own stack and keeps its database in the factory's PostgreSQL continues with compose.shared-postgres.yaml
 # (see README.md). Ports are bound to 127.0.0.1 only. Mailpit catches the emails Forgejo sends; nothing is delivered externally.
-name: dev-foundry-forgejo
+name: ai-sdlc-factory-forgejo
 
 services:
   forgejo:
@@ -24,7 +24,7 @@ services:
       FORGEJO__mailer__PROTOCOL: smtp
       FORGEJO__mailer__SMTP_ADDR: mailpit
       FORGEJO__mailer__SMTP_PORT: "1025"
-      FORGEJO__mailer__FROM: forgejo@dev-foundry.test
+      FORGEJO__mailer__FROM: forgejo@ai-sdlc-factory.test
       # The factory's api, as Forgejo reaches it over the hooks network.
       FORGEJO__webhook__ALLOWED_HOST_LIST: external,api
     depends_on:
@@ -58,13 +58,13 @@ services:
 
 networks:
   default:
-  # The factory's networks, created when its stack is up (its Compose project is dev-foundry unless you named it otherwise).
+  # The factory's networks, created when its stack is up (its Compose project is ai-sdlc-factory unless you named it otherwise).
   hooks:
     external: true
-    name: ${FACTORY_PROJECT:-dev-foundry}_hooks
+    name: ${FACTORY_PROJECT:-ai-sdlc-factory}_hooks
   forge:
     external: true
-    name: ${FACTORY_PROJECT:-dev-foundry}_forge
+    name: ${FACTORY_PROJECT:-ai-sdlc-factory}_forge
 
 volumes:
   forgejo-data:

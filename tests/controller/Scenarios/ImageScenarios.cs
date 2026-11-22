@@ -1,6 +1,6 @@
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>A repository may bring its own sandbox image (.factory/Dockerfile) when the operator allows it.</summary>
 [Collection("temporal")]
@@ -17,7 +17,7 @@ public sealed class ImageScenarios(TemporalFixture fixture)
         .Agent("acceptance", Say(Answers.Qa("met", "met")));
 
     private static readonly RepoImageSource Dockerfile = new(
-        "FROM dev-foundry/sandbox-dotnet:local\nRUN apt-get update && apt-get install -y redis-server",
+        "FROM ai-sdlc-factory/sandbox-dotnet:local\nRUN apt-get update && apt-get install -y redis-server",
         new Dictionary<string, string> { ["setup.sh"] = Convert.ToBase64String("#!/bin/sh\n"u8.ToArray()) });
 
     [SkippableFact]

@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>/update against real git: the base branch is merged in the trusted clone, the agent works on the result, and one merge commit with both parents is pushed.</summary>
 public sealed class MergeBaseTests : IDisposable

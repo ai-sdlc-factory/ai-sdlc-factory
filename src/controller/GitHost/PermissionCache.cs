@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>An answer kept in memory for a while, by a key. A lifetime of 0 keeps nothing.</summary>
 public sealed class TimedCache<T>(TimeSpan lifetime, Func<DateTimeOffset>? now = null)

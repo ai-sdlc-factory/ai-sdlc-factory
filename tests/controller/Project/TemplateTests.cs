@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>Every starter project under templates/ must carry settings the factory's own parser accepts, and the files an agent is told about.</summary>
 public sealed class TemplateTests

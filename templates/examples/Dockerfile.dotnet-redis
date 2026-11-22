@@ -1,7 +1,7 @@
 # Copy to .factory/Dockerfile in a repository (only a person may change it; it takes effect when it is on the default branch).
 # Needs FACTORY_ALLOW_REPO_IMAGES=true on the factory. Adds a Redis server so tests can start one as a child process.
 # The first instruction must be exactly FROM with one of the factory's own images.
-FROM dev-foundry/sandbox-dotnet-node:local
+FROM ai-sdlc-factory/sandbox-dotnet-node:local
 
 # Build steps run as root; the sandbox itself later runs as an unprivileged user.
 RUN apt-get update \

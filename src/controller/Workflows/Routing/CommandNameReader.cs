@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Which commands a person's comment or review carries, in the words a rule uses (<see cref="CommandNames"/>). A rule of a single command (<c>"approve": "admin"</c>) is applied to every command

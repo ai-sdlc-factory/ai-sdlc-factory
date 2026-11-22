@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class EgressSpecTests
 {
@@ -22,9 +22,9 @@ public sealed class EgressSpecTests
     }
 
     [Theory]
-    [InlineData("model", "dev-foundry_sandbox-model", "http://10.250.1.2:3128")]
-    [InlineData("packages", "dev-foundry_sandbox-packages", "http://10.250.2.2:3128")]
-    [InlineData("developer", "dev-foundry_sandbox-developer", "http://10.250.3.2:3128")]
+    [InlineData("model", "ai-sdlc-factory_sandbox-model", "http://10.250.1.2:3128")]
+    [InlineData("packages", "ai-sdlc-factory_sandbox-packages", "http://10.250.2.2:3128")]
+    [InlineData("developer", "ai-sdlc-factory_sandbox-developer", "http://10.250.3.2:3128")]
     public void A_profile_puts_the_run_on_its_own_internal_network_with_its_own_proxy(string profile, string network, string proxy)
     {
         var spec = Spec(Support.Request(network: profile));
@@ -97,7 +97,7 @@ public sealed class EgressPolicyTests
     [InlineData("internet")]
     [InlineData("DEVELOPER")]
     [InlineData("")]
-    [InlineData("dev-foundry_sandbox-developer")]
+    [InlineData("ai-sdlc-factory_sandbox-developer")]
     [InlineData("host")]
     [InlineData("bridge")]
     public void Anything_else_is_rejected_without_a_retry(string network)
@@ -189,14 +189,14 @@ public sealed class StartupCheckTests
 
         await Janitor(docker, EgressMode.Open).StartAsync(CancellationToken.None);
 
-        Assert.Equal(["dev-foundry_sandbox-open"], docker.Created);
+        Assert.Equal(["ai-sdlc-factory_sandbox-open"], docker.Created);
         Assert.Equal(["leftover-container-id"], docker.Removed);
     }
 
     [Fact]
     public async Task In_enforce_mode_it_never_creates_an_open_network()
     {
-        var docker = new Docker(["dev-foundry_sandbox-model", "dev-foundry_sandbox-packages", "dev-foundry_sandbox-developer"]);
+        var docker = new Docker(["ai-sdlc-factory_sandbox-model", "ai-sdlc-factory_sandbox-packages", "ai-sdlc-factory_sandbox-developer"]);
 
         await Janitor(docker).StartAsync(CancellationToken.None);
 
@@ -206,18 +206,18 @@ public sealed class StartupCheckTests
     [Fact]
     public async Task The_launcher_refuses_to_start_when_an_egress_network_is_missing()
     {
-        var docker = new Docker(["dev-foundry_sandbox-model", "dev-foundry_sandbox-packages"]);
+        var docker = new Docker(["ai-sdlc-factory_sandbox-model", "ai-sdlc-factory_sandbox-packages"]);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Janitor(docker).StartAsync(CancellationToken.None));
 
-        Assert.Contains("dev-foundry_sandbox-developer", error.Message);
+        Assert.Contains("ai-sdlc-factory_sandbox-developer", error.Message);
         Assert.Contains("egress-proxy", error.Message);
     }
 
     [Fact]
     public async Task With_every_network_present_it_starts_and_removes_leftover_sandboxes()
     {
-        var docker = new Docker(["dev-foundry_sandbox-model", "dev-foundry_sandbox-packages", "dev-foundry_sandbox-developer"]);
+        var docker = new Docker(["ai-sdlc-factory_sandbox-model", "ai-sdlc-factory_sandbox-packages", "ai-sdlc-factory_sandbox-developer"]);
 
         await Janitor(docker).StartAsync(CancellationToken.None);
 
@@ -245,7 +245,7 @@ public sealed class OpenModeTests
     {
         var spec = Spec(Support.Request(network: profile), EgressMode.Open);
 
-        Assert.Equal("dev-foundry_sandbox-open", NetworkMode(spec));
+        Assert.Equal("ai-sdlc-factory_sandbox-open", NetworkMode(spec));
         Assert.DoesNotContain(Env(spec), e => e.Contains("PROXY", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(Env(spec), e => e.StartsWith("NPM_CONFIG_REGISTRY"));
     }

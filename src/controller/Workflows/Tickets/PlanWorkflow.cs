@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One run per <c>plan</c> ticket. A planner reads the ticket and the repository and splits the request into feature tickets; nothing is

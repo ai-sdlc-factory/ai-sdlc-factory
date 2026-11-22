@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the factory uses when a project does not say: set by the operator (see <c>FACTORY_DEFAULT_*</c>), and read through an activity so a run keeps the values it started with.</summary>
 /// <param name="MaxTokensPerRun">The most tokens one run may use (see <see cref="TokenUsage.Counted"/>); a project can set a lower number with <c>limits.token_budget</c>, never a higher one. 0 means no limit.</param>

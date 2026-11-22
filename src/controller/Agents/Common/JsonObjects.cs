@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Finds JSON objects inside text that models wrap in prose or code fences.</summary>
 public static class JsonObjects

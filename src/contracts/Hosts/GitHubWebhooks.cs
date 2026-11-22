@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>
 /// GitHub (github.com and GitHub Enterprise Server): the signature is a hex HMAC-SHA256 of the exact bytes in <c>X-Hub-Signature-256</c> (<c>sha256=&lt;hex&gt;</c>), events are named in

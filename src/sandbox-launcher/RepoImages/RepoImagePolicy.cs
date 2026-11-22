@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>A Dockerfile and context that passed the policy.</summary>
 public sealed record ValidatedBuild(string Dockerfile, string BaseImage, IReadOnlyList<(string Path, byte[] Content)> Files);

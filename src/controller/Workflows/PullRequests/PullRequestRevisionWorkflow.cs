@@ -2,7 +2,7 @@ using Temporalio.Common;
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person reviewed a pull request the factory opened and asked for changes (a review that requests changes, or <c>/fix</c> in a

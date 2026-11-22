@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>One thing the tester tried, as a test: its name, the suite it belongs to, and the acceptance criteria it covers (by number).</summary>
 public sealed record TestedScenario(string Name, string Suite, IReadOnlyList<int> Covers);

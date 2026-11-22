@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// <c>/setup</c> on a ticket of a repository that has no <c>.factory/project.json</c>: the read-only <c>configurer</c> reads the repository and proposes the settings, and the

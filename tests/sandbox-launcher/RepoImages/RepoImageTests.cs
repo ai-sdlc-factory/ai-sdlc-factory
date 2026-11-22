@@ -3,11 +3,11 @@ using System.Formats.Tar;
 using System.Text;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class RepoImagePolicyTests
 {
-    private static readonly string[] Bases = ["dev-foundry/sandbox-dotnet:local", "dev-foundry/sandbox-node:local"];
+    private static readonly string[] Bases = ["ai-sdlc-factory/sandbox-dotnet:local", "ai-sdlc-factory/sandbox-node:local"];
 
     private static SandboxBuildRequest Request(string dockerfile, Dictionary<string, string>? files = null) => new(dockerfile, files);
 
@@ -19,7 +19,7 @@ public sealed class RepoImagePolicyTests
     {
         var build = RepoImagePolicy.Validate(Request("""
             # redis for the integration tests
-            FROM dev-foundry/sandbox-dotnet:local
+            FROM ai-sdlc-factory/sandbox-dotnet:local
             ENV DEBIAN_FRONTEND=noninteractive
             RUN apt-get update \
                 && apt-get install -y --no-install-recommends redis-server \
@@ -28,16 +28,16 @@ public sealed class RepoImagePolicyTests
             LABEL purpose=tests
             """, new() { ["setup.sh"] = Convert.ToBase64String("#!/bin/sh\n"u8.ToArray()) }), Bases);
 
-        Assert.Equal("dev-foundry/sandbox-dotnet:local", build.BaseImage);
+        Assert.Equal("ai-sdlc-factory/sandbox-dotnet:local", build.BaseImage);
         Assert.Equal("setup.sh", Assert.Single(build.Files).Path);
     }
 
     [Theory]
     [InlineData("RUN echo hi")]
     [InlineData("FROM ubuntu:24.04")]
-    [InlineData("FROM dev-foundry/sandbox-dotnet:local AS build")]
-    [InlineData("FROM --platform=linux/amd64 dev-foundry/sandbox-dotnet:local")]
-    [InlineData("ARG BASE=dev-foundry/sandbox-dotnet:local\nFROM $BASE")]
+    [InlineData("FROM ai-sdlc-factory/sandbox-dotnet:local AS build")]
+    [InlineData("FROM --platform=linux/amd64 ai-sdlc-factory/sandbox-dotnet:local")]
+    [InlineData("ARG BASE=ai-sdlc-factory/sandbox-dotnet:local\nFROM $BASE")]
     public void The_first_instruction_must_be_exactly_from_one_of_the_factorys_images(string dockerfile) =>
         Assert.Contains("first instruction", Rejected(Request(dockerfile)));
 
@@ -51,15 +51,15 @@ public sealed class RepoImagePolicyTests
     [InlineData("SHELL [\"/bin/bash\"]")]
     [InlineData("ONBUILD RUN true")]
     [InlineData("EXPOSE 80")]
-    [InlineData("FROM dev-foundry/sandbox-node:local")]
+    [InlineData("FROM ai-sdlc-factory/sandbox-node:local")]
     public void Instructions_that_change_how_the_container_starts_are_not_allowed(string instruction) =>
-        Assert.Contains("not allowed", Rejected(Request($"FROM dev-foundry/sandbox-dotnet:local\n{instruction}")));
+        Assert.Contains("not allowed", Rejected(Request($"FROM ai-sdlc-factory/sandbox-dotnet:local\n{instruction}")));
 
     [Fact]
     public void An_instruction_hidden_behind_a_line_continuation_is_still_one_instruction()
     {
         // The words after the backslash belong to the RUN, not a new ENTRYPOINT instruction.
-        RepoImagePolicy.Validate(Request("FROM dev-foundry/sandbox-dotnet:local\nRUN echo a \\\n ENTRYPOINT b"), Bases);
+        RepoImagePolicy.Validate(Request("FROM ai-sdlc-factory/sandbox-dotnet:local\nRUN echo a \\\n ENTRYPOINT b"), Bases);
     }
 
     [Theory]
@@ -69,11 +69,11 @@ public sealed class RepoImagePolicyTests
     [InlineData("RUN --mount=type=secret,id=x true", "flags")]
     [InlineData("RUN --network=host true", "flags")]
     public void Flags_that_reach_outside_the_context_are_refused(string instruction, string mentions) =>
-        Assert.Contains(mentions, Rejected(Request($"FROM dev-foundry/sandbox-dotnet:local\n{instruction}")));
+        Assert.Contains(mentions, Rejected(Request($"FROM ai-sdlc-factory/sandbox-dotnet:local\n{instruction}")));
 
     [Theory]
-    [InlineData("# syntax=docker/dockerfile:1\nFROM dev-foundry/sandbox-dotnet:local")]
-    [InlineData("FROM dev-foundry/sandbox-dotnet:local\n# escape=`")]
+    [InlineData("# syntax=docker/dockerfile:1\nFROM ai-sdlc-factory/sandbox-dotnet:local")]
+    [InlineData("FROM ai-sdlc-factory/sandbox-dotnet:local\n# escape=`")]
     public void Parser_directives_are_refused(string dockerfile) =>
         Assert.Contains("parser directives", Rejected(Request(dockerfile)));
 
@@ -85,33 +85,33 @@ public sealed class RepoImagePolicyTests
     [InlineData("a b")]
     [InlineData("dir/")]
     public void Context_files_need_plain_relative_paths(string path) =>
-        Assert.Contains("unusable path", Rejected(Request("FROM dev-foundry/sandbox-dotnet:local", new() { [path] = "" })));
+        Assert.Contains("unusable path", Rejected(Request("FROM ai-sdlc-factory/sandbox-dotnet:local", new() { [path] = "" })));
 
     [Fact]
     public void The_context_is_limited_in_files_and_size_and_must_be_base64()
     {
         var tooMany = Enumerable.Range(1, 51).ToDictionary(i => $"f{i}", _ => "");
-        Assert.Contains("at most", Rejected(Request("FROM dev-foundry/sandbox-dotnet:local", tooMany)));
+        Assert.Contains("at most", Rejected(Request("FROM ai-sdlc-factory/sandbox-dotnet:local", tooMany)));
         var big = new Dictionary<string, string> { ["big"] = Convert.ToBase64String(new byte[1024 * 1024 + 1]) };
-        Assert.Contains("at most", Rejected(Request("FROM dev-foundry/sandbox-dotnet:local", big)));
-        Assert.Contains("base64", Rejected(Request("FROM dev-foundry/sandbox-dotnet:local", new() { ["a"] = "***" })));
+        Assert.Contains("at most", Rejected(Request("FROM ai-sdlc-factory/sandbox-dotnet:local", big)));
+        Assert.Contains("base64", Rejected(Request("FROM ai-sdlc-factory/sandbox-dotnet:local", new() { ["a"] = "***" })));
     }
 
     [Fact]
     public void An_empty_or_huge_dockerfile_is_refused()
     {
         Assert.Contains("1 byte", Rejected(Request("")));
-        Assert.Contains("1 byte", Rejected(Request("FROM dev-foundry/sandbox-dotnet:local\n#" + new string('x', 70_000))));
+        Assert.Contains("1 byte", Rejected(Request("FROM ai-sdlc-factory/sandbox-dotnet:local\n#" + new string('x', 70_000))));
     }
 
     [Fact]
     public void The_image_name_depends_on_the_content_and_the_base_image()
     {
-        var a = RepoImagePolicy.Validate(Request("FROM dev-foundry/sandbox-dotnet:local\nRUN echo a"), Bases);
-        var b = RepoImagePolicy.Validate(Request("FROM dev-foundry/sandbox-dotnet:local\nRUN echo b"), Bases);
+        var a = RepoImagePolicy.Validate(Request("FROM ai-sdlc-factory/sandbox-dotnet:local\nRUN echo a"), Bases);
+        var b = RepoImagePolicy.Validate(Request("FROM ai-sdlc-factory/sandbox-dotnet:local\nRUN echo b"), Bases);
 
         var same = RepoImagePolicy.Hash("sha256:1", a);
-        Assert.Equal(same, RepoImagePolicy.Hash("sha256:1", RepoImagePolicy.Validate(Request("FROM dev-foundry/sandbox-dotnet:local\nRUN echo a"), Bases)));
+        Assert.Equal(same, RepoImagePolicy.Hash("sha256:1", RepoImagePolicy.Validate(Request("FROM ai-sdlc-factory/sandbox-dotnet:local\nRUN echo a"), Bases)));
         Assert.NotEqual(same, RepoImagePolicy.Hash("sha256:1", b));
         Assert.NotEqual(same, RepoImagePolicy.Hash("sha256:2", a)); // a rebuilt base image rebuilds the project's image
         Assert.Matches("^[0-9a-f]{12}$", same);
@@ -129,7 +129,7 @@ public sealed class RepoImagePolicyTests
         Assert.Equal(expected, RepoImageNames.IsAlias(alias));
         if (expected)
         {
-            Assert.Equal("dev-foundry/repo:0123456789ab", RepoImageNames.TagFor(alias!));
+            Assert.Equal("ai-sdlc-factory/repo:0123456789ab", RepoImageNames.TagFor(alias!));
         }
     }
 }
@@ -138,7 +138,7 @@ public sealed class RepoImageBuilderTests
 {
     private sealed class Docker : IDockerClient
     {
-        public Dictionary<string, DockerImage> Images { get; } = new() { ["dev-foundry/sandbox-dotnet:local"] = new("sha256:base", 100, new Dictionary<string, string>()) };
+        public Dictionary<string, DockerImage> Images { get; } = new() { ["ai-sdlc-factory/sandbox-dotnet:local"] = new("sha256:base", 100, new Dictionary<string, string>()) };
         public List<string> Built { get; } = [];
         public List<string> RemovedImages { get; } = [];
         public Func<Stream, string>? OnBuild { get; set; }
@@ -188,7 +188,7 @@ public sealed class RepoImageBuilderTests
         public Task<IReadOnlyList<string>> ListSandboxIdsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<string>>([]);
     }
 
-    private const string Dockerfile = "FROM dev-foundry/sandbox-dotnet:local\nRUN echo hi";
+    private const string Dockerfile = "FROM ai-sdlc-factory/sandbox-dotnet:local\nRUN echo hi";
     private static SandboxBuildRequest Request() => new(Dockerfile, new Dictionary<string, string> { ["setup.sh"] = Convert.ToBase64String("#!/bin/sh\n"u8.ToArray()) });
     private static RepoImageBuilder Builder(Docker docker, bool allow = true) => new(docker, Support.Settings(allowRepoImages: allow));
 
@@ -240,7 +240,7 @@ public sealed class RepoImageBuilderTests
     {
         var docker = new Docker();
         var first = await Builder(docker).BuildAsync(Request(), () => { }, CancellationToken.None);
-        docker.Images["dev-foundry/sandbox-dotnet:local"] = new("sha256:rebuilt", 100, new Dictionary<string, string>());
+        docker.Images["ai-sdlc-factory/sandbox-dotnet:local"] = new("sha256:rebuilt", 100, new Dictionary<string, string>());
 
         var second = await Builder(docker).BuildAsync(Request(), () => { }, CancellationToken.None);
 
@@ -303,9 +303,9 @@ public sealed class RepoImageRunPolicyTests
         var request = Support.Request(image: "repo-0123456789ab");
         var settings = Support.Settings(allowRepoImages: true);
 
-        var run = SandboxPolicy.Validate(request, settings, _ => true, alias => alias == "repo-0123456789ab" ? "dev-foundry/repo:0123456789ab" : null);
+        var run = SandboxPolicy.Validate(request, settings, _ => true, alias => alias == "repo-0123456789ab" ? "ai-sdlc-factory/repo:0123456789ab" : null);
 
-        Assert.Equal("dev-foundry/repo:0123456789ab", run.Image);
+        Assert.Equal("ai-sdlc-factory/repo:0123456789ab", run.Image);
         Assert.Throws<ApplicationFailureException>(() => SandboxPolicy.Validate(request, settings, _ => true));
         Assert.Throws<ApplicationFailureException>(() => SandboxPolicy.Validate(request, settings, _ => true, _ => null));
     }
@@ -326,7 +326,7 @@ public sealed class RepoImageSwitchTests
         var values = new Dictionary<string, string?>
         {
             ["FACTORY_WORKSPACE_ROOT"] = "/work",
-            ["SANDBOX_IMAGES"] = "dotnet=dev-foundry/sandbox-dotnet:local",
+            ["SANDBOX_IMAGES"] = "dotnet=ai-sdlc-factory/sandbox-dotnet:local",
             ["SANDBOX_NETWORKS"] = "model=n1",
             ["SANDBOX_PROXIES"] = "model=http://10.0.0.2:3128",
             ["SANDBOX_EGRESS_MODE"] = "open",

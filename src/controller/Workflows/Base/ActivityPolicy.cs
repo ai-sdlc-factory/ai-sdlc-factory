@@ -1,7 +1,7 @@
 using Temporalio.Common;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// How long and how often the workflows let an activity run. Kept in one place so a timeout is read, and changed, once, instead of in the

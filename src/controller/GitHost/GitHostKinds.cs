@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One kind of git host the controller can serve: how to reach its API, how git signs in to it, and the client that speaks its API. A new kind (GitLab, ...) is a client class, a webhook

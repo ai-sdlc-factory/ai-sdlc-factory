@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>Reviewers and the acceptance check between the automated checks and the pull request.</summary>
 [Collection("temporal")]

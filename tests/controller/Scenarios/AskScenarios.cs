@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>/ask: the asker reads the repository and the answer is posted. Nothing is written, pushed or run.</summary>
 [Collection("temporal")]

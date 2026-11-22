@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.EgressProxy.Tests;
+namespace AiSdlcFactory.EgressProxy.Tests;
 
 public sealed class DeniedLogTests : IDisposable
 {

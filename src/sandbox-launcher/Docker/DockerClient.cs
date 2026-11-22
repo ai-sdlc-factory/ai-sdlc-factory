@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>Minimal Docker Engine API client over the unix socket; no third-party dependency.</summary>
 public sealed class DockerClient : IDockerClient
@@ -80,7 +80,7 @@ public sealed class DockerClient : IDockerClient
             return;
         }
         // An ordinary bridge with outbound internet: used only when egress restrictions are switched off.
-        var body = new { Name = name, Driver = "bridge", Labels = new Dictionary<string, string> { ["dev-foundry.egress"] = "open" } };
+        var body = new { Name = name, Driver = "bridge", Labels = new Dictionary<string, string> { ["ai-sdlc-factory.egress"] = "open" } };
         try
         {
             using var created = await SendAsync(HttpMethod.Post, "networks/create", JsonContent.Create(body, options: Json), cancellationToken);

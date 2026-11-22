@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>What a finished run adds to the log besides its tokens: the rounds it used, the checks that failed and, per agent, the attempts, rejected answers and failed runs.</summary>
 [Collection("temporal")]

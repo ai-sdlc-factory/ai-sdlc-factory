@@ -1,5 +1,5 @@
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A ticket that asks the factory to build a feature, fix a bug, look at an incident or plan a larger request (<see cref="Kind"/>).

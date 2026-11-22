@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record JanitorReport(
     IReadOnlyList<string> RemovedCheckouts, IReadOnlyList<string> OldBranches, IReadOnlyList<string> DeletedBranches, IReadOnlyList<string> Problems);

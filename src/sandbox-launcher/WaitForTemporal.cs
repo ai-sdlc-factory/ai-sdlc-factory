@@ -1,6 +1,6 @@
 using System.Net.Sockets;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>
 /// Holds the launcher's start until the Temporal server can be reached. Without it, a launcher started while Temporal is still (re)starting, so its name does not resolve yet,

@@ -1,5 +1,5 @@
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>How much of a UI change makes it "medium" or "large": either number is enough.</summary>
 public sealed record UiThreshold(int Files, int Lines);

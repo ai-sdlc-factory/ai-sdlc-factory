@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class ContainerSpecTests
 {
@@ -70,7 +70,7 @@ public sealed class ContainerSpecTests
     [Fact]
     public void Container_is_labelled_so_leftovers_can_be_found()
     {
-        Assert.Equal("true", Spec().GetProperty("Labels").GetProperty("dev-foundry.sandbox").GetString());
+        Assert.Equal("true", Spec().GetProperty("Labels").GetProperty("ai-sdlc-factory.sandbox").GetString());
     }
 }
 
@@ -86,14 +86,14 @@ public sealed class LabelTests
     public void Container_says_which_workspace_and_role_it_belongs_to()
     {
         var labels = Labels(Support.Request(workspace: "feature-acme-shop-7-1a2b3c4d") with { Role = "developer" });
-        Assert.Equal("feature-acme-shop-7-1a2b3c4d", labels.GetProperty("dev-foundry.workspace").GetString());
-        Assert.Equal("developer", labels.GetProperty("dev-foundry.role").GetString());
-        Assert.Equal("true", labels.GetProperty("dev-foundry.sandbox").GetString());
+        Assert.Equal("feature-acme-shop-7-1a2b3c4d", labels.GetProperty("ai-sdlc-factory.workspace").GetString());
+        Assert.Equal("developer", labels.GetProperty("ai-sdlc-factory.role").GetString());
+        Assert.Equal("true", labels.GetProperty("ai-sdlc-factory.sandbox").GetString());
     }
 
     [Fact]
     public void A_run_without_a_role_has_no_role_label() =>
-        Assert.False(Labels(Support.Request()).TryGetProperty("dev-foundry.role", out _));
+        Assert.False(Labels(Support.Request()).TryGetProperty("ai-sdlc-factory.role", out _));
 
     [Theory]
     [InlineData("Developer")]
@@ -130,7 +130,7 @@ public sealed class ModelAuthTests
         var spec = Spec(Support.Request(modelAuth: true), Support.Settings(authReadOnly: readOnly));
 
         var volume = Assert.Single(Mounts(spec), m => m.GetProperty("Type").GetString() == "volume");
-        Assert.Equal("dev-foundry_opencode-data", volume.GetProperty("Source").GetString());
+        Assert.Equal("ai-sdlc-factory_opencode-data", volume.GetProperty("Source").GetString());
         Assert.Equal("/auth", volume.GetProperty("Target").GetString());
         Assert.Equal(readOnly, volume.GetProperty("ReadOnly").GetBoolean());
         Assert.True(volume.GetProperty("VolumeOptions").GetProperty("NoCopy").GetBoolean());

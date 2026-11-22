@@ -4,7 +4,7 @@ using System.Formats.Tar;
 using System.Text;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>Builds a repository's image once per distinct content, with limits, and reports what happened.</summary>
 public sealed class RepoImageBuilder(IDockerClient docker, SandboxSettings settings)
@@ -41,7 +41,7 @@ public sealed class RepoImageBuilder(IDockerClient docker, SandboxSettings setti
             {
                 await docker.BuildImageAsync(
                     BuildContext(build), tag, new DockerBuildLimits(settings.MemoryBytes * 2, settings.Cpus),
-                    new Dictionary<string, string> { [RepoImageNames.Label] = "true", ["dev-foundry.repo-image-hash"] = hash },
+                    new Dictionary<string, string> { [RepoImageNames.Label] = "true", ["ai-sdlc-factory.repo-image-hash"] = hash },
                     line =>
                     {
                         onHeartbeat();

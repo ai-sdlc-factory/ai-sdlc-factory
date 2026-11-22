@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class GitWorkspaceTests : IDisposable
 {
@@ -108,8 +108,8 @@ public sealed class GitWorkspaceTests : IDisposable
             .AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_GIT_AUTHOR_NAME"] = name, ["FACTORY_GIT_AUTHOR_EMAIL"] = email }).Build());
 
         var standard = Load(null, "  ");
-        Assert.Equal("Dev Foundry", standard.GitAuthorName);
-        Assert.Equal("factory-bot@dev-foundry.test", standard.GitAuthorEmail);
+        Assert.Equal("AI SDLC Factory", standard.GitAuthorName);
+        Assert.Equal("factory-bot@ai-sdlc-factory.test", standard.GitAuthorEmail);
         var custom = Load(" Shop Bot ", "bot@example.org");
         Assert.Equal("Shop Bot", custom.GitAuthorName);
         Assert.Equal("bot@example.org", custom.GitAuthorEmail);

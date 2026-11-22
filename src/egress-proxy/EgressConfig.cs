@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.EgressProxy;
+namespace AiSdlcFactory.EgressProxy;
 
 /// <summary>A named list of hosts a sandbox may reach. Audit profiles allow everything and log what they would have denied.</summary>
 public sealed record EgressProfile(string Name, IReadOnlyList<string> Hosts, bool Audit);

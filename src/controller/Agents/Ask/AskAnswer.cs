@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the <c>asker</c> concluded: an answer read from the repository, or that the repository does not say. <see cref="Files"/> are the files it says it read (checked before they are shown).</summary>
 public sealed record AskAnswer(string Verdict, string Answer, IReadOnlyList<string> Files)

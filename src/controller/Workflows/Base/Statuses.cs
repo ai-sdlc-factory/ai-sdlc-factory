@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The short words a run ends with (<see cref="WorkResult.Status"/>). Every one is described in docs/workflows.md, and

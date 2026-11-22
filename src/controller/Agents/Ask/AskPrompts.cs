@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The prompt the <c>asker</c> gets: the question, the ticket or pull request it was asked on, and for a pull request what it changes, all marked as data.</summary>
 public static class AskPrompts

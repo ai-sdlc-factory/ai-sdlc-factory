@@ -2,10 +2,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
 WORKDIR /src
 COPY Directory.Build.props Directory.Packages.props ./
-COPY src/contracts/DevFoundry.Contracts.csproj src/contracts/
-COPY src/sandbox-launcher/DevFoundry.SandboxLauncher.csproj src/sandbox-launcher/
-COPY tests/sandbox-launcher/DevFoundry.SandboxLauncher.Tests.csproj tests/sandbox-launcher/
-RUN dotnet restore tests/sandbox-launcher/DevFoundry.SandboxLauncher.Tests.csproj
+COPY src/contracts/AiSdlcFactory.Contracts.csproj src/contracts/
+COPY src/sandbox-launcher/AiSdlcFactory.SandboxLauncher.csproj src/sandbox-launcher/
+COPY tests/sandbox-launcher/AiSdlcFactory.SandboxLauncher.Tests.csproj tests/sandbox-launcher/
+RUN dotnet restore tests/sandbox-launcher/AiSdlcFactory.SandboxLauncher.Tests.csproj
 COPY src/contracts ./src/contracts
 COPY src/sandbox-launcher ./src/sandbox-launcher
 COPY tests/sandbox-launcher ./tests/sandbox-launcher
@@ -23,4 +23,4 @@ WORKDIR /app
 RUN useradd --system --uid 10001 launcher
 COPY --from=build /out ./
 USER launcher
-CMD ["dotnet", "DevFoundry.SandboxLauncher.dll"]
+CMD ["dotnet", "AiSdlcFactory.SandboxLauncher.dll"]

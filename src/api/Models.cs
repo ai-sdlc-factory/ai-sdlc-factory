@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 public sealed record WebhookReceipt(
     [property: JsonPropertyName("status")] string Status,

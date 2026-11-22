@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// How a run ended, whatever its kind (feature, bug, incident or pull request revision). <see cref="Status"/> is one of the short words listed

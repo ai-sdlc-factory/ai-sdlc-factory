@@ -28,7 +28,7 @@ def default_file() -> Path:
         for line in env.read_text().splitlines():
             if line.startswith("FACTORY_WORKSPACE_ROOT="):
                 root = line.split("=", 1)[1].strip().strip('"')
-    return Path(root or "/var/tmp/dev-foundry-workspaces") / ".usage/usage.jsonl"
+    return Path(root or "/var/tmp/ai-sdlc-factory-workspaces") / ".usage/usage.jsonl"
 
 
 def read(path: Path) -> tuple[list[dict], int]:

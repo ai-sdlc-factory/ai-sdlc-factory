@@ -2,9 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One ticket the planner proposes. <see cref="DependsOn"/> holds the numbers (starting at 1) of earlier tickets in the same plan that

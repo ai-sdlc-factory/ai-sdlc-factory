@@ -1,8 +1,8 @@
 {
   "Servers": {
     "1": {
-      "Name": "Dev Foundry PostgreSQL",
-      "Group": "Dev Foundry",
+      "Name": "AI SDLC Factory PostgreSQL",
+      "Group": "AI SDLC Factory",
       "Host": "postgres",
       "Port": 5432,
       "MaintenanceDB": "postgres",

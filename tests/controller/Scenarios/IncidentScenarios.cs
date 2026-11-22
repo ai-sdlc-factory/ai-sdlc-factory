@@ -1,7 +1,7 @@
 using Temporalio.Client;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The incident workflow: advice only. People drive it with /option, /hotfix and /resolved.</summary>
 [Collection("temporal")]

@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The developer's own account of its work. It is only a summary: what really changed is read from the

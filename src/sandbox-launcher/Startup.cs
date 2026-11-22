@@ -1,4 +1,4 @@
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>
 /// Fails fast when Docker is unreachable, checks that every egress network exists, and removes sandboxes left behind by a previous

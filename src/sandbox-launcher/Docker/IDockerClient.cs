@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 public sealed class DockerException(HttpStatusCode status, string message)
     : Exception($"Docker returned {(int)status}: {message}")

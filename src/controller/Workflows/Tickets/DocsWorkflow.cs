@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One run per ticket labelled <c>docs</c>: the documentation writer writes the repository's AGENTS.md (or brings it up to date) and the documents next to it, from the

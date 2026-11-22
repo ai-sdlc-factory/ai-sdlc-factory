@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>One thing a person asked for, numbered so the agent can answer each one: a line comment, a review's overall text, or the text after <c>/fix</c>.</summary>
 public sealed record RevisionComment(int Index, string Author, string? Path, int? Line, string Body, string? DiffHunk = null)

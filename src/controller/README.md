@@ -46,7 +46,7 @@ The controller talks to a git host only through the `IGitHost` port (one client 
 
 ## Code layout
 
-This folder (`src/controller/`) is grouped by concern. Everything is in the one namespace `DevFoundry.Controller`, and the tests follow the same folders.
+This folder (`src/controller/`) is grouped by concern. Everything is in the one namespace `AiSdlcFactory.Controller`, and the tests follow the same folders.
 
 | Folder | What is in it |
 | --- | --- |
@@ -80,8 +80,8 @@ This folder (`src/controller/`) is grouped by concern. Everything is in the one 
 From the repository root:
 
 ```bash
-docker build --target test -f src/controller/Dockerfile -t dev-foundry/controller-test .
-docker run --rm dev-foundry/controller-test
+docker build --target test -f src/controller/Dockerfile -t ai-sdlc-factory/controller-test .
+docker run --rm ai-sdlc-factory/controller-test
 ```
 
 The unit tests cover parsers, prompts, routing, the change checks and the git handling (including a planted hostile hook). The **scenario tests** run the real workflows on a Temporal dev server with scripted agents

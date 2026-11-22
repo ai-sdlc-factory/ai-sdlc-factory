@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Reads the unified diff the controller produces for reviewers (see <c>GitWorkspace.DiffAsync</c>).</summary>
 public static partial class UnifiedDiff

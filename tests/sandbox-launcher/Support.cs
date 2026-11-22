@@ -1,18 +1,18 @@
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 internal static class Support
 {
     public static SandboxSettings Settings(
-        string? globalConfig = null, string? authVolume = "dev-foundry_opencode-data", bool authReadOnly = false,
+        string? globalConfig = null, string? authVolume = "ai-sdlc-factory_opencode-data", bool authReadOnly = false,
         EgressMode egress = EgressMode.Enforce, bool allowRepoImages = false, string? model = null) => new()
     {
         WorkspaceRoot = "/work",
-        Images = new Dictionary<string, string> { ["dotnet"] = "dev-foundry/sandbox-dotnet:local" },
+        Images = new Dictionary<string, string> { ["dotnet"] = "ai-sdlc-factory/sandbox-dotnet:local" },
         Networks = new Dictionary<string, string>
         {
-            ["model"] = "dev-foundry_sandbox-model",
-            ["packages"] = "dev-foundry_sandbox-packages",
-            ["developer"] = "dev-foundry_sandbox-developer",
+            ["model"] = "ai-sdlc-factory_sandbox-model",
+            ["packages"] = "ai-sdlc-factory_sandbox-packages",
+            ["developer"] = "ai-sdlc-factory_sandbox-developer",
         },
         Proxies = new Dictionary<string, string>
         {

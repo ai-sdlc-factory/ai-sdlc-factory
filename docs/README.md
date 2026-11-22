@@ -1,6 +1,6 @@
 # Documentation
 
-Dev Foundry is an AI development factory: a ticket on a git host (Forgejo or GitHub) becomes a reviewed pull request (features and bug fixes) or advice (incidents), produced by role agents that run in
+AI SDLC Factory is an AI software factory: a ticket on a git host (Forgejo or GitHub) becomes a reviewed pull request (features and bug fixes) or advice (incidents), produced by role agents that run in
 disposable, isolated containers. A person reviews and merges; the factory never merges.
 
 ![System overview](images/architecture.svg)
@@ -34,7 +34,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Starting sandboxes | [sandbox-launcher](../src/sandbox-launcher/README.md) |
 | Internet access of the sandboxes | [egress-proxy](../src/egress-proxy/README.md) and the [allowlist](../src/egress-proxy/ALLOWLIST.md) |
 | A Forgejo to try the factory on | [forgejo](../deploy/forgejo/README.md) |
-| Alerts to tickets | [alert-intake](https://github.com/OWNER/dev-foundry-alert-intake) |
+| Alerts to tickets | [alert-intake](https://github.com/OWNER/ai-sdlc-factory-alert-intake) |
 | Deployed-pipeline test | [deployed-pipeline test](../src/api/README.md#tests) |
 
 ## The diagrams

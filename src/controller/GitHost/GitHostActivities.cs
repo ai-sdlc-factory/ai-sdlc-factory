@@ -1,6 +1,6 @@
 using Temporalio.Activities;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record CommentRequest(string Owner, string Repo, int IssueNumber, string Body);
 

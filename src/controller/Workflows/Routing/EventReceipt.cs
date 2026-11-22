@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What a routed delivery leaves in Temporal: which delivery it was and what it was about (never its contents).</summary>
 public sealed record EventReceipt(

@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>Quick mode: chosen by a person, skips coverage, design review and the acceptance check, keeps everything that guards the code.</summary>
 [Collection("temporal")]

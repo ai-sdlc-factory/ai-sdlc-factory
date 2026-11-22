@@ -1,6 +1,6 @@
 using Temporalio.Client;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>What happens to human comments that no stage can use: the person is told, and the run is not disturbed.</summary>
 [Collection("temporal")]

@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using DevFoundry.Controller.Tests.Scenarios;
+using AiSdlcFactory.Controller.Tests.Scenarios;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class RunRecordFormatTests
 {

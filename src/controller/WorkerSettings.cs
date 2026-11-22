@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed class WorkerSettings
 {
@@ -13,9 +13,9 @@ public sealed class WorkerSettings
     public int PermissionCacheSeconds { get; init; } = 300;
 
     /// <summary>The name and e-mail address on the commits the factory makes (<c>FACTORY_GIT_AUTHOR_NAME</c>, <c>FACTORY_GIT_AUTHOR_EMAIL</c>). Use an address that belongs to the bot's account where you want its commits linked to it (on GitHub, the account's noreply address).</summary>
-    public string GitAuthorName { get; init; } = "Dev Foundry";
+    public string GitAuthorName { get; init; } = "AI SDLC Factory";
 
-    public string GitAuthorEmail { get; init; } = "factory-bot@dev-foundry.test";
+    public string GitAuthorEmail { get; init; } = "factory-bot@ai-sdlc-factory.test";
 
     /// <summary>The model every agent uses unless its role file names another (<c>FACTORY_MODEL</c>); null means the default in <c>opencode.json</c>. The launcher applies it; the controller only records it.</summary>
     public string? Model { get; init; }
@@ -78,8 +78,8 @@ public sealed class WorkerSettings
         Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
         PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
         Model = ModelNames.Read(configuration[ModelNames.Variable]),
-        GitAuthorName = Identity(configuration, "FACTORY_GIT_AUTHOR_NAME", "Dev Foundry"),
-        GitAuthorEmail = Identity(configuration, "FACTORY_GIT_AUTHOR_EMAIL", "factory-bot@dev-foundry.test"),
+        GitAuthorName = Identity(configuration, "FACTORY_GIT_AUTHOR_NAME", "AI SDLC Factory"),
+        GitAuthorEmail = Identity(configuration, "FACTORY_GIT_AUTHOR_EMAIL", "factory-bot@ai-sdlc-factory.test"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),

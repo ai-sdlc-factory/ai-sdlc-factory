@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The case for the architect. Its role (and answer format) is in agents/agents/architect.md.</summary>
 public static class ArchitectPrompt

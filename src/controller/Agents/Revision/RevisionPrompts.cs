@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The case for the pull request resolver. Its role is in agents/agents/pr-resolver.md. The pull request text, the review comments and

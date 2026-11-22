@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The acceptance criteria the factory wrote into the pull request body (under "## Acceptance criteria") when it opened it, read back so a

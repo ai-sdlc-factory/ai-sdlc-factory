@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The title and body of the pull request the factory opens.</summary>
 public static class PullRequestText

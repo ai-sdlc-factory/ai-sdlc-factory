@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The <c>/qa</c> command: <c>/qa [full] [api|ui] [what to take into account]</c>. A line starting with <c>/qa</c> begins it; the words

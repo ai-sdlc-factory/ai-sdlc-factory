@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What a pull request ended up as, when the report was made.</summary>
 public static class PullStates

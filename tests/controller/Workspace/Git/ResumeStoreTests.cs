@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>The saved stage results: one small file per ticket, kept when a checkout is cleaned up and removed with the janitor's delete.</summary>
 public sealed class ResumeStoreTests : IDisposable

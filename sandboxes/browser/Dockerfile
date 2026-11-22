@@ -4,7 +4,7 @@
 # Build context is sandboxes/. Build: docker compose --profile images build sandbox-image-browser (build sandbox-image-full first).
 # The Playwright version is pinned: a project's own `@playwright/test` must be the same version to find the browser installed here
 # (PLAYWRIGHT_BROWSERS_PATH points at it). Chromium runs without its own sandbox (the container is the sandbox); Playwright does that by default.
-FROM dev-foundry/sandbox-full:local
+FROM ai-sdlc-factory/sandbox-full:local
 USER root
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
 RUN npm install --global --no-fund --no-audit playwright@1.52.0 \

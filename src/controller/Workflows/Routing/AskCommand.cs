@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The <c>/ask</c> command: a line starting with <c>/ask</c> in a comment on a ticket or pull request. The question is the rest of that line and every line after it,

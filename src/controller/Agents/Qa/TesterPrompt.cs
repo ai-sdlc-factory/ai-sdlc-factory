@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the end-to-end tester needs: the finished pull request, what it had to achieve, how the factory will run the tests, and what the last run showed.</summary>
 public static class TesterPrompt

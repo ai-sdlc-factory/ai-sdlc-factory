@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>
 /// Builds the Docker create-container body. All isolation settings are fixed here, in one place,
@@ -8,9 +8,9 @@ namespace DevFoundry.SandboxLauncher;
 /// </summary>
 public static class ContainerSpec
 {
-    public const string Label = "dev-foundry.sandbox";
-    public const string WorkspaceLabel = "dev-foundry.workspace";
-    public const string RoleLabel = "dev-foundry.role";
+    public const string Label = "ai-sdlc-factory.sandbox";
+    public const string WorkspaceLabel = "ai-sdlc-factory.workspace";
+    public const string RoleLabel = "ai-sdlc-factory.role";
     public const string WorkspaceTarget = "/workspace";
     public const string GlobalConfigTarget = "/etc/factory";
     public const string AuthTarget = "/auth";

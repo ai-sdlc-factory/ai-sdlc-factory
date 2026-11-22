@@ -5,7 +5,7 @@
 # docs/project-setup.md ("A project's own image") first. The first instruction must be exactly FROM with one of the factory's own images.
 #
 # This one adds a Redis server, so integration tests can start `redis-server` as a child process instead of needing Docker or an outside service.
-FROM dev-foundry/sandbox-dotnet-node:local
+FROM ai-sdlc-factory/sandbox-dotnet-node:local
 
 # Build steps run as root; the sandbox itself later runs as an unprivileged user.
 RUN apt-get update \

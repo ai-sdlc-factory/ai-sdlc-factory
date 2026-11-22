@@ -1,7 +1,7 @@
 using Temporalio.Api.Enums.V1;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Tells a failure of the factory's own machinery from a problem with the ticket or with what an agent wrote. When a sandbox stops

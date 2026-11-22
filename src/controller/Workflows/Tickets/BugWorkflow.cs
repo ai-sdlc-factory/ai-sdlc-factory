@@ -1,6 +1,6 @@
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One run per bug ticket. The aim is a fix that is proven by a test that fails before and passes after:

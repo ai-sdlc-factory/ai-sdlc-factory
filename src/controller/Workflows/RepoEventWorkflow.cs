@@ -4,7 +4,7 @@ using Temporalio.Common;
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 [Workflow("RepoEventWorkflow")]
 public sealed class RepoEventWorkflow

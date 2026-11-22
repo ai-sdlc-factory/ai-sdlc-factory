@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// How the QA report on a ticket marks the findings a person can have fixed with <c>/fix qa</c>, and how they are read back from the comment.
@@ -9,7 +9,7 @@ namespace DevFoundry.Controller;
 public static partial class QaReportFormat
 {
     /// <summary>Hidden marker on a QA report, so the latest one can be found.</summary>
-    public const string Marker = "<!-- dev-foundry:qa-report -->";
+    public const string Marker = "<!-- ai-sdlc-factory:qa-report -->";
 
     public const string FindingsHeading = "### Findings to fix";
 

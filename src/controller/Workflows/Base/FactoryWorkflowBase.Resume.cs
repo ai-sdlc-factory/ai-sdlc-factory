@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public abstract partial class FactoryWorkflowBase
 {

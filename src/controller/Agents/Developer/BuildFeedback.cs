@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Turns check results into the feedback the next round gets, and into short ticket lines.</summary>
 public static class BuildFeedback

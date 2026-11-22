@@ -20,8 +20,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="DevFoundry.Contracts" />
-    <ProjectReference Include="..\..\src\controller\DevFoundry.Controller.csproj" />
+    <Using Include="AiSdlcFactory.Contracts" />
+    <ProjectReference Include="..\..\src\controller\AiSdlcFactory.Controller.csproj" />
   </ItemGroup>
 
 </Project>

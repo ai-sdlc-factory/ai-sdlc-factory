@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class PullOutcomeTests : IDisposable
 {

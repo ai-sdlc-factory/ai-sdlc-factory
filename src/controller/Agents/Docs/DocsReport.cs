@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The documentation writer's answer. What changed is read from the workspace by the factory; the writer's word is only a summary.</summary>
 public sealed record DocsReport(string Verdict, string Summary, IReadOnlyList<string> Notes)

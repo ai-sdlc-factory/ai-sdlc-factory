@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>The host most tests need: one git host with the bot's token. It is called <c>forgejo</c> because that is the name whose owners stay plain (<c>acme</c>, not <c>host:acme</c>).</summary>
 internal static class TestHosts

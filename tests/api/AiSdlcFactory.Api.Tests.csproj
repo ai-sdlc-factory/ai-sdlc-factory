@@ -5,16 +5,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
+    <PackageReference Include="Xunit.SkippableFact" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <ProjectReference Include="..\..\src\egress-proxy\DevFoundry.EgressProxy.csproj" />
-    <!-- The shipped allowlist is tested too, so a careless edit fails a test. -->
-    <Content Include="..\..\src\egress-proxy\profiles.json" Link="profiles.json" CopyToOutputDirectory="PreserveNewest" />
+    <Using Include="AiSdlcFactory.Contracts" />
+    <ProjectReference Include="..\..\src\api\AiSdlcFactory.Api.csproj" />
   </ItemGroup>
 
 </Project>

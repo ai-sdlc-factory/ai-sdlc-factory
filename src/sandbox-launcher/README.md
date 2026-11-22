@@ -26,9 +26,9 @@ A request (`SandboxRunRequest` in `src/contracts`) can choose:
 - whether the run needs **model access** (the OpenCode login, below),
 - a **role** (`developer`, `gate`, ...), only used to label the container.
 
-Every container is labelled `dev-foundry.sandbox=true`, `dev-foundry.workspace=<workspace>` (the workflow id, so it
-names the repository and ticket) and `dev-foundry.role=<role>`, so with several runs in parallel
-`docker ps --filter label=dev-foundry.workspace=<id>` shows what belongs to which ticket.
+Every container is labelled `ai-sdlc-factory.sandbox=true`, `ai-sdlc-factory.workspace=<workspace>` (the workflow id, so it
+names the repository and ticket) and `ai-sdlc-factory.role=<role>`, so with several runs in parallel
+`docker ps --filter label=ai-sdlc-factory.workspace=<id>` shows what belongs to which ticket.
 
 Everything else is fixed in `ContainerSpec` and tested in `ContainerSpecTests`: non-root user (the
 workspace owner), read-only root filesystem with a 1 GB `/tmp`, all capabilities dropped,
@@ -65,7 +65,7 @@ developer `developer`, the project's checks `packages`.
 ## Model access and the OpenCode login
 
 Only a request with `needs_model_auth: true` gets the login. The launcher then mounts the Docker
-volume named by `SANDBOX_AUTH_VOLUME` (`dev-foundry_opencode-data`, the same volume the
+volume named by `SANDBOX_AUTH_VOLUME` (`ai-sdlc-factory_opencode-data`, the same volume the
 `opencode-login` service fills; see the [login guide](../../docs/opencode-login.md)) at `/auth` and sets `FACTORY_REQUIRE_AUTH=1`. Lint, build and test
 runs never see the credentials. If the volume does not exist the activity fails at once with
 "OpenCode is not signed in"; if it exists but holds no `auth.json`, the sandbox exits with code 78.
@@ -109,7 +109,7 @@ The image must contain git, the OpenCode binary, the language's tooling and `/us
 
 ## Images from a repository
 
-Off unless `FACTORY_ALLOW_REPO_IMAGES=true`. A second activity, `sandbox_build_image`, builds the image a repository describes in `.factory/Dockerfile`. The Dockerfile text and a small context arrive in the request. The launcher accepts it only if the file passes [`RepoImagePolicy`](RepoImages/RepoImagePolicy.cs) (first instruction `FROM` one of the aliased images; only `RUN`, `COPY`, `ADD`, `ENV`, `ARG`, `LABEL`; no `--from`, URLs in `ADD`, `--mount`, or parser directives; at most 50 context files and 1 MB), then builds it with the classic builder (no frontend images are fetched) with memory and CPU limits and a time limit, labels it `dev-foundry.repo-image=true`, and refuses an image over 6 GB. The tag is `dev-foundry/repo:<hash>`, where the hash covers the base image id, the Dockerfile and the context, so identical content is built once. Runs refer to it by the alias `repo-<hash>`, which is accepted only while the switch is on and only for an image that carries our label.
+Off unless `FACTORY_ALLOW_REPO_IMAGES=true`. A second activity, `sandbox_build_image`, builds the image a repository describes in `.factory/Dockerfile`. The Dockerfile text and a small context arrive in the request. The launcher accepts it only if the file passes [`RepoImagePolicy`](RepoImages/RepoImagePolicy.cs) (first instruction `FROM` one of the aliased images; only `RUN`, `COPY`, `ADD`, `ENV`, `ARG`, `LABEL`; no `--from`, URLs in `ADD`, `--mount`, or parser directives; at most 50 context files and 1 MB), then builds it with the classic builder (no frontend images are fetched) with memory and CPU limits and a time limit, labels it `ai-sdlc-factory.repo-image=true`, and refuses an image over 6 GB. The tag is `ai-sdlc-factory/repo:<hash>`, where the hash covers the base image id, the Dockerfile and the context, so identical content is built once. Runs refer to it by the alias `repo-<hash>`, which is accepted only while the switch is on and only for an image that carries our label.
 Builds run on the host's Docker with the default network, **not** through the egress proxy: this is why the switch exists and defaults to off.
 
 ## Behavior
@@ -132,8 +132,8 @@ This folder has `Sandbox/` (what a request may choose and how a run is made: `Sa
 From the repository root:
 
 ```bash
-docker build --target test -f src/sandbox-launcher/Dockerfile -t dev-foundry/sandbox-launcher-test .
-docker run --rm dev-foundry/sandbox-launcher-test
+docker build --target test -f src/sandbox-launcher/Dockerfile -t ai-sdlc-factory/sandbox-launcher-test .
+docker run --rm ai-sdlc-factory/sandbox-launcher-test
 ```
 
 The tests cover the request policy, the fixed container settings, timeout, cancellation and

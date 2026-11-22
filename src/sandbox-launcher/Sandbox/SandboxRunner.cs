@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>Runs one validated command in a disposable container and always removes the container.</summary>
 public sealed class SandboxRunner(IDockerClient docker, SandboxSettings settings, TimeSpan? heartbeatInterval = null)

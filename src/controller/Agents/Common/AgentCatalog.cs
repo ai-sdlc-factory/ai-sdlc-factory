@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Looks up which model a role is configured to use, from the same agent folder the sandboxes get. OpenCode does

@@ -1,4 +1,4 @@
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 internal static class Responses
 {

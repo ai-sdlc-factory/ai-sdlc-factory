@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>The weekly report: counting only, the same data always giving the same text, and a rule firing only when there is enough to mean something.</summary>
 public sealed class ImprovementReportTests

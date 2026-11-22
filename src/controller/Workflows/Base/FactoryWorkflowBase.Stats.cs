@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>How the agent runs of one role went in one run: the attempts made, how many answers were rejected (unusable, or against a rule), how many runs failed outright, and the tokens used.</summary>
 public sealed record RoleStats(int Attempts, int Rejected, int Failed, long Tokens);

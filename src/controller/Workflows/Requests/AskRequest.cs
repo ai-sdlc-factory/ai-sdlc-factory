@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person asked a question about the repository: <c>/ask</c> in a comment on a ticket or a pull request (a ticket needs no factory label; anyone's pull request will do).

@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Files an agent may never change: the factory's own configuration and the pipelines that run code, plus any a project adds.</summary>
 public static class ProtectedPaths

@@ -1,4 +1,4 @@
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 /// <summary>A git host this API takes webhooks from: its name (the end of its route), the kind of host it is, and the secret its deliveries are signed with.</summary>
 public sealed record WebhookHost(string Name, string Type, string Secret);

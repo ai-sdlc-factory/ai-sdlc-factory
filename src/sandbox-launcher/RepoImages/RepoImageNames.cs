@@ -1,12 +1,12 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>Names of images built from a repository: the alias a run uses and the Docker tag behind it.</summary>
 public static partial class RepoImageNames
 {
-    public const string Repository = "dev-foundry/repo";
-    public const string Label = "dev-foundry.repo-image";
+    public const string Repository = "ai-sdlc-factory/repo";
+    public const string Label = "ai-sdlc-factory.repo-image";
 
     [GeneratedRegex(@"\Arepo-[0-9a-f]{12}\z")]
     private static partial Regex AliasPattern();

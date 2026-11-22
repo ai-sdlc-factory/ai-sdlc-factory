@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public enum RoutingAction
 {
@@ -42,7 +42,7 @@ public static partial class EventRouter
     public const string DocsLabel = "docs";
 
     /// <summary>Hidden marker on every comment the factory writes, so it never answers itself.</summary>
-    public const string BotMarker = "<!-- dev-foundry:factory -->";
+    public const string BotMarker = "<!-- ai-sdlc-factory:factory -->";
 
     public static RoutingDecision Decide(RepoEvent input, TriggerRules? triggers = null)
     {

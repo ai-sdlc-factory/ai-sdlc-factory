@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace DevFoundry.EgressProxy.Tests;
+namespace AiSdlcFactory.EgressProxy.Tests;
 
 public sealed class EgressConfigTests
 {

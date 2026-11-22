@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 // The JSON names below are the wire contract between services and are stored in Temporal
 // workflow histories. Changing one is a breaking change for running and replayed workflows.

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>Builds the controller's real container, without starting the worker, so a missing registration fails here and not at deploy time.</summary>
 public sealed class CompositionTests

@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class TesterReportTests
 {

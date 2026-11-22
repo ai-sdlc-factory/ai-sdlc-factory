@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What <c>.factory/instructions.md</c> held when it was read: its text (at most <see cref="ProjectInstructions.MaxBytes"/> bytes of it) and whether the file was longer.</summary>
 public sealed record InstructionsFile(string Text, bool Cut);

@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Runs the janitor a few minutes after start and then every few hours, until the worker stops. A failed pass is logged and tried again next time.</summary>
 public sealed class JanitorService(JanitorRunner runner, WorkerSettings settings, ILogger<JanitorService> log) : BackgroundService

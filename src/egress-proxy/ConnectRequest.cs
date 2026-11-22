@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.EgressProxy;
+namespace AiSdlcFactory.EgressProxy;
 
 public sealed record ConnectRequest(string Host, int Port);
 

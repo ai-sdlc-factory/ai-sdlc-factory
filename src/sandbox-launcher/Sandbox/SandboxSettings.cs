@@ -1,4 +1,4 @@
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>
 /// How sandboxes reach the internet. Enforce: only through the egress proxy, to the hosts of the run's profile
@@ -31,7 +31,7 @@ public sealed class SandboxSettings
     public EgressMode Egress { get; init; } = EgressMode.Enforce;
 
     /// <summary>The ordinary internet-connected network used when <see cref="Egress"/> is open. The launcher creates it.</summary>
-    public string OpenNetwork { get; init; } = "dev-foundry_sandbox-open";
+    public string OpenNetwork { get; init; } = "ai-sdlc-factory_sandbox-open";
 
     /// <summary>Egress profile name to the address of that profile's proxy on its network, such as http://10.250.1.2:3128.</summary>
     public required IReadOnlyDictionary<string, string> Proxies { get; init; }
@@ -95,7 +95,7 @@ public sealed class SandboxSettings
             Networks = ParsePairs(configuration["SANDBOX_NETWORKS"], "SANDBOX_NETWORKS"),
             Proxies = ParsePairs(configuration["SANDBOX_PROXIES"], "SANDBOX_PROXIES"),
             Egress = ParseEgress(configuration["SANDBOX_EGRESS_MODE"]),
-            OpenNetwork = NonEmpty(configuration, "SANDBOX_OPEN_NETWORK", "dev-foundry_sandbox-open"),
+            OpenNetwork = NonEmpty(configuration, "SANDBOX_OPEN_NETWORK", "ai-sdlc-factory_sandbox-open"),
             UserId = configuration.GetValue("SANDBOX_UID", 1000),
             GroupId = configuration.GetValue("SANDBOX_GID", 1000),
             MemoryBytes = configuration.GetValue("SANDBOX_MEMORY_BYTES", 2L * 1024 * 1024 * 1024),

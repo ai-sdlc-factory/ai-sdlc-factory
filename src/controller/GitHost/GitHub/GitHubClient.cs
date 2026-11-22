@@ -4,9 +4,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
-using static DevFoundry.Controller.HostJson;
+using static AiSdlcFactory.Controller.HostJson;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The controller's route to GitHub (github.com or GitHub Enterprise Server): an <see cref="IGitHost"/> over the REST API, for one host. The token never leaves this process.
@@ -516,7 +516,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
-        request.Headers.UserAgent.ParseAdd("dev-foundry"); // GitHub refuses a request without one
+        request.Headers.UserAgent.ParseAdd("ai-sdlc-factory"); // GitHub refuses a request without one
         return request;
     }
 

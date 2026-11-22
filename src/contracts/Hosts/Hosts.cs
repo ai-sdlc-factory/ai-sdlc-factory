@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>
 /// How the factory names a repository. A host called <see cref="DefaultHost"/> (the name the factory's first Forgejo had) keeps plain owners (<c>acme</c>), so every id, folder

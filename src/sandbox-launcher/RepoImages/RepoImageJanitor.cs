@@ -1,4 +1,4 @@
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>
 /// Removes repository images (the ones we built from a <c>.factory/Dockerfile</c>) that are old and unused. Only images that carry our label and

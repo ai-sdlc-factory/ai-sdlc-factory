@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The weekly evaluation: a report made by counting, a ticket for it, and proposals from a read-only agent that nothing ever applies.</summary>
 [Collection("temporal")]

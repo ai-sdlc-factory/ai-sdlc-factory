@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
-using DevFoundry.Api;
+using AiSdlcFactory.Api;
 
-namespace DevFoundry.Api.Tests;
+namespace AiSdlcFactory.Api.Tests;
 
 public sealed class WebhookVerifierTests
 {

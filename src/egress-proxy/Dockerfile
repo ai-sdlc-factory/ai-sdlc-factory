@@ -2,9 +2,9 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ENV DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
 WORKDIR /src
 COPY Directory.Build.props Directory.Packages.props ./
-COPY src/egress-proxy/DevFoundry.EgressProxy.csproj src/egress-proxy/
-COPY tests/egress-proxy/DevFoundry.EgressProxy.Tests.csproj tests/egress-proxy/
-RUN dotnet restore tests/egress-proxy/DevFoundry.EgressProxy.Tests.csproj
+COPY src/egress-proxy/AiSdlcFactory.EgressProxy.csproj src/egress-proxy/
+COPY tests/egress-proxy/AiSdlcFactory.EgressProxy.Tests.csproj tests/egress-proxy/
+RUN dotnet restore tests/egress-proxy/AiSdlcFactory.EgressProxy.Tests.csproj
 COPY src/egress-proxy ./src/egress-proxy
 COPY tests/egress-proxy ./tests/egress-proxy
 RUN dotnet publish src/egress-proxy -c Release --no-restore -o /out
@@ -21,4 +21,4 @@ RUN useradd --system --uid 10001 egress \
 COPY --from=build /out ./
 USER egress
 EXPOSE 3128
-CMD ["dotnet", "DevFoundry.EgressProxy.dll"]
+CMD ["dotnet", "AiSdlcFactory.EgressProxy.dll"]

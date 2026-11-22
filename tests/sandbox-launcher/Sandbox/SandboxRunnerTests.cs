@@ -1,6 +1,6 @@
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class SandboxRunnerTests
 {

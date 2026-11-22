@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record Complexity(
     int FilesEstimate, bool MultipleProjects, bool PublicApiChange, bool DataModelChange, bool NewDependency);

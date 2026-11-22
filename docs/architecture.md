@@ -2,7 +2,7 @@
 
 [Documentation index](README.md)
 
-Dev Foundry turns tickets on a git host (Forgejo or GitHub) into reviewed pull requests (features and bug fixes) and into advice (incidents), using role
+AI SDLC Factory turns tickets on a git host (Forgejo or GitHub) into reviewed pull requests (features and bug fixes) and into advice (incidents), using role
 agents that run in disposable containers. This page explains the parts, how they talk to each other, and where the trust
 boundaries are. How each kind of ticket is handled is in [Workflows](workflows.md).
 
@@ -100,7 +100,7 @@ The [egress guide](../src/egress-proxy/ALLOWLIST.md) describes the network rules
 | [`src/egress-proxy`](../src/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
 | [`src/contracts`](../src/contracts) | the library the services share: wire types, the git host list, triggers and the webhook adapters of each kind of host |
 | [`tests/`](../tests) | the tests of each service, one folder each (the workflow scenarios run on a Temporal dev server) |
-| [`alert-intake`](https://github.com/OWNER/dev-foundry-alert-intake) | a component outside the factory, with its own build and tests: turns monitoring alerts into tickets |
+| [`alert-intake`](https://github.com/OWNER/ai-sdlc-factory-alert-intake) | a component outside the factory, with its own build and tests: turns monitoring alerts into tickets |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`deploy/`](../deploy) | Docker Compose and environment settings |

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The keys <c>.factory/project.json</c> understands, scope by scope, so that a key the factory does not know (almost always a typo, such as

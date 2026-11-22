@@ -1,7 +1,7 @@
 using Temporalio.Activities;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 public sealed class SandboxActivities(SandboxRunner runner, SandboxSettings settings, IDockerClient docker, RepoImageBuilder images)
 {

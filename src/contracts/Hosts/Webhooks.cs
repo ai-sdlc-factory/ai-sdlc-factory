@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>What a webhook delivery is about, once a host's own words are put into the factory's.</summary>
 public enum RepoEventKind

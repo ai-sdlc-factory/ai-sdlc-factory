@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>Forgejo: HMAC-SHA256 over the exact bytes in <c>X-Forgejo-Signature</c>, events named in <c>X-Forgejo-Event</c>, issues, comments and reviews in its own JSON.</summary>
 public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter

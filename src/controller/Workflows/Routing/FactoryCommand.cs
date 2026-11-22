@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The <c>/factory &lt;kind&gt;</c> command: a line that is only that, with a kind from <see cref="TriggerRules.Kinds"/> (<c>/factory feature</c>), asks for that workflow on a ticket that carries

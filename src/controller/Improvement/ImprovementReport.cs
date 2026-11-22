@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>One thing that repeated: where (the area), what (the subject) and the numbers that say so.</summary>
 public sealed record ReportFinding(string Area, string Subject, string Evidence);

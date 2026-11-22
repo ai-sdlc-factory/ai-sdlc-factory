@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Everything the factory asks of the git host that holds a repository's tickets and pull requests: the port the rest of the controller depends on. There is one implementation per kind of

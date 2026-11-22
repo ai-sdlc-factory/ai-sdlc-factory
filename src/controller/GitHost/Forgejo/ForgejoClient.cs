@@ -4,9 +4,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
-using static DevFoundry.Controller.HostJson;
+using static AiSdlcFactory.Controller.HostJson;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The controller's only route to Forgejo. The token never leaves this process: agents run in

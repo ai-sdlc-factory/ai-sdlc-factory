@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// How the factory can try a finished change for real (the <c>verify</c> key of <c>.factory/project.json</c>), used by the <c>/qa</c> run: which

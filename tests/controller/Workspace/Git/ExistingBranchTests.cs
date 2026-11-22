@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>Revising a pull request: the checkout starts from the pull request's branch and the result is pushed onto that same branch.</summary>
 public sealed class ExistingBranchTests : IDisposable

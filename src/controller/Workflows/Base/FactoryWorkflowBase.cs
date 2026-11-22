@@ -2,7 +2,7 @@ using Temporalio.Common;
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// What every factory workflow shares: the private workspace, the conversation with people on the ticket, running

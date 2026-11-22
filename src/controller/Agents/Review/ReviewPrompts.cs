@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What a reviewing agent needs to see: the case, the files that changed, and the diff.</summary>
 public static class ReviewPrompt

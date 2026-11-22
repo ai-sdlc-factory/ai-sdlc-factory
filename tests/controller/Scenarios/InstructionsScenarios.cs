@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The project's house rules (<c>.factory/instructions.md</c>) reach every agent's prompt, and only the part meant for its role.</summary>
 [Collection("temporal")]

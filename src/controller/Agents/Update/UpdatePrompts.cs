@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The case for the merge resolver. Its role is in agents/agents/merge-resolver.md. The pull request text, file names and the output of automated

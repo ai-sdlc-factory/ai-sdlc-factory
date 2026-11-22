@@ -1,6 +1,6 @@
 using Temporalio.Client;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The plan workflow: a planner proposes tickets, and nothing is created until a person approves.</summary>
 [Collection("temporal")]

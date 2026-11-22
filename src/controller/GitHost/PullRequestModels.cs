@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the factory needs to know about a pull request before it touches the branch.</summary>
 public sealed record PullRequestDetails(

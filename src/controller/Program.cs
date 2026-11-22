@@ -1,4 +1,4 @@
-using DevFoundry.Controller;
+using AiSdlcFactory.Controller;
 
 var builder = Host.CreateApplicationBuilder(args);
 var settings = WorkerSettings.FromConfiguration(builder.Configuration);
@@ -9,7 +9,7 @@ builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = Tim
 var app = builder.Build();
 
 // Who may steer the factory on each git host, said once at start: an open rule ("anyone who can comment") is easy to forget on a public repository.
-var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DevFoundry.Controller");
+var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("AiSdlcFactory.Controller");
 foreach (var host in settings.Hosts)
 {
     var rules = host.Commands ?? HostCommandRules.Open;

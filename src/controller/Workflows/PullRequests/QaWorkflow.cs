@@ -2,7 +2,7 @@ using Temporalio.Common;
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A deeper test of a finished change, started by a person with <c>/qa</c> on the ticket or on the factory's pull request. A tester agent tries the

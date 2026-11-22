@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record TriageDecision(bool NeedsArchitect, IReadOnlyList<string> Reasons);
 

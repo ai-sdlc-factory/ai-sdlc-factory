@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>A request that passed the policy, resolved to concrete values.</summary>
 public sealed record ValidatedRun(

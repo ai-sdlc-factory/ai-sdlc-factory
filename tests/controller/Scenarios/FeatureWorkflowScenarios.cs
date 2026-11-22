@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>
 /// The real FeatureWorkflow on a Temporal dev server, with scripted agents, checks, workspace and git host.

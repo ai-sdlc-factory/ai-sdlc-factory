@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the factory knows once a bug has been reproduced: used by the developer, the PR text and the checks.</summary>
 public sealed record BugBrief(

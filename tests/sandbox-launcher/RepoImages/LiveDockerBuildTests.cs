@@ -1,19 +1,19 @@
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 /// <summary>
-/// Runs the real build path against a real Docker daemon. Skipped (it passes without doing anything) unless DEV_FOUNDRY_LIVE_DOCKER=1 and the
+/// Runs the real build path against a real Docker daemon. Skipped (it passes without doing anything) unless AI_SDLC_FACTORY_LIVE_DOCKER=1 and the
 /// Docker socket is available, because it needs the base sandbox image to exist. From the repository root:
-/// docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e DEV_FOUNDRY_LIVE_DOCKER=1 -e TEST_FILTER='Category=Live' t
+/// docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e AI_SDLC_FACTORY_LIVE_DOCKER=1 -e TEST_FILTER='Category=Live' t
 /// </summary>
 [Trait("Category", "Live")]
 public sealed class LiveDockerBuildTests
 {
-    private const string Base = "dev-foundry/sandbox-dotnet:local";
+    private const string Base = "ai-sdlc-factory/sandbox-dotnet:local";
 
     [Fact]
     public async Task A_dockerfile_is_built_labelled_reused_and_runs_as_an_image_the_policy_accepts()
     {
-        if (Environment.GetEnvironmentVariable("DEV_FOUNDRY_LIVE_DOCKER") != "1")
+        if (Environment.GetEnvironmentVariable("AI_SDLC_FACTORY_LIVE_DOCKER") != "1")
         {
             return;
         }
@@ -57,7 +57,7 @@ public sealed class LiveDockerBuildTests
     [Fact]
     public async Task A_failing_run_step_reports_the_build_output_and_leaves_no_image()
     {
-        if (Environment.GetEnvironmentVariable("DEV_FOUNDRY_LIVE_DOCKER") != "1")
+        if (Environment.GetEnvironmentVariable("AI_SDLC_FACTORY_LIVE_DOCKER") != "1")
         {
             return;
         }

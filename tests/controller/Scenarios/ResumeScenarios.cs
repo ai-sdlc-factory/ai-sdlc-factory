@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>/retry carries on from the stages an earlier run of the same ticket finished, so the same agents (and questions) are not asked twice.</summary>
 [Collection("temporal")]

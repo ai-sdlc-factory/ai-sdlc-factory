@@ -1,6 +1,6 @@
 # Security policy
 
-dev-foundry runs AI agents in containers beside a Docker daemon and holds git host tokens, so please report a vulnerability privately and not as a public issue.
+AI SDLC Factory runs AI agents in containers beside a Docker daemon and holds git host tokens, so please report a vulnerability privately and not as a public issue.
 
 ## Reporting
 

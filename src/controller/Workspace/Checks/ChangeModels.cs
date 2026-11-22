@@ -1,5 +1,5 @@
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record FileChange(string Path, string Kind)
 {

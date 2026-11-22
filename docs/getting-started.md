@@ -21,8 +21,8 @@ serve needs a [short setup](project-setup.md).
 ## 1. Get the code and configure the environment
 
 ```bash
-git clone <this repository> dev-foundry
-cd dev-foundry/deploy
+git clone <this repository> ai-sdlc-factory
+cd ai-sdlc-factory/deploy
 cp -n .env.example .env      # keeps an existing .env
 chmod 600 .env
 ```
@@ -34,10 +34,10 @@ Open `deploy/.env` and set the values below. Everything else has a working defau
 | `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | **yes** | three different passwords: `openssl rand -hex 24` |
 | `PGADMIN_DEFAULT_EMAIL` | yes | any login email for pgAdmin |
 | `FACTORY_HOSTS` | **yes** | the git hosts the factory serves, as one line of JSON. For the bundled Forgejo, with the token still empty: `[{"name":"forgejo","url":"http://forgejo:3000","token":"","webhook_secret":"<openssl rand -hex 32>"}]`. The secret is what you paste into each repository's webhook later. For GitHub, or several hosts, see [Configuration](configuration.md#factory_hosts) |
-| `FACTORY_WORKSPACE_ROOT` | **yes** | an absolute host path for the checkouts. **Create it first**: `mkdir -p /var/tmp/dev-foundry-workspaces` (Docker would create it as root otherwise) |
+| `FACTORY_WORKSPACE_ROOT` | **yes** | an absolute host path for the checkouts. **Create it first**: `mkdir -p /var/tmp/ai-sdlc-factory-workspaces` (Docker would create it as root otherwise) |
 | `FACTORY_UID`, `FACTORY_GID` | **yes** | your user: `id -u`, `id -g` |
 | `DOCKER_GID` | **yes** | the group of the Docker socket: `stat -c %g /var/run/docker.sock` |
-| `FACTORY_GLOBAL_CONFIG` | **yes, in practice** | the absolute path of this repository's `agents/` folder, for example `/home/you/dev-foundry/agents`. Without it the sandboxes run without the role files and the agents cannot work |
+| `FACTORY_GLOBAL_CONFIG` | **yes, in practice** | the absolute path of this repository's `agents/` folder, for example `/home/you/ai-sdlc-factory/agents`. Without it the sandboxes run without the role files and the agents cannot work |
 | `SANDBOX_EGRESS` | no | `enforce` (default), `audit` or `open`: how strictly the sandboxes' internet access is limited |
 
 The `.env` file is ignored by Git. Never commit it.
@@ -115,7 +115,7 @@ The login should be listed, and both services should be waiting for work without
 
 ```bash
 # unit tests of each service (from the repository root)
-docker build --target test -f src/controller/Dockerfile -t dev-foundry/controller-test . && docker run --rm dev-foundry/controller-test
+docker build --target test -f src/controller/Dockerfile -t ai-sdlc-factory/controller-test . && docker run --rm ai-sdlc-factory/controller-test
 # full pipeline test against the running stack (from deploy/)
 docker compose --profile test run --build --rm --no-deps integration-tests
 ```

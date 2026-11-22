@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>What a run is likely to cost is said on the ticket, a run that wasted tokens says what it cost, and an expensive /qa run can wait for a go-ahead.</summary>
 [Collection("temporal")]

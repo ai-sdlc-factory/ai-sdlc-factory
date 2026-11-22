@@ -3,7 +3,7 @@ using Temporalio.Api.WorkflowService.V1;
 using Temporalio.Client;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 public sealed class TemporalUnavailableException(Exception inner)
     : Exception("Temporal is unavailable", inner);

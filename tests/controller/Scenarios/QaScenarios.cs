@@ -1,6 +1,6 @@
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The /qa run: a tester agent writes end-to-end tests, the factory runs the suites itself, and the report goes on the ticket.</summary>
 [Collection("temporal")]

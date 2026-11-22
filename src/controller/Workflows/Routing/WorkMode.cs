@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Quick mode skips the coverage check, the design review and the acceptance check; the analyst, the developer, the project's checks and

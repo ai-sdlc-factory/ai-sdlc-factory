@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Why a person may not steer the factory, as the answer to a command says it. Never names anyone.</summary>
 public enum CommandRefusal

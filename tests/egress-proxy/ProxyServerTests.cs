@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace DevFoundry.EgressProxy.Tests;
+namespace AiSdlcFactory.EgressProxy.Tests;
 
 /// <summary>The real proxy, listening on loopback, in front of a fake upstream that echoes what it receives.</summary>
 public sealed class ProxyHarness : IAsyncDisposable

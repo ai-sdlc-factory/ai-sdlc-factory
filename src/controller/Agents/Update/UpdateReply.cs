@@ -1,12 +1,12 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The comments the factory posts where <c>/update</c> was asked. Model and repository text is made inert before it is posted.</summary>
 public static class UpdateReply
 {
     /// <summary>Hidden marker on the comment that ends an update. It is not the revision marker, so an update never counts as a revision.</summary>
-    public const string Marker = "<!-- dev-foundry:update -->";
+    public const string Marker = "<!-- ai-sdlc-factory:update -->";
 
     public static string UpToDate(string baseBranch) =>
         $"{Marker}\n**Already up to date**\n\nThis pull request's branch already has everything that `{TicketComments.Inert(baseBranch)}` has, so there is nothing to merge.";

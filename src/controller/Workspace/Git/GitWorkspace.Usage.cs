@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What a finished run used, as the workflow knows it. The activity adds the time.</summary>
 public sealed record UsageLogEntry(string WorkflowId, string RunId, string Kind, string Repository, int Number, string Status, TokenUsage Usage, RunStats? Stats = null);

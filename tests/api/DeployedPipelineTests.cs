@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Temporalio.Client;
 
-namespace DevFoundry.Api.Tests;
+namespace AiSdlcFactory.Api.Tests;
 
 /// <summary>
 /// Exercises the separately deployed api and controller over HTTP and Temporal: one signed delivery for every git host of <c>FACTORY_HOSTS</c>. It needs a running stack, so it skips itself

@@ -1,4 +1,4 @@
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class RepoImageCleanerTests
 {
@@ -48,21 +48,21 @@ public sealed class RepoImageCleanerTests
     public async Task Only_images_older_than_the_limit_are_removed()
     {
         var (docker, cleaner) = Make(days: 60);
-        docker.Listing.Add(new("dev-foundry/repo:old000000001", Now.AddDays(-61)));
-        docker.Listing.Add(new("dev-foundry/repo:young0000002", Now.AddDays(-59)));
+        docker.Listing.Add(new("ai-sdlc-factory/repo:old000000001", Now.AddDays(-61)));
+        docker.Listing.Add(new("ai-sdlc-factory/repo:young0000002", Now.AddDays(-59)));
 
         var removed = await cleaner.RunOnceAsync(CancellationToken.None);
 
-        Assert.Equal(["dev-foundry/repo:old000000001"], removed);
-        Assert.Equal(["dev-foundry/repo:old000000001"], docker.Removed);
+        Assert.Equal(["ai-sdlc-factory/repo:old000000001"], removed);
+        Assert.Equal(["ai-sdlc-factory/repo:old000000001"], docker.Removed);
     }
 
     [Fact]
     public async Task An_image_a_container_still_uses_is_kept()
     {
         var (docker, cleaner) = Make();
-        docker.Listing.Add(new("dev-foundry/repo:busy00000001", Now.AddDays(-90)));
-        docker.InUse.Add("dev-foundry/repo:busy00000001");
+        docker.Listing.Add(new("ai-sdlc-factory/repo:busy00000001", Now.AddDays(-90)));
+        docker.InUse.Add("ai-sdlc-factory/repo:busy00000001");
 
         Assert.Empty(await cleaner.RunOnceAsync(CancellationToken.None));
     }
@@ -71,7 +71,7 @@ public sealed class RepoImageCleanerTests
     public async Task Zero_days_keeps_everything_forever()
     {
         var (docker, cleaner) = Make(days: 0);
-        docker.Listing.Add(new("dev-foundry/repo:old000000001", Now.AddDays(-900)));
+        docker.Listing.Add(new("ai-sdlc-factory/repo:old000000001", Now.AddDays(-900)));
 
         Assert.Empty(await cleaner.RunOnceAsync(CancellationToken.None));
         Assert.Empty(docker.Removed);

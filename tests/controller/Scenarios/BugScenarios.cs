@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The bug workflow: reproduce with a test the factory has seen fail, diagnose, fix, prove it with the same test.</summary>
 [Collection("temporal")]

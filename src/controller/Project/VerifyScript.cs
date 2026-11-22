@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The commands a QA run gives the sandbox. The application and the tests must share one sandbox (so that "localhost" is the same for both), which

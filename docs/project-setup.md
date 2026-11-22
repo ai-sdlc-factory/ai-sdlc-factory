@@ -317,7 +317,7 @@ What the factory accepts (anything else stops the run with `image_failed` and th
 
 | Rule | Why |
 | --- | --- |
-| The first instruction is exactly `FROM <image>` with one of the factory's own images, for example `FROM dev-foundry/sandbox-dotnet-node:local` | the image then has git, the agent and the entrypoint. No other base, no `AS`, no second `FROM` |
+| The first instruction is exactly `FROM <image>` with one of the factory's own images, for example `FROM ai-sdlc-factory/sandbox-dotnet-node:local` | the image then has git, the agent and the entrypoint. No other base, no `AS`, no second `FROM` |
 | Only `RUN`, `COPY`, `ADD`, `ENV`, `ARG` and `LABEL` follow | nothing that changes how the container starts: no `ENTRYPOINT`, `CMD`, `USER`, `WORKDIR`, `VOLUME`, `HEALTHCHECK`, `SHELL` or `EXPOSE` |
 | `COPY` and `ADD` take files from the context only: no `--from`, and `ADD` may not fetch a URL | fetch with `RUN` and a tool you trust instead |
 | No `RUN --mount`, `--network` or `--security`, and no `# syntax=` line | no build frontends or extra privileges |
@@ -325,7 +325,7 @@ What the factory accepts (anything else stops the run with `image_failed` and th
 
 It is built by the launcher with a memory and CPU limit, a time limit of 30 minutes and a size limit of 6 GB. The image is named after a hash of the Dockerfile, its context and the base image, so an unchanged file is built **once** and reused by every ticket; a change (or a rebuilt base image) builds a new one. Every agent and every gate for the ticket then runs in it. The first build can take minutes; the ticket says when it starts and when it is ready. If the build fails there is no silent fallback: the run stops with the build output, because the checks would otherwise run in an environment the project did not intend.
 
-An example that adds a Redis server for tests is in [templates/examples](../templates/examples/README.md). The `image` in `project.json` is still required; it is the one used when the Dockerfile is ignored. Old project images are not removed automatically: list them with `docker image ls dev-foundry/repo` and remove ones you no longer need with `docker image rm`.
+An example that adds a Redis server for tests is in [templates/examples](../templates/examples/README.md). The `image` in `project.json` is still required; it is the one used when the Dockerfile is ignored. Old project images are not removed automatically: list them with `docker image ls ai-sdlc-factory/repo` and remove ones you no longer need with `docker image rm`.
 
 ### Rules
 

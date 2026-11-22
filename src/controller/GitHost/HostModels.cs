@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>A pull request the host opened for the factory: its number and where a person finds it.</summary>
 public sealed record PullRequestInfo(int Number, string Url);

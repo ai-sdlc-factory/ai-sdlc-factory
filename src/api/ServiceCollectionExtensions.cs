@@ -1,6 +1,6 @@
 using Temporalio.Client;
 
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 public static class ServiceCollectionExtensions
 {

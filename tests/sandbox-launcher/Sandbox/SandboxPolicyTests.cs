@@ -1,6 +1,6 @@
 using Temporalio.Exceptions;
 
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class SandboxPolicyTests
 {
@@ -17,7 +17,7 @@ public sealed class SandboxPolicyTests
     {
         var run = Support.Valid(Support.Request(writable: true, timeout: 90));
 
-        Assert.Equal("dev-foundry/sandbox-dotnet:local", run.Image);
+        Assert.Equal("ai-sdlc-factory/sandbox-dotnet:local", run.Image);
         Assert.Equal("/work/feature-acme-shop-1", run.WorkspacePath);
         Assert.True(run.WorkspaceWritable);
         Assert.Equal(TimeSpan.FromSeconds(90), run.Timeout);
@@ -25,7 +25,7 @@ public sealed class SandboxPolicyTests
 
     [Theory]
     [InlineData("python")]
-    [InlineData("dev-foundry/sandbox-dotnet:local")]
+    [InlineData("ai-sdlc-factory/sandbox-dotnet:local")]
     [InlineData("")]
     public void Only_allowlisted_image_aliases_are_accepted(string image) =>
         Rejected(Support.Request(image: image));

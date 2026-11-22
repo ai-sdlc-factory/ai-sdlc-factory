@@ -1,4 +1,4 @@
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 /// <summary>
 /// The security-sensitive part of webhook intake, kept free of HTTP types so it can be unit tested:

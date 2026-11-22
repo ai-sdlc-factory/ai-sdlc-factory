@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>One finished run, as the usage log has it. Older lines have no <see cref="Roles"/>, rounds or check failures: they read as none.</summary>
 public sealed record LoggedRun(

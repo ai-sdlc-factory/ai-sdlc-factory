@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Configuration;
 using System.Text;
 using System.Text.Json;
-using DevFoundry.Controller;
+using AiSdlcFactory.Controller;
 using Google.Protobuf;
 using Temporalio.Api.Common.V1;
 using Temporalio.Converters;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class ContractTests
 {

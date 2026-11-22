@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>Token budgets, daily limits and the provider's usage limit: a run stops, waits or says so, and never fails silently.</summary>
 [Collection("temporal")]

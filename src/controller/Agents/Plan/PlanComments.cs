@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>A ticket the factory opened for a plan item.</summary>
 public sealed record CreatedTicket(int PlanNumber, int IssueNumber, string Url);

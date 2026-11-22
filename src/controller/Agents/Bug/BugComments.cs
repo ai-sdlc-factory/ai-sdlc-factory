@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the ticket is told at each step of a bug run. Model text is made inert before it is posted.</summary>
 public static class BugComments

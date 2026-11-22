@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The <c>/review</c> command: a line that is just <c>/review</c>, in a comment on a pull request.</summary>
 public static partial class ReviewCommand

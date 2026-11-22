@@ -1,7 +1,7 @@
 using Temporalio.Client;
 using Temporalio.Extensions.Hosting;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Everything the controller registers, in one place so a test can build the same container and prove that every service can be created

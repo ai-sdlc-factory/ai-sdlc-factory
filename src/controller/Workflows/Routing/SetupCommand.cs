@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The <c>/setup</c> command: a line that is only <c>/setup</c> in a comment on a ticket (the ticket needs no factory label). It asks the factory to propose a

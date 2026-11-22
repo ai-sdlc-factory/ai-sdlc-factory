@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record SaveResumeRequest(string Name, ResumeState State);
 

@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>When a QA run goes ahead: only on an open pull request that the factory itself opened, from a branch in the same repository.</summary>
 public static class QaRules

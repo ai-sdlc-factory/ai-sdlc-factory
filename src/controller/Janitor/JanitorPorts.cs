@@ -1,6 +1,6 @@
 using Temporalio.Client;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed record WorkspaceEntry(string Name, DateTimeOffset LastTouched);
 

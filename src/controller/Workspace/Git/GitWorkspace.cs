@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary><see cref="ExistingBranch"/> checks out a branch that already exists on the remote (a pull request being revised) instead of starting a new one.</summary>
 public sealed record WorkspaceRequest(string Owner, string Repo, string Name, string Branch, bool ExistingBranch = false);

@@ -1,6 +1,6 @@
 using Temporalio.Activities;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed class WorkspaceActivities(GitWorkspace workspace, WorkerSettings settings)
 {

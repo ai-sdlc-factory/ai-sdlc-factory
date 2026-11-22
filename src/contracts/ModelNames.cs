@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>
 /// The model every agent uses unless its role file names another (<c>FACTORY_MODEL</c>, as OpenCode writes it: <c>provider/model</c>).

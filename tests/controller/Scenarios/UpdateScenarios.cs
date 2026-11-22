@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>A person asks for the factory's pull request to be brought up to date: the base branch is merged, conflicts are resolved, the checks run again, and one merge commit is pushed.</summary>
 [Collection("temporal")]

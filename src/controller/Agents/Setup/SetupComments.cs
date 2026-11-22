@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What <c>/setup</c> says on the ticket and in the pull request. Text from the agent or from a check's output is made harmless before it is shown.</summary>
 public static class SetupComments

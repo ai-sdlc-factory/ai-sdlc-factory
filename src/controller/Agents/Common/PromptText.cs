@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Shared handling of untrusted text that goes into a prompt.</summary>
 public static class PromptText

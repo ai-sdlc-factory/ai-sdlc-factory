@@ -1,7 +1,7 @@
-using DevFoundry.Controller.Tests.Scenarios;
+using AiSdlcFactory.Controller.Tests.Scenarios;
 using Microsoft.Extensions.Configuration;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class ImprovementParserTests
 {
@@ -148,7 +148,7 @@ public sealed class ImprovementSettingsTests
     }
 
     [Theory]
-    [InlineData("dev-foundry")]
+    [InlineData("ai-sdlc-factory")]
     [InlineData("a/b/c")]
     [InlineData("a/../b")]
     [InlineData("a b/c")]

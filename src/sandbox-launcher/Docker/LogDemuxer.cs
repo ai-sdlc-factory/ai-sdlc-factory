@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.SandboxLauncher;
+namespace AiSdlcFactory.SandboxLauncher;
 
 /// <summary>
 /// Docker multiplexes stdout and stderr into one stream of frames: an 8-byte header (stream id,

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The case for the configurer. Its role is in agents/agents/configurer.md. The ticket text is data; the repository is read by the agent itself.</summary>
 public static class SetupPrompts

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>A key in .factory/project.json that the factory does not know is reported, not silently ignored; the file still works.</summary>
 public sealed class ProjectKeysTests

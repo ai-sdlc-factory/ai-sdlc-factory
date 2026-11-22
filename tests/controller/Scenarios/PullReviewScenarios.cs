@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>/review: the reviewers read a pull request's diff and post their findings on it. Whoever opened it, nothing is written, pushed or merged.</summary>
 [Collection("temporal")]

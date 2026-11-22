@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>Forgejo's adapter: how a delivery becomes the factory's own event. The router's own tests (EventRouterTests) cover the adapter and the router together.</summary>
 public sealed class WebhookAdapterTests

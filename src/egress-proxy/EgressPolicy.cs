@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace DevFoundry.EgressProxy;
+namespace AiSdlcFactory.EgressProxy;
 
 public sealed record Decision(bool Allowed, string Reason, bool Audit = false);
 

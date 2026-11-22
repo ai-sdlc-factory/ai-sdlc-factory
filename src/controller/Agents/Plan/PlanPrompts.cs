@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The case for the planner role (agents/agents/planner.md). The ticket holds text from outside, and later comments are written by

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>How one suite ended in a QA run. <see cref="Tail"/> is the end of its output; <see cref="AppDidNotStart"/> means the application never answered.</summary>
 public sealed record QaSuiteRun(string Suite, bool Passed, long ExitCode, bool TimedOut, string Tail, bool AppDidNotStart);

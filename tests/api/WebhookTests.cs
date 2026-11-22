@@ -3,14 +3,14 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using DevFoundry.Api;
+using AiSdlcFactory.Api;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DevFoundry.Api.Tests;
+namespace AiSdlcFactory.Api.Tests;
 
 public sealed class FakeGateway : ITemporalGateway
 {

@@ -1,4 +1,4 @@
-namespace DevFoundry.Api;
+namespace AiSdlcFactory.Api;
 
 public static class HealthEndpoints
 {

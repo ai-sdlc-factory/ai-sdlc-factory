@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One weekly evaluation: the ISO week to look at (<see cref="Week"/>, <c>2026-W46</c>) as the dates it covers (<see cref="From"/> to <see cref="To"/>, the end not included, <c>yyyy-MM-dd</c> in UTC),

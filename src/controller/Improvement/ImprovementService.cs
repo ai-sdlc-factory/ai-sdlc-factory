@@ -1,7 +1,7 @@
 using Temporalio.Client;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Starts the weekly evaluation: a few minutes after the controller starts and then every hour it makes sure there is a run for the last completed week (Monday to Monday, UTC).

@@ -143,7 +143,7 @@ class GitHub(Backend):
 
     def headers(self):
         return {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "dev-foundry-onboard", "Content-Type": "application/json"}
+                "User-Agent": "ai-sdlc-factory-onboard", "Content-Type": "application/json"}
 
     page_size = 100
 

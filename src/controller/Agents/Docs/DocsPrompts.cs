@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The case for the documentation writer. Its role is in agents/agents/docs-writer.md. The ticket text and the output of checks are untrusted: clipped, kept between markers and labelled as data.</summary>
 public static class DocsPrompts

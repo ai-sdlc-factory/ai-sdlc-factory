@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>The routing workflow driving feature runs: restarts, duplicates and comments reaching a waiting run.</summary>
 [Collection("temporal")]

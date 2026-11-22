@@ -1,12 +1,12 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The comment the factory posts on the pull request when a revision ends. Model text is made inert before it is posted.</summary>
 public static class RevisionReply
 {
     /// <summary>Hidden marker on every revision reply; the number of them on a pull request is the number of revisions made.</summary>
-    public const string Marker = "<!-- dev-foundry:revision -->";
+    public const string Marker = "<!-- ai-sdlc-factory:revision -->";
 
     public static string Pushed(string commit, RevisionReport report, IReadOnlyList<RevisionComment> comments, string checks, IReadOnlyList<string> reviewNotes, int rebasedOver = 0)
     {

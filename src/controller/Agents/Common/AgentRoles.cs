@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The agent roles the factory runs, one file each under <c>agents/agents/</c>. A test keeps this list equal to that folder, so a new role cannot be

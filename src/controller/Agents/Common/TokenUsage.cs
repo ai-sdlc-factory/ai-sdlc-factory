@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// What a model run used, summed over the steps OpenCode reported. <see cref="Cost"/> is exactly what OpenCode

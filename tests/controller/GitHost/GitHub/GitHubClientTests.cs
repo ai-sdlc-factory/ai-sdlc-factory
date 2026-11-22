@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>The GitHub client against a fake API: what it asks for, and how it reads GitHub's answers in the factory's words.</summary>
 public sealed class GitHubClientTests

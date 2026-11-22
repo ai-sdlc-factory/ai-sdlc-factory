@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>What a person must have on a repository to steer the factory with a comment (or a review). Ordered from the most open to the most closed.</summary>
 public enum CommandLevel

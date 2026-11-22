@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.EgressProxy;
+namespace AiSdlcFactory.EgressProxy;
 
 public sealed record AccessEntry(
     DateTimeOffset Time, string Profile, string Client, string Host, int Port,

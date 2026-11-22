@@ -14,7 +14,7 @@ Running the factory day to day: seeing what a run did, fixing common problems, c
 | how many tokens a ticket used, per role | `usage.json` and the usage table in that run record |
 | work from a run that could not finish | the `factory/issue-<n>-wip` branch (named in the comment) |
 | what a sandbox tried to reach on the internet | `docker compose logs egress-proxy`; refused hosts: `docker compose logs egress-proxy \| grep '"decision":"deny"'` |
-| which sandboxes are running and for which ticket | `docker ps --filter label=dev-foundry.sandbox=true --format '{{.Names}} {{.Label "dev-foundry.workspace"}} {{.Label "dev-foundry.role"}}'` |
+| which sandboxes are running and for which ticket | `docker ps --filter label=ai-sdlc-factory.sandbox=true --format '{{.Names}} {{.Label "ai-sdlc-factory.workspace"}} {{.Label "ai-sdlc-factory.role"}}'` |
 | why a service misbehaves | `docker compose logs -f <service>` (`api`, `controller`, `sandbox-launcher`, `egress-proxy`, `temporal`) |
 
 Temporal workflow ids look like `feature-<owner>-<repo>-<number>-<hash>` (also `bug-` and `incident-`). Each webhook delivery is its own short `forgejo-<delivery-id>` workflow that
@@ -71,12 +71,12 @@ A **janitor** in the controller cleans up once a day (the first pass is five min
 | --- | --- | --- |
 | **Leftover checkouts** (`<name>/`, `.base/<name>/`, `.records/<name>/` in `FACTORY_WORKSPACE_ROOT`, and the ticket's saved stages `.resume/<name>.json` that `/retry` reuses) | removed when the run with that id is **not running** (asked of Temporal) **and** nothing has touched the folders for 2 days. Only folders named after a run (`feature-`, `bug-`, `incident-`, `revision-`, `qa-`, `update-`, `review-`, `docs-`, `ask-`, `improvement-`) are ever touched, never anything else in that folder. If Temporal cannot be asked, nothing is removed | `FACTORY_JANITOR_CHECKOUT_DAYS` |
 | **Old `-wip` branches** (`factory/issue-<n>-wip`) in repositories the bot can push to | **listed** in the log once their last commit is 30 days old. **Deleted** only if you set `FACTORY_JANITOR_DELETE_WIP=true` **and** their ticket is closed **and** no open pull request uses them. Pull request branches (`factory/issue-<n>`) are never touched | `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` |
-| **Repository images** (`dev-foundry/repo:*`, only while `FACTORY_ALLOW_REPO_IMAGES` is on) | removed once a day when older than 60 days and no container uses them. They are rebuilt on the next use, so the only cost is a build. The launcher does this | `FACTORY_JANITOR_IMAGE_DAYS` (0 = never) |
+| **Repository images** (`ai-sdlc-factory/repo:*`, only while `FACTORY_ALLOW_REPO_IMAGES` is on) | removed once a day when older than 60 days and no container uses them. They are rebuilt on the next use, so the only cost is a build. The launcher does this | `FACTORY_JANITOR_IMAGE_DAYS` (0 = never) |
 
 Switch it off with `FACTORY_JANITOR=false`. The log line to look for after a pass: `Janitor: removed 3 old checkout(s); 1 old work-in-progress branch(es) found, 0 deleted; 0 problem(s)`.
 
 Still manual:
-- **Leftover sandbox containers** (labelled `dev-foundry.sandbox=true`) are removed whenever the launcher starts.
+- **Leftover sandbox containers** (labelled `ai-sdlc-factory.sandbox=true`) are removed whenever the launcher starts.
 - **Pull request branches** (`factory/issue-<n>`) stay until you delete them after merging.
 - **Docker**: `docker image prune` and `docker builder prune` reclaim build layers; do not prune volumes (`docker volume prune`) unless you are sure: `opencode-data` holds the login, `forgejo-data` your repositories.
 
@@ -87,8 +87,8 @@ Everything that matters in this stack is in named volumes: `postgres-data` (the 
 
 ```bash
 docker compose stop
-docker run --rm -v dev-foundry_forgejo-data:/data -v "$PWD":/backup alpine tar czf /backup/forgejo-data.tgz -C /data .
-docker run --rm -v dev-foundry_postgres-data:/data -v "$PWD":/backup alpine tar czf /backup/postgres-data.tgz -C /data .
+docker run --rm -v ai-sdlc-factory_forgejo-data:/data -v "$PWD":/backup alpine tar czf /backup/forgejo-data.tgz -C /data .
+docker run --rm -v ai-sdlc-factory_postgres-data:/data -v "$PWD":/backup alpine tar czf /backup/postgres-data.tgz -C /data .
 docker compose up -d
 ```
 
@@ -110,7 +110,7 @@ docker compose up -d
 | workflow scenarios | part of the controller tests: they run the real workflows on a Temporal dev server with scripted agents and fake activities. `python3 tools/run-scenarios.py` runs them in several containers at once (about 2 minutes instead of 7) and checks that no scenario class is left out |
 | the deployed pipeline | `docker compose --profile test run --build --rm --no-deps integration-tests` ([guide](../src/api/README.md#tests)) |
 | documentation links and settings | `python3 tools/check-docs.py` ([below](#keeping-the-documentation-correct)) |
-| vulnerable packages | `docker run --rm -v "$PWD":/w -w /w mcr.microsoft.com/dotnet/sdk:10.0 dotnet list dev-foundry.slnx package --vulnerable --include-transitive` (no line saying "has the following vulnerable packages" may appear) |
+| vulnerable packages | `docker run --rm -v "$PWD":/w -w /w mcr.microsoft.com/dotnet/sdk:10.0 dotnet list ai-sdlc-factory.slnx package --vulnerable --include-transitive` (no line saying "has the following vulnerable packages" may appear) |
 
 There is no CI service: these checks are run by hand, as in the loop in [AGENTS.md](../AGENTS.md#day-to-day).
 
@@ -124,7 +124,7 @@ There is no CI service: these checks are run by hand, as in the loop in [AGENTS.
 - **Review every pull request** like any other. The checks catch protected files, symbolic links, oversized files and common credential shapes, but they are a safety net, not a guarantee.
 - **What leaves your machine:** prompts, which contain ticket text and code excerpts, go to the model provider. Do not put secrets in tickets. Logs in incident tickets can contain personal data.
 - **Repository text is untrusted.** A hostile ticket or repository file can try to instruct an agent; roles are told to treat it as data, permissions are fixed per role, and the sandbox has no route to anything but the allowlist.
-- **Repository images are off by default.** With `FACTORY_ALLOW_REPO_IMAGES=true`, whoever can merge to a repository's default branch can run build instructions on this machine's Docker, with internet access (the egress proxy covers sandboxes while they run, not image builds). Enable it only for repositories you control. The factory limits what a Dockerfile may contain, how long and how large a build may be, and never builds one an agent wrote, but it is still the same trust as running that repository's CI. Built images pile up: `docker image ls dev-foundry/repo`.
+- **Repository images are off by default.** With `FACTORY_ALLOW_REPO_IMAGES=true`, whoever can merge to a repository's default branch can run build instructions on this machine's Docker, with internet access (the egress proxy covers sandboxes while they run, not image builds). Enable it only for repositories you control. The factory limits what a Dockerfile may contain, how long and how large a build may be, and never builds one an agent wrote, but it is still the same trust as running that repository's CI. Built images pile up: `docker image ls ai-sdlc-factory/repo`.
 
 ## Cost and usage
 
@@ -230,7 +230,7 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 | Pull request updates | only the factory's own pull requests are updated, and always by a normal push (never forced); a merge conflict in a protected file, or in more than 40 files, is left to a person; anyone who can comment can start one, unless the host has a [`commands` rule](configuration.md#factory_hosts) |
 | Reviews, updates and documentation runs spend tokens on the request of whoever may comment | `/review` works on anyone's pull request, and by default anyone who can comment can start `/review`, `/qa`, `/fix`, `/update` and `/retry`; the operator can restrict who with the host's [`commands` rule](configuration.md#factory_hosts) (off by default) |
 | Pull request revisions | only the factory's own pull requests are revised; the factory cannot resolve conversations (no API), and by default anyone who can comment on the pull request (or review it) can start a revision; see the host's [`commands` rule](configuration.md#factory_hosts) |
-| Incident tickets come from people, or from the alert intake | watching a real system needs Alertmanager pointed at the [intake](https://github.com/OWNER/dev-foundry-alert-intake) and its alerts routed in the intake's `mapping.json`. It opens a ticket only when `ALERT_INTAKE_DRY_RUN` is `false`, and the factory's incident workflow then spends tokens on every one |
+| Incident tickets come from people, or from the alert intake | watching a real system needs Alertmanager pointed at the [intake](https://github.com/OWNER/ai-sdlc-factory-alert-intake) and its alerts routed in the intake's `mapping.json`. It opens a ticket only when `ALERT_INTAKE_DRY_RUN` is `false`, and the factory's incident workflow then spends tokens on every one |
 | Unknown keys in `.factory/project.json` only produce a warning | the ticket names the key and the likely spelling, and the run goes ahead without it; see the [reference](project-setup.md#reference) |
 | Forgejo and GitHub only | each kind of git host needs a webhook adapter and an API client; GitLab, Azure DevOps and Bitbucket are not built (see [Ideas for later](ideas.md)). On GitHub, conversations a person marked resolved are not visible through the REST API, and the alert intake lists a new ticket only after a few seconds (it remembers its own for two minutes) |
 | One controller instance | the workspace folder is local to it; a second controller would need a shared or per-worker workspace |

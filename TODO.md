@@ -3,7 +3,7 @@
 Open work on the project itself, in the order it matters. Delete a line when it is done. (Designs for features are in [docs/ideas.md](docs/ideas.md).)
 
 ## Before going public
-- [ ] Create the GitHub repositories (`dev-foundry`, `dev-foundry-alert-intake`, `dev-foundry-demo`) and push the two new ones: `git remote add origin …`, `git push -u origin master`. Push the unpushed commits of `dev-foundry` too.
+- [ ] Create the GitHub repositories (`ai-sdlc-factory`, `ai-sdlc-factory-alert-intake`, `ai-sdlc-factory-demo`) and push the two new ones: `git remote add origin …`, `git push -u origin master`. Push the unpushed commits of `ai-sdlc-factory` too.
 - [ ] Replace `OWNER` in the links of all three repositories (`git grep OWNER`); change `master` to `main` in the `SECURITY.md` links if the branch is renamed.
 - [ ] Enable private vulnerability reporting on each GitHub repository (Settings, Code security), or the link in `SECURITY.md` leads nowhere.
 - [ ] Read `README.md` as a stranger would: can they tell what it is and start in ten minutes?

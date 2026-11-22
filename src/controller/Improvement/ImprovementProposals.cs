@@ -3,9 +3,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-using static DevFoundry.Controller.JsonFields;
+using static AiSdlcFactory.Controller.JsonFields;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>One change the improver suggests to the factory: what kind, which file, what to change, what in the report says so, and what could get worse.</summary>
 public sealed record ImprovementProposal(string Kind, string Target, string Change, string Evidence, string Risk)

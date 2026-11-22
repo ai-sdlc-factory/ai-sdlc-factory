@@ -18,7 +18,7 @@ Forgejo is then at http://localhost:3000 (SSH: port `2222`); finish the installa
 | --- | --- | --- |
 | `FORGEJO_HTTP_PORT`, `FORGEJO_SSH_PORT` | Forgejo's web and SSH ports on this machine (127.0.0.1 only) | `3000`, `2222` |
 | `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT` | Mailpit's inbox and SMTP ports | `8025`, `1025` |
-| `FACTORY_PROJECT` | the factory's Compose project name, if it is not `dev-foundry` (it prefixes the networks this project joins) | `dev-foundry` |
+| `FACTORY_PROJECT` | the factory's Compose project name, if it is not `ai-sdlc-factory` (it prefixes the networks this project joins) | `ai-sdlc-factory` |
 | `FORGEJO_DB_PASSWORD` | only with `compose.shared-postgres.yaml` (below): the password of the `forgejo` role in the factory's PostgreSQL | none |
 
 ## The factory bot account
@@ -27,7 +27,7 @@ The factory comments, pushes branches and opens pull requests as a user of its o
 
 ```bash
 docker compose exec -u 1000 forgejo forgejo admin user create \
-  --username factory-bot --email factory-bot@dev-foundry.test \
+  --username factory-bot --email factory-bot@ai-sdlc-factory.test \
   --random-password --must-change-password=false
 docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
   --username factory-bot --token-name controller --scopes "write:issue,write:repository" --raw
@@ -37,11 +37,11 @@ Put the token into the `"token"` of this host in `FACTORY_HOSTS` in `deploy/.env
 
 ## A Forgejo that started in the factory's stack
 
-Before this folder existed, Forgejo ran inside the factory's Compose project and kept its database in the factory's PostgreSQL and its files in the volume `dev-foundry_forgejo-data`. To carry on with exactly that data, nothing moved:
+Before this folder existed, Forgejo ran inside the factory's Compose project and kept its database in the factory's PostgreSQL and its files in the volume `ai-sdlc-factory_forgejo-data`. To carry on with exactly that data, nothing moved:
 
 ```bash
 # 1. stop and remove the old containers (named for the factory's Compose project; the data stays in the volume and the database)
-docker rm -f dev-foundry-forgejo-1 dev-foundry-mailpit-1
+docker rm -f ai-sdlc-factory-forgejo-1 ai-sdlc-factory-mailpit-1
 # 2. here: put the old FORGEJO_DB_PASSWORD (the password of the "forgejo" role) into .env, then
 docker compose -f compose.yaml -f compose.shared-postgres.yaml up -d
 ```

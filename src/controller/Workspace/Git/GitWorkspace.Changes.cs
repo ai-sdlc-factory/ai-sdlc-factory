@@ -1,7 +1,7 @@
 using System.Text;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 public sealed partial class GitWorkspace
 {

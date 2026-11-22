@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
-using DevFoundry.EgressProxy;
+using AiSdlcFactory.EgressProxy;
 
 var port = int.TryParse(Environment.GetEnvironmentVariable("EGRESS_PORT"), out var configured) ? configured : 3128;
 

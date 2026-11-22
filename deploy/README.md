@@ -47,7 +47,7 @@ Host ports can be changed in `.env`. All published ports bind to localhost. This
 
 **A git host:** the factory serves the hosts of `FACTORY_HOSTS` and starts none itself. To try it on a Forgejo of your own, run the one in [`../deploy/forgejo`](../deploy/forgejo/README.md) (a project of its own), then create the [factory bot account](../docs/getting-started.md#4-set-up-a-git-host-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md). For GitHub, see [Several git hosts](../docs/operations.md#several-git-hosts).
 
-**pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **Dev Foundry PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
+**pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **AI SDLC Factory PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
 
 **Temporal:** the setup service creates `TEMPORAL_NAMESPACE` (default `default`) with `TEMPORAL_RETENTION` (default `7d`) for closed workflows. Retention is applied only when the namespace is created.
 

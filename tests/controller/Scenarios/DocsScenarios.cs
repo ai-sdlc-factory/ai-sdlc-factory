@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>A ticket labelled docs: the writer writes or updates AGENTS.md and the documents beside it, the reviewers check them, and a pull request is opened.</summary>
 [Collection("temporal")]

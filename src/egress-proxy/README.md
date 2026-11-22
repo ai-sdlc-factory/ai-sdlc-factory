@@ -58,8 +58,8 @@ the networks it creates exist. Environment: `EGRESS_PROFILES_FILE`, `EGRESS_LIST
 From the repository root:
 
 ```bash
-docker build --target test -f src/egress-proxy/Dockerfile -t dev-foundry/egress-proxy-test .
-docker run --rm dev-foundry/egress-proxy-test
+docker build --target test -f src/egress-proxy/Dockerfile -t ai-sdlc-factory/egress-proxy-test .
+docker run --rm ai-sdlc-factory/egress-proxy-test
 ```
 
 The tests cover the policy (wildcards, ports, IP literals, audit), the address rules, the request parser,

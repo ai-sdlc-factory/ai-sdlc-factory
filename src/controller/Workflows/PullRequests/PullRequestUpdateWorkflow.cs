@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person asked for the factory's pull request to be brought up to date: <c>/update</c> in a comment on the ticket or on the pull request. The

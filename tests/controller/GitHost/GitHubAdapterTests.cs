@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>GitHub's webhook adapter, on payloads shaped as GitHub sends them.</summary>
 public sealed class GitHubAdapterTests

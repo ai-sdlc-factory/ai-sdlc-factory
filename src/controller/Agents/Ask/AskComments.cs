@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What <c>/ask</c> says on the ticket or pull request: how to use it, that it is busy, and the answer.</summary>
 public static class AskComments

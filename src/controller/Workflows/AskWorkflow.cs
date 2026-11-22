@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person asked a question with <c>/ask</c> in a comment on a ticket or a pull request. The read-only <c>asker</c> reads the default branch (for a pull request it is also given

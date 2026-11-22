@@ -1,4 +1,4 @@
-name: dev-foundry
+name: ai-sdlc-factory
 
 # Networks limit what each service can reach:
 #   data    PostgreSQL and its direct clients
@@ -15,7 +15,7 @@ name: dev-foundry
 # Helpers for the OpenCode login. They run from the Python sandbox image (which already has OpenCode),
 # only when asked for (profile opencode-tools), as the factory user and with no capabilities.
 x-opencode-tools: &opencode-tools
-  image: dev-foundry/sandbox-python:local
+  image: ai-sdlc-factory/sandbox-python:local
   build:
     context: ../sandboxes
     dockerfile: python/Dockerfile
@@ -162,7 +162,7 @@ services:
 
   api:
     <<: *hardened
-    image: dev-foundry/api:local
+    image: ai-sdlc-factory/api:local
     build:
       context: ..
       dockerfile: src/api/Dockerfile
@@ -181,7 +181,7 @@ services:
     ports:
       - "127.0.0.1:${CONTROLLER_API_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "dotnet", "DevFoundry.Api.dll", "--healthcheck"]
+      test: ["CMD", "dotnet", "AiSdlcFactory.Api.dll", "--healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -189,7 +189,7 @@ services:
 
   controller:
     <<: *hardened
-    image: dev-foundry/controller:local
+    image: ai-sdlc-factory/controller:local
     build:
       context: ..
       dockerfile: src/controller/Dockerfile
@@ -211,8 +211,8 @@ services:
       # The name and e-mail address on the commits the factory makes (see docs/configuration.md).
       # The model every agent uses unless its role file names another; empty keeps the default of agents/opencode.json. The launcher gets the same value.
       FACTORY_MODEL: ${FACTORY_MODEL:-}
-      FACTORY_GIT_AUTHOR_NAME: ${FACTORY_GIT_AUTHOR_NAME:-Dev Foundry}
-      FACTORY_GIT_AUTHOR_EMAIL: ${FACTORY_GIT_AUTHOR_EMAIL:-factory-bot@dev-foundry.test}
+      FACTORY_GIT_AUTHOR_NAME: ${FACTORY_GIT_AUTHOR_NAME:-AI SDLC Factory}
+      FACTORY_GIT_AUTHOR_EMAIL: ${FACTORY_GIT_AUTHOR_EMAIL:-factory-bot@ai-sdlc-factory.test}
       # What a project gets when its .factory/project.json "limits" do not say (see docs/configuration.md).
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}
@@ -259,7 +259,7 @@ services:
   # the hosts that profile lists and logs every decision (docker compose logs egress-proxy).
   egress-proxy:
     <<: *hardened
-    image: dev-foundry/egress-proxy:local
+    image: ai-sdlc-factory/egress-proxy:local
     build:
       context: ..
       dockerfile: src/egress-proxy/Dockerfile
@@ -285,7 +285,7 @@ services:
       sandbox-developer:
         ipv4_address: ${SANDBOX_NET_BASE:-10.250}.3.2
     healthcheck:
-      test: ["CMD", "dotnet", "DevFoundry.EgressProxy.dll", "--healthcheck"]
+      test: ["CMD", "dotnet", "AiSdlcFactory.EgressProxy.dll", "--healthcheck"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -295,7 +295,7 @@ services:
   # settings (see src/sandbox-launcher/README.md) and has no Forgejo credentials.
   sandbox-launcher:
     <<: *hardened
-    image: dev-foundry/sandbox-launcher:local
+    image: ai-sdlc-factory/sandbox-launcher:local
     build:
       context: ..
       dockerfile: src/sandbox-launcher/Dockerfile
@@ -312,18 +312,18 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       FACTORY_WORKSPACE_ROOT: ${FACTORY_WORKSPACE_ROOT:?Set FACTORY_WORKSPACE_ROOT in .env}
-      SANDBOX_IMAGES: dotnet=dev-foundry/sandbox-dotnet:local;python=dev-foundry/sandbox-python:local;node=dev-foundry/sandbox-node:local;dotnet-node=dev-foundry/sandbox-dotnet-node:local;python-node=dev-foundry/sandbox-python-node:local;full=dev-foundry/sandbox-full:local;browser=dev-foundry/sandbox-browser:local
+      SANDBOX_IMAGES: dotnet=ai-sdlc-factory/sandbox-dotnet:local;python=ai-sdlc-factory/sandbox-python:local;node=ai-sdlc-factory/sandbox-node:local;dotnet-node=ai-sdlc-factory/sandbox-dotnet-node:local;python-node=ai-sdlc-factory/sandbox-python-node:local;full=ai-sdlc-factory/sandbox-full:local;browser=ai-sdlc-factory/sandbox-browser:local
       # enforce / audit: through the egress proxy. open: no restrictions, an ordinary internet-connected network.
       SANDBOX_EGRESS_MODE: ${SANDBOX_EGRESS:-enforce}
-      SANDBOX_OPEN_NETWORK: ${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-open
-      SANDBOX_NETWORKS: model=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-model;packages=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-packages;developer=${COMPOSE_PROJECT_NAME:-dev-foundry}_sandbox-developer
+      SANDBOX_OPEN_NETWORK: ${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_sandbox-open
+      SANDBOX_NETWORKS: model=${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_sandbox-model;packages=${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_sandbox-packages;developer=${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_sandbox-developer
       SANDBOX_PROXIES: model=http://${SANDBOX_NET_BASE:-10.250}.1.2:3128;packages=http://${SANDBOX_NET_BASE:-10.250}.2.2:3128;developer=http://${SANDBOX_NET_BASE:-10.250}.3.2:3128
       SANDBOX_UID: ${FACTORY_UID:-1000}
       SANDBOX_GID: ${FACTORY_GID:-1000}
       FACTORY_GLOBAL_CONFIG: ${FACTORY_GLOBAL_CONFIG:-}
       # The model every agent uses unless its role file names another (see the controller's setting of the same name).
       FACTORY_MODEL: ${FACTORY_MODEL:-}
-      SANDBOX_AUTH_VOLUME: ${COMPOSE_PROJECT_NAME:-dev-foundry}_opencode-data
+      SANDBOX_AUTH_VOLUME: ${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_opencode-data
       # The same switch as the controller's: the launcher refuses to build a repository's image unless it is true.
       FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
       # Repository images older than this many days (0 = never) and unused are removed once a day.
@@ -344,7 +344,7 @@ services:
   # Not a service: builds the image the launcher starts for .NET projects.
   # docker compose --profile images build sandbox-image-dotnet
   sandbox-image-dotnet:
-    image: dev-foundry/sandbox-dotnet:local
+    image: ai-sdlc-factory/sandbox-dotnet:local
     build:
       context: ../sandboxes
       dockerfile: dotnet/Dockerfile
@@ -353,7 +353,7 @@ services:
     restart: "no"
 
   sandbox-image-node:
-    image: dev-foundry/sandbox-node:local
+    image: ai-sdlc-factory/sandbox-node:local
     build:
       context: ../sandboxes
       dockerfile: node/Dockerfile
@@ -362,7 +362,7 @@ services:
     restart: "no"
 
   sandbox-image-python:
-    image: dev-foundry/sandbox-python:local
+    image: ai-sdlc-factory/sandbox-python:local
     build:
       context: ../sandboxes
       dockerfile: python/Dockerfile
@@ -371,7 +371,7 @@ services:
     restart: "no"
 
   sandbox-image-dotnet-node:
-    image: dev-foundry/sandbox-dotnet-node:local
+    image: ai-sdlc-factory/sandbox-dotnet-node:local
     build:
       context: ../sandboxes
       dockerfile: dotnet-node/Dockerfile
@@ -380,7 +380,7 @@ services:
     restart: "no"
 
   sandbox-image-python-node:
-    image: dev-foundry/sandbox-python-node:local
+    image: ai-sdlc-factory/sandbox-python-node:local
     build:
       context: ../sandboxes
       dockerfile: python-node/Dockerfile
@@ -389,7 +389,7 @@ services:
     restart: "no"
 
   sandbox-image-full:
-    image: dev-foundry/sandbox-full:local
+    image: ai-sdlc-factory/sandbox-full:local
     build:
       context: ../sandboxes
       dockerfile: full/Dockerfile
@@ -398,7 +398,7 @@ services:
     restart: "no"
 
   sandbox-image-browser:
-    image: dev-foundry/sandbox-browser:local
+    image: ai-sdlc-factory/sandbox-browser:local
     build:
       context: ../sandboxes
       dockerfile: browser/Dockerfile
@@ -408,7 +408,7 @@ services:
 
   integration-tests:
     # The api's own test image, running only its tests of the deployed stack (they skip themselves anywhere else).
-    image: dev-foundry/api-test:local
+    image: ai-sdlc-factory/api-test:local
     build:
       context: ..
       dockerfile: src/api/Dockerfile

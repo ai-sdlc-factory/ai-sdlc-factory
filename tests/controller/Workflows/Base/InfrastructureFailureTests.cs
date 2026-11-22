@@ -3,7 +3,7 @@ using Temporalio.Api.Failure.V1;
 using Temporalio.Converters;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class InfrastructureFailureTests
 {

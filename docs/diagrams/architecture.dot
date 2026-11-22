@@ -1,7 +1,7 @@
 // The whole solution: who talks to whom, and where the trust boundaries are.
 digraph architecture {
   graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.38, ranksep=0.7,
-         label="Dev Foundry: system overview", labelloc=t, labeljust=l];
+         label="AI SDLC Factory: system overview", labelloc=t, labeljust=l];
   node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", fillcolor="#eef2f6", color="#5b6773", margin="0.16,0.09"];
   edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
 

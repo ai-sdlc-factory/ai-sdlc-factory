@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Contracts;
+namespace AiSdlcFactory.Contracts;
 
 /// <summary>
 /// How a host's tickets say which workflow to run. Out of the box a ticket labelled <c>feature</c>, <c>bug</c>, <c>incident</c>, <c>plan</c> or <c>docs</c> starts that workflow. A host can add to that:

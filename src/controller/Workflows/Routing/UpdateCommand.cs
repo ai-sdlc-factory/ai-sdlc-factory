@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The <c>/update</c> command: a line that is just <c>/update</c>, in a comment on a ticket or on the factory's pull request.</summary>
 public static partial class UpdateCommand

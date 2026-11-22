@@ -6,7 +6,7 @@ using Temporalio.Exceptions;
 using Temporalio.Testing;
 using Temporalio.Worker;
 
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>
 /// One Temporal dev server shared by the scenario tests. It is the real server binary the stack uses,

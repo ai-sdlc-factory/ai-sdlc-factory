@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>What the incident ticket is told. Model text is made inert before it is posted.</summary>
 public static class IncidentComments

@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Reads the output of <c>opencode run --format json</c>: one JSON event per line.</summary>
 public static class OpenCodeEvents

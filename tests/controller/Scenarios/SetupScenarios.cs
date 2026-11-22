@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests.Scenarios;
+namespace AiSdlcFactory.Controller.Tests.Scenarios;
 
 /// <summary>/setup: the configurer proposes, the controller checks the proposal, runs every proposed check, and opens a pull request with only what passed.</summary>
 [Collection("temporal")]

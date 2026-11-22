@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person asked for a deeper test of a finished change: <c>/qa</c> (or <c>/qa api</c>, <c>/qa ui</c>) in a comment on the ticket or on the factory's

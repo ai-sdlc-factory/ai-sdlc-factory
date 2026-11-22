@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Temporalio.Exceptions;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 public sealed class ForgejoClientTests
 {

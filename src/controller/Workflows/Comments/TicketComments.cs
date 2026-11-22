@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>Formats what the factory says on a ticket. Model text is untrusted, so it is made inert.</summary>
 public static class TicketComments
@@ -250,7 +250,7 @@ public static class TicketComments
             + "Try again in a moment; if it keeps happening, the operator should check the factory's token.",
     };
 
-    public const string NoticeMarker = "<!-- dev-foundry:notice -->";
+    public const string NoticeMarker = "<!-- ai-sdlc-factory:notice -->";
 
     /// <summary>A comment arrived while the build was running, which no longer takes new input.</summary>
     public const string CommentTooLate =

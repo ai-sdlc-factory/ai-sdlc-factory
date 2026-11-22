@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>One automated check a change must pass: a command run in the sandbox, without model access.</summary>
 public sealed record Gate(string Name, IReadOnlyList<string> Command, int TimeoutSeconds, string? WorkingDirectory = null)

@@ -1,7 +1,7 @@
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person asked for a review of a pull request: <c>/review</c> in a comment on it, whoever opened it. The project's reviewers (<c>reviewer</c>, and <c>security</c> if the

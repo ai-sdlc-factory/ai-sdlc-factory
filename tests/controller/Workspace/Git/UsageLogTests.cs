@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>The usage log: one line per finished run on the host, readable by tools/usage-report.py and by a person.</summary>
 public sealed class UsageLogTests : IDisposable

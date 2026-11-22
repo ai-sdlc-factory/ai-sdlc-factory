@@ -61,8 +61,8 @@ Inspect logs with `docker compose logs -f api` from `deploy/`.
 From the repository root:
 
 ```bash
-docker build --target test -f src/api/Dockerfile -t dev-foundry/api-test .
-docker run --rm dev-foundry/api-test
+docker build --target test -f src/api/Dockerfile -t ai-sdlc-factory/api-test .
+docker run --rm ai-sdlc-factory/api-test
 ```
 
 These xUnit tests run without Temporal or the worker. One of them, `DeployedPipelineTests`, tests the **deployed** stack instead and skips itself unless `API_TEST_URL` is set: for each git host of `FACTORY_HOSTS` it sends a synthetic signed issue event with a unique delivery id, waits for the real controller to complete it in Temporal, checks duplicate handling after completion, and verifies that a tampered request is rejected. It creates one workflow per host in the configured namespace and needs no repository on any host. Run it against the running stack:

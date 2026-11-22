@@ -1,6 +1,6 @@
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>A reproduction the factory itself has confirmed: the test failed on the unchanged code.</summary>
 public sealed record ConfirmedReproduction(

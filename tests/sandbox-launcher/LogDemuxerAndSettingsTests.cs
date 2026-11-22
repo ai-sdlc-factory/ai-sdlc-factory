@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System.Text;
 
-namespace DevFoundry.SandboxLauncher.Tests;
+namespace AiSdlcFactory.SandboxLauncher.Tests;
 
 public sealed class LogDemuxerAndSettingsTests
 {
@@ -11,8 +11,8 @@ public sealed class LogDemuxerAndSettingsTests
         SandboxSettings Load(string? model) => SandboxSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["FACTORY_WORKSPACE_ROOT"] = "/work",
-            ["SANDBOX_IMAGES"] = "dotnet=dev-foundry/sandbox-dotnet:local",
-            ["SANDBOX_NETWORKS"] = "model=dev-foundry_sandbox-model",
+            ["SANDBOX_IMAGES"] = "dotnet=ai-sdlc-factory/sandbox-dotnet:local",
+            ["SANDBOX_NETWORKS"] = "model=ai-sdlc-factory_sandbox-model",
             ["SANDBOX_PROXIES"] = "model=http://10.250.1.2:3128",
             ["FACTORY_MODEL"] = model,
         }).Build());

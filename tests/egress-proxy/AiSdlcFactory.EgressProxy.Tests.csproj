@@ -12,8 +12,9 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <Using Include="DevFoundry.Contracts" />
-    <ProjectReference Include="..\..\src\sandbox-launcher\DevFoundry.SandboxLauncher.csproj" />
+    <ProjectReference Include="..\..\src\egress-proxy\AiSdlcFactory.EgressProxy.csproj" />
+    <!-- The shipped allowlist is tested too, so a careless edit fails a test. -->
+    <Content Include="..\..\src\egress-proxy\profiles.json" Link="profiles.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

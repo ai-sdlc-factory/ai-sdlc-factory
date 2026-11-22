@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>The case for the coverage agent. Its role (and answer format) is in agents/agents/coverage.md.</summary>
 public static class CoveragePrompt

@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/api/AiSdlcFactory.Api.csproj" />
+    <Project Path="src/contracts/AiSdlcFactory.Contracts.csproj" />
+    <Project Path="src/controller/AiSdlcFactory.Controller.csproj" />
+    <Project Path="src/egress-proxy/AiSdlcFactory.EgressProxy.csproj" />
+    <Project Path="src/sandbox-launcher/AiSdlcFactory.SandboxLauncher.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/api/AiSdlcFactory.Api.Tests.csproj" />
+    <Project Path="tests/controller/AiSdlcFactory.Controller.Tests.csproj" />
+    <Project Path="tests/egress-proxy/AiSdlcFactory.EgressProxy.Tests.csproj" />
+    <Project Path="tests/sandbox-launcher/AiSdlcFactory.SandboxLauncher.Tests.csproj" />
+  </Folder>
+</Solution>

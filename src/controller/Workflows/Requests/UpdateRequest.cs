@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// A person asked the factory to bring its pull request up to date with the base branch: <c>/update</c> in a comment on the ticket or on the pull

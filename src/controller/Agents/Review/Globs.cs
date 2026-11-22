@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// File path patterns. <c>*</c> matches within one folder level, <c>**</c> across levels (<c>**/</c> also

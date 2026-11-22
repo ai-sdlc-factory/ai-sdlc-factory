@@ -1,4 +1,4 @@
-namespace DevFoundry.Controller.Tests;
+namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>A pull request that changes only the UI, in a project with ui paths but no ui suite, is noticed by comparing paths before a tester run is spent.</summary>
 public sealed class QaUiGapTests

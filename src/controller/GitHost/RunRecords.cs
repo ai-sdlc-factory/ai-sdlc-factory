@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// The factory's own run record (<c>.factory/runs/**</c>, committed to a pull request when a project sets <c>record</c>) is not part of what a pull request changes: it is the

@@ -2,7 +2,7 @@ using Temporalio.Common;
 using Temporalio.Exceptions;
 using Temporalio.Workflows;
 
-namespace DevFoundry.Controller;
+namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// One run per incident ticket, advice only: nothing here touches production, and the ticket (written by a person or
