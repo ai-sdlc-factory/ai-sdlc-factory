@@ -19,6 +19,7 @@ Forgejo is then at http://localhost:3000 (SSH: port `2222`); finish the installa
 | `FORGEJO_HTTP_PORT`, `FORGEJO_SSH_PORT` | Forgejo's web and SSH ports on this machine (127.0.0.1 only) | `3000`, `2222` |
 | `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT` | Mailpit's inbox and SMTP ports | `8025`, `1025` |
 | `FACTORY_PROJECT` | the factory's Compose project name, if it is not `ai-sdlc-factory` (it prefixes the networks this project joins) | `ai-sdlc-factory` |
+| `COMPOSE_PROJECT_NAME` | this project's own Compose name, which names its containers and volumes. A Forgejo started before the rename from dev-foundry keeps its data by setting `dev-foundry-forgejo` here | `ai-sdlc-factory-forgejo` |
 | `FORGEJO_DB_PASSWORD` | only with `compose.shared-postgres.yaml` (below): the password of the `forgejo` role in the factory's PostgreSQL | none |
 
 ## The factory bot account

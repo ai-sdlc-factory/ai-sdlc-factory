@@ -170,16 +170,16 @@ The service that turns monitoring alerts into tickets is a tool of its own, outs
 | `SANDBOX_AUTH_VOLUME` | `ai-sdlc-factory_opencode-data` (set in Compose) | the volume holding the OpenCode login. Empty disables model runs |
 | `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | `true` lets the launcher build the image a repository describes in `.factory/Dockerfile` (memory- and time-limited, at most 6 GB). Without it every such request is refused |
 | `FACTORY_JANITOR_IMAGE_DAYS` | `60` (set by Compose) | repository images (built from `.factory/Dockerfile`) older than this many days and not used by a container are removed once a day, only while `FACTORY_ALLOW_REPO_IMAGES` is on; 0 keeps them. They are rebuilt when a repository needs them again |
-| `SANDBOX_AUTH_READONLY` | `false` | `true` forbids an agent from changing the login, at the cost of a login that stops working when its token expires |
+| `SANDBOX_AUTH_READONLY` | `false` (set by Compose; change it in `deploy/.env`) | `true` forbids an agent from changing the login, at the cost of a login that stops working when its token expires |
 | `FACTORY_GLOBAL_CONFIG` | from `.env` | the agents folder mounted at `/etc/factory` |
 | `SANDBOX_UID`, `SANDBOX_GID` | `1000` | the user the sandbox runs as (from `FACTORY_UID`/`FACTORY_GID`); must not be root |
-| `SANDBOX_MEMORY_BYTES` | 2 GiB | memory limit per sandbox (swap equal, so no swapping) |
-| `SANDBOX_CPUS` | `2` | CPU limit per sandbox |
-| `SANDBOX_PIDS_LIMIT` | `1024` | process and thread limit per sandbox (a browser, an application and the agent together need several hundred; too low and a QA run dies with exit code 134) |
-| `SANDBOX_MAX_RUN_SECONDS` | `1800` | the longest a single run may take; a request's own timeout is capped by it |
-| `SANDBOX_MAX_CONCURRENT` | `2` | sandboxes running at once; others wait |
-| `SANDBOX_TASK_QUEUE` | `sandbox` | the Temporal queue the launcher polls |
-| `DOCKER_SOCKET` | `/var/run/docker.sock` | where the launcher reaches Docker |
+| `SANDBOX_MEMORY_BYTES` | 2 GiB, `2147483648` (set by Compose; change it in `deploy/.env`) | memory limit per sandbox (swap equal, so no swapping) |
+| `SANDBOX_CPUS` | `2` (set by Compose; change it in `deploy/.env`) | CPU limit per sandbox |
+| `SANDBOX_PIDS_LIMIT` | `1024` (set by Compose; change it in `deploy/.env`) | process and thread limit per sandbox (a browser, an application and the agent together need several hundred; too low and a QA run dies with exit code 134) |
+| `SANDBOX_MAX_RUN_SECONDS` | `1800` (set by Compose; change it in `deploy/.env`) | the longest a single run may take; a request's own timeout is capped by it |
+| `SANDBOX_MAX_CONCURRENT` | `2` (set by Compose; change it in `deploy/.env`) | sandboxes running at once; others wait |
+| `SANDBOX_TASK_QUEUE` | `sandbox` (fixed: the controller uses the same name; Compose does not pass it) | the Temporal queue the launcher polls |
+| `DOCKER_SOCKET` | `/var/run/docker.sock` (fixed: Compose mounts the socket there; not a setting to change) | where the launcher reaches Docker |
 
 What the launcher fixes for **every** sandbox, whatever a request says: non-root user, read-only root filesystem with a 1 GB `/tmp`, all capabilities dropped, `no-new-privileges`, no
 privileged mode, no devices, an init process, the memory, CPU and process limits above, and no mounts except the workspace, the agents folder (read-only) and, for model runs, the
@@ -192,7 +192,7 @@ login volume. Details: [launcher guide](../src/sandbox-launcher/README.md).
 | `EGRESS_PROFILES_FILE` | `/etc/egress/profiles.json` (mounted from `EGRESS_PROFILES`) | the allowlist file; the proxy refuses to start if it cannot parse it |
 | `EGRESS_LISTEN_MAP` | set in Compose | which profile each listen address belongs to |
 | `EGRESS_MODE` | `enforce` (from `SANDBOX_EGRESS`) | `enforce`, `audit`, `open` (open bypasses the proxy entirely) |
-| `EGRESS_PORT` | `3128` | the proxy's port |
+| `EGRESS_PORT` | `3128` (fixed: the sandboxes' proxy addresses name it; not a setting to change) | the proxy's port |
 | `EGRESS_DENIED_LOG` | `/var/log/egress/denied.jsonl` (set by Compose) | a file every refusal is also written to, one JSON line each, at most 10 MB; the controller's [weekly report](operations.md#the-weekly-report-what-repeats) reads it. Empty = no file (refusals are still on the console) |
 
 The allowlist format, adding a host, and what the protection does and does not cover are in the [egress guide](../src/egress-proxy/ALLOWLIST.md).

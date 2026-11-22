@@ -324,6 +324,13 @@ services:
       # The model every agent uses unless its role file names another (see the controller's setting of the same name).
       FACTORY_MODEL: ${FACTORY_MODEL:-}
       SANDBOX_AUTH_VOLUME: ${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_opencode-data
+      # Limits of each sandbox and how many run at once (see docs/configuration.md). SANDBOX_AUTH_READONLY=true keeps an agent from changing the login.
+      SANDBOX_MEMORY_BYTES: ${SANDBOX_MEMORY_BYTES:-2147483648}
+      SANDBOX_CPUS: ${SANDBOX_CPUS:-2}
+      SANDBOX_PIDS_LIMIT: ${SANDBOX_PIDS_LIMIT:-1024}
+      SANDBOX_MAX_RUN_SECONDS: ${SANDBOX_MAX_RUN_SECONDS:-1800}
+      SANDBOX_MAX_CONCURRENT: ${SANDBOX_MAX_CONCURRENT:-2}
+      SANDBOX_AUTH_READONLY: ${SANDBOX_AUTH_READONLY:-false}
       # The same switch as the controller's: the launcher refuses to build a repository's image unless it is true.
       FACTORY_ALLOW_REPO_IMAGES: ${FACTORY_ALLOW_REPO_IMAGES:-false}
       # Repository images older than this many days (0 = never) and unused are removed once a day.
