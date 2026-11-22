@@ -57,3 +57,7 @@ Start at the [documentation index](docs/README.md).
 
 All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) (it holds `src/` and `tests/`) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
 [`Directory.Packages.props`](Directory.Packages.props); change a package version there, not in a project file.
+
+## License
+
+[MIT](LICENSE).
