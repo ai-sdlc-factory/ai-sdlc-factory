@@ -24,6 +24,15 @@ BOT_TOKEN = "bot-token-should-never-reach-github"
 OPERATOR_TOKEN = "operator-token-abcdef"
 
 
+def forgejo_events(sent):
+    """What Forgejo (17.0.1) stores and reports: it only accepts the review events as `pull_request_review`, drops `pull_request_review_rejected`
+    and the like, and reports that one name as three. A fake that echoed the request would hide the bug where the review event never arrived."""
+    kept = [event for event in sent if not event.startswith("pull_request_review")]
+    if "pull_request_review" in sent:
+        kept += ["pull_request_review_approved", "pull_request_review_rejected", "pull_request_review_comment"]
+    return kept
+
+
 class Fake:
     """One repository on a fake host, and a log of every request made to it."""
 
@@ -34,6 +43,7 @@ class Fake:
         self.requests = []
         self.next_id = 1
         self.page_cap = 50  # like Forgejo's default
+        self.forgejo = True  # GitHub tests turn this off: GitHub stores the events as they were sent
 
         fake = self
 
@@ -70,14 +80,14 @@ class Fake:
                 if path == "/repos/acme/shop/hooks":
                     if method == "GET":
                         return self.answer(200, fake.hooks)
-                    hook = {"id": fake.next_id, "events": body["events"], "active": True, "config": {"url": body["config"]["url"]}}
+                    hook = {"id": fake.next_id, "events": fake.stored(body["events"]), "active": True, "config": {"url": body["config"]["url"]}}
                     fake.next_id += 1
                     fake.hooks.append(hook)
                     return self.answer(201, hook)
                 match = re.fullmatch(r"/repos/acme/shop/hooks/(\d+)", path)
                 if match and method == "PATCH":
                     hook = next(h for h in fake.hooks if h["id"] == int(match.group(1)))
-                    hook["events"], hook["active"] = body["events"], body["active"]
+                    hook["events"], hook["active"] = fake.stored(body["events"]), body["active"]
                     return self.answer(200, hook)
                 if path == "/repos/acme/shop/contents/.factory/project.json":
                     if fake.project_json is None:
@@ -97,6 +107,9 @@ class Fake:
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def stored(self, sent):
+        return forgejo_events(sent) if self.forgejo else sent
 
     def close(self):
         self.server.shutdown()
@@ -151,7 +164,7 @@ class ForgejoTests(unittest.TestCase):
         self.assertEqual(8, len(self.fake.labels))
         hook = self.fake.hooks[0]
         self.assertEqual("http://api:8000/webhooks/forgejo", hook["config"]["url"])
-        self.assertEqual(onboard.Forgejo.events, hook["events"])
+        self.assertEqual(sorted(forgejo_events(onboard.Forgejo.request_events(onboard.Forgejo.events))), sorted(hook["events"]))
         self.assertTrue(all(r[2] == "token forgejo-bot-token" for r in self.fake.requests))
         self.assertIn(".factory/project.json: found, keys: gates, image", output)
 
@@ -171,7 +184,7 @@ class ForgejoTests(unittest.TestCase):
         _, output = run("acme/shop", hosts=self.hosts)
 
         self.assertEqual(1, len(self.fake.hooks))
-        self.assertEqual(set(onboard.Forgejo.events), set(self.fake.hooks[0]["events"]))
+        self.assertEqual(set(forgejo_events(onboard.Forgejo.request_events(onboard.Forgejo.events))), set(self.fake.hooks[0]["events"]))
         self.assertIn("webhook: updated", output)
 
     def test_labels_beyond_the_first_page_are_found(self):
@@ -201,6 +214,7 @@ class ForgejoTests(unittest.TestCase):
 class GitHubTests(unittest.TestCase):
     def setUp(self):
         self.fake = Fake()
+        self.fake.forgejo = False
         self.addCleanup(self.fake.close)
         self.hosts = [{"name": "github", "type": "github", "url": "https://github.com", "token": BOT_TOKEN, "webhook_secret": WEBHOOK_SECRET}]
         self.args = ["acme/shop", "--url", self.fake.url, "--public-url", "https://factory.example.org"]

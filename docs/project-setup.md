@@ -35,7 +35,7 @@ branches (`factory/issue-<n>`, `factory/issue-<n>-wip`) and opens pull requests.
 | HTTP method | `POST` |
 | Content type | `application/json` |
 | Secret | the host's `webhook_secret` from `FACTORY_HOSTS` in `deploy/.env` (the same for every repository on that host) |
-| Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** (this also carries the slash commands on pull requests: `/fix`, `/update`, `/qa` and `/review`). Add **Pull Request Review Rejected** if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
+| Trigger on | **Custom events**: **Issues**, **Issue Label**, **Issue Comment** and **Pull Request Comment** (a comment on a pull request is a different event from one on a ticket, and carries the slash commands there: `/fix`, `/update`, `/qa` and `/review`; without it they are silently ignored). Add **Pull Request Review** (rejected) if a review that requests changes should start a [revision](workflows.md#pull-request-revisions) |
 | Active | yes |
 
 *On GitHub* the webhook is set up on the repository (Settings, Webhooks) with the payload URL `…/webhooks/<host name>`, content type `application/json`, the host's secret and the events Issues, Issue comments and Pull request reviews; see [Several git hosts](operations.md#several-git-hosts).

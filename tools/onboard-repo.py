@@ -92,7 +92,7 @@ class Backend:
 
 class Forgejo(Backend):
     events = ["issues", "issue_label", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_rejected"]
-    token_hint = "the bot's token needs write access to the repository"
+    token_hint = "the bot's token needs write access to the repository, and on Forgejo only a repository administrator may manage webhooks: add the bot as an administrator, or create the webhook yourself"
 
     def headers(self):
         return {"Authorization": f"token {self.token}", "Content-Type": "application/json"}
@@ -119,13 +119,19 @@ class Forgejo(Backend):
         found = self.paged(self.api(f"repos/{repo}/hooks")) or []
         return [{"id": hook["id"], "url": hook.get("config", {}).get("url"), "events": hook.get("events", []), "active": hook.get("active", False)} for hook in found]
 
+    @staticmethod
+    def request_events(events):
+        """The names to send. Forgejo reports the three review events (`pull_request_review_approved`, `_rejected`, `_comment`) but only accepts
+        them under the one name `pull_request_review`; the others are dropped without an error, and a review that requests changes would never arrive."""
+        return sorted({"pull_request_review" if event.startswith("pull_request_review_") else event for event in events})
+
     def create_hook(self, repo, url, secret):
-        body = {"type": "forgejo", "active": True, "events": self.events, "config": {"url": url, "content_type": "json", "secret": secret}}
+        body = {"type": "forgejo", "active": True, "events": self.request_events(self.events), "config": {"url": url, "content_type": "json", "secret": secret}}
         status, _ = self.call("POST", self.api(f"repos/{repo}/hooks"), body)
         return status == 201, status
 
     def update_hook(self, repo, hook, events):
-        status, _ = self.call("PATCH", self.api(f"repos/{repo}/hooks/{hook['id']}"), {"active": True, "events": events})
+        status, _ = self.call("PATCH", self.api(f"repos/{repo}/hooks/{hook['id']}"), {"active": True, "events": self.request_events(events)})
         return status == 200, status
 
     def read_file(self, repo, path, branch):
