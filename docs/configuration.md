@@ -153,7 +153,7 @@ to that service's `environment` block in `deploy/compose.yaml` (they are not in 
 
 ### alert-intake
 
-The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](../alert-intake/README.md#settings).
+The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](https://github.com/OWNER/dev-foundry-alert-intake#settings).
 
 ### sandbox-launcher
 

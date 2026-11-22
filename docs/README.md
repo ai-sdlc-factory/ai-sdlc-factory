@@ -34,7 +34,7 @@ disposable, isolated containers. A person reviews and merges; the factory never 
 | Starting sandboxes | [sandbox-launcher](../src/sandbox-launcher/README.md) |
 | Internet access of the sandboxes | [egress-proxy](../src/egress-proxy/README.md) and the [allowlist](../src/egress-proxy/ALLOWLIST.md) |
 | A Forgejo to try the factory on | [forgejo](../deploy/forgejo/README.md) |
-| Alerts to tickets | [alert-intake](../alert-intake/README.md) |
+| Alerts to tickets | [alert-intake](https://github.com/OWNER/dev-foundry-alert-intake) |
 | Deployed-pipeline test | [deployed-pipeline test](../src/api/README.md#tests) |
 
 ## The diagrams

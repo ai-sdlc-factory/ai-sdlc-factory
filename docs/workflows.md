@@ -154,7 +154,7 @@ after). The failing run is posted on the ticket as well. The `quick` label skips
 ![Incident workflow](images/incident-workflow.svg)
 
 **Advice only. Nothing touches production.** The ticket is the only source of facts. It is written by a person, or filed by something else
-(the [alert intake](../alert-intake/README.md) does it from a monitoring alert); the agents have no logs, metrics or credentials.
+(the [alert intake](https://github.com/OWNER/dev-foundry-alert-intake) does it from a monitoring alert); the agents have no logs, metrics or credentials.
 
 | Step | Who | What the factory checks itself |
 | --- | --- | --- |

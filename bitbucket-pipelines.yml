@@ -28,12 +28,6 @@ pipelines:
               - docker run --rm $SERVICE-test
         - step:
             <<: *service-tests
-            name: Test alert-intake
-            script:
-              - docker build --target test -t alert-intake-test alert-intake
-              - docker run --rm alert-intake-test
-        - step:
-            <<: *service-tests
             name: Test egress-proxy
             script:
               - export SERVICE=egress-proxy

@@ -8,9 +8,7 @@ What is left to build, as designs and not promises. Each says what problem it so
 | --- | --- | --- | --- |
 | 1 | [More git hosts](#1-more-git-hosts) | the factory serves Forgejo and GitHub only | days per host |
 
-Left out on purpose, for now: a self-contained monitoring example (Prometheus, Loki and Alertmanager wired to the alert intake) to run against any repository; the demo it would replace only worked against a private repository. The alert intake's README has a dry-run "Try it" instead.
-
-Also left out: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
+Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
 
 Also left out: teams in the rules of who may steer the factory (`"team": "org/team"` next to `allow`). The access levels (`write`, `admin`) already cover most teams, because a team's members get their access from it; team lookups only exist for organizations and need an extra token permission on each host (GitHub: Members read; Forgejo: `read:organization`), so they widen the bot's token for a convenience, and they could not be checked live without an organization on each host. If a long `allow` list going stale becomes the real problem, reading the list from a file is the cheaper fix.
 
@@ -24,7 +22,7 @@ Who may steer the factory is built too: a host (and single repositories of it) c
 
 **Problem.** A team on GitLab, Azure DevOps or Bitbucket cannot use the factory. Everything else is host-neutral by now (the [port, the events and the identity](operations.md#several-git-hosts)), so a host is one client, one webhook adapter, a few settings and a live check.
 
-**How.** The recipe is the rule "a new kind of git host" in [AGENTS.md](../AGENTS.md): a webhook adapter in `src/contracts/Hosts/` (with tests of its payloads and its signature or secret), an `IGitHost` client in `GitHost/<Kind>/` and one entry in `GitHostKinds` (a test checks that every adapter has one), a ticket client on `RestTicketHost` and an entry in `TicketHostKinds` in the alert intake if alerts should open tickets there, a column in [git-hosts.md](git-hosts.md) (the bot account, the token scopes, the webhook and its events, the permissions) and a row in the limitations of [operations.md](operations.md) if it differs, and a live run on a real repository (the first GitHub run found two bugs that fakes could not).
+**How.** The recipe is the rule "a new kind of git host" in [AGENTS.md](../AGENTS.md): a webhook adapter in `src/contracts/Hosts/` (with tests of its payloads and its signature or secret), an `IGitHost` client in `GitHost/<Kind>/` and one entry in `GitHostKinds` (a test checks that every adapter has one), a ticket client on `RestTicketHost` and an entry in `TicketHostKinds` in the [alert intake](https://github.com/OWNER/dev-foundry-alert-intake) (its own repository) if alerts should open tickets there, a column in [git-hosts.md](git-hosts.md) (the bot account, the token scopes, the webhook and its events, the permissions) and a row in the limitations of [operations.md](operations.md) if it differs, and a live run on a real repository (the first GitHub run found two bugs that fakes could not).
 
 | Host | Effort | Difficulty |
 | --- | --- | --- |
