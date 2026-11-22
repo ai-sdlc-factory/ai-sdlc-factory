@@ -13,3 +13,6 @@ TestResults/
 .vscode/
 __pycache__/
 *.pyc
+
+# Local only: the author's to-do list
+/TODO.md
