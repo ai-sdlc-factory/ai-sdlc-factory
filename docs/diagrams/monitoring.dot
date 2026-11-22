@@ -6,9 +6,9 @@ digraph monitoring {
 
   subgraph cluster_app {
     label="The application (delivered from the default branch)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    deploy [label="deploy.sh\nfetch · build · switch over\ncheck · roll back", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-    api    [label="weather-api\n(.NET, SQLite)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    web    [label="weather-web\n(nginx)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    deploy [label="deploy.sh\nbuild · switch over\ncheck · roll back", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+    api    [label="shop-api\n(Python, SQLite)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    web    [label="shop-web\n(nginx)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
   }
 
   subgraph cluster_watch {
@@ -27,7 +27,7 @@ digraph monitoring {
   person [label="A person decides\n/option · /hotfix · /resolved", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
 
   deploy -> api; deploy -> web;
-  blackbox -> api [label="GET /api/cities", style=dashed]; blackbox -> web [label="/healthz", style=dashed];
+  blackbox -> api [label="GET /api/products", style=dashed]; blackbox -> web [label="/healthz", style=dashed];
   cadvisor -> api [style=dashed]; promtail -> api [style=dashed];
   blackbox -> prom; cadvisor -> prom; promtail -> prom [label="Loki rules", constraint=false];
   prom -> grafana; deploy -> grafana [label="marker", style=dotted];
