@@ -67,9 +67,12 @@ The agents run in images for each language your projects use. Build them once (t
 docker compose --profile images build sandbox-image-dotnet sandbox-image-python sandbox-image-node
 # only if a project needs two toolchains (for example a .NET API with a React front end)
 docker compose --profile images build sandbox-image-dotnet-node sandbox-image-python-node sandbox-image-full
+# only if a project uses /qa with a UI suite (`verify.image` is `browser`): the browser image is built ON the full image,
+# so build full first (above) and this one in a command of its own; in the same command it fails with "pull access denied"
+docker compose --profile images build sandbox-image-browser
 ```
 
-Build only the ones you need; a project that asks for an image that does not exist fails its first agent run with a clear message.
+Build only the ones you need; a project that asks for an image that does not exist fails its first agent run with a message that names the image and the command that builds it (the error from Docker alone says only "No such image").
 Adding another language is described in the [launcher guide](../src/sandbox-launcher/README.md#images).
 
 ## 4. Set up a git host and the factory's bot account

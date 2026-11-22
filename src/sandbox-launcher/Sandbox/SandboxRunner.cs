@@ -26,7 +26,7 @@ public sealed class SandboxRunner(IDockerClient docker, SandboxSettings settings
         }
         catch (DockerException error)
         {
-            throw Failure($"creating the sandbox failed: {error.Message}", error, retryable: (int)error.Status >= 500);
+            throw Failure($"creating the sandbox failed: {error.Message}{MissingImageHint(run.Image, error)}", error, retryable: (int)error.Status >= 500);
         }
 
         try
@@ -72,6 +72,24 @@ public sealed class SandboxRunner(IDockerClient docker, SandboxSettings settings
             // Cleanup must happen even when the activity was cancelled.
             await docker.RemoveAsync(id, CancellationToken.None);
         }
+    }
+
+    /// <summary>
+    /// "No such image" is what Docker says when a sandbox image was never built (they are not part of <c>docker compose up</c>). Say which one to build,
+    /// because the bare message looks like a fault of the factory. The browser image is built on the full one, so it cannot be built in the same command.
+    /// </summary>
+    internal static string MissingImageHint(string image, DockerException error)
+    {
+        if (error.Status != System.Net.HttpStatusCode.NotFound || !error.Message.Contains("No such image", StringComparison.OrdinalIgnoreCase))
+        {
+            return "";
+        }
+        var match = System.Text.RegularExpressions.Regex.Match(image, @"sandbox-([a-z0-9-]+)(:|$)");
+        var service = match.Success ? $"sandbox-image-{match.Groups[1].Value}" : "sandbox-image-<name>";
+        var order = match.Success && match.Groups[1].Value == "browser"
+            ? " The browser image is built on the full image: build sandbox-image-full first, and the browser image in a second command."
+            : "";
+        return $". The sandbox image was never built. In deploy/ run: docker compose --profile images build {service}.{order}";
     }
 
     private static ApplicationFailureException Failure(string message, Exception inner, bool retryable) =>

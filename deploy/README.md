@@ -76,6 +76,8 @@ Build the sandbox images once (`dotnet`, `python` and `node`; plus `dotnet-node`
 docker compose --profile images build sandbox-image-dotnet sandbox-image-python sandbox-image-node
 ```
 
+The `browser` image is built on `full`: build `sandbox-image-full` first and `sandbox-image-browser` in a second command (together they fail with "pull access denied").
+
 Checkouts are removed when a ticket's workflow ends; folders of runs you terminated by hand remain (see [Operations](../docs/operations.md#cleaning-up)).
 
 ## Factory bot account

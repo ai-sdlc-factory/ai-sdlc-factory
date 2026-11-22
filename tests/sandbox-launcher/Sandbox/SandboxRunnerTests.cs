@@ -131,6 +131,21 @@ public sealed class SandboxRunnerTests
         Assert.DoesNotContain("remove", docker.Calls);
     }
 
+    [Theory]
+    [InlineData("ai-sdlc-factory/sandbox-dotnet:local", "docker compose --profile images build sandbox-image-dotnet.", false)]
+    [InlineData("ai-sdlc-factory/sandbox-browser:local", "sandbox-image-browser", true)]
+    public async Task A_missing_image_says_which_one_to_build(string image, string expected, bool mentionsFull)
+    {
+        var docker = new FakeDocker { CreateFailure = new DockerException(System.Net.HttpStatusCode.NotFound, $"No such image: {image}") };
+
+        var error = await Assert.ThrowsAsync<ApplicationFailureException>(
+            () => Runner(docker).RunAsync(Support.Valid() with { Image = image }, () => { }, CancellationToken.None));
+
+        Assert.Contains("never built", error.Message);
+        Assert.Contains(expected, error.Message);
+        Assert.Equal(mentionsFull, error.Message.Contains("build sandbox-image-full first"));
+    }
+
     [Fact]
     public async Task Model_run_without_a_login_volume_fails_clearly_and_starts_nothing()
     {
