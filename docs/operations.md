@@ -108,7 +108,9 @@ docker compose up -d
 | workflow scenarios | part of the controller tests: they run the real workflows on a Temporal dev server with scripted agents and fake activities. `python3 tools/run-scenarios.py` runs them in several containers at once (about 2 minutes instead of 7) and checks that no scenario class is left out |
 | the deployed pipeline | `docker compose --profile test run --build --rm --no-deps integration-tests` ([guide](../src/api/README.md#tests)) |
 | documentation links and settings | `python3 tools/check-docs.py` ([below](#keeping-the-documentation-correct)) |
-| CI | `bitbucket-pipelines.yml` runs the service tests, a vulnerable-package check, the documentation check and the integration tests |
+| vulnerable packages | `docker run --rm -v "$PWD":/w -w /w mcr.microsoft.com/dotnet/sdk:10.0 dotnet list dev-foundry.slnx package --vulnerable --include-transitive` (no line saying "has the following vulnerable packages" may appear) |
+
+There is no CI service: these checks are run by hand, as in the loop in [AGENTS.md](../AGENTS.md#day-to-day).
 
 ## Security notes
 
@@ -213,7 +215,7 @@ The main knobs, from the biggest effect down: `limits.build_rounds` (each failed
 
 ## Keeping the documentation correct
 
-`python3 tools/check-docs.py` (CI runs it) checks that every relative link and anchor in the Markdown files resolves, that every image exists, that the diagram sources and their rendered SVGs are both present, that every setting in
+`python3 tools/check-docs.py` checks that every relative link and anchor in the Markdown files resolves, that every image exists, that the diagram sources and their rendered SVGs are both present, that every setting in
 `deploy/.env.example` and every environment variable the services read is documented in [Configuration](configuration.md), and that every agent role file is listed in the docs. The diagrams are Graphviz sources in
 [`docs/diagrams/`](diagrams/); after editing one, run `sh docs/diagrams/render.sh` (needs only Docker) and commit the SVG.
 

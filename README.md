@@ -53,7 +53,6 @@ Start at the [documentation index](docs/README.md).
 - [`sandboxes/`](src/sandbox-launcher/README.md#images): Dockerfiles for the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser` for end-to-end UI tests).
 - [`src/contracts/`](src/contracts/Contracts.cs): the library the services share: wire types, with the git host list, triggers and webhook adapters in `Hosts/`.
 - [`tools/`](tools/README.md): `check-docs.py` (the documentation check), `run-scenarios.py` (the workflow scenarios in parallel), `usage-report.py` (token totals from the usage log), `onboard-repo.py` (labels and webhook for a Forgejo repository) and `check-clock.py`.
-- [`bitbucket-pipelines.yml`](bitbucket-pipelines.yml): CI running the service tests, a vulnerable-package check, the documentation check and the deployed-pipeline test.
 
 All services are C# on .NET 10; open [dev-foundry.slnx](dev-foundry.slnx) (it holds `src/` and `tests/`) in your IDE. Build settings live in [`Directory.Build.props`](Directory.Build.props) and NuGet versions in
 [`Directory.Packages.props`](Directory.Packages.props); change a package version there, not in a project file.

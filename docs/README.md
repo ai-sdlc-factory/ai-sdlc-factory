@@ -57,5 +57,5 @@ Every picture is a Graphviz source in [`diagrams/`](diagrams/) with a rendered S
 
 ## Keeping it correct
 
-`python3 tools/check-docs.py` checks links, anchors, diagrams, and that every setting, project key, agent role, result status and label in the code is documented. CI runs it.
+`python3 tools/check-docs.py` checks links, anchors, diagrams, and that every setting, project key, agent role, result status and label in the code is documented. There is no CI: run it before every commit.
 When you change behaviour, change the matching page in the same commit.
