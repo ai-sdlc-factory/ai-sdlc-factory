@@ -71,15 +71,18 @@ services:
       retries: 20
       start_period: 10s
 
+  # Optional database browser: it only starts with `docker compose --profile tools up -d pgadmin`, after PGADMIN_DEFAULT_EMAIL and PGADMIN_DEFAULT_PASSWORD are set in .env.
+  # (Compose resolves every variable of every service, so the password cannot be marked required here.)
   pgadmin:
     image: dpage/pgadmin4:9.18.0
+    profiles: ["tools"]
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Set PGADMIN_DEFAULT_PASSWORD in .env}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-}
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
     networks: [data]
     ports:

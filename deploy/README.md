@@ -33,7 +33,7 @@ the databases: `temporal-schema` and `temporal-namespace` should exit with code 
 | sandbox-launcher | task queue `sandbox`; no HTTP port | [starts the agent containers](../src/sandbox-launcher/README.md) (the only service with the Docker socket) |
 | egress-proxy | internal only | [the sandboxes' only way out](../src/egress-proxy/README.md) |
 | PostgreSQL | `localhost:5432` | Temporal data |
-| pgAdmin | http://localhost:5050 | database browser (development) |
+| pgAdmin (optional) | http://localhost:5050 | database browser for development; not started with the stack: set `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` in `.env`, then `docker compose --profile tools up -d pgadmin` |
 
 Compose isolates services on separate networks: `data` (PostgreSQL and its clients), `control` (Temporal, the api, the controller and the launcher), `hooks` (a git host to the api) and `forge` (the controller to a git host; the Forgejo of [`../deploy/forgejo`](../deploy/forgejo/README.md) joins both)
 and `agents` (the OpenCode login helper only, which has internet access for the browser login). The disposable agent containers run on three **internal** networks (`sandbox-model`, `sandbox-packages`, `sandbox-developer`)
@@ -47,7 +47,7 @@ Host ports can be changed in `.env`. All published ports bind to localhost. This
 
 **A git host:** the factory serves the hosts of `FACTORY_HOSTS` and starts none itself. To try it on a Forgejo of your own, run the one in [`../deploy/forgejo`](../deploy/forgejo/README.md) (a project of its own), then create the [factory bot account](../docs/getting-started.md#4-set-up-a-git-host-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md). For GitHub, see [Several git hosts](../docs/operations.md#several-git-hosts).
 
-**pgAdmin:** log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **AI SDLC Factory PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
+**pgAdmin** (optional, see above): log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **AI SDLC Factory PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
 
 **Temporal:** the setup service creates `TEMPORAL_NAMESPACE` (default `default`) with `TEMPORAL_RETENTION` (default `7d`) for closed workflows. Retention is applied only when the namespace is created.
 

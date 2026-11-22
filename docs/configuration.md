@@ -21,8 +21,8 @@ Copy `deploy/.env.example` to `deploy/.env` (`cp -n`, `chmod 600`). The file is 
 
 | Key | What | How to get it |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD`, `PGADMIN_DEFAULT_PASSWORD` | database and admin passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, all different |
-| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login | any email |
+| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD` | the database passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, both different |
+| `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` | optional: the login of pgAdmin, a database browser that only starts with `docker compose --profile tools up -d pgadmin`; set both first | any email; `openssl rand -hex 24` |
 | `FACTORY_HOSTS` | the git hosts the factory serves, as one line of JSON, **the one place** that says where they are and how to reach them (see [FACTORY_HOSTS](#factory_hosts) below) | written by hand; secrets with `openssl rand -hex 32` |
 | `FACTORY_WORKSPACE_ROOT` | absolute host path of the checkouts, the same path inside every container | `mkdir -p` it first, owned by you |
 | `FACTORY_UID`, `FACTORY_GID` | the host user that owns the workspaces; the controller and the sandboxes run as it. Must not be root | `id -u`, `id -g` |
@@ -120,7 +120,7 @@ FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST=5
 | `CONTROLLER_API_PORT` | the webhook api (`/health/live`, `/health/ready`, `/webhooks/forgejo`, OpenAPI document) | `8000` |
 | `TEMPORAL_PORT` / `TEMPORAL_UI_PORT` | Temporal gRPC / web UI | `7233` / `8080` |
 | `POSTGRES_PORT` | PostgreSQL | `5432` |
-| `PGADMIN_PORT` | pgAdmin | `5050` |
+| `PGADMIN_PORT` | pgAdmin (optional, `--profile tools`) | `5050` |
 
 Services inside Docker always use the standard ports; host port overrides only change what you open from your machine. Temporal has no
 authentication, which is why everything binds to localhost.
