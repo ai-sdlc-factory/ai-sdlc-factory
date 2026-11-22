@@ -21,7 +21,7 @@ serve needs a [short setup](project-setup.md).
 ## 1. Get the code and configure the environment
 
 ```bash
-git clone <this repository> ai-sdlc-factory
+git clone https://github.com/ai-sdlc-factory/ai-sdlc-factory.git
 cd ai-sdlc-factory/deploy
 cp -n .env.example .env      # keeps an existing .env
 chmod 600 .env
