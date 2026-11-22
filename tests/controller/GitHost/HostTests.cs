@@ -138,9 +138,9 @@ public sealed class HostsSettingTests
     [Fact]
     public void A_factory_without_a_forgejo_still_works_with_every_owner_qualified()
     {
-        var settings = Settings("""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"vacant"}]""");
+        var settings = Settings("""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"acme"}]""");
 
-        Assert.Equal("vacant", settings.BotLoginFor("github:acme"));
+        Assert.Equal("acme", settings.BotLoginFor("github:acme"));
         Assert.Equal("github:acme", RepoNames.Qualify("github", "acme"));
     }
 

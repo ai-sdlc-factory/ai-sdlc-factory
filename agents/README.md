@@ -58,7 +58,7 @@ reasoningEffort: high   # passed through to the provider
 temperature: 0.2
 ```
 
-- **Check the model works with your login before using it.** `opencode models openai` lists models that a ChatGPT login cannot use. With the current login `gpt-5.6-luna/-sol/-terra`, `gpt-6-astra/-luna/-sol` and
+- **Check the model works with your login before using it.** `opencode models openai` lists models that a ChatGPT login cannot use. With the login this was last checked with (November 2026; the list changes, so run the command yourself) `gpt-5.6-luna/-sol/-terra`, `gpt-6-astra/-luna/-sol` and
   `gpt-6.1-sol` (and its `-fast` variant) answer, while `gpt-5.3-codex-spark`, `gpt-5.4*` and `gpt-5.5*` are refused ("not supported when using Codex with a ChatGPT account"). A refused model makes that role fail with an
   unclear "exited with code" message on the ticket.
 - **Re-check the role after a change.** Prompts and the strict JSON answers were tuned on one model; another can behave differently (for example how often the analyst asks questions).

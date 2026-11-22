@@ -7,7 +7,7 @@ Open work on the project itself, in the order it matters. Delete a line when it 
 - [ ] Replace `OWNER` in the links of all three repositories (`git grep OWNER`); change `master` to `main` in the `SECURITY.md` links if the branch is renamed.
 - [ ] Enable private vulnerability reporting on each GitHub repository (Settings, Code security), or the link in `SECURITY.md` leads nowhere.
 - [ ] Read `README.md` as a stranger would: can they tell what it is and start in ten minutes?
-- [ ] A new live-check fixture: `AGENTS.md` names `valters/greetings` on the local Forgejo; `valters/weather` is gone.
+- [ ] Keep one throwaway repository per git host as the live-check fixture (`AGENTS.md` describes it without naming one; `valters/weather` is gone).
 
 ## Optional
 - [ ] `CONTRIBUTING.md`: three lines pointing to `AGENTS.md` (GitHub then links it from pull requests).

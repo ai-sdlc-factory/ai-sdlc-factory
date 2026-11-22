@@ -73,6 +73,7 @@ At least one host is needed. A setting that cannot be used stops the api and the
 | Key | What | Default |
 | --- | --- | --- |
 | `FACTORY_PERMISSION_CACHE_SECONDS` | how long what a git host said a person may do on a repository is kept, where a host's [`commands`](#factory_hosts) rule asks for access (`write` or `admin`). A burst of commands from one person then asks the host once. `0` asks every time; at most 3600. A person whose access was just taken away still passes until the answer expires. A host that fails or cannot say is never remembered: the person is refused for now | `300` |
+| `FACTORY_GIT_AUTHOR_NAME`, `FACTORY_GIT_AUTHOR_EMAIL` | the name and e-mail address on the commits the factory makes. To have a host link them to the bot's account, use that account's address (on GitHub its noreply address, `<id>+<login>@users.noreply.github.com`; the default address belongs to no account, so GitHub shows the commits without a profile). One line, no `<` or `>`; anything else stops the controller at start | `Dev Foundry`, `factory-bot@dev-foundry.test` |
 | `FACTORY_DEFAULT_BUILD_ROUNDS` | how many times the developer may try before the run gives up, for projects whose [`limits`](project-setup.md#limits) do not set `build_rounds`. 1 to 5 | `3` |
 | `FACTORY_DEFAULT_CLARIFICATION_ROUNDS` | how many rounds of questions to a person a stage may use (`0` = never ask, decide alone), for projects without `limits.clarification_rounds`. 0 to 4 | `3` |
 | `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | how many revisions one pull request may get, for projects without `limits.revisions_per_pull_request`. 1 to 10 | `3` |
@@ -146,6 +147,7 @@ to that service's `environment` block in `deploy/compose.yaml` (they are not in 
 | `FACTORY_ALLOW_REPO_IMAGES` | `false` (set by Compose) | whether a repository's own image is mentioned and used, as above; the launcher enforces the same switch |
 | `FACTORY_JANITOR`, `FACTORY_JANITOR_INTERVAL_HOURS`, `FACTORY_JANITOR_CHECKOUT_DAYS`, `FACTORY_JANITOR_WIP_DAYS`, `FACTORY_JANITOR_DELETE_WIP` | `true`, `24`, `2`, `30`, `false` (set by Compose) | the janitor, described under [Cleaning up](operations.md#cleaning-up); a value out of range stops the controller at start with a message |
 | `FACTORY_PERMISSION_CACHE_SECONDS` | `300` (set by Compose) | how long a person's access on the host is kept (see above); a value out of range stops the controller at start |
+| `FACTORY_GIT_AUTHOR_NAME`, `FACTORY_GIT_AUTHOR_EMAIL` | `Dev Foundry`, `factory-bot@dev-foundry.test` (set by Compose) | the author of the factory's commits (see above) |
 | `FACTORY_DEFAULT_BUILD_ROUNDS`, `FACTORY_DEFAULT_CLARIFICATION_ROUNDS`, `FACTORY_DEFAULT_REVISIONS_PER_PULL_REQUEST` | `3`, `3`, `3` (set by Compose) | defaults for a project's `limits`; a value outside its range stops the controller at start with a message |
 | `FACTORY_WORKSPACE_ROOT` | none (required) | where checkouts live |
 | `FACTORY_AGENTS_DIR` | `/etc/factory` (set by Compose) | the read-only agents folder, used only to name the model per role in run records |

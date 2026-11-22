@@ -30,10 +30,10 @@ public sealed class GitHubAdapterTests
     [InlineData("assigned", RepoEventKind.Other)]
     public void An_issues_event_is_read_by_what_happened_to_the_ticket(string action, RepoEventKind kind)
     {
-        var read = Read("issues", new { action, repository = new { full_name = "vacant/factory-test" }, issue = Issue(), sender = new { login = "alice" } });
+        var read = Read("issues", new { action, repository = new { full_name = "acme/shop" }, issue = Issue(), sender = new { login = "alice" } });
 
         Assert.Equal(kind, read.Kind);
-        Assert.Equal(("github", "github:vacant", "factory-test", 12, false), (read.Host, read.Owner, read.Repo, read.Number, read.IsPullRequest));
+        Assert.Equal(("github", "github:acme", "shop", 12, false), (read.Host, read.Owner, read.Repo, read.Number, read.IsPullRequest));
         Assert.Equal(("Add wishlist", "As a user...", "alice", true), (read.Title, read.Body, read.Author, read.IsOpen));
         Assert.Equal(["feature"], read.LabelNames);
         Assert.Null(read.ItemType);
@@ -42,7 +42,7 @@ public sealed class GitHubAdapterTests
     [Fact]
     public void A_ticket_with_an_issue_type_carries_it_as_its_work_item_type()
     {
-        var read = Read("issues", new { action = "opened", repository = new { full_name = "vacant/factory-test" }, issue = Issue(type: "Bug", labels: []) });
+        var read = Read("issues", new { action = "opened", repository = new { full_name = "acme/shop" }, issue = Issue(type: "Bug", labels: []) });
 
         Assert.Equal("Bug", read.ItemType);
         Assert.Equal("bug", new TriggerRules(ItemTypes: new Dictionary<string, IReadOnlyList<string>> { ["bug"] = ["Bug"] }).KindOf(read));
@@ -51,10 +51,10 @@ public sealed class GitHubAdapterTests
     [Fact]
     public void A_comment_on_a_ticket_and_a_comment_on_a_pull_request_are_told_apart_by_the_pull_request_part_of_the_issue()
     {
-        object Comment(object issue) => new { action = "created", repository = new { full_name = "vacant/factory-test" }, issue, comment = new { body = "/fix rename it", user = new { login = "bob" } } };
+        object Comment(object issue) => new { action = "created", repository = new { full_name = "acme/shop" }, issue, comment = new { body = "/fix rename it", user = new { login = "bob" } } };
 
         var onTicket = Read("issue_comment", Comment(Issue()));
-        var onPull = Read("issue_comment", Comment(Issue(pull: new { url = "https://api.github.com/repos/vacant/factory-test/pulls/12" })));
+        var onPull = Read("issue_comment", Comment(Issue(pull: new { url = "https://api.github.com/repos/acme/shop/pulls/12" })));
 
         Assert.Equal((RepoEventKind.Commented, false, "/fix rename it", "bob"), (onTicket.Kind, onTicket.IsPullRequest, onTicket.CommentBody, onTicket.CommentAuthor));
         Assert.Equal((RepoEventKind.Commented, true), (onPull.Kind, onPull.IsPullRequest));
@@ -63,14 +63,14 @@ public sealed class GitHubAdapterTests
     [Fact]
     public void Other_activity_on_a_pull_request_and_a_comment_that_was_edited_are_nothing_to_do()
     {
-        var edited = Read("issue_comment", new { action = "edited", repository = new { full_name = "vacant/factory-test" }, issue = Issue(pull: new { }) });
+        var edited = Read("issue_comment", new { action = "edited", repository = new { full_name = "acme/shop" }, issue = Issue(pull: new { }) });
 
         Assert.Equal(RepoEventKind.PullRequestActivity, edited.Kind);
     }
 
     private static object Review(string state, string action = "submitted", string head = "factory/issue-12") => new
     {
-        action, repository = new { full_name = "vacant/factory-test" }, sender = new { login = "carol" },
+        action, repository = new { full_name = "acme/shop" }, sender = new { login = "carol" },
         pull_request = new { number = 15, state = "open", head = new { @ref = head } },
         review = new { state, body = "Rename it.", user = new { login = "carol" } },
     };
@@ -85,7 +85,7 @@ public sealed class GitHubAdapterTests
         var read = Read("pull_request_review", Review(state));
 
         Assert.Equal(asks ? RepoEventKind.ChangesRequested : RepoEventKind.PullRequestActivity, read.Kind);
-        Assert.Equal((15, "factory/issue-12", "open", "Rename it.", "carol", "github:vacant"), (read.Number, read.HeadRef, read.PullState, read.ReviewBody, read.Actor, read.Owner));
+        Assert.Equal((15, "factory/issue-12", "open", "Rename it.", "carol", "github:acme"), (read.Number, read.HeadRef, read.PullState, read.ReviewBody, read.Actor, read.Owner));
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class GitHubAdapterTests
     [InlineData("installation")]
     public void Events_without_a_ticket_are_unrelated(string eventName)
     {
-        var read = Read(eventName, new { zen = "Keep it logically awesome.", repository = new { full_name = "vacant/factory-test" }, pull_request = new { number = 3 } });
+        var read = Read(eventName, new { zen = "Keep it logically awesome.", repository = new { full_name = "acme/shop" }, pull_request = new { number = 3 } });
 
         Assert.Equal(RepoEventKind.Unrelated, read.Kind);
     }
@@ -111,12 +111,12 @@ public sealed class GitHubAdapterTests
     [Fact]
     public void The_router_decides_on_a_github_ticket_like_on_any_other()
     {
-        var read = Read("issues", new { action = "opened", repository = new { full_name = "vacant/factory-test" }, issue = Issue() });
+        var read = Read("issues", new { action = "opened", repository = new { full_name = "acme/shop" }, issue = Issue() });
 
         var decision = EventRouter.Decide(read);
 
-        Assert.Equal((RoutingAction.StartFeature, "github:vacant", "factory-test", 12), (decision.Action, decision.Feature!.Owner, decision.Feature.Repo, decision.Feature.IssueNumber));
-        Assert.NotEqual(WorkIds.For("vacant", "factory-test", 12), decision.Feature.WorkflowId); // never the same run as a repository of that name elsewhere
+        Assert.Equal((RoutingAction.StartFeature, "github:acme", "shop", 12), (decision.Action, decision.Feature!.Owner, decision.Feature.Repo, decision.Feature.IssueNumber));
+        Assert.NotEqual(WorkIds.For("acme", "shop", 12), decision.Feature.WorkflowId); // never the same run as a repository of that name elsewhere
     }
 
     // ---- the signature and the headers
@@ -168,7 +168,7 @@ public sealed class GitHubAdapterTests
     {
         Assert.NotNull(WebhookAdapters.Find("github"));
         Assert.NotNull(WebhookAdapters.Find("forgejo"));
-        var host = Assert.Single(HostsSetting.Parse($$$"""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"vacant","webhook_secret":"{{{Secret}}}"}]"""));
+        var host = Assert.Single(HostsSetting.Parse($$$"""[{"name":"github","type":"github","url":"https://github.com","token":"t","bot_login":"acme","webhook_secret":"{{{Secret}}}"}]"""));
         Assert.Equal("github", host.Type);
     }
 }

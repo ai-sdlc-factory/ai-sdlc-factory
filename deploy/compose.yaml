@@ -208,6 +208,9 @@ services:
       FACTORY_HOSTS: ${FACTORY_HOSTS:?Set FACTORY_HOSTS in .env}
       # How long what a git host said a person may do on a repository is kept, when a host has a rule of who may steer the factory (see docs/configuration.md). 0 asks every time.
       FACTORY_PERMISSION_CACHE_SECONDS: ${FACTORY_PERMISSION_CACHE_SECONDS:-300}
+      # The name and e-mail address on the commits the factory makes (see docs/configuration.md).
+      FACTORY_GIT_AUTHOR_NAME: ${FACTORY_GIT_AUTHOR_NAME:-Dev Foundry}
+      FACTORY_GIT_AUTHOR_EMAIL: ${FACTORY_GIT_AUTHOR_EMAIL:-factory-bot@dev-foundry.test}
       # What a project gets when its .factory/project.json "limits" do not say (see docs/configuration.md).
       FACTORY_DEFAULT_BUILD_ROUNDS: ${FACTORY_DEFAULT_BUILD_ROUNDS:-3}
       FACTORY_DEFAULT_CLARIFICATION_ROUNDS: ${FACTORY_DEFAULT_CLARIFICATION_ROUNDS:-3}

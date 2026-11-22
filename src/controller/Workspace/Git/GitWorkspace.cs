@@ -85,8 +85,8 @@ public sealed partial class GitWorkspace(WorkerSettings settings, Func<string, s
         {
             await GitAsync(["checkout", "--quiet", "-b", request.Branch], basePath, useToken: false, cancellationToken);
         }
-        await GitAsync(["config", "user.name", "Dev Foundry"], basePath, useToken: false, cancellationToken);
-        await GitAsync(["config", "user.email", "factory-bot@dev-foundry.test"], basePath, useToken: false, cancellationToken);
+        await GitAsync(["config", "user.name", settings.GitAuthorName], basePath, useToken: false, cancellationToken);
+        await GitAsync(["config", "user.email", settings.GitAuthorEmail], basePath, useToken: false, cancellationToken);
 
         var head = (await GitAsync(["rev-parse", "HEAD"], basePath, useToken: false, cancellationToken)).Trim();
         // Where this run started, so every inspection can put the pristine clone back there: the tip of the default branch for

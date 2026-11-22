@@ -42,10 +42,10 @@ public sealed class GitHubClientTests
     {
         var (client, handler) = Client(_ => (HttpStatusCode.Created, "{}", null));
 
-        await client.PostIssueCommentAsync("vacant", "factory-test", 7, "hello", CancellationToken.None);
+        await client.PostIssueCommentAsync("acme", "shop", 7, "hello", CancellationToken.None);
 
         var seen = Assert.Single(handler.Requests);
-        Assert.Equal((HttpMethod.Post, "/repos/vacant/factory-test/issues/7/comments", "application/vnd.github+json", "Bearer secret-token"), (seen.Method, seen.Url, seen.Accept, seen.Authorization));
+        Assert.Equal((HttpMethod.Post, "/repos/acme/shop/issues/7/comments", "application/vnd.github+json", "Bearer secret-token"), (seen.Method, seen.Url, seen.Accept, seen.Authorization));
         Assert.Equal($"{EventRouter.BotMarker}\nhello", JsonDocument.Parse(seen.Body!).RootElement.GetProperty("body").GetString());
     }
 
@@ -95,8 +95,8 @@ public sealed class GitHubClientTests
         var page2 = Json(new[] { new { body = $"{TicketComments.NoticeMarker}\nan earlier notice" }, new { body = "last" } });
         var (client, handler) = Client(request => Ok(request.RequestUri!.Query.Contains("&page=1") ? page1 : page2));
 
-        var recent = await client.RecentCommentBodiesAsync("vacant", "factory-test", 7, 3, CancellationToken.None);
-        var posted = await client.PostNoticeOnceAsync("vacant", "factory-test", 7, "again", CancellationToken.None);
+        var recent = await client.RecentCommentBodiesAsync("acme", "shop", 7, 3, CancellationToken.None);
+        var posted = await client.PostNoticeOnceAsync("acme", "shop", 7, "again", CancellationToken.None);
 
         Assert.Equal(["c100", $"{TicketComments.NoticeMarker}\nan earlier notice", "last"], recent);
         Assert.False(posted);
@@ -106,11 +106,11 @@ public sealed class GitHubClientTests
     [Fact]
     public async Task A_ticket_is_opened_with_its_labels_and_the_number_and_address_come_back()
     {
-        var (client, handler) = Client(_ => (HttpStatusCode.Created, Json(new { number = 9, html_url = "https://github.com/vacant/factory-test/issues/9" }), null));
+        var (client, handler) = Client(_ => (HttpStatusCode.Created, Json(new { number = 9, html_url = "https://github.com/acme/shop/issues/9" }), null));
 
-        var issue = await client.CreateIssueAsync("vacant", "factory-test", "Title", "Body", ["incident"], CancellationToken.None);
+        var issue = await client.CreateIssueAsync("acme", "shop", "Title", "Body", ["incident"], CancellationToken.None);
 
-        Assert.Equal(new IssueInfo(9, "https://github.com/vacant/factory-test/issues/9"), issue);
+        Assert.Equal(new IssueInfo(9, "https://github.com/acme/shop/issues/9"), issue);
         var sent = JsonDocument.Parse(handler.Requests[0].Body!).RootElement;
         Assert.Equal(["incident"], sent.GetProperty("labels").EnumerateArray().Select(l => l.GetString()));
     }
@@ -120,14 +120,14 @@ public sealed class GitHubClientTests
     {
         var (client, _) = Client(_ => Ok(Json(new
         {
-            title = "T", body = "B", state = "open", merged = false, user = new { login = "vacant" },
-            head = new { @ref = "factory/issue-1", sha = "abc", repo = new { full_name = "vacant/factory-test" } },
-            @base = new { @ref = "main", repo = new { full_name = "vacant/factory-test" } },
+            title = "T", body = "B", state = "open", merged = false, user = new { login = "acme" },
+            head = new { @ref = "factory/issue-1", sha = "abc", repo = new { full_name = "acme/shop" } },
+            @base = new { @ref = "main", repo = new { full_name = "acme/shop" } },
         })));
 
-        var pull = await client.GetPullRequestAsync("vacant", "factory-test", 3, CancellationToken.None);
+        var pull = await client.GetPullRequestAsync("acme", "shop", 3, CancellationToken.None);
 
-        Assert.Equal(new PullRequestDetails(3, "T", "B", "open", false, "factory/issue-1", "abc", "vacant/factory-test", "vacant/factory-test", "main", "vacant"), pull);
+        Assert.Equal(new PullRequestDetails(3, "T", "B", "open", false, "factory/issue-1", "abc", "acme/shop", "acme/shop", "main", "acme"), pull);
     }
 
     [Fact]
@@ -136,11 +136,11 @@ public sealed class GitHubClientTests
         var (client, _) = Client(_ => Ok(Json(new
         {
             title = "T", state = "open", user = new { login = "stranger" },
-            head = new { @ref = "factory/issue-1", sha = "abc", repo = new { full_name = "stranger/factory-test" } },
-            @base = new { @ref = "main", repo = new { full_name = "vacant/factory-test" } },
+            head = new { @ref = "factory/issue-1", sha = "abc", repo = new { full_name = "stranger/shop" } },
+            @base = new { @ref = "main", repo = new { full_name = "acme/shop" } },
         })));
 
-        var pull = await client.GetPullRequestAsync("vacant", "factory-test", 3, CancellationToken.None);
+        var pull = await client.GetPullRequestAsync("acme", "shop", 3, CancellationToken.None);
 
         Assert.NotEqual(pull.HeadRepository, pull.BaseRepository);
     }
@@ -157,7 +157,7 @@ public sealed class GitHubClientTests
         });
         var (client, handler) = Client(request => request.RequestUri!.AbsolutePath.EndsWith("/files") ? Ok(files) : Ok("diff --git a/a.py b/a.py\n+x\n"));
 
-        var changes = await client.GetPullChangesAsync("vacant", "factory-test", 3, CancellationToken.None);
+        var changes = await client.GetPullChangesAsync("acme", "shop", 3, CancellationToken.None);
 
         Assert.Equal(["added", "deleted", "renamed", "modified"], changes.Files.Select(f => f.Status));
         Assert.Equal("old.py", changes.Files[2].PreviousPath);
@@ -174,7 +174,7 @@ public sealed class GitHubClientTests
             ? Ok(Json(new[] { new { filename = "a.py", status = "added", additions = 1, deletions = 0 } }))
             : (HttpStatusCode.NotAcceptable, "{\"message\":\"Sorry, the diff exceeded the maximum number of files (300).\"}", null));
 
-        var changes = await client.GetPullChangesAsync("vacant", "factory-test", 3, CancellationToken.None);
+        var changes = await client.GetPullChangesAsync("acme", "shop", 3, CancellationToken.None);
 
         Assert.Equal(("", true, 1), (changes.Diff, changes.DiffCut, changes.Files.Count));
     }
@@ -189,7 +189,7 @@ public sealed class GitHubClientTests
                 new { id = 1, state = "APPROVED", user = new { login = "carol" }, body = "ok", submitted_at = "2026-11-20T10:00:00Z" },
                 new { id = 2, state = "CHANGES_REQUESTED", user = new { login = "carol" }, body = "Rename it.", submitted_at = "2026-11-20T11:00:00Z" },
                 new { id = 3, state = "COMMENTED", user = new { login = "dave" }, body = "", submitted_at = "2026-11-20T12:00:00Z" },
-                new { id = 4, state = "COMMENTED", user = new { login = "vacant" }, body = "the bot's own", submitted_at = "2026-11-20T12:00:00Z" },
+                new { id = 4, state = "COMMENTED", user = new { login = "acme" }, body = "the bot's own", submitted_at = "2026-11-20T12:00:00Z" },
                 new { id = 5, state = "CHANGES_REQUESTED", user = new { login = "erin" }, body = "old", submitted_at = "2026-11-01T12:00:00Z" },
                 new { id = 6, state = "DISMISSED", user = new { login = "frank" }, body = "dismissed", submitted_at = "2026-11-20T12:00:00Z" },
             }),
@@ -198,7 +198,7 @@ public sealed class GitHubClientTests
         };
         var (client, _) = Client(request => Ok(Answer(request)));
 
-        var reviews = await client.GetUnaddressedReviewsAsync("vacant", "factory-test", 3, "vacant", DateTimeOffset.Parse("2026-11-10T00:00:00Z"), CancellationToken.None);
+        var reviews = await client.GetUnaddressedReviewsAsync("acme", "shop", 3, "acme", DateTimeOffset.Parse("2026-11-10T00:00:00Z"), CancellationToken.None);
 
         Assert.Equal([2L, 3L], reviews.Select(r => r.Id));
         Assert.Equal(["REQUEST_CHANGES", "COMMENT"], reviews.Select(r => r.State));
@@ -217,7 +217,7 @@ public sealed class GitHubClientTests
             new { body = $"{RevisionReply.Marker} two", created_at = "2026-11-20T12:00:00Z" },
         })));
 
-        var history = await client.GetRevisionHistoryAsync("vacant", "factory-test", 3, CancellationToken.None);
+        var history = await client.GetRevisionHistoryAsync("acme", "shop", 3, CancellationToken.None);
 
         Assert.Equal(new RevisionHistory(2, DateTimeOffset.Parse("2026-11-20T12:00:00Z")), history);
     }
@@ -242,8 +242,8 @@ public sealed class GitHubClientTests
             new { number = 12, head = new { @ref = "feature/x" } },
         })));
 
-        Assert.Equal(9, await client.FindFactoryPullRequestAsync("vacant", "factory-test", 7, CancellationToken.None));
-        Assert.Null(await client.FindFactoryPullRequestAsync("vacant", "factory-test", 8, CancellationToken.None));
+        Assert.Equal(9, await client.FindFactoryPullRequestAsync("acme", "shop", 7, CancellationToken.None));
+        Assert.Null(await client.FindFactoryPullRequestAsync("acme", "shop", 8, CancellationToken.None));
     }
 
     [Fact]
@@ -251,12 +251,12 @@ public sealed class GitHubClientTests
     {
         var (client, _) = Client(_ => Ok(Json(new object[]
         {
-            new { number = 1, state = "closed", title = "SECRET TITLE", body = "SECRET BODY", head = new { @ref = "factory/issue-1" }, user = new { login = "vacant" }, created_at = "2026-11-10T10:00:00Z", merged_at = "2026-11-11T10:00:00Z" },
-            new { number = 2, state = "closed", head = new { @ref = "factory/issue-2" }, user = new { login = "vacant" }, created_at = "2026-11-10T10:00:00Z", merged_at = (string?)null },
-            new { number = 3, state = "open", head = new { @ref = "factory/issue-3" }, user = new { login = "vacant" }, created_at = "2026-11-12T10:00:00Z", merged_at = (string?)null },
+            new { number = 1, state = "closed", title = "SECRET TITLE", body = "SECRET BODY", head = new { @ref = "factory/issue-1" }, user = new { login = "acme" }, created_at = "2026-11-10T10:00:00Z", merged_at = "2026-11-11T10:00:00Z" },
+            new { number = 2, state = "closed", head = new { @ref = "factory/issue-2" }, user = new { login = "acme" }, created_at = "2026-11-10T10:00:00Z", merged_at = (string?)null },
+            new { number = 3, state = "open", head = new { @ref = "factory/issue-3" }, user = new { login = "acme" }, created_at = "2026-11-12T10:00:00Z", merged_at = (string?)null },
         })));
 
-        var pulls = await client.ListAllPullRequestsAsync("vacant", "factory-test", CancellationToken.None);
+        var pulls = await client.ListAllPullRequestsAsync("acme", "shop", CancellationToken.None);
 
         Assert.Equal([true, false, false], pulls.Select(p => p.Merged));
         Assert.Equal(DateTimeOffset.Parse("2026-11-11T10:00:00Z"), pulls[0].MergedAt);
@@ -268,22 +268,22 @@ public sealed class GitHubClientTests
     {
         var (client, handler) = Client(request => request.Method == HttpMethod.Post
             ? (HttpStatusCode.UnprocessableEntity, "{\"message\":\"Validation Failed\"}", null)
-            : Ok(Json(new[] { new { number = 5, html_url = "https://github.com/vacant/factory-test/pull/5" } })));
+            : Ok(Json(new[] { new { number = 5, html_url = "https://github.com/acme/shop/pull/5" } })));
 
-        var pull = await client.CreatePullRequestAsync("vacant", "factory-test", "factory/issue-1", "main", "T", "B", CancellationToken.None);
+        var pull = await client.CreatePullRequestAsync("acme", "shop", "factory/issue-1", "main", "T", "B", CancellationToken.None);
 
-        Assert.Equal(new PullRequestInfo(5, "https://github.com/vacant/factory-test/pull/5"), pull);
-        Assert.Contains("head=vacant%3Afactory%2Fissue-1", handler.Requests.Last().Url);
+        Assert.Equal(new PullRequestInfo(5, "https://github.com/acme/shop/pull/5"), pull);
+        Assert.Contains("head=acme%3Afactory%2Fissue-1", handler.Requests.Last().Url);
     }
 
     [Fact]
     public async Task A_new_pull_request_comes_back_with_its_number_and_address()
     {
-        var (client, handler) = Client(_ => (HttpStatusCode.Created, Json(new { number = 6, html_url = "https://github.com/vacant/factory-test/pull/6" }), null));
+        var (client, handler) = Client(_ => (HttpStatusCode.Created, Json(new { number = 6, html_url = "https://github.com/acme/shop/pull/6" }), null));
 
-        var pull = await client.CreatePullRequestAsync("vacant", "factory-test", "factory/issue-2", "main", "T", "B", CancellationToken.None);
+        var pull = await client.CreatePullRequestAsync("acme", "shop", "factory/issue-2", "main", "T", "B", CancellationToken.None);
 
-        Assert.Equal(new PullRequestInfo(6, "https://github.com/vacant/factory-test/pull/6"), pull);
+        Assert.Equal(new PullRequestInfo(6, "https://github.com/acme/shop/pull/6"), pull);
         var sent = JsonDocument.Parse(handler.Requests[0].Body!).RootElement;
         Assert.Equal(("factory/issue-2", "main"), (sent.GetProperty("head").GetString(), sent.GetProperty("base").GetString()));
     }
@@ -295,14 +295,14 @@ public sealed class GitHubClientTests
     {
         var (client, handler) = Client(_ => Ok(Json(new object[]
         {
-            new { full_name = "vacant/factory-test", permissions = new { push = true } },
+            new { full_name = "acme/shop", permissions = new { push = true } },
             new { full_name = "other/readonly", permissions = new { push = false } },
             new { full_name = "other/none" },
         })));
 
         var repositories = await client.ListWritableRepositoriesAsync(CancellationToken.None);
 
-        Assert.Equal([("vacant", "factory-test")], repositories);
+        Assert.Equal([("acme", "shop")], repositories);
         Assert.StartsWith("/user/repos?affiliation=", handler.Requests[0].Url);
     }
 
@@ -313,10 +313,10 @@ public sealed class GitHubClientTests
             ? Ok(Json(new object[] { new { name = "main" }, new { name = "factory/issue-4-wip" }, new { name = "feature/x" } }))
             : Ok(Json(new { commit = new { commit = new { committer = new { date = "2026-08-31T21:00:00Z" } } } })));
 
-        var branches = await client.ListBranchesAsync("vacant", "factory-test", CancellationToken.None);
+        var branches = await client.ListBranchesAsync("acme", "shop", CancellationToken.None);
 
         Assert.Equal([new BranchInfo("factory/issue-4-wip", DateTimeOffset.Parse("2026-08-31T21:00:00Z"))], branches);
-        Assert.Contains(handler.Requests, request => request.Url == "/repos/vacant/factory-test/branches/factory%2Fissue-4-wip");
+        Assert.Contains(handler.Requests, request => request.Url == "/repos/acme/shop/branches/factory%2Fissue-4-wip");
         Assert.Equal(2, handler.Requests.Count);
     }
 
@@ -325,14 +325,14 @@ public sealed class GitHubClientTests
     [InlineData(HttpStatusCode.OK, """{"state":"open"}""", false)]
     [InlineData(HttpStatusCode.NotFound, "{}", false)]
     public async Task A_ticket_counts_as_closed_only_when_github_says_so(HttpStatusCode status, string body, bool closed) =>
-        Assert.Equal(closed, await Client(_ => (status, body, null)).Client.IssueIsClosedAsync("vacant", "factory-test", 4, CancellationToken.None));
+        Assert.Equal(closed, await Client(_ => (status, body, null)).Client.IssueIsClosedAsync("acme", "shop", 4, CancellationToken.None));
 
     [Fact]
     public async Task The_heads_of_open_pull_requests_are_collected()
     {
         var (client, _) = Client(_ => Ok(Json(new object[] { new { head = new { @ref = "factory/issue-7" } }, new { head = new { @ref = "factory/issue-9-wip" } } })));
 
-        var heads = await client.OpenPullRequestBranchesAsync("vacant", "factory-test", CancellationToken.None);
+        var heads = await client.OpenPullRequestBranchesAsync("acme", "shop", CancellationToken.None);
 
         Assert.Equal(["factory/issue-7", "factory/issue-9-wip"], heads.Order());
     }
@@ -345,9 +345,9 @@ public sealed class GitHubClientTests
     {
         var (client, handler) = Client(_ => (status, "{}", null));
 
-        await client.DeleteBranchAsync("vacant", "factory-test", "factory/issue-4-wip", CancellationToken.None);
+        await client.DeleteBranchAsync("acme", "shop", "factory/issue-4-wip", CancellationToken.None);
 
-        Assert.Equal((HttpMethod.Delete, "/repos/vacant/factory-test/git/refs/heads/factory/issue-4-wip"), (handler.Requests[0].Method, handler.Requests[0].Url));
+        Assert.Equal((HttpMethod.Delete, "/repos/acme/shop/git/refs/heads/factory/issue-4-wip"), (handler.Requests[0].Method, handler.Requests[0].Url));
     }
 
     // ---- where the host is, and how git signs in to it
@@ -384,8 +384,8 @@ public sealed class GitHubClientTests
     {
         var (client, handler) = Client(_ => Ok(Json(new { permission, role_name = role })));
 
-        Assert.Equal(expected, await client.GetPermissionAsync("vacant", "factory-test", "alice", CancellationToken.None));
-        Assert.Equal("/repos/vacant/factory-test/collaborators/alice/permission", Assert.Single(handler.Requests).Url);
+        Assert.Equal(expected, await client.GetPermissionAsync("acme", "shop", "alice", CancellationToken.None));
+        Assert.Equal("/repos/acme/shop/collaborators/alice/permission", Assert.Single(handler.Requests).Url);
     }
 
     [Fact]

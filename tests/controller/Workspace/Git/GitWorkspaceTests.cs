@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using Temporalio.Exceptions;
 
@@ -83,6 +84,37 @@ public sealed class GitWorkspaceTests : IDisposable
         var info = await workspace.PrepareAsync(Request(), CancellationToken.None);
 
         Assert.DoesNotContain("secret-token-value", File.ReadAllText(Path.Combine(info.Path, ".git", "config")));
+    }
+
+    [Fact]
+    public async Task Commits_are_made_as_the_configured_author()
+    {
+        var root = Path.Combine(temp, "root");
+        Directory.CreateDirectory(root);
+        var settings = new WorkerSettings { WorkspaceRoot = root, Hosts = TestHosts.One(), GitAuthorName = "Shop Bot", GitAuthorEmail = "12+shop-bot@users.noreply.example" };
+        var info = await new GitWorkspace(settings, (_, _) => Origin()).PrepareAsync(Request(), CancellationToken.None);
+
+        var config = File.ReadAllText(Path.Combine(root, ".base", info.Name, ".git", "config"));
+
+        Assert.Contains("name = Shop Bot", config);
+        Assert.Contains("email = 12+shop-bot@users.noreply.example", config);
+    }
+
+    [Fact]
+    public void The_author_is_a_setting_that_must_be_one_clean_line()
+    {
+        WorkerSettings Load(string? name, string? email) => WorkerSettings.FromConfiguration(new ConfigurationBuilder()
+            .AddInMemoryCollection(TestHosts.Setting)
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_GIT_AUTHOR_NAME"] = name, ["FACTORY_GIT_AUTHOR_EMAIL"] = email }).Build());
+
+        var standard = Load(null, "  ");
+        Assert.Equal("Dev Foundry", standard.GitAuthorName);
+        Assert.Equal("factory-bot@dev-foundry.test", standard.GitAuthorEmail);
+        var custom = Load(" Shop Bot ", "bot@example.org");
+        Assert.Equal("Shop Bot", custom.GitAuthorName);
+        Assert.Equal("bot@example.org", custom.GitAuthorEmail);
+        Assert.Contains("FACTORY_GIT_AUTHOR_NAME", Assert.Throws<InvalidOperationException>(() => Load("Bot <x@y>", null)).Message);
+        Assert.Throws<InvalidOperationException>(() => Load(null, "a@b\nc"));
     }
 
     [Fact]

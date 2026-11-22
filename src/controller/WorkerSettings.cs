@@ -12,6 +12,11 @@ public sealed class WorkerSettings
     /// <summary>How long what the git host said a person may do on a repository is kept (<c>FACTORY_PERMISSION_CACHE_SECONDS</c>); 0 asks the host every time. Only used where a rule asks for access.</summary>
     public int PermissionCacheSeconds { get; init; } = 300;
 
+    /// <summary>The name and e-mail address on the commits the factory makes (<c>FACTORY_GIT_AUTHOR_NAME</c>, <c>FACTORY_GIT_AUTHOR_EMAIL</c>). Use an address that belongs to the bot's account where you want its commits linked to it (on GitHub, the account's noreply address).</summary>
+    public string GitAuthorName { get; init; } = "Dev Foundry";
+
+    public string GitAuthorEmail { get; init; } = "factory-bot@dev-foundry.test";
+
     /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
     public HostSettings HostNamed(string name) =>
         Hosts.FirstOrDefault(host => host.Name == name)
@@ -69,6 +74,8 @@ public sealed class WorkerSettings
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
         Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
         PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
+        GitAuthorName = Identity(configuration, "FACTORY_GIT_AUTHOR_NAME", "Dev Foundry"),
+        GitAuthorEmail = Identity(configuration, "FACTORY_GIT_AUTHOR_EMAIL", "factory-bot@dev-foundry.test"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
         AgentsDirectory = configuration["FACTORY_AGENTS_DIR"] ?? "",
         AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
@@ -144,6 +151,22 @@ public sealed class WorkerSettings
             return fallback;
         }
         return bool.TryParse(text.Trim(), out var value) ? value : throw new InvalidOperationException($"{key} must be true or false, but it is \"{text}\".");
+    }
+
+    /// <summary>A name or address for commits: one line, no angle brackets (git would write them into the commit as they are), or the worker stops at start with a message.</summary>
+    private static string Identity(IConfiguration configuration, string key, string fallback)
+    {
+        var value = configuration[key];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+        value = value.Trim();
+        if (value.Length > 200 || value.Any(c => char.IsControl(c) || c is '<' or '>'))
+        {
+            throw new InvalidOperationException($"{key} must be one line of at most 200 characters without < or >, but it is \"{value}\".");
+        }
+        return value;
     }
 
     private static string NonEmpty(IConfiguration configuration, string key, string fallback)
