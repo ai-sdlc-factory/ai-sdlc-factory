@@ -47,6 +47,8 @@ shows what the router decided.
 | The controller was restarted while runs were active | Runs are durable in Temporal and continue; a sandbox that was mid-run is removed at the launcher's next start and the activity is retried or fails with a comment. |
 | A network error in the launcher at start | One of the three internal sandbox networks is missing or clashes with yours (`SANDBOX_NET_BASE`). The launcher refuses to run without them. |
 | Disk fills up | Old checkouts and Docker layers; see [Cleaning up](#cleaning-up). |
+| After Docker Desktop restarted, `temporal`, `pgadmin` or others show `Exited (127)` and `docker compose up -d` fails with "error mounting … not a directory" | Docker Desktop on WSL leaves stale bind mounts of single files behind when it restarts. Recreate the affected services; their data is in volumes and is kept: `docker compose up -d --force-recreate pgadmin temporal-schema temporal temporal-namespace`, then `docker compose up -d`. |
+| `docker` is "not found" inside WSL | Docker Desktop's WSL integration for your distribution was switched off (it can drop after an update): Settings, Resources, WSL integration. |
 
 ## Several git hosts
 

@@ -19,6 +19,12 @@ On top of the labels, people steer with comments on a ticket or pull request (th
 Everything is deterministic where it matters: agents only advise with one validated JSON verdict, and code decides every next step. Each agent runs in a throwaway container with no route to the
 internet except an allowlisting proxy. See [Architecture](docs/architecture.md) and [Workflows](docs/workflows.md).
 
+## What you need, and where it stands
+
+- Docker (Compose v2) on Linux, or Windows with WSL 2; about 10 GB of disk and 8 GB of RAM for Docker; a **ChatGPT Plus/Pro account** for the agents' model access. The full list is in [Getting started](docs/getting-started.md#what-you-need).
+- It is built and tested on WSL 2 with a **ChatGPT sign-in**; an OpenAI API key or another model provider [may work but is untested](docs/opencode-login.md#other-ways-to-sign-in). **Forgejo** and **GitHub** have both been run live; other git hosts are not built (see [ideas](docs/ideas.md)).
+- It is young software: expect rough edges, and read [Operations](docs/operations.md) for what is not built yet ("Known limitations"). It runs agents next to a Docker daemon, so read the [security notes](docs/operations.md#security-notes) before pointing it at repositories you do not trust.
+
 ## Quick start
 
 1. [Set up the factory](docs/getting-started.md): configure `deploy/.env`, `docker compose up -d --build`, build the sandbox images, create the bot account, sign the agents in. About 30 minutes, once.

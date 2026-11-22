@@ -9,9 +9,13 @@ serve needs a [short setup](project-setup.md).
 
 | Requirement | Notes |
 | --- | --- |
-| Windows with **WSL 2** (Ubuntu) and **Docker Desktop** with WSL integration enabled, or any Linux with Docker Engine and Compose v2 | The stack is built and tested on WSL. Docker Compose runs everything. |
+| Windows with **WSL 2** (Ubuntu) and **Docker Desktop** with WSL integration enabled, or any Linux with Docker Engine and Compose v2 | The stack is built and tested on WSL. Docker Compose runs everything. If `docker` is "not found" inside WSL, turn the WSL integration for your distribution back on in Docker Desktop (Settings, Resources, WSL integration). |
 | About 10 GB of disk and 8 GB of RAM for Docker | The sandboxes are limited to 2 GB and 2 CPUs each, and 2 run at once. |
 | A **ChatGPT Plus/Pro account** | The agents use OpenCode with a ChatGPT sign-in; there is no OpenAI API key (an API key or another provider is [possible but untested](opencode-login.md#other-ways-to-sign-in)). Usage counts against your plan. |
+| `git`, `openssl` and `python3` on the host | `git` to clone, `openssl` for the passwords below (`openssl rand -hex 24`), `python3` (standard library only) for the scripts in [`tools/`](../tools/README.md). You do **not** need a .NET SDK, Node or Python packages: everything is built and tested in Docker. |
+| A **git host** with an account for the bot | Your own Forgejo (the bundled one, in [`deploy/forgejo/`](../deploy/forgejo/README.md), is enough to try it) or GitHub. Creating the bot on Forgejo needs administrator rights; every repository needs a webhook and the bot as a collaborator ([Connecting a git host](git-hosts.md)). |
+| A way for the host to reach the factory's `api` | The bundled Forgejo reaches it over Docker's network. **GitHub (or any host outside your machine) needs a public HTTPS address for the webhook**: a server with a domain, or on a laptop a tunnel to port 8000. See [the webhook URL](git-hosts.md#5-the-webhook) and [troubleshooting](git-hosts.md#checking-that-it-works). |
+| Free local ports | `8000` (api), `8080` (Temporal UI), `7233`, `5432`, `5050`, and `3000` for the bundled Forgejo; `1455` for the ChatGPT sign-in. Each can be changed in `deploy/.env` (see the [services table](../deploy/README.md#services)). |
 | Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../src/egress-proxy/ALLOWLIST.md)). |
 
 ## 1. Get the code and configure the environment
