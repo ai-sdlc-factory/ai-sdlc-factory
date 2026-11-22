@@ -103,7 +103,7 @@ The host calls the factory's api at **`<api address>/webhooks/<name>`** (`<name>
 | **Active** | yes | yes |
 | **Try it** | **Test Delivery** on the webhook: the api answers `202`, and the delivery appears in the Temporal UI (http://localhost:8080) | **Recent Deliveries**: the response code is what the api answered (`202` is good; `401` is a wrong secret or content type, `404` a name that is not in `FACTORY_HOSTS`); **Redeliver** repeats one |
 
-On Forgejo, `python3 tools/onboard-repo.py owner/repo` creates this webhook and the labels in one command (`--host <name>` for another Forgejo; it only knows Forgejo's API). On GitHub both are done by hand.
+`python3 tools/onboard-repo.py owner/repo` creates this webhook and the labels in one command, on both hosts (`--host <name>` picks the host, `--dry-run` shows what it would do). On Forgejo it uses the bot's token. On GitHub it needs **your own** token with the Webhooks, Issues and Contents permissions (`GITHUB_TOKEN`, or `gh auth login`; the bot's token has no right to webhooks and should not get one) and `--public-url https://<your public address>`, which becomes `<address>/webhooks/<host name>`. `python3 tools/onboard-repo.py --help` has the details.
 
 ## 6. The labels
 
@@ -111,8 +111,8 @@ A label starts a workflow when a ticket is opened with it, or when it is added. 
 
 `feature`, `bug`, `incident`, then `plan`, `docs`, `quick`, `full`, `needs-architecture` ([what each does](project-setup.md#3-create-the-labels)).
 
-- **Forgejo:** Issues, Labels, or `python3 tools/onboard-repo.py owner/repo`.
-- **GitHub:** Issues, Labels, or with the GitHub CLI: `for l in feature bug incident plan docs quick full needs-architecture; do gh label create "$l" --repo owner/repo; done`. GitHub's own **issue types** (a bug, a task) can be mapped to a kind with the host's [`triggers`](configuration.md#factory_hosts) (`item_types`).
+- **Forgejo or GitHub:** `python3 tools/onboard-repo.py owner/repo` (see above), or by hand on the host: Issues, Labels.
+- **GitHub with the GitHub CLI:** `for l in feature bug incident plan docs quick full needs-architecture; do gh label create "$l" --repo owner/repo; done`. GitHub's own **issue types** (a bug, a task) can be mapped to a kind with the host's [`triggers`](configuration.md#factory_hosts) (`item_types`).
 
 ## Notifications
 

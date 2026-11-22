@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
-"""Sets a Forgejo repository up for the factory: the labels and the webhook (steps 2 and 3 of docs/project-setup.md), and checks .factory/project.json.
+"""Sets a repository up for the factory on Forgejo or GitHub: the labels and the webhook (steps 2 and 3 of docs/project-setup.md), and checks .factory/project.json.
 
-    python3 tools/onboard-repo.py owner/repo                   # do it, on the first Forgejo in FACTORY_HOSTS
-    python3 tools/onboard-repo.py owner/repo --host work   # on the host of that name
-    python3 tools/onboard-repo.py owner/repo --dry-run         # say what would be done, change nothing
+    python3 tools/onboard-repo.py owner/repo                                      # the first host of FACTORY_HOSTS (Forgejo: needs nothing else)
+    python3 tools/onboard-repo.py owner/repo --host github --public-url https://factory.example.org
+    python3 tools/onboard-repo.py owner/repo --dry-run                            # say what would be done, change nothing
 
-It needs an existing repository (the bot's token cannot create one). It reads the host's token and webhook secret from FACTORY_HOSTS in deploy/.env (or the environment) and
-never prints either. It only knows Forgejo's API: on GitHub, create the labels and the webhook by hand (docs/operations.md, "Several git hosts"). It is safe to run again: a label or a webhook that is already right is left alone, a webhook with the factory's URL but other events is updated.
+It needs an existing repository. It reads the host's kind, webhook secret and, on Forgejo, the bot's token from FACTORY_HOSTS in deploy/.env (or the environment), and never prints a secret
+or a token. It is safe to run again: a label or a webhook that is already right is left alone, a webhook with the factory's URL but missing events is updated.
+
+Forgejo: the bot's own token is enough (write:repository). The webhook goes to the factory's api over Docker's network (http://api:8000/webhooks/<host name>), or to <--public-url>/webhooks/<host name>.
+
+GitHub: the bot's token must not be used (it has no right to webhooks, and should not get one), so give your own: a fine-grained token with Webhooks, Issues (labels) and Contents (read) permissions on the
+repository, or a classic one with repo and admin:repo_hook, in the environment variable named by --token-env (default GITHUB_TOKEN, then GH_TOKEN; failing that the logged-in `gh` is asked).
+GitHub cannot reach a private address, so --public-url, the address of the factory's api as seen from the internet, is required. --url is the API address of a GitHub Enterprise Server (https://<host>/api/v3).
 """
 import argparse
 import base64
 import json
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -20,19 +27,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Name, colour, what it does. The first three are the ones the factory cannot start without.
 LABELS = [
-    ("feature", "#0e8a16", "starts the feature workflow"),
-    ("bug", "#d73a4a", "starts the bug workflow"),
-    ("incident", "#b60205", "starts the incident workflow"),
-    ("plan", "#5319e7", "splits a big goal into feature tickets for a person to approve"),
-    ("docs", "#0075ca", "writes or updates the repository's documentation"),
-    ("quick", "#fbca04", "quick mode for this ticket"),
-    ("full", "#c5def5", "the full process for this ticket, even if the project defaults to quick"),
-    ("needs-architecture", "#d4c5f9", "forces a design review"),
+    ("feature", "0e8a16", "starts the feature workflow"),
+    ("bug", "d73a4a", "starts the bug workflow"),
+    ("incident", "b60205", "starts the incident workflow"),
+    ("plan", "5319e7", "splits a big goal into feature tickets for a person to approve"),
+    ("docs", "0075ca", "writes or updates the repository's documentation"),
+    ("quick", "fbca04", "quick mode for this ticket"),
+    ("full", "c5def5", "the full process for this ticket, even if the project defaults to quick"),
+    ("needs-architecture", "d4c5f9", "forces a design review"),
 ]
-
-# Issues, Issue Label and Issue Comment drive tickets and slash commands (also on pull requests); the review events start a revision; the others are harmless.
-EVENTS = ["issues", "issue_label", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_rejected"]
-HOOK_URL = "http://api:8000/webhooks/{host}"  # the API as the git host reaches it; the host is the name in FACTORY_HOSTS
 
 
 def read_hosts():
@@ -53,16 +56,19 @@ def read_hosts():
     return hosts
 
 
-class Forgejo:
+class Backend:
+    """What differs between the hosts. Every method answers in the same shape, so the steps below are written once."""
+
+    events = []
+    token_hint = ""
+    page_size = 50  # Forgejo caps a page at 50 by default; GitHub allows 100
+
     def __init__(self, base, token):
         self.base = base.rstrip("/")
         self.token = token
 
     def call(self, method, path, body=None):
-        request = urllib.request.Request(
-            f"{self.base}/api/v1/{path}", method=method,
-            data=None if body is None else json.dumps(body).encode(),
-            headers={"Authorization": f"token {self.token}", "Content-Type": "application/json"})
+        request = urllib.request.Request(f"{self.base}/{path}", method=method, data=None if body is None else json.dumps(body).encode(), headers=self.headers())
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
                 text = response.read().decode()
@@ -70,11 +76,132 @@ class Forgejo:
         except urllib.error.HTTPError as error:
             return error.code, None
 
+    def paged(self, path):
+        """Every item of a list, following the pages."""
+        items, page = [], 1
+        while page <= 20:
+            status, chunk = self.call("GET", f"{path}{'&' if '?' in path else '?'}{self.page_query(page)}")
+            if status != 200 or not isinstance(chunk, list):
+                return None if page == 1 else items
+            items += chunk
+            if len(chunk) < self.page_size:
+                break
+            page += 1
+        return items
 
-def ensure_labels(forgejo, repo, dry):
+
+class Forgejo(Backend):
+    events = ["issues", "issue_label", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_rejected"]
+    token_hint = "the bot's token needs write access to the repository"
+
+    def headers(self):
+        return {"Authorization": f"token {self.token}", "Content-Type": "application/json"}
+
+    def page_query(self, page):
+        return f"limit={self.page_size}&page={page}"
+
+    def api(self, path):
+        return f"api/v1/{path}"
+
+    def repository(self, repo):
+        status, info = self.call("GET", self.api(f"repos/{repo}"))
+        return None if status != 200 else (info["default_branch"], bool(info.get("empty")))
+
+    def labels(self, repo):
+        found = self.paged(self.api(f"repos/{repo}/labels"))
+        return {label["name"].lower() for label in found or []}
+
+    def create_label(self, repo, name, colour, meaning):
+        status, _ = self.call("POST", self.api(f"repos/{repo}/labels"), {"name": name, "color": "#" + colour, "description": meaning})
+        return status == 201, status
+
+    def hooks(self, repo):
+        found = self.paged(self.api(f"repos/{repo}/hooks")) or []
+        return [{"id": hook["id"], "url": hook.get("config", {}).get("url"), "events": hook.get("events", []), "active": hook.get("active", False)} for hook in found]
+
+    def create_hook(self, repo, url, secret):
+        body = {"type": "forgejo", "active": True, "events": self.events, "config": {"url": url, "content_type": "json", "secret": secret}}
+        status, _ = self.call("POST", self.api(f"repos/{repo}/hooks"), body)
+        return status == 201, status
+
+    def update_hook(self, repo, hook, events):
+        status, _ = self.call("PATCH", self.api(f"repos/{repo}/hooks/{hook['id']}"), {"active": True, "events": events})
+        return status == 200, status
+
+    def read_file(self, repo, path, branch):
+        status, file = self.call("GET", self.api(f"repos/{repo}/contents/{path}?ref={branch}"))
+        # An empty repository (no commit yet) answers 200 with a list, not a file object.
+        return base64.b64decode(file["content"]) if status == 200 and isinstance(file, dict) and "content" in file else None
+
+    def default_hook_url(self, host_name, public_url):
+        return f"{public_url.rstrip('/')}/webhooks/{host_name}" if public_url else f"http://api:8000/webhooks/{host_name}"
+
+
+class GitHub(Backend):
+    events = ["issues", "issue_comment", "pull_request_review"]
+    token_hint = "the token needs the Webhooks (admin:repo_hook), Issues and Contents permissions on the repository"
+
+    def headers(self):
+        return {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "dev-foundry-onboard", "Content-Type": "application/json"}
+
+    page_size = 100
+
+    def page_query(self, page):
+        return f"per_page={self.page_size}&page={page}"
+
+    def repository(self, repo):
+        status, info = self.call("GET", f"repos/{repo}")
+        return None if status != 200 else (info["default_branch"], info.get("size", 1) == 0)
+
+    def labels(self, repo):
+        found = self.paged(f"repos/{repo}/labels")
+        return {label["name"].lower() for label in found or []}
+
+    def create_label(self, repo, name, colour, meaning):
+        status, _ = self.call("POST", f"repos/{repo}/labels", {"name": name, "color": colour, "description": meaning})
+        return status == 201, status
+
+    def hooks(self, repo):
+        found = self.paged(f"repos/{repo}/hooks")
+        if found is None:
+            return None  # no right to see webhooks (GitHub answers 404 then), or none of this repository
+        return [{"id": hook["id"], "url": hook.get("config", {}).get("url"), "events": hook.get("events", []), "active": hook.get("active", False)} for hook in found]
+
+    def create_hook(self, repo, url, secret):
+        body = {"name": "web", "active": True, "events": self.events, "config": {"url": url, "content_type": "json", "secret": secret, "insecure_ssl": "0"}}
+        status, _ = self.call("POST", f"repos/{repo}/hooks", body)
+        return status == 201, status
+
+    def update_hook(self, repo, hook, events):
+        status, _ = self.call("PATCH", f"repos/{repo}/hooks/{hook['id']}", {"active": True, "events": events})
+        return status == 200, status
+
+    def read_file(self, repo, path, branch):
+        status, file = self.call("GET", f"repos/{repo}/contents/{path}?ref={branch}")
+        return base64.b64decode(file["content"]) if status == 200 and isinstance(file, dict) and "content" in file else None
+
+    def default_hook_url(self, host_name, public_url):
+        return f"{public_url.rstrip('/')}/webhooks/{host_name}"
+
+
+def operator_token(variable):
+    """The token of the person running this, for GitHub: the named variable, GITHUB_TOKEN, GH_TOKEN, or the logged-in gh. Never the bot's."""
+    for name in [variable] if variable else ["GITHUB_TOKEN", "GH_TOKEN"]:
+        if os.environ.get(name, "").strip():
+            return os.environ[name].strip()
+    try:
+        result = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ""
+
+
+def ensure_labels(backend, repo, dry):
     """Creates the labels the repository lacks. Returns how many were (or would be) created."""
-    _, existing = forgejo.call("GET", f"repos/{repo}/labels?limit=200")
-    have = {label["name"].lower() for label in existing or []}
+    have = backend.labels(repo)
     created = 0
     for name, colour, meaning in LABELS:
         if name in have:
@@ -84,47 +211,47 @@ def ensure_labels(forgejo, repo, dry):
         if dry:
             print(f"  label {name}: would create ({meaning})")
             continue
-        status, _ = forgejo.call("POST", f"repos/{repo}/labels", {"name": name, "color": colour, "description": meaning})
-        print(f"  label {name}: {'created' if status == 201 else f'FAILED ({status}): the token needs write access to the repository'}")
+        ok, status = backend.create_label(repo, name, colour, meaning)
+        print(f"  label {name}: {'created' if ok else f'FAILED ({status}): {backend.token_hint}'}")
     return created
 
 
-def ensure_webhook(forgejo, repo, secret, hook_url, dry):
+def ensure_webhook(backend, repo, secret, hook_url, dry):
     """Creates the factory's webhook, or adds the events a webhook with its URL lacks. Returns 1 when something was (or would be) changed, else 0."""
-    _, hooks = forgejo.call("GET", f"repos/{repo}/hooks")
-    mine = [hook for hook in hooks or [] if hook.get("config", {}).get("url") == hook_url]
+    hooks = backend.hooks(repo)
+    if hooks is None:
+        print(f"  webhook: cannot list the webhooks ({backend.token_hint})")
+        return 0
+    mine = [hook for hook in hooks if hook["url"] == hook_url]
     if not mine:
         if dry:
-            print(f"  webhook: would create ({hook_url}; events {', '.join(EVENTS)})")
+            print(f"  webhook: would create ({hook_url}; events {', '.join(backend.events)})")
         else:
-            wanted = {"type": "forgejo", "active": True, "events": EVENTS, "config": {"url": hook_url, "content_type": "json", "secret": secret}}
-            status, _ = forgejo.call("POST", f"repos/{repo}/hooks", wanted)
-            print(f"  webhook: {'created' if status == 201 else f'FAILED ({status})'}")
+            ok, status = backend.create_hook(repo, hook_url, secret)
+            print(f"  webhook: {'created' if ok else f'FAILED ({status}): {backend.token_hint}'}")
         return 1
 
     hook = mine[0]
-    missing = [event for event in EVENTS if event not in hook.get("events", [])]
-    if not missing and hook.get("active", False):
+    missing = [event for event in backend.events if event not in hook["events"]]
+    if not missing and hook["active"]:
         print("  webhook: already right")
         return 0
     if dry:
-        print(f"  webhook: would update (missing events: {', '.join(missing) or 'none'}; active: {hook.get('active')})")
+        print(f"  webhook: would update (missing events: {', '.join(missing) or 'none'}; active: {hook['active']})")
     else:
-        events = sorted(set(hook.get("events", [])) | set(EVENTS))
-        status, _ = forgejo.call("PATCH", f"repos/{repo}/hooks/{hook['id']}", {"active": True, "events": events})
-        print(f"  webhook: {'updated' if status == 200 else f'FAILED ({status})'} (events added: {', '.join(missing) or 'none'})")
+        ok, status = backend.update_hook(repo, hook, sorted(set(hook["events"]) | set(backend.events)))
+        print(f"  webhook: {'updated' if ok else f'FAILED ({status})'} (events added: {', '.join(missing) or 'none'})")
     return 1
 
 
-def check_project_json(forgejo, repo, branch):
+def check_project_json(backend, repo, branch):
     """Says whether .factory/project.json is on the default branch and usable. Changes nothing."""
-    status, file = forgejo.call("GET", f"repos/{repo}/contents/.factory/project.json?ref={branch}")
-    # An empty repository (no commit yet) answers 200 with a list, not a file object.
-    if status != 200 or not isinstance(file, dict) or "content" not in file:
+    content = backend.read_file(repo, ".factory/project.json", branch)
+    if content is None:
         print(f"  .factory/project.json: MISSING on {branch}. Add one (docs/project-setup.md#4-add-factoryprojectjson, or copy a template from templates/); without it every run stops with a note.")
         return
     try:
-        settings = json.loads(base64.b64decode(file["content"]))
+        settings = json.loads(content)
         if not isinstance(settings, dict):
             raise ValueError("it is not a JSON object")
     except ValueError as error:
@@ -135,40 +262,60 @@ def check_project_json(forgejo, repo, branch):
         print("    note: no `gates` (the project's own checks). The factory still works, but nothing checks a change except the agents.")
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("repository", help="owner/name of an existing repository")
-    parser.add_argument("--host", help="the name of the host in FACTORY_HOSTS (default: the first Forgejo)")
-    parser.add_argument("--url", help="where this machine reaches the host, when it differs from FACTORY_HOSTS (default: http://localhost:3000 for http://forgejo:3000)")
+    parser.add_argument("--host", help="the name of the host in FACTORY_HOSTS (default: the first one)")
+    parser.add_argument("--url", help="where this machine reaches the host's API, when it differs from FACTORY_HOSTS (Forgejo: http://localhost:3000 for http://forgejo:3000; GitHub Enterprise Server: https://<host>/api/v3)")
+    parser.add_argument("--public-url", help="the factory's api as the git host reaches it, such as https://factory.example.org (the webhook is <this>/webhooks/<host name>). Required on GitHub")
+    parser.add_argument("--token-env", help="GitHub: the environment variable that holds your token (default GITHUB_TOKEN, then GH_TOKEN, then `gh auth token`)")
     parser.add_argument("--dry-run", action="store_true", help="say what would be done and change nothing")
-    arguments = parser.parse_args()
+    arguments = parser.parse_args(argv)
     if arguments.repository.count("/") != 1 or not all(arguments.repository.split("/")):
         sys.exit("The repository must be written owner/name.")
 
     hosts = read_hosts()
-    candidates = [h for h in hosts if (h.get("name") == arguments.host if arguments.host else h.get("type", "forgejo") == "forgejo")]
-    if not candidates:
-        sys.exit(f"No {'host called ' + arguments.host if arguments.host else 'Forgejo'} in FACTORY_HOSTS.")
+    if arguments.host:
+        candidates = [h for h in hosts if h.get("name") == arguments.host]
+        if not candidates:
+            sys.exit(f"No host called {arguments.host} in FACTORY_HOSTS.")
+    else:
+        candidates = hosts
     host = candidates[0]
-    if host.get("type", "forgejo") != "forgejo":
-        sys.exit(f"{host.get('name')} is a {host['type']} host: this tool only knows Forgejo. Create the labels and the webhook by hand (docs/operations.md).")
-    token, secret = host.get("token", ""), host.get("webhook_secret", "")
-    if not token or not secret:
-        sys.exit(f"Host {host.get('name')} in FACTORY_HOSTS needs a token and a webhook_secret.")
-    url = arguments.url or host.get("url", "")
-    if url.rstrip("/") == "http://forgejo:3000":
-        url = "http://localhost:3000"  # the factory's own name for the bundled Forgejo is not known to this machine
-    forgejo = Forgejo(url, token)
-    hook_url = HOOK_URL.format(host=host["name"])
+    kind = host.get("type", "forgejo")
+    if kind not in ("forgejo", "github"):
+        sys.exit(f"{host.get('name')} is a {kind} host: this tool knows Forgejo and GitHub. Create the labels and the webhook by hand (docs/git-hosts.md).")
+    name, secret = host.get("name", ""), host.get("webhook_secret", "")
+    if not secret:
+        sys.exit(f"Host {name} in FACTORY_HOSTS needs a webhook_secret.")
+
+    if kind == "github":
+        if not arguments.public_url:
+            sys.exit("GitHub cannot reach a private address: give --public-url, the factory's api as seen from the internet (https://...), so the webhook can point at it.")
+        token = operator_token(arguments.token_env)
+        if not token:
+            sys.exit("GitHub needs your own token (not the bot's): set GITHUB_TOKEN (or name another variable with --token-env), or log in with `gh auth login`. See --help for the permissions.")
+        api = arguments.url or ("https://api.github.com" if host.get("url", "").rstrip("/") in ("", "https://github.com") else host["url"].rstrip("/") + "/api/v3")
+        backend = GitHub(api, token)
+    else:
+        token = (os.environ.get(arguments.token_env, "").strip() if arguments.token_env else "") or host.get("token", "")
+        if not token:
+            sys.exit(f"Host {name} in FACTORY_HOSTS needs a token (or name one in --token-env).")
+        url = arguments.url or host.get("url", "")
+        if url.rstrip("/") == "http://forgejo:3000":
+            url = "http://localhost:3000"  # the factory's own name for the bundled Forgejo is not known to this machine
+        backend = Forgejo(url, token)
+
+    hook_url = backend.default_hook_url(name, arguments.public_url)
     repo, dry = arguments.repository, arguments.dry_run
+    found = backend.repository(repo)
+    if found is None:
+        sys.exit(f"Cannot read {repo}. It must exist already, and the token must be able to see it.")
+    branch, empty = found
+    print(f"{repo} on {name} ({kind}): default branch {branch}{' (empty repository)' if empty else ''}")
 
-    status, info = forgejo.call("GET", f"repos/{repo}")
-    if status != 200:
-        sys.exit(f"Cannot read {repo} ({status}). It must exist already, and the bot must be able to see it.")
-    print(f"{repo}: default branch {info['default_branch']}{' (empty repository)' if info.get('empty') else ''}")
-
-    changed = ensure_labels(forgejo, repo, dry) + ensure_webhook(forgejo, repo, secret, hook_url, dry)
-    check_project_json(forgejo, repo, info["default_branch"])
+    changed = ensure_labels(backend, repo, dry) + ensure_webhook(backend, repo, secret, hook_url, dry)
+    check_project_json(backend, repo, branch)
 
     if not changed:
         print("Nothing to change: the repository is ready.")

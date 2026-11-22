@@ -15,7 +15,7 @@ Open work on the project itself, in the order it matters. Delete a line when it 
 - [ ] A docs website (the Markdown in `docs/` reads fine on GitHub meanwhile).
 - [ ] Make every repository `host:owner/repo` and remove the special case of the host named `forgejo`.
 - [ ] Remove the old-data fallbacks (nothing outside depends on them yet).
-- [ ] Make `tools/onboard-repo.py` work for GitHub (labels and webhook); today only Forgejo, GitHub is set up by hand ([git-hosts.md](docs/git-hosts.md)).
+- [ ] Try `tools/onboard-repo.py` against a real GitHub repository (it is tested against a fake API only): `GITHUB_TOKEN=... python3 tools/onboard-repo.py owner/repo --host github --public-url https://... --dry-run`, then without `--dry-run`.
 - [ ] Live check of the project's own `commands` key (needs a merge into a default branch).
 - [ ] Live check of a review that requests changes on GitHub (needs a second GitHub account).
 - [ ] Spike for Azure DevOps as a git host ([ideas.md](docs/ideas.md)).

@@ -12,7 +12,7 @@ Code is in `src/` (one folder per service: the project, its `Dockerfile` and `RE
 - `agents/`: the role files (`agents/agents/*.md`), the baseline `opencode.json`, and `standards/` (texts copied into roles)
 - `sandboxes/`, `deploy/`: the agent images, the Compose stack (the egress allowlist, `profiles.json`, sits with its service in `src/egress-proxy/`)
 - `templates/`: small working starter projects with every factory feature on (a test checks their settings with the real parser)
-- `tools/`: `check-docs.py`, `check-clock.py`, `usage-report.py` (token totals from the usage log), `onboard-repo.py` (labels and webhook for a new repository)
+- `tools/`: `check-docs.py`, `check-clock.py`, `usage-report.py` (token totals from the usage log), `onboard-repo.py` (labels and webhook for a new repository, Forgejo or GitHub; its tests are in `tests/tools/`)
 - `docs/`: documentation with diagrams (`docs/diagrams/*.dot` render to `docs/images/*.svg`)
 
 ## Commands (from the repository root)
@@ -21,6 +21,7 @@ Code is in `src/` (one folder per service: the project, its `Dockerfile` and `RE
 - Controller, only the workflow scenarios: `docker run --rm -e TEST_FILTER='Category=Scenario' t` (about 7 minutes), or `python3 tools/run-scenarios.py` (the scenario classes split over 4 containers at once, about 2 minutes; `-j N` for another number, `--no-build` to reuse the image `t`)
 - Launcher against the real Docker daemon (needs the base image built; builds and removes a throwaway image): `docker build --target test -f src/sandbox-launcher/Dockerfile -t t . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -e DEV_FOUNDRY_LIVE_DOCKER=1 -e TEST_FILTER='Category=Live' t`
 - Is this machine's clock steady? (tests time out "after 5000ms" in a few seconds when it is not): `python3 tools/check-clock.py`
+- Tests of the tools (a fake Forgejo/GitHub API, standard library only): `python3 -m unittest discover -s tests/tools`
 - Documentation, links, settings and copies: `python3 tools/check-docs.py`
 - Redraw diagrams after editing a `.dot` file: `sh docs/diagrams/render.sh`
 - Rebuild and restart a service: `cd deploy && docker compose up -d --build <service>`
