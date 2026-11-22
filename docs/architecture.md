@@ -100,7 +100,7 @@ The [egress guide](../src/egress-proxy/ALLOWLIST.md) describes the network rules
 | [`src/egress-proxy`](../src/egress-proxy) | the CONNECT proxy, its allowlist policy and the allowlist itself (`profiles.json`) |
 | [`src/contracts`](../src/contracts) | the library the services share: wire types, the git host list, triggers and the webhook adapters of each kind of host |
 | [`tests/`](../tests) | the tests of each service, one folder each (the workflow scenarios run on a Temporal dev server) |
-| [`alert-intake`](https://github.com/OWNER/ai-sdlc-factory-alert-intake) | a component outside the factory, with its own build and tests: turns monitoring alerts into tickets |
+| [`alert-intake`](https://github.com/ai-sdlc-factory/ai-sdlc-factory-alert-intake) | a component outside the factory, with its own build and tests: turns monitoring alerts into tickets |
 | [`sandboxes/`](../sandboxes) | the images agents run in (`dotnet`, `python`, `node`, and the combined `dotnet-node`, `python-node`, `full`, plus `browser`) and their shared entrypoint |
 | [`agents/`](../agents) | role files and shared OpenCode settings |
 | [`deploy/`](../deploy) | Docker Compose and environment settings |

@@ -157,7 +157,7 @@ to that service's `environment` block in `deploy/compose.yaml` (they are not in 
 
 ### alert-intake
 
-The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](https://github.com/OWNER/ai-sdlc-factory-alert-intake#settings).
+The service that turns monitoring alerts into tickets is a tool of its own, outside the factory (its own settings, its own list of git hosts): see [its README](https://github.com/ai-sdlc-factory/ai-sdlc-factory-alert-intake#settings).
 
 ### sandbox-launcher
 
