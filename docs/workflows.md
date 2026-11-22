@@ -75,7 +75,7 @@ it decides with stated assumptions.
 1. **Intake** (code). Clones the repository into a private workspace, makes a copy for the agents, creates the branch
    `factory/issue-<n>`, and reads `.factory/project.json` and, if there is one, `.factory/instructions.md` (the project's [house rules](project-setup.md#project-instructions-factoryinstructionsmd), added to every agent's prompt). Without a usable `project.json` the run stops with `needs_config` and an example
    in the comment.
-2. **Analyst** (read-only). Decides whether the request is clear enough to build and lists testable acceptance criteria and complexity
+2. **Analyst** (read-only). Decides whether the request is clear enough to build and lists testable acceptance criteria and complexity. It is told that the project's end-to-end test folder (`verify.tests`) is written only by [`/qa`](#qa-run) and cannot be changed by the developer, so it leaves end-to-end tests out of the criteria
    facts. `pass` continues; `needs_clarification` asks on the ticket (up to 3 rounds of questions by default; see [limits](project-setup.md#limits)); `reject` stops. An answer that does not match
    the required JSON shape gets one retry that quotes the exact problem; after that a person is asked to look.
 3. **Coverage check** (read-only, then a deterministic check). Judges each criterion against the existing code as `covered`, `partial`
@@ -220,6 +220,8 @@ Anything else gets no revision: a `/fix` on such a pull request is answered with
 | 2. Resolve | `pr-resolver` (writable, shell, package access) in a checkout of the **pull request's own branch** | **every numbered comment is answered exactly once**, as `fixed`, `answered`, `declined` (with a reason) or `needs_clarification` (with the question); and a `fixed` answer must come with changed files |
 | 3. Checks | the factory | the same change checks and project checks as for a feature; failures go back with the output (`limits.build_rounds`, 3 by default) |
 | 4. Review | `reviewer`, `security` if configured, `ux` by its rule | judged on the revision's diff. A revision that changes **3 or more files** is also checked by the acceptance check against the acceptance criteria in the pull request body |
+
+**The criteria are fixed when the run starts.** The analyst writes them from the ticket as it was then, in its own words, and a stricter reading is possible (a ticket that says "any other value returns 400" can become "only the exact lowercase values are accepted"). **Editing the ticket afterwards changes nothing for the pull request**, and neither does a `/fix` instruction that contradicts them: the acceptance check keeps failing the revision for the old criterion until it runs out of rounds (`build_blocked`) and nothing is pushed. To change what is required, edit the ticket and comment **`/retry restart`**: the ticket is analysed again and a new pull request is opened (close the old one). A `/fix` is for what the criteria already allow.
 | 5. Push | the factory | **one new commit** pushed onto the same branch as a normal push, **never forced**. If a person pushed to the branch meanwhile, the commit is put on top of theirs once (and the reply says so); if that conflicts, nothing is pushed |
 | 6. Reply | the factory | a comment with the new commit, a table of what was done for each comment, and the check results. The reviewers are asked to review again. A person reviews again; the factory never merges |
 

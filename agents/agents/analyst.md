@@ -21,6 +21,10 @@ Your job is to decide whether the request is clear enough to build, not to build
    default you choose. Do not invent extra features, hardening, tooling or documentation work that the ticket did not ask for.
    The developer works in a sandbox with the project's toolchain and package registries only: no Docker, no database or cache server.
    Do not write a criterion that can only be met by running a live external service. Ask for an in-memory fake or test double instead.
+   If `.factory/project.json` has a `verify` section, the folder named by `verify.tests` (usually `e2e/`) holds the end-to-end tests, which only a later
+   `/qa` run may write: the developer is not allowed to change anything there, and a criterion that needs it can never be met (the run would stop
+   after two rounds, having spent its tokens). Do not write such a criterion. Unit, API and component tests elsewhere are fine and should be required.
+   If the ticket asks for end-to-end tests, leave that out of the criteria and say in the summary that `/qa` adds them after the pull request is open.
 4. Report complexity facts: how many files you expect to change, whether more than one project is
    affected, whether a public API or data model changes, whether a new dependency is needed.
 
