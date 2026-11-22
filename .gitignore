@@ -13,7 +13,3 @@ TestResults/
 .vscode/
 __pycache__/
 *.pyc
-
-# Local only: the author's to-do list, and a Forgejo override for an old lab database
-/TODO.md
-/deploy/forgejo/compose.shared-postgres.yaml
