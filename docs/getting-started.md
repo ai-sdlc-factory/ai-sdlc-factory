@@ -11,7 +11,7 @@ serve needs a [short setup](project-setup.md).
 | --- | --- |
 | Windows with **WSL 2** (Ubuntu) and **Docker Desktop** with WSL integration enabled, or any Linux with Docker Engine and Compose v2 | The stack is built and tested on WSL. Docker Compose runs everything. |
 | About 10 GB of disk and 8 GB of RAM for Docker | The sandboxes are limited to 2 GB and 2 CPUs each, and 2 run at once. |
-| A **ChatGPT Plus/Pro account** | The agents use OpenCode with a ChatGPT sign-in; there is no OpenAI API key. Usage counts against your plan. |
+| A **ChatGPT Plus/Pro account** | The agents use OpenCode with a ChatGPT sign-in; there is no OpenAI API key (an API key or another provider is [possible but untested](opencode-login.md#other-ways-to-sign-in)). Usage counts against your plan. |
 | Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../src/egress-proxy/ALLOWLIST.md)). |
 
 ## 1. Get the code and configure the environment

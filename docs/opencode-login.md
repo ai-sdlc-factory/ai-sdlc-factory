@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) | [Getting started](getting-started.md#5-sign-the-agents-in)
 
-The factory's agents run OpenCode with a ChatGPT Plus/Pro account (browser sign-in; no OpenAI API key).
+The factory's agents run OpenCode with a ChatGPT Plus/Pro account (browser sign-in; no OpenAI API key; [other ways](#other-ways-to-sign-in) are untested).
 You sign in once. The login is stored in the `opencode-data` Docker volume, outside `.env`, Git and
 Temporal history, and the [sandbox launcher](../src/sandbox-launcher/README.md#model-access-and-the-opencode-login)
 mounts it into the runs that call the model.
@@ -34,6 +34,16 @@ docker compose --profile opencode-tools run --rm --no-deps opencode-login openco
 
 The model each agent uses is set in its role file under [`agents/agents/`](../agents/README.md#choosing-the-model-per-role) (with a default in
 [`agents/opencode.json`](../agents/opencode.json)); choose one your plan includes. Usage depends on your ChatGPT plan.
+
+## Other ways to sign in
+
+**The factory was built and tested with the ChatGPT Plus/Pro sign-in described above, and only that.** Everything below is a starting point that has **not been tried**: the code does not forbid it, but nothing here was run with it, so expect to fix things.
+
+**An OpenAI API key.** The login volume does not care how `auth.json` was made. OpenCode's `opencode auth login --provider openai` also offers a method to enter an API key by hand; run it in the same helper as above and it writes to the same volume. Then the sandboxes must be allowed to reach the API: the egress allowlist ([`profiles.json`](../src/egress-proxy/ALLOWLIST.md)) lets the `model` profile reach only `chatgpt.com` and `auth.openai.com`, and an API key calls `api.openai.com`. Add that host to the profile (in your own file, set with `EGRESS_PROFILES`, as the allowlist guide describes) and restart the proxy. With a key, OpenCode reports real cost figures and the provider bills per token, so the [token budget and the daily cap](operations.md#token-limits) matter more than with a plan; they have never been run with a key.
+
+**Another provider** (Anthropic, a local or hosted model). Three places say "OpenAI": `enabled_providers` in [`agents/opencode.json`](../agents/opencode.json), the `model:` line of every role file in [`agents/agents/`](../agents/README.md#choosing-the-model-per-role), and the egress hosts of the `model` profile. Change all three to the provider's, sign in with `opencode auth login --provider <name>`, and check each role with `opencode debug agent <role>`. Role files and prompts were written and checked against the OpenAI models named in them; another model may follow the JSON answer shapes less reliably, and the controller rejects an answer that does not parse.
+
+If you get one of these working, a pull request with what you changed and what you hit is welcome here.
 
 ## How it is shared
 
