@@ -19,8 +19,7 @@ Forgejo is then at http://localhost:3000 (SSH: port `2222`); finish the installa
 | `FORGEJO_HTTP_PORT`, `FORGEJO_SSH_PORT` | Forgejo's web and SSH ports on this machine (127.0.0.1 only) | `3000`, `2222` |
 | `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT` | Mailpit's inbox and SMTP ports | `8025`, `1025` |
 | `FACTORY_PROJECT` | the factory's Compose project name, if it is not `ai-sdlc-factory` (it prefixes the networks this project joins) | `ai-sdlc-factory` |
-| `COMPOSE_PROJECT_NAME` | this project's own Compose name, which names its containers and volumes. A Forgejo started before the rename from dev-foundry keeps its data by setting `dev-foundry-forgejo` here | `ai-sdlc-factory-forgejo` |
-| `FORGEJO_DB_PASSWORD` | only with `compose.shared-postgres.yaml` (below): the password of the `forgejo` role in the factory's PostgreSQL | none |
+| `COMPOSE_PROJECT_NAME` | this project's own Compose name, which names its containers and volumes; changing it on a Forgejo that has data starts with new, empty volumes | `ai-sdlc-factory-forgejo` |
 
 ## The factory bot account
 
@@ -35,16 +34,3 @@ docker compose exec -u 1000 forgejo forgejo admin user generate-access-token \
 ```
 
 Put the token into the `"token"` of this host in `FACTORY_HOSTS` in `deploy/.env` (with `"url":"http://forgejo:3000"` and a `webhook_secret`; see [Configuration](../../docs/configuration.md#factory_hosts)) and recreate the controller. Then [connect each repository](../../docs/project-setup.md).
-
-## A Forgejo that started in the factory's stack
-
-Before this folder existed, Forgejo ran inside the factory's Compose project and kept its database in the factory's PostgreSQL and its files in the volume `ai-sdlc-factory_forgejo-data`. To carry on with exactly that data, nothing moved:
-
-```bash
-# 1. stop and remove the old containers (named for the factory's Compose project; the data stays in the volume and the database)
-docker rm -f ai-sdlc-factory-forgejo-1 ai-sdlc-factory-mailpit-1
-# 2. here: put the old FORGEJO_DB_PASSWORD (the password of the "forgejo" role) into .env, then
-docker compose -f compose.yaml -f compose.shared-postgres.yaml up -d
-```
-
-Use both `-f` files for every later command too. `compose.shared-postgres.yaml` points Forgejo at that PostgreSQL (over the factory's `data` network) and at that volume. A fresh install does not need it.
