@@ -8,7 +8,7 @@
 It needs an existing repository. It reads the host's kind, webhook secret and, on Forgejo, the bot's token from FACTORY_HOSTS in deploy/.env (or the environment), and never prints a secret
 or a token. It is safe to run again: a label or a webhook that is already right is left alone, a webhook with the factory's URL but missing events is updated.
 
-Forgejo: the bot's own token is enough (write:repository). The webhook goes to the factory's api over Docker's network (http://api:8000/webhooks/<host name>), or to <--public-url>/webhooks/<host name>.
+Forgejo: the bot's own token creates the labels, but Forgejo lets only a repository administrator manage webhooks, so either make the bot an administrator of the repository or give your own token (an administrator's, scopes write:repository) in the environment variable named by --token-env. The webhook goes to the factory's api over Docker's network (http://api:8000/webhooks/<host name>), or to <--public-url>/webhooks/<host name>.
 
 GitHub: the bot's token must not be used (it has no right to webhooks, and should not get one), so give your own: a fine-grained token with Webhooks, Issues (labels) and Contents (read) permissions on the
 repository, or a classic one with repo and admin:repo_hook, in the environment variable named by --token-env (default GITHUB_TOKEN, then GH_TOKEN; failing that the logged-in `gh` is asked).
@@ -92,7 +92,7 @@ class Backend:
 
 class Forgejo(Backend):
     events = ["issues", "issue_label", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_rejected"]
-    token_hint = "the bot's token needs write access to the repository, and on Forgejo only a repository administrator may manage webhooks: add the bot as an administrator, or create the webhook yourself"
+    token_hint = "the bot's token needs write access to the repository, and Forgejo lets only a repository administrator manage webhooks: run this again with an administrator's token (MY_TOKEN=... --token-env MY_TOKEN), make the bot an administrator of the repository, or add the webhook in the repository's settings"
 
     def headers(self):
         return {"Authorization": f"token {self.token}", "Content-Type": "application/json"}
@@ -274,7 +274,7 @@ def main(argv=None):
     parser.add_argument("--host", help="the name of the host in FACTORY_HOSTS (default: the first one)")
     parser.add_argument("--url", help="where this machine reaches the host's API, when it differs from FACTORY_HOSTS (Forgejo: http://localhost:3000 for http://forgejo:3000; GitHub Enterprise Server: https://<host>/api/v3)")
     parser.add_argument("--public-url", help="the factory's api as the git host reaches it, such as https://factory.example.org (the webhook is <this>/webhooks/<host name>). Required on GitHub")
-    parser.add_argument("--token-env", help="GitHub: the environment variable that holds your token (default GITHUB_TOKEN, then GH_TOKEN, then `gh auth token`)")
+    parser.add_argument("--token-env", help="the environment variable that holds your own token. GitHub: required in practice (default GITHUB_TOKEN, then GH_TOKEN, then `gh auth token`). Forgejo: an administrator's token, when the bot is not an administrator of the repository (it cannot manage webhooks)")
     parser.add_argument("--dry-run", action="store_true", help="say what would be done and change nothing")
     arguments = parser.parse_args(argv)
     if arguments.repository.count("/") != 1 or not all(arguments.repository.split("/")):
