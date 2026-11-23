@@ -50,12 +50,12 @@ docker compose ps -a
 
 (The factory starts no git host. Step 4 sets one up.)
 
-The first start initialises the databases. `temporal-schema` and `temporal-namespace` should exit with code `0`; everything else keeps running.
+The first start creates the Temporal namespace. `temporal-namespace` should exit with code `0` (with the PostgreSQL option, `temporal-schema` too); everything else keeps running.
 Check the stack:
 
 | Check | Expected |
 | --- | --- |
-| `docker compose ps -a` | all services `running` or `healthy`; the two Temporal setup services `exited (0)` |
+| `docker compose ps -a` | all services `running` or `healthy`; the Temporal setup service `temporal-namespace` `exited (0)` (and `temporal-schema` with the PostgreSQL option) |
 | http://localhost:8000/health/ready | `200`: the api can reach Temporal |
 | http://localhost:8080 | the Temporal UI |
 
