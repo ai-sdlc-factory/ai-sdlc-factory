@@ -34,7 +34,7 @@ The settings are explained in [Setting up a project](../docs/project-setup.md); 
    ```
 2. **Put it in Forgejo**: create an empty repository there, add it as `origin` and push `main`. The factory needs at least one commit on the default branch, and `.factory/project.json` on it.
 3. **Connect it to the factory**, once per repository, as in [Setting up a project](../docs/project-setup.md): give the `factory-bot` account **Write** access, add the webhook, and create the labels (`feature`, `bug`, `incident`, and optionally `quick`, `full`, `needs-architecture`).
-4. **Build the sandbox image** the template names, if you have not yet (`docker compose --profile images build sandbox-image-<name>` in `deploy/`; the combined `dotnet-node` is needed by `dotnet-react`).
+4. **Build the sandbox image** the template names, if you have not yet (`docker compose --profile images build sandbox-image-<name>` in `deploy/`; the combined `dotnet-node` is needed by `dotnet-react`). `dotnet-react` and `react-web` also run their UI end-to-end tests for `/qa` in the `browser` image (`verify.image`); it is built on the `full` image, so build `sandbox-image-full` first and `sandbox-image-browser` in a second command. Without it `/qa` stops with a message that names the missing image.
 5. **Make it yours**: replace the stand-in code, the "What this is" part of `AGENTS.md` and the example rules in `.factory/instructions.md` (or delete that file), and adjust `.factory/project.json` (check commands, rules, limits). Then open a ticket with the `feature` label.
 
 ## Notes
