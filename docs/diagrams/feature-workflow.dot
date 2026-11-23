@@ -1,35 +1,35 @@
 digraph feature_workflow {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="Feature workflow: a ticket becomes a reviewed pull request";
 
-  start   [label="Ticket labelled feature", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
-  intake  [label="Intake\nclone the repository · make a copy for the agents\nread .factory/project.json", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  analyst [label="analyst\nis the request clear enough to build?", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  ask1    [label="asks on the ticket\nwaits for a person  (4 rounds at most)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-  rejected[label="rejected / needs a person", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  quick   [label="quick mode?\n(quick label or project default)", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
-  coverage[label="coverage\nis it already built?", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  evidence[label="evidence check\ncited files must exist", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  covered [label="already_implemented\n(nothing to build)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  triage  [label="triage rules (no model)\nneeds a design review?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
-  architect[label="architect\ndesigns the change", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  ask2    [label="asks on the ticket\n(3 rounds at most)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-  drej    [label="design_rejected", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  start   [label=<<B>Ticket labelled feature</B>>, shape=oval, style="filled", fillcolor="#ffffff", color="#12183a", penwidth=1.4];
+  intake  [label=<<B>Intake</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">clone the repository · make a copy for the agents</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">read .factory/project.json</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  analyst [label=<<B>analyst</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">is the request clear enough to build?</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  ask1    [label=<<B>asks on the ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">waits for a person  (4 rounds at most)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+  rejected[label=<<B>rejected / needs a person</B>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  quick   [label=<<B>quick mode?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(quick label or project default)</FONT>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
+  coverage[label=<<B>coverage</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">is it already built?</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  evidence[label=<<B>evidence check</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">cited files must exist</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  covered [label=<<B>already_implemented</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(nothing to build)</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  triage  [label=<<B>triage rules (no model)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">needs a design review?</FONT>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
+  architect[label=<<B>architect</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">designs the change</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  ask2    [label=<<B>asks on the ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(3 rounds at most)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+  drej    [label=<<B>design_rejected</B>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   subgraph cluster_build {
-    label="Build loop  (3 rounds at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    developer[label="developer\nwrites the code and its tests", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    changes  [label="change checks\nprotected paths · symlinks\nsize · secrets", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    gates    [label="project checks (gates)\nbuild · test · lint\nno model access", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    reviewers[label="reviewers\nreviewer · security (optional)\nux (UI change, medium or large)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    qa       [label="acceptance check\nis every criterion met?\n(skipped in quick mode)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+    label="Build loop  (3 rounds at most)"; style="rounded,filled,dashed"; color="#b9b29c"; fillcolor="#efeadd"; fontsize=11;
+    developer[label=<<B>developer</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">writes the code and its tests</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    changes  [label=<<B>change checks</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">protected paths · symlinks</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">size · secrets</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    gates    [label=<<B>project checks (gates)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">build · test · lint</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">no model access</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    reviewers[label=<<B>reviewers</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">reviewer · security (optional)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">ux (UI change, medium or large)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    qa       [label=<<B>acceptance check</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">is every criterion met?</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(skipped in quick mode)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    ok       [label=<<B>everything passes?</B>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
   }
-  publish [label="Publish\ncommit · push factory/issue-N · open the pull request\n(the factory never merges)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  pr      [label="Pull request\na person reviews and merges", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  wip     [label="Work-in-progress branch\nfactory/issue-N-wip + a comment on the ticket", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  publish [label=<<B>Publish</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">commit · push factory/issue-N · open the pull request</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(the factory never merges)</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  pr      [label=<<B>Pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">a person reviews and merges</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  wip     [label=<<B>Work-in-progress branch</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">factory/issue-N-wip + a comment on the ticket</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   start -> intake -> analyst;
   analyst -> ask1 [label="needs\nclarification"]; ask1 -> analyst [label="answer"];
@@ -47,16 +47,16 @@ digraph feature_workflow {
   architect -> developer [label="pass"];
   developer -> changes -> gates -> reviewers -> qa -> ok;
   ok -> publish [label="yes"];
-  ok -> developer [label="no: feedback\nto the developer", constraint=false, style=dashed, color="#c53030", fontcolor="#c53030"];
+  ok -> developer [label="no: feedback\nto the developer", constraint=false, style=dashed, color="#ff5a36", fontcolor="#ff5a36"];
   publish -> pr;
   ok -> wip [label="out of rounds\nor blocked", style=dashed];
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    fel1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    fel2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    fel3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    fel4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    fel1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    fel2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    fel3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    fel4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     fel1 -> fel2 -> fel3 -> fel4 [style=invis];
   }
 }

@@ -1,32 +1,32 @@
 digraph incident_workflow {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="Incident workflow: advice only, people decide, nothing touches production";
 
-  start   [label="Ticket labelled incident\n(logs and facts are in the ticket)", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
-  intake  [label="Intake\nclone the affected system's repository", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  analyst [label="incident-analyst\nseverity · impact · timeline\nwhat is missing", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  ask1    [label="asks on the ticket\n(4 rounds at most)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-  rej     [label="rejected\n(not an incident here)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  invest  [label="investigator\nlikely causes from the code and git history\n(no production access)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  verify  [label="verify the evidence\ncited files and commits must exist;\nwhat is not found is dropped, the\nhypothesis becomes a low-confidence guess", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  mitig   [label="mitigator\n1 to 4 options with steps, risk,\nhow to verify, a recommendation", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  post    [label="the ticket gets the assessment,\nthe hypotheses and the options", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  start   [label=<<B>Ticket labelled incident</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(logs and facts are in the ticket)</FONT>>, shape=oval, style="filled", fillcolor="#ffffff", color="#12183a", penwidth=1.4];
+  intake  [label=<<B>Intake</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">clone the affected system's repository</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  analyst [label=<<B>incident-analyst</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">severity · impact · timeline</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">what is missing</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  ask1    [label=<<B>asks on the ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(4 rounds at most)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+  rej     [label=<<B>rejected</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(not an incident here)</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  invest  [label=<<B>investigator</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">likely causes from the code and git history</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(no production access)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  verify  [label=<<B>verify the evidence</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">cited files and commits must exist;</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">what is not found is dropped, the</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">hypothesis becomes a low-confidence guess</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  mitig   [label=<<B>mitigator</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">1 to 4 options with steps, risk,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">how to verify, a recommendation</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  post    [label=<<B>the ticket gets the assessment,</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the hypotheses and the options</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
 
   subgraph cluster_people {
-    label="People decide with fixed commands (not a model's reading of free text)"; style="rounded,filled"; color="#d69e2e"; fillcolor="#fffbea"; fontsize=11;
-    wait    [label="waits for a comment\n(7 days at most)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-    opt     [label="/option N\nchecklist of unchecked boxes\nfor a person to carry out", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-    hotfix  [label="/hotfix\nopens ONE bug ticket with the\nsuspected cause", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-    more    [label="any other comment\n= new information", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-    resolved[label="/resolved", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+    label="People decide with fixed commands (not a model's reading of free text)"; style="rounded,filled,dashed"; color="#ff5a36"; fillcolor="#fff1ea"; fontsize=11;
+    wait    [label=<<B>waits for a comment</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(7 days at most)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+    opt     [label=<<B>/option N</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">checklist of unchecked boxes</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">for a person to carry out</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+    hotfix  [label=<<B>/hotfix</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">opens ONE bug ticket with the</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">suspected cause</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+    more    [label=<<B>any other comment</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">= new information</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+    resolved[label=<<B>/resolved</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
   }
-  bug     [label="BugWorkflow\n(failing test first, then the fix)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  writer  [label="postmortem-writer\nwrites ONE new file from the ticket record:\ndocs/postmortems/<date>-incident-<n>.md", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  onefile [label="exactly that one file?\nelse sent back once", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  pm      [label="Draft postmortem pull request\na person verifies the facts", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  closed  [label="ticket closed or no reply\nthe run ends", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  bug     [label=<<B>BugWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(failing test first, then the fix)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  writer  [label=<<B>postmortem-writer</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">writes ONE new file from the ticket record:</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">docs/postmortems/&lt;date&gt;-incident-&lt;n&gt;.md</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  onefile [label=<<B>exactly that one file?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">else sent back once</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  pm      [label=<<B>Draft postmortem pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">a person verifies the facts</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  closed  [label=<<B>ticket closed or no reply</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the run ends</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   start -> intake -> analyst;
   analyst -> ask1 [label="needs\nclarification"]; ask1 -> analyst;
@@ -40,11 +40,11 @@ digraph incident_workflow {
   resolved -> writer -> onefile -> pm;
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    inl1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    inl2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    inl3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    inl4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    inl1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    inl2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    inl3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    inl4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     inl1 -> inl2 -> inl3 -> inl4 [style=invis];
   }
 }

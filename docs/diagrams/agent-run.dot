@@ -1,22 +1,22 @@
 digraph agent_run {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="One agent run: the agent advises, the factory decides";
 
-  wf   [label="Workflow code (in the controller)\nchooses the role, the image, the network profile\nand builds the prompt: ticket text is data between markers", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  act  [label="activity  sandbox_run\nimage alias · workspace name · command · timeout\nnetwork profile · role · needs model access", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  pol  [label="sandbox-launcher validates the request\nknown image alias · workspace exists and is not a symlink\nenv names · timeout cap · profile exists", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  rej  [label="refused, never retried", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  box  [label="disposable container  (fixed by the launcher, not by the request)\nnon-root · read-only root · all capabilities dropped · no-new-privileges\nmemory · CPU · process limits · tmpfs /tmp\nmounts: the workspace (read-only or writable) · the agents folder (read-only)\nthe ChatGPT login only for model runs\nnetwork: none, or one internal network with its own proxy", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  run  [label="opencode run --agent <role> --format json\nthe role file sets permissions (and, if it wants, model and variant)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  proxy[label="egress-proxy\nonly the hosts of that profile", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  out  [label="exit code · stdout (OpenCode events)\ncontainer removed, even on cancel or timeout", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  pars [label="controller extracts the final text\nand sums tokens and cost for the record", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  val  [label="strict JSON validator for that role\nshape · allowed values · size limits · safe paths", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  retry[label="one retry that quotes the exact error", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  stop [label="a person is asked (comment on the ticket)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  next [label="the workflow decides the next step in code\nfrom the verdict value; checks the agent's claims itself\n(files exist, tests fail then pass, ...)", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  wf   [label=<<B>Workflow code (in the controller)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">chooses the role, the image, the network profile</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">and builds the prompt: ticket text is data between markers</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  act  [label=<<B>activity  sandbox_run</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">image alias · workspace name · command · timeout</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">network profile · role · needs model access</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  pol  [label=<<B>sandbox-launcher validates the request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">known image alias · workspace exists and is not a symlink</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">env names · timeout cap · profile exists</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  rej  [label=<<B>refused, never retried</B>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  box  [label=<<B>disposable container  (fixed by the launcher, not by the request)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">non-root · read-only root · all capabilities dropped · no-new-privileges</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">memory · CPU · process limits · tmpfs /tmp</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">mounts: the workspace (read-only or writable) · the agents folder (read-only)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the ChatGPT login only for model runs</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">network: none, or one internal network with its own proxy</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  run  [label=<<B>opencode run --agent &lt;role&gt; --format json</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the role file sets permissions (and, if it wants, model and variant)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  proxy[label=<<B>egress-proxy</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">only the hosts of that profile</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  out  [label=<<B>exit code · stdout (OpenCode events)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">container removed, even on cancel or timeout</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  pars [label=<<B>controller extracts the final text</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">and sums tokens and cost for the record</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  val  [label=<<B>strict JSON validator for that role</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">shape · allowed values · size limits · safe paths</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  retry[label=<<B>one retry that quotes the exact error</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  stop [label=<<B>a person is asked (comment on the ticket)</B>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  next [label=<<B>the workflow decides the next step in code</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">from the verdict value; checks the agent's claims itself</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(files exist, tests fail then pass, ...)</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
 
   wf -> act -> pol;
   pol -> rej [style=dashed, label="violation"];
@@ -28,11 +28,11 @@ digraph agent_run {
   retry -> stop [label="still invalid", style=dashed];
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    agl1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    agl2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    agl3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    agl4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    agl1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    agl2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    agl3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    agl4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     agl1 -> agl2 -> agl3 -> agl4 [style=invis];
   }
 }

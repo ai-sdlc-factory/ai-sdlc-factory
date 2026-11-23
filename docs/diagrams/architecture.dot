@@ -1,38 +1,38 @@
 // The whole solution: who talks to whom, and where the trust boundaries are.
 digraph architecture {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.38, ranksep=0.7,
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.48, ranksep=0.80, fontcolor="#12183a", fontsize=17,
          label="AI SDLC Factory: system overview", labelloc=t, labeljust=l];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", fillcolor="#eef2f6", color="#5b6773", margin="0.16,0.09"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", margin="0.24,0.14"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
 
-  person  [label="You\ncreate tickets, answer questions,\nreview and merge pull requests", shape=ellipse, fillcolor="#fff3c4", color="#b7791f"];
-  model   [label="Model provider\nchatgpt.com · auth.openai.com", shape=box, style="filled", fillcolor="#e9e3f7", color="#6b46c1"];
-  registry[label="Package registries\nPyPI · npm · NuGet · ...", shape=box, style="filled", fillcolor="#e9e3f7", color="#6b46c1"];
+  person  [label=<<B>You</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">create tickets, answer questions,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">review and merge pull requests</FONT>>, shape=ellipse, fillcolor="#ffe6dd", color="#ff5a36"];
+  model   [label=<<B>Model provider</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">chatgpt.com · auth.openai.com</FONT>>, shape=box, style="rounded,filled,dashed", fillcolor="#f6f3ea", color="#8b8570"];
+  registry[label=<<B>Package registries</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">PyPI · npm · NuGet · ...</FONT>>, shape=box, style="rounded,filled,dashed", fillcolor="#f6f3ea", color="#8b8570"];
 
   subgraph cluster_stack {
-    label="Docker Compose stack on your machine"; style="rounded,dashed"; color="#8a94a0"; fontsize=11;
+    label="Docker Compose stack on your machine"; style="rounded,dashed"; color="#b9b29c"; fontsize=11;
 
-    host [label="Git host\n(Forgejo or GitHub)\ntickets · repositories · PRs", fillcolor="#e1f0e3", color="#2f855a"];
+    host [label=<<B>Git host</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(Forgejo or GitHub)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">tickets · repositories · PRs</FONT>>, fillcolor="#dff3e9", color="#1f8f63"];
 
     subgraph cluster_control {
-      label="control plane (no model, no Docker)"; style="rounded"; color="#9aa5b1"; fillcolor="#fafbfc"; style="rounded,filled";
-      api        [label="api\nchecks the webhook signature,\nstarts a workflow"];
-      temporal   [label="Temporal\nstores every workflow's history\n(7 days by default)", fillcolor="#dbe8ff", color="#2b6cb0"];
-      controller [label="controller\nthe workflows and all decisions\nholds the git host tokens\nruns git on the pristine clone", fillcolor="#dbe8ff", color="#2b6cb0"];
+      label="control plane (no model, no Docker)"; style="rounded,dashed"; color="#b9b29c"; fillcolor="#efeadd"; style="rounded,filled,dashed";
+      api        [label=<<B>api</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">checks the webhook signature,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">starts a workflow</FONT>>];
+      temporal   [label=<<B>Temporal</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">stores every workflow's history</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(7 days by default)</FONT>>, fillcolor="#e6e9fb", color="#3b4cca"];
+      controller [label=<<B>controller</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the workflows and all decisions</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">holds the git host tokens</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">runs git on the pristine clone</FONT>>, fillcolor="#e6e9fb", color="#3b4cca"];
     }
 
-    temporaldb [label="Temporal data\nSQLite file (default)\nor PostgreSQL (optional)", shape=cylinder, fillcolor="#eef2f6"];
+    temporaldb [label=<<B>Temporal data</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">SQLite file (default)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">or PostgreSQL (optional)</FONT>>, shape=cylinder, fillcolor="#ffffff"];
 
     subgraph cluster_sandboxing {
-      label="agent sandboxing (the only place with Docker access)"; style="rounded,filled"; color="#c05621"; fillcolor="#fff6ec";
-      launcher [label="sandbox-launcher\nthe only service with the Docker socket\nfixed isolation policy, max 2 at once", fillcolor="#ffe3c7", color="#c05621"];
-      sandbox  [label="disposable sandbox  (one per agent run)\nOpenCode + one role file + the project's image\nnon-root · read-only root · no capabilities\nno route out except the proxy", fillcolor="#ffe3c7", color="#c05621"];
-      proxy    [label="egress-proxy\nHTTPS tunnels to allowlisted hosts only\nlogs every decision", fillcolor="#ffe3c7", color="#c05621"];
+      label="agent sandboxing (the only place with Docker access)"; style="rounded,filled,dashed"; color="#d9622b"; fillcolor="#fff7ee";
+      launcher [label=<<B>sandbox-launcher</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the only service with the Docker socket</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">fixed isolation policy, max 2 at once</FONT>>, fillcolor="#fff0e0", color="#d9622b"];
+      sandbox  [label=<<B>disposable sandbox  (one per agent run)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">OpenCode + one role file + the project's image</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">non-root · read-only root · no capabilities</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">no route out except the proxy</FONT>>, fillcolor="#fff0e0", color="#d9622b"];
+      proxy    [label=<<B>egress-proxy</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">HTTPS tunnels to allowlisted hosts only</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">logs every decision</FONT>>, fillcolor="#fff0e0", color="#d9622b"];
     }
 
-    workspaces [label="workspace folder on the host\n.base/<ticket>  pristine clone\n<ticket>  copy the agent works in", shape=folder, fillcolor="#fdf2c8", color="#b7791f"];
-    login      [label="opencode-data volume\nthe ChatGPT login", shape=cylinder, fillcolor="#fdf2c8", color="#b7791f"];
-    agents     [label="agents/ folder\nrole files, read-only", shape=folder, fillcolor="#fdf2c8", color="#b7791f"];
+    workspaces [label=<<B>workspace folder on the host</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">.base/&lt;ticket&gt;  pristine clone</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">&lt;ticket&gt;  copy the agent works in</FONT>>, shape=folder, fillcolor="#efeadd", color="#8b8570"];
+    login      [label=<<B>opencode-data volume</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the ChatGPT login</FONT>>, shape=cylinder, fillcolor="#efeadd", color="#8b8570"];
+    agents     [label=<<B>agents/ folder</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">role files, read-only</FONT>>, shape=folder, fillcolor="#efeadd", color="#8b8570"];
   }
 
   person -> host [label="tickets, comments,\nPR reviews"];

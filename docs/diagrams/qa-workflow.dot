@@ -1,40 +1,40 @@
 digraph qa_workflow {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="QA run: a finished pull request is tried against the running application, and the report goes on the ticket";
 
-  start  [label="A person comments on the ticket or the pull request\n/qa   ·   /qa full   ·   /qa api|ui   ·   /qa <note>", shape=oval, style="filled", fillcolor="#fff3c4", color="#b7791f", penwidth=1.4];
-  find   [label="Find the factory's open pull request\n(branch factory/issue-<n>, same repository)\nread .factory/project.json  →  verify", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  rules  [label="open pull request of the factory?\nthe project has verify and the suite asked for?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  refuse [label="ignored without a word (not the factory's)\nor a short note: none · closed · no verify settings", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  co     [label="Check out the pull request's own branch", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  start  [label=<<B>A person comments on the ticket or the pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">/qa   ·   /qa full   ·   /qa api|ui   ·   /qa &lt;note&gt;</FONT>>, shape=oval, style="filled", fillcolor="#ffe6dd", color="#ff5a36", penwidth=1.4];
+  find   [label=<<B>Find the factory's open pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(branch factory/issue-&lt;n&gt;, same repository)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">read .factory/project.json  →  verify</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  rules  [label=<<B>open pull request of the factory?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the project has verify and the suite asked for?</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  refuse [label=<<B>ignored without a word (not the factory's)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">or a short note: none · closed · no verify settings</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  co     [label=<<B>Check out the pull request's own branch</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
 
   subgraph cluster_loop {
-    label="Test loop  (3 attempts at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    tester [label="e2e-tester\nstarts the app, tries it from the outside,\nwrites API / UI tests under the tests folder\nscope: the change · or the whole app (full) · your note", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    only   [label="only files under the tests folder changed?\nno deletions · no secrets · no protected files", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    run    [label="THE FACTORY runs each suite itself\nstart the app · wait for verify.ready · run the suite · stop it\nno model login · exit code decides", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    pass   [label="every suite passed?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+    label="Test loop  (3 attempts at most)"; style="rounded,filled,dashed"; color="#b9b29c"; fillcolor="#efeadd"; fontsize=11;
+    tester [label=<<B>e2e-tester</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">starts the app, tries it from the outside,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">writes API / UI tests under the tests folder</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">scope: the change · or the whole app (full) · your note</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    only   [label=<<B>only files under the tests folder changed?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">no deletions · no secrets · no protected files</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    run    [label=<<B>THE FACTORY runs each suite itself</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">start the app · wait for verify.ready · run the suite · stop it</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">no model login · exit code decides</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    pass   [label=<<B>every suite passed?</B>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
   }
-  ux     [label="ux  (UI suite only)\nreads the page text and accessibility\nsnapshots the tests left as evidence", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  clean  [label="Remove the evidence folder\nand check nothing else was written", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  push   [label="Push ONE commit with the tests\nonto the pull request's branch", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  save   [label="Tests NOT added to the pull request\nsaved on a -wip branch for a person to look at", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  report [label="Report on the ticket\nsuite results · scenarios · where the tests went · UX review\nnumbered findings to fix · tokens used", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  person [label="A person reads the report\nand decides (the factory never merges)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-  fix    [label="/fix qa on the pull request\nthe revision flow addresses the numbered findings,\nthen /qa again", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  infra  [label="the sandbox failed for the factory's own reasons\ninfrastructure_failed  ·  comment /qa again", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  ux     [label=<<B>ux  (UI suite only)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">reads the page text and accessibility</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">snapshots the tests left as evidence</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  clean  [label=<<B>Remove the evidence folder</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">and check nothing else was written</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  push   [label=<<B>Push ONE commit with the tests</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">onto the pull request's branch</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  save   [label=<<B>Tests NOT added to the pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">saved on a -wip branch for a person to look at</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  report [label=<<B>Report on the ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">suite results · scenarios · where the tests went · UX review</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">numbered findings to fix · tokens used</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  person [label=<<B>A person reads the report</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">and decides (the factory never merges)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+  fix    [label=<<B>/fix qa on the pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the revision flow addresses the numbered findings,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">then /qa again</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  infra  [label=<<B>the sandbox failed for the factory's own reasons</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">infrastructure_failed  ·  comment /qa again</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   start -> find -> rules;
   rules -> refuse [label="no", style=dashed];
   rules -> co [label="yes"];
   co -> tester -> only;
-  only -> tester [label="no: sent back with the reason", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  only -> tester [label="no: sent back with the reason", style=dashed, color="#ff5a36", fontcolor="#ff5a36", constraint=false];
   only -> run [label="yes"];
   run -> pass;
   run -> infra [label="sandbox error", style=dashed];
-  pass -> tester [label="no: the output goes back; the tester says per test\napplication bug or test problem", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  pass -> tester [label="no: the output goes back; the tester says per test\napplication bug or test problem", style=dashed, color="#ff5a36", fontcolor="#ff5a36", constraint=false];
   pass -> ux [label="yes, or out of attempts\nor the tester blames only the app"];
   ux -> clean;
   clean -> push [label="all passed"];
@@ -44,11 +44,11 @@ digraph qa_workflow {
   person -> fix [label="findings"];
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    til1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    til2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    til3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    til4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    til1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    til2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    til3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    til4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     til1 -> til2 -> til3 -> til4 [style=invis];
   }
 }

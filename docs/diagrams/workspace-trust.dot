@@ -1,18 +1,18 @@
 digraph workspace_trust {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="Two copies of the checkout: git never runs where the agent can write";
 
-  host [label="Git host repository", shape=box, style="rounded,filled", fillcolor="#e1f0e3", color="#2f855a"];
-  base    [label=".base/<ticket>  pristine clone\nonly the controller touches it\ngit runs ONLY here (hooks disabled)", shape=folder, style="filled", fillcolor="#fdf2c8", color="#b7791f"];
-  work    [label="<ticket>  the copy the agent works in\nmounted into the sandbox\ngit NEVER runs here (it could hold hostile hooks)", shape=folder, style="filled", fillcolor="#ffe3c7", color="#c05621"];
-  sandbox [label="sandbox\nagent edits files, runs the project's checks", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  inspect [label="inspect the agent's tree as plain files\n(through git's trusted directory)\nprotected paths · symlinks · size · secrets", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  apply   [label="copy ONLY verified regular files\nonto the pristine clone", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  commit  [label="commit · push factory/issue-N\nopen the pull request", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  rec     [label=".records/<ticket>\nprompts · answers · check output · tokens\n(redacted for secrets)", shape=folder, style="filled", fillcolor="#fdf2c8", color="#b7791f"];
-  runs    [label=".factory/runs/issue-N-<run>/\non the branch, if the project sets\n\"record\": true", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
+  host [label=<<B>Git host repository</B>>, shape=box, style="rounded,filled", fillcolor="#dff3e9", color="#1f8f63"];
+  base    [label=<<B>.base/&lt;ticket&gt;  pristine clone</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">only the controller touches it</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">git runs ONLY here (hooks disabled)</FONT>>, shape=folder, style="filled", fillcolor="#efeadd", color="#8b8570"];
+  work    [label=<<B>&lt;ticket&gt;  the copy the agent works in</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">mounted into the sandbox</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">git NEVER runs here (it could hold hostile hooks)</FONT>>, shape=folder, style="filled", fillcolor="#fff0e0", color="#d9622b"];
+  sandbox [label=<<B>sandbox</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">agent edits files, runs the project's checks</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  inspect [label=<<B>inspect the agent's tree as plain files</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(through git's trusted directory)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">protected paths · symlinks · size · secrets</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  apply   [label=<<B>copy ONLY verified regular files</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">onto the pristine clone</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  commit  [label=<<B>commit · push factory/issue-N</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">open the pull request</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  rec     [label=<<B>.records/&lt;ticket&gt;</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">prompts · answers · check output · tokens</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(redacted for secrets)</FONT>>, shape=folder, style="filled", fillcolor="#efeadd", color="#8b8570"];
+  runs    [label=<<B>.factory/runs/issue-N-&lt;run&gt;/</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">on the branch, if the project sets</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">\"record\": true</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
 
   host -> base [label="git clone (bot token)"];
   base -> work [label="cp -a"];
@@ -27,11 +27,11 @@ digraph workspace_trust {
   runs -> commit [style=dotted];
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    wol1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    wol2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    wol3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    wol4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    wol1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    wol2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    wol3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    wol4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     wol1 -> wol2 -> wol3 -> wol4 [style=invis];
   }
 }

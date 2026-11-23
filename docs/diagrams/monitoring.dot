@@ -1,30 +1,30 @@
 digraph monitoring {
-  graph [rankdir=LR, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.4, ranksep=0.6, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=LR, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.50, ranksep=0.70, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="From an alert to a ticket the factory can act on";
 
   subgraph cluster_app {
-    label="The application (delivered from the default branch)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    deploy [label="deploy.sh\nbuild · switch over\ncheck · roll back", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-    api    [label="shop-api\n(Python, SQLite)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    web    [label="shop-web\n(nginx)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
+    label="The application (delivered from the default branch)"; style="rounded,filled,dashed"; color="#b9b29c"; fillcolor="#efeadd"; fontsize=11;
+    deploy [label=<<B>deploy.sh</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">build · switch over</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">check · roll back</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+    api    [label=<<B>shop-api</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(Python, SQLite)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    web    [label=<<B>shop-web</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(nginx)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
   }
 
   subgraph cluster_watch {
-    label="Watching it"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    blackbox [label="blackbox probes\ndoes it answer, how fast?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    cadvisor [label="container-stats\nstate · restarts · memory · CPU", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    promtail [label="Promtail → Loki\nthe containers' logs", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    prom     [label="Prometheus\nmetrics and alert rules", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-    grafana  [label="Grafana\ndashboard · delivery markers", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+    label="Watching it"; style="rounded,filled,dashed"; color="#b9b29c"; fillcolor="#efeadd"; fontsize=11;
+    blackbox [label=<<B>blackbox probes</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">does it answer, how fast?</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    cadvisor [label=<<B>container-stats</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">state · restarts · memory · CPU</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    promtail [label=<<B>Promtail → Loki</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the containers' logs</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    prom     [label=<<B>Prometheus</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">metrics and alert rules</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+    grafana  [label=<<B>Grafana</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">dashboard · delivery markers</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
   }
 
-  am     [label="Alertmanager\ngroups alerts, repeats every 12 h", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  intake [label="alert-intake  (fixed rules, no AI)\nroute table · dedup by fingerprint · rate limit\nredacted, bounded evidence · dry run by default", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  host[label="Ticket on a git host\nlabel: incident", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  inc    [label="Incident workflow\nassessment · causes · options\n(advice only)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  person [label="A person decides\n/option · /hotfix · /resolved", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
+  am     [label=<<B>Alertmanager</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">groups alerts, repeats every 12 h</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  intake [label=<<B>alert-intake  (fixed rules, no AI)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">route table · dedup by fingerprint · rate limit</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">redacted, bounded evidence · dry run by default</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  host[label=<<B>Ticket on a git host</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">label: incident</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  inc    [label=<<B>Incident workflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">assessment · causes · options</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(advice only)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  person [label=<<B>A person decides</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">/option · /hotfix · /resolved</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
 
   deploy -> api; deploy -> web;
   blackbox -> api [label="GET /api/products", style=dashed]; blackbox -> web [label="/healthz", style=dashed];
@@ -39,11 +39,11 @@ digraph monitoring {
   inc -> person;
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    til1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    til2 [label="code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    til3 [label="measurement taken by tooling", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    til4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    til1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    til2 [label=<<B>code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    til3 [label=<<B>measurement taken by tooling</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    til4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     til1 -> til2 -> til3 -> til4 [style=invis];
   }
 }

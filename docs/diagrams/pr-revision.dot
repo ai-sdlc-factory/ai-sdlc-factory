@@ -1,39 +1,39 @@
 digraph pr_revision {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="Pull request revision: a person's review becomes one new commit on the same branch";
 
-  start  [label="A person requests changes on a pull request\nthe factory opened, or comments /fix", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
-  read   [label="Read the pull request and the latest review\nfrom the git host: its comments, line by line", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  rules  [label="Is it the factory's own pull request?\nopen · same repository · fewer than 3 revisions\nsomething to act on?", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  refuse [label="a short note (not the factory's · closed · limit reached · nothing to do)\nor nothing at all for a review on someone else's pull request", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  intake [label="Check out the pull request's own branch\nread .factory/project.json", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  start  [label=<<B>A person requests changes on a pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the factory opened, or comments /fix</FONT>>, shape=oval, style="filled", fillcolor="#ffffff", color="#12183a", penwidth=1.4];
+  read   [label=<<B>Read the pull request and the latest review</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">from the git host: its comments, line by line</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  rules  [label=<<B>Is it the factory's own pull request?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">open · same repository · fewer than 3 revisions</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">something to act on?</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  refuse [label=<<B>a short note (not the factory's · closed · limit reached · nothing to do)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">or nothing at all for a review on someone else's pull request</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  intake [label=<<B>Check out the pull request's own branch</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">read .factory/project.json</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
 
   subgraph cluster_loop {
-    label="Revision loop  (3 rounds at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    resolver [label="pr-resolver\nfor each numbered comment: fixed, answered,\ndeclined (with a reason) or needs clarification", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    answers  [label="every comment answered exactly once?\n\"fixed\" must mean files really changed", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    checks   [label="change checks + the project's checks", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    reviewers[label="reviewers look at the revision\n(acceptance check only for larger revisions)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+    label="Revision loop  (3 rounds at most)"; style="rounded,filled,dashed"; color="#b9b29c"; fillcolor="#efeadd"; fontsize=11;
+    resolver [label=<<B>pr-resolver</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">for each numbered comment: fixed, answered,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">declined (with a reason) or needs clarification</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    answers  [label=<<B>every comment answered exactly once?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">\"fixed\" must mean files really changed</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    checks   [label=<<B>change checks + the project's checks</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    reviewers[label=<<B>reviewers look at the revision</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(acceptance check only for larger revisions)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    ok       [label=<<B>everything passes?</B>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
   }
-  replied [label="Reply on the pull request: nothing was pushed,\nwith the answer to each comment", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  push    [label="Push ONE new commit onto the same branch\nnever forced; refused if someone pushed meanwhile", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  reply   [label="Reply on the pull request: the commit,\na table of what was done per comment, the checks", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  again   [label="A person reviews again and merges\n(the factory never merges)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-  wip     [label="Nothing pushed to the pull request\nwork saved on a -wip branch + a comment", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  replied [label=<<B>Reply on the pull request: nothing was pushed,</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">with the answer to each comment</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  push    [label=<<B>Push ONE new commit onto the same branch</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">never forced; refused if someone pushed meanwhile</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  reply   [label=<<B>Reply on the pull request: the commit,</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">a table of what was done per comment, the checks</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  again   [label=<<B>A person reviews again and merges</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(the factory never merges)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+  wip     [label=<<B>Nothing pushed to the pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">work saved on a -wip branch + a comment</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   start -> read -> rules;
   rules -> refuse [label="no", style=dashed];
   rules -> intake [label="yes"];
   intake -> resolver -> answers;
-  answers -> resolver [label="no: sent back with the reason", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  answers -> resolver [label="no: sent back with the reason", style=dashed, color="#ff5a36", fontcolor="#ff5a36", constraint=false];
   answers -> replied [label="no file changed:\nall answered or declined"];
   answers -> checks [label="files changed"];
   checks -> reviewers -> ok;
   ok -> push [label="yes"];
-  ok -> resolver [label="no: feedback", style=dashed, color="#c53030", fontcolor="#c53030", constraint=false];
+  ok -> resolver [label="no: feedback", style=dashed, color="#ff5a36", fontcolor="#ff5a36", constraint=false];
   ok -> wip [label="out of rounds\nor blocked", style=dashed];
   push -> reply -> again;
 }

@@ -1,31 +1,31 @@
 digraph ticket_routing {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.28, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="From a git host event to a workflow";
 
-  host [label="Git host\nissue opened · reopened · labelled · closed\ncomment created", shape=box, style="filled", fillcolor="#e1f0e3", color="#2f855a"];
-  api     [label="api\nverifies the HMAC signature\nrejects repeats of the same delivery id", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  router  [label="RepoEventWorkflow  (the router)\nstored in Temporal, decides with fixed rules", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  kind    [label="which label?\nincident  >  plan  >  feature  >  bug  >  docs", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
-  fw [label="FeatureWorkflow\nid  feature-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  bw [label="BugWorkflow\nid  bug-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  dw [label="DocsWorkflow\nid  docs-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  iw [label="IncidentWorkflow\nid  incident-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  comment [label="comment on a ticket\nsignal human_reply to the\nrunning workflow", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  none    [label="no running workflow\n(finished or never started)\nreply once: close and reopen to run again", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  closed  [label="ticket closed\nsignal ticket_closed\n(the run stops)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  rev     [label="PullRequestRevisionWorkflow\nid  revision-<repo>-<pr>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  prev    [label="a review that requests changes, or\n/fix in a comment, on a pull request\n(the factory checks it is its own)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  qa      [label="QaWorkflow\nid  qa-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  qacmd   [label="/qa  /qa full  /qa api|ui  /qa <note>\non a feature or bug ticket,\nor on the factory's pull request", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  upd     [label="PullRequestUpdateWorkflow\nid  update-<repo>-<n>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  updcmd  [label="/update on a feature or bug ticket,\nor on the factory's pull request\nmerges the base branch into it", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  rvw     [label="PullRequestReviewWorkflow\nid  review-<repo>-<pr>-<hash>", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  rvwcmd  [label="/review on any pull request\nreviewers post findings, read only", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  retry   [label="/retry on an open ticket\nstarts the run again, like reopening\n(a notice if one is still running)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  ignored [label="ignored\nother pull request events · factory's own comments\ntickets with none of the factory labels", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  reopen  [label="reopened\nstarts a new run\n(label changes alone do nothing)", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
+  host [label=<<B>Git host</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">issue opened · reopened · labelled · closed</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">comment created</FONT>>, shape=box, style="rounded,filled", fillcolor="#dff3e9", color="#1f8f63"];
+  api     [label=<<B>api</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">verifies the HMAC signature</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">rejects repeats of the same delivery id</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  router  [label=<<B>RepoEventWorkflow  (the router)</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">stored in Temporal, decides with fixed rules</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  kind    [label=<<B>which label?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">incident  &gt;  plan  &gt;  feature  &gt;  bug  &gt;  docs</FONT>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
+  fw [label=<<B>FeatureWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  feature-&lt;repo&gt;-&lt;n&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  bw [label=<<B>BugWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  bug-&lt;repo&gt;-&lt;n&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  dw [label=<<B>DocsWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  docs-&lt;repo&gt;-&lt;n&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  iw [label=<<B>IncidentWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  incident-&lt;repo&gt;-&lt;n&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  comment [label=<<B>comment on a ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">signal human_reply to the</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">running workflow</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  none    [label=<<B>no running workflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(finished or never started)</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">reply once: close and reopen to run again</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  closed  [label=<<B>ticket closed</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">signal ticket_closed</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(the run stops)</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  rev     [label=<<B>PullRequestRevisionWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  revision-&lt;repo&gt;-&lt;pr&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  prev    [label=<<B>a review that requests changes, or</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">/fix in a comment, on a pull</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">request (the factory checks</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">it is its own)</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  qa      [label=<<B>QaWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  qa-&lt;repo&gt;-&lt;n&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  qacmd   [label=<<B>/qa  /qa full  /qa api|ui  /qa &lt;note&gt;</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">on a feature or bug ticket,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">or on the factory's pull request</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  upd     [label=<<B>PullRequestUpdateWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  update-&lt;repo&gt;-&lt;n&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  updcmd  [label=<<B>/update on a feature or bug ticket,</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">or on the factory's pull request</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">merges the base branch into it</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  rvw     [label=<<B>PullRequestReviewWorkflow</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">id  review-&lt;repo&gt;-&lt;pr&gt;-&lt;hash&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  rvwcmd  [label=<<B>/review on any pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">reviewers post findings, read only</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  retry   [label=<<B>/retry on an open ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">starts the run again,</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">like reopening (a notice if one</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">is still running)</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  ignored [label=<<B>ignored</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">other pull request events</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">factory's own comments</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">tickets with none of the factory labels</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  reopen  [label=<<B>reopened</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">starts a new run</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(label changes alone do nothing)</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
   host -> api [label="signed webhook"];
   api -> router [label="Temporal workflow"];
   router -> kind [label="opened / labelled"];
@@ -38,15 +38,19 @@ digraph ticket_routing {
   updcmd -> upd;
   rvwcmd -> rvw;
   retry -> kind [style=dashed];
+  // layout only: spread the router's branches over rows so the picture stays narrow
+  retry -> prev [style=invis]; comment -> qacmd [style=invis]; closed -> updcmd [style=invis]; ignored -> rvwcmd [style=invis];
+  fw -> dw [style=invis]; bw -> iw [style=invis];
   comment -> none [label="nobody listening", style=dashed];
   comment -> fw [style=dotted]; comment -> bw [style=dotted]; comment -> iw [style=dotted];
 
+  rvw -> til1 [style=invis];
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    til1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    til2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    til3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    til4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
-    til1 -> til2 -> til3 -> til4 [style=invis];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; 
+    til1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    til2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    til3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    til4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
+        til1 -> til2 -> til3 -> til4 [style=invis];
   }
 }

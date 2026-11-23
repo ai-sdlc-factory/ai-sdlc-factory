@@ -1,41 +1,41 @@
 digraph bug_workflow {
-  graph [rankdir=TB, fontname="DejaVu Sans", fontsize=13, bgcolor=white, pad=0.3, nodesep=0.35, ranksep=0.5, labelloc=t, labeljust=l, compound=true];
-  node  [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled", margin="0.15,0.08", fillcolor="#eef2f6", color="#5b6773"];
-  edge  [fontname="DejaVu Sans", fontsize=9, color="#4a5568", arrowsize=0.8];
+  graph [rankdir=TB, fontname="Inter",  bgcolor="#f6f3ea", pad=0.5, nodesep=0.45, ranksep=0.60, fontcolor="#12183a", fontsize=17, labelloc=t, labeljust=l, compound=true];
+  node  [fontname="Inter", fontsize=13, fontcolor="#12183a", penwidth=1.8, shape=box, style="rounded,filled", margin="0.24,0.14", fillcolor="#ffffff", color="#6b7494"];
+  edge  [fontname="DejaVu Sans Mono", fontsize=9, fontcolor="#4f5673", penwidth=1.8, arrowhead=normal, color="#4f5673", arrowsize=0.8];
   label="Bug workflow: a fix proven by a test that fails before and passes after";
 
-  start   [label="Ticket labelled bug", shape=oval, style="filled", fillcolor="#ffffff", color="#2d3748", penwidth=1.4];
-  intake  [label="Intake\nclone · copy · read .factory/project.json", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  banalyst[label="bug-analyst\nexpected vs actual · severity", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  ask1    [label="asks on the ticket\n(4 rounds at most)", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f"];
-  rej     [label="rejected\n(not a bug)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  repro   [label="reproducer\nwrites ONE failing test\n(test files only)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  files   [label="only the listed test files changed?\nno deletions · protected paths · secrets", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  red     [label="RED check\nthe factory runs the test command\non the unchanged code: it must FAIL", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-  cannot  [label="cannot_reproduce\n(3 attempts used)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
-  quick   [label="quick mode?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
-  diag    [label="diagnostician\nroot cause · where to fix", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-  large   [label="needs_design\n(too large: open a feature ticket)", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  start   [label=<<B>Ticket labelled bug</B>>, shape=oval, style="filled", fillcolor="#ffffff", color="#12183a", penwidth=1.4];
+  intake  [label=<<B>Intake</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">clone · copy · read .factory/project.json</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  banalyst[label=<<B>bug-analyst</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">expected vs actual · severity</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  ask1    [label=<<B>asks on the ticket</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(4 rounds at most)</FONT>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36"];
+  rej     [label=<<B>rejected</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(not a bug)</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  repro   [label=<<B>reproducer</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">writes ONE failing test</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(test files only)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  files   [label=<<B>only the listed test files changed?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">no deletions · protected paths · secrets</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  red     [label=<<B>RED check</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the factory runs the test command</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">on the unchanged code: it must FAIL</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+  cannot  [label=<<B>cannot_reproduce</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(3 attempts used)</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
+  quick   [label=<<B>quick mode?</B>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
+  diag    [label=<<B>diagnostician</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">root cause · where to fix</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+  large   [label=<<B>needs_design</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(too large: open a feature ticket)</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   subgraph cluster_build {
-    label="Build loop  (3 rounds at most)"; style="rounded,filled"; color="#8fa3b8"; fillcolor="#f7f9fb"; fontsize=11;
-    developer[label="developer\nfixes the code\nmay not edit the test", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    tamper   [label="reproduction test unchanged?\n(SHA-256 of its files)", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    gates    [label="change checks + project checks", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    green    [label="GREEN check\nthe same test command must now PASS", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a"];
-    reviewers[label="reviewers\n(no acceptance check:\nred then green is the proof)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0"];
-    ok       [label="everything passes?", shape=diamond, style="filled", fillcolor="#ffffff", color="#5b6773", margin="0.05,0.05"];
+    label="Build loop  (3 rounds at most)"; style="rounded,filled,dashed"; color="#b9b29c"; fillcolor="#efeadd"; fontsize=11;
+    developer[label=<<B>developer</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">fixes the code</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">may not edit the test</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    tamper   [label=<<B>reproduction test unchanged?</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(SHA-256 of its files)</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    gates    [label=<<B>change checks + project checks</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    green    [label=<<B>GREEN check</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">the same test command must now PASS</FONT>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63"];
+    reviewers[label=<<B>reviewers</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">(no acceptance check:</FONT><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">red then green is the proof)</FONT>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca"];
+    ok       [label=<<B>everything passes?</B>>, shape=diamond, style="filled", fillcolor="#ffffff", color="#6b7494", margin="0.05,0.05"];
   }
-  publish [label="Publish\ncommit · push · open the pull request  Fix: <title>", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773"];
-  pr      [label="Pull request\nwith severity, root cause and the proof", shape=box, style="rounded,filled,bold", fillcolor="#d4edda", color="#2f855a"];
-  wip     [label="Work-in-progress branch\n+ a comment on the ticket", shape=box, style="rounded,filled", fillcolor="#fde2e2", color="#c53030"];
+  publish [label=<<B>Publish</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">commit · push · open the pull request  Fix: &lt;title&gt;</FONT>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494"];
+  pr      [label=<<B>Pull request</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">with severity, root cause and the proof</FONT>>, shape=box, style="rounded,filled,bold", fillcolor="#c4ebd5", color="#1f8f63"];
+  wip     [label=<<B>Work-in-progress branch</B><BR/><FONT COLOR="#4f5673" POINT-SIZE="11">+ a comment on the ticket</FONT>>, shape=box, style="rounded,filled", fillcolor="#fbe3df", color="#a8381b"];
 
   start -> intake -> banalyst;
   banalyst -> ask1 [label="needs\nclarification"]; ask1 -> banalyst;
   banalyst -> rej [style=dashed, label="reject"];
   banalyst -> repro [label="pass"];
   repro -> files -> red;
-  red -> repro [label="passes or can't run:\nsent back with the reason", style=dashed, color="#c53030", fontcolor="#c53030"];
+  red -> repro [label="passes or can't run:\nsent back with the reason", style=dashed, color="#ff5a36", fontcolor="#ff5a36"];
   red -> cannot [label="3 attempts", style=dashed];
   red -> quick [label="fails as required"];
   quick -> diag [label="no"];
@@ -44,16 +44,16 @@ digraph bug_workflow {
   diag -> developer [label="pass"];
   developer -> tamper -> gates -> green -> reviewers -> ok;
   ok -> publish [label="yes"];
-  ok -> developer [label="no: feedback", constraint=false, style=dashed, color="#c53030", fontcolor="#c53030"];
+  ok -> developer [label="no: feedback", constraint=false, style=dashed, color="#ff5a36", fontcolor="#ff5a36"];
   publish -> pr;
   ok -> wip [label="out of rounds", style=dashed];
 
   subgraph cluster_legend {
-    label="Legend"; style="rounded"; color="#c3cad2"; fontsize=10; rank=sink;
-    bul1 [label="agent (a role file in a sandbox)", shape=box, style="rounded,filled", fillcolor="#dbe8ff", color="#2b6cb0", fontsize=9];
-    bul2 [label="factory code decides or checks", shape=box, style="filled", fillcolor="#eef2f6", color="#5b6773", fontsize=9];
-    bul3 [label="deterministic check the factory runs itself", shape=hexagon, style="filled", fillcolor="#e8f1e4", color="#2f855a", fontsize=9];
-    bul4 [label="a person", shape=ellipse, style="filled", fillcolor="#fff3c4", color="#b7791f", fontsize=9];
+    label="Legend"; style="rounded,dashed"; color="#b9b29c"; fontsize=10; rank=sink;
+    bul1 [label=<<B>agent (a role file in a sandbox)</B>>, shape=box, style="rounded,filled", fillcolor="#e6e9fb", color="#3b4cca", fontsize=9];
+    bul2 [label=<<B>factory code decides or checks</B>>, shape=box, style="rounded,filled", fillcolor="#ffffff", color="#6b7494", fontsize=9];
+    bul3 [label=<<B>deterministic check the factory runs itself</B>>, shape=hexagon, style="filled", fillcolor="#dff3e9", color="#1f8f63", fontsize=9];
+    bul4 [label=<<B>a person</B>>, shape=ellipse, style="filled", fillcolor="#ffe6dd", color="#ff5a36", fontsize=9];
     bul1 -> bul2 -> bul3 -> bul4 [style=invis];
   }
 }
