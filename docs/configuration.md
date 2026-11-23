@@ -21,7 +21,8 @@ Copy `deploy/.env.example` to `deploy/.env` (`cp -n`, `chmod 600`). The file is 
 
 | Key | What | How to get it |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD` | the database passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, both different |
+| `COMPOSE_FILE` | optional: `compose.yaml:compose.postgres.yaml` runs Temporal on PostgreSQL instead of its default SQLite file | unset |
+| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD` | PostgreSQL option only: the database passwords; changing them later does **not** update existing databases | `openssl rand -hex 24`, both different |
 | `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` | optional: the login of pgAdmin, a database browser that only starts with `docker compose --profile tools up -d pgadmin`; set both first | any email; `openssl rand -hex 24` |
 | `FACTORY_HOSTS` | the git hosts the factory serves, as one line of JSON, **the one place** that says where they are and how to reach them (see [FACTORY_HOSTS](#factory_hosts) below) | written by hand; secrets with `openssl rand -hex 32` |
 | `FACTORY_WORKSPACE_ROOT` | absolute host path of the checkouts, the same path inside every container | `mkdir -p` it first, owned by you |

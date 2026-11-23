@@ -21,7 +21,7 @@ digraph architecture {
       controller [label="controller\nthe workflows and all decisions\nholds the git host tokens\nruns git on the pristine clone", fillcolor="#dbe8ff", color="#2b6cb0"];
     }
 
-    postgres [label="PostgreSQL\n(Temporal data)", shape=cylinder, fillcolor="#eef2f6"];
+    temporaldb [label="Temporal data\nSQLite file (default)\nor PostgreSQL (optional)", shape=cylinder, fillcolor="#eef2f6"];
 
     subgraph cluster_sandboxing {
       label="agent sandboxing (the only place with Docker access)"; style="rounded,filled"; color="#c05621"; fillcolor="#fff6ec";
@@ -50,6 +50,6 @@ digraph architecture {
   sandbox -> proxy [label="HTTPS_PROXY"];
   proxy -> model;
   proxy -> registry [label="packages /\ndeveloper profile"];
-  temporal -> postgres [style=dotted, arrowhead=none];
+  temporal -> temporaldb [style=dotted, arrowhead=none];
   controller -> agents [style=dotted, label="model names only"];
 }

@@ -20,7 +20,7 @@ boundaries are. How each kind of ticket is handled is in [Workflows](workflows.m
 | **egress-proxy** ([guide](../src/egress-proxy/README.md)) | The only way out of a sandbox: HTTPS tunnels to allowlisted hosts, everything logged. | An agent that is tricked by text must not be able to send code or the login anywhere. |
 | **Sandboxes** | One per agent run: OpenCode, one role file, the project's language image. | Disposable and isolated: non-root, read-only root, no capabilities, no route out except the proxy. |
 | **Agents folder** ([guide](../agents/README.md)) | One Markdown file per role: permissions, model, prompt. | Roles are reviewed like code and change without a rebuild. |
-| **PostgreSQL** | The Temporal databases. | Standard. pgAdmin, an optional database browser for development, starts only with `--profile tools`. |
+| **PostgreSQL** (optional) | The Temporal databases, only with `compose.postgres.yaml`; by default Temporal keeps a SQLite file instead. | Standard. pgAdmin, an optional database browser for development, starts only with `--profile tools`. |
 
 Docker Compose runs all of it on one machine ([Deployment](../deploy/README.md)). The services are .NET 10 and live under
 [`src/`](../src/) (one folder each, with its Dockerfile and README; their tests are in [`tests/`](../tests/)); the wire types they share are in [`src/contracts`](../src/contracts/Contracts.cs).

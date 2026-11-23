@@ -1,0 +1,36 @@
+# Optional: Forgejo on PostgreSQL instead of its default SQLite file. Add this file to the project, in .env:
+#   COMPOSE_FILE=compose.yaml:compose.postgres.yaml
+# and set FORGEJO_DB_PASSWORD there (openssl rand -hex 24). It is separate from the factory's own PostgreSQL option and does not use it.
+# The two do not share data: switching an existing Forgejo does not move its repositories' database.
+
+services:
+  forgejo:
+    depends_on:
+      forgejo-db:
+        condition: service_healthy
+    environment:
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: forgejo-db:5432
+      FORGEJO__database__NAME: forgejo
+      FORGEJO__database__USER: forgejo
+      FORGEJO__database__PASSWD: ${FORGEJO_DB_PASSWORD:?Set FORGEJO_DB_PASSWORD in .env}
+
+  forgejo-db:
+    image: postgres:17.11-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forgejo
+      POSTGRES_DB: forgejo
+      POSTGRES_PASSWORD: ${FORGEJO_DB_PASSWORD:?Set FORGEJO_DB_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - forgejo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "forgejo", "-d", "forgejo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  forgejo-db-data:

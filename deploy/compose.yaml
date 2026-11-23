@@ -1,7 +1,7 @@
 name: ai-sdlc-factory
 
 # Networks limit what each service can reach:
-#   data    PostgreSQL and its direct clients
+#   data    PostgreSQL and its direct clients (only with compose.postgres.yaml)
 #   control Temporal clients and the trusted controller services
 #   hooks   a git host's webhook delivery to the api (a host that runs in Docker, such as ../forgejo, joins this network)
 #   forge   the controller's way to such a host: its API and git access (ticket comments, branches, pull requests)
@@ -49,86 +49,21 @@ x-hardened: &hardened
     - /tmp:size=64m,mode=1777
 
 services:
-  postgres:
-    image: postgres:17.11-bookworm
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-      TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
-    networks: [data]
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-
-  # Optional database browser: it only starts with `docker compose --profile tools up -d pgadmin`, after PGADMIN_DEFAULT_EMAIL and PGADMIN_DEFAULT_PASSWORD are set in .env.
-  # (Compose resolves every variable of every service, so the password cannot be marked required here.)
-  pgadmin:
-    image: dpage/pgadmin4:9.18.0
-    profiles: ["tools"]
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-}
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
-    networks: [data]
-    ports:
-      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
-
-  temporal-schema:
-    image: temporalio/admin-tools:1.32.1
-    restart: "no"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      SQL_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
-    networks: [data]
-    volumes:
-      - ./temporal/setup-schema.sh:/scripts/setup-schema.sh:ro
-    entrypoint: ["/bin/sh", "/scripts/setup-schema.sh"]
-
+  # Temporal's own single-process server with its data in one SQLite file: nothing else to run, and no database passwords. Fine for one machine; for a
+  # PostgreSQL-backed Temporal add compose.postgres.yaml (see README.md#temporal-database). The volume is mounted in the image user's home, which that user owns.
   temporal:
-    image: temporalio/server:1.32.1
+    image: temporalio/temporal:1.10.1  # bundles Temporal server 1.32.2 (compose.postgres.yaml runs 1.32.1)
     restart: unless-stopped
-    depends_on:
-      temporal-schema:
-        condition: service_completed_successfully
-    environment:
-      DB: postgres12
-      DB_PORT: "5432"
-      DBNAME: temporal
-      VISIBILITY_DBNAME: temporal_visibility
-      POSTGRES_SEEDS: postgres
-      POSTGRES_USER: temporal
-      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
-      BIND_ON_IP: 0.0.0.0
-      SQL_MAX_CONNS: "10"
-      SQL_MAX_IDLE_CONNS: "10"
-      SQL_VIS_MAX_CONNS: "5"
-      SQL_VIS_MAX_IDLE_CONNS: "5"
-      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/dynamicconfig.yaml
-    networks: [data, control, agents]
+    # start-dev is the single-process server; --db-filename makes it keep its data in a file (without it the data is in memory and lost on restart).
+    # --ip 0.0.0.0 lets other containers connect; --headless leaves out its built-in web UI, because temporal-ui below is the one used.
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--headless", "--db-filename", "/home/temporal/temporal.db"]
+    # control: the factory services. agents: the OpenCode login helper's network, as before.
+    networks: [control, agents]
     ports:
-      - "127.0.0.1:${TEMPORAL_PORT:-7233}:7233"
+      - "127.0.0.1:${TEMPORAL_PORT:-7233}:7233"   # localhost only: Temporal has no authentication
     volumes:
-      - ./temporal/dynamicconfig.yaml:/etc/temporal/dynamicconfig.yaml:ro
+      - temporal-data:/home/temporal   # the SQLite file; back it up with the stack stopped (docs/operations.md#backups-and-data)
+    # Ready when the gRPC port accepts connections; temporal-namespace then checks the cluster itself.
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "7233"]
       interval: 5s
@@ -136,6 +71,7 @@ services:
       retries: 30
       start_period: 20s
 
+  # One-shot setup: creates the namespace with its retention (see temporal/setup-namespace.sh). The api, controller and launcher wait for it.
   temporal-namespace:
     image: temporalio/admin-tools:1.32.1
     restart: "no"
@@ -146,11 +82,14 @@ services:
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
       TEMPORAL_RETENTION: ${TEMPORAL_RETENTION:-7d}
+      # The SQLite server creates the "default" namespace itself (1 day retention), so the setup service sets the retention there too.
+      TEMPORAL_UPDATE_RETENTION: "true"
     networks: [control]
     volumes:
       - ./temporal/setup-namespace.sh:/scripts/setup-namespace.sh:ro
     entrypoint: ["/bin/sh", "/scripts/setup-namespace.sh"]
 
+  # The web UI: every workflow with its history. It waits for the namespace so it never shows an empty server.
   temporal-ui:
     image: temporalio/ui:2.57.0
     restart: unless-stopped
@@ -466,7 +405,6 @@ services:
     command: ["opencode", "auth", "login", "--provider", "openai", "--method", "ChatGPT Pro/Plus (browser)"]
 
 networks:
-  data:
   control:
   hooks:
   forge:
@@ -492,6 +430,5 @@ networks:
 
 volumes:
   egress-log:
-  postgres-data:
-  pgadmin-data:
+  temporal-data:   # Temporal's SQLite file (compose.postgres.yaml adds postgres-data instead)
   opencode-data:

@@ -32,10 +32,10 @@ the databases: `temporal-schema` and `temporal-namespace` should exit with code 
 | controller | task queue `factory-events`; no HTTP port | [the workflows](../src/controller/README.md) |
 | sandbox-launcher | task queue `sandbox`; no HTTP port | [starts the agent containers](../src/sandbox-launcher/README.md) (the only service with the Docker socket) |
 | egress-proxy | internal only | [the sandboxes' only way out](../src/egress-proxy/README.md) |
-| PostgreSQL | `localhost:5432` | Temporal data |
-| pgAdmin (optional) | http://localhost:5050 | database browser for development; not started with the stack: set `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` in `.env`, then `docker compose --profile tools up -d pgadmin` |
+| PostgreSQL (optional) | `localhost:5432` | Temporal data, only with [`compose.postgres.yaml`](#temporal-database); by default Temporal uses a SQLite file |
+| pgAdmin (optional, PostgreSQL option only) | http://localhost:5050 | database browser for development; not started with the stack: set `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` in `.env`, then `docker compose --profile tools up -d pgadmin` |
 
-Compose isolates services on separate networks: `data` (PostgreSQL and its clients), `control` (Temporal, the api, the controller and the launcher), `hooks` (a git host to the api) and `forge` (the controller to a git host; the Forgejo of [`../deploy/forgejo`](../deploy/forgejo/README.md) joins both)
+Compose isolates services on separate networks: `data` (PostgreSQL and its clients, only with the PostgreSQL option), `control` (Temporal, the api, the controller and the launcher), `hooks` (a git host to the api) and `forge` (the controller to a git host; the Forgejo of [`../deploy/forgejo`](../deploy/forgejo/README.md) joins both)
 and `agents` (the OpenCode login helper only, which has internet access for the browser login). The disposable agent containers run on three **internal** networks (`sandbox-model`, `sandbox-packages`, `sandbox-developer`)
 that have no route out and no external DNS; the only thing on them besides the sandboxes is the egress proxy, which lets each profile reach just the hosts listed in [`src/egress-proxy/profiles.json`](../src/egress-proxy/ALLOWLIST.md).
 The sandboxes cannot reach PostgreSQL, a git host, Temporal or the api. Their networks use `10.250.x.0/24`; set `SANDBOX_NET_BASE` in `.env` if that clashes with a network you use. `SANDBOX_EGRESS` (`enforce`, `audit`, `open`) and
@@ -47,7 +47,11 @@ Host ports can be changed in `.env`. All published ports bind to localhost. This
 
 **A git host:** the factory serves the hosts of `FACTORY_HOSTS` and starts none itself. To try it on a Forgejo of your own, run the one in [`../deploy/forgejo`](../deploy/forgejo/README.md) (a project of its own), then create the [factory bot account](../docs/getting-started.md#4-set-up-a-git-host-and-the-factorys-bot-account) and [connect each repository](../docs/project-setup.md). For GitHub, see [Several git hosts](../docs/operations.md#several-git-hosts).
 
-**pgAdmin** (optional, see above): log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **AI SDLC Factory PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
+## Temporal database
+
+By default Temporal runs as a single process (`temporalio/temporal`, its dev server) with its data in one SQLite file in the volume `temporal-data`: no database to run and no passwords. That suits one machine; it has no high availability and Temporal documents this mode for development. For a PostgreSQL-backed Temporal server, set `COMPOSE_FILE=compose.yaml:compose.postgres.yaml` and `POSTGRES_PASSWORD` and `TEMPORAL_DB_PASSWORD` in `.env` (see `.env.example`) before the first start. The two databases are separate: switching does not carry workflows over. Forgejo has the same choice in [`forgejo/`](forgejo/README.md#postgresql-option).
+
+**pgAdmin** (optional, PostgreSQL option only): log in with `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD` from `.env`. Open **AI SDLC Factory PostgreSQL** and connect as `postgres` using `POSTGRES_PASSWORD`.
 
 **Temporal:** the setup service creates `TEMPORAL_NAMESPACE` (default `default`) with `TEMPORAL_RETENTION` (default `7d`) for closed workflows. Retention is applied only when the namespace is created.
 
@@ -55,7 +59,7 @@ Host ports can be changed in `.env`. All published ports bind to localhost. This
 
 | Service | From WSL | From the same Compose network |
 | --- | --- | --- |
-| PostgreSQL | `localhost:5432` | `postgres:5432` |
+| PostgreSQL (option) | `localhost:5432` | `postgres:5432` |
 | Temporal | `localhost:7233` | `temporal:7233` |
 
 The addresses above use the default host ports. Compose passes each container only its explicitly mapped variables from `.env`. `TEMPORAL_ADDRESS` configures an internal connection; host port
@@ -103,4 +107,4 @@ docker compose stop      # Stop services
 docker compose down      # Remove containers/network; keep data
 ```
 
-Data persists in named volumes (`postgres-data`, `pgadmin-data`, `opencode-data`, `egress-log`). `docker compose down --volumes` deletes all stack data, including the databases and the OpenCode login. Database initialization and pgAdmin login setup run only on empty volumes; changing passwords in `.env` does not update the existing database accounts or the existing pgAdmin login.
+Data persists in named volumes (`temporal-data`, `opencode-data`, `egress-log`; with the PostgreSQL option `postgres-data` and `pgadmin-data` too). `docker compose down --volumes` deletes all stack data, including the databases and the OpenCode login. With the PostgreSQL option, database initialization and pgAdmin login setup run only on empty volumes; changing passwords in `.env` does not update the existing database accounts or the existing pgAdmin login.

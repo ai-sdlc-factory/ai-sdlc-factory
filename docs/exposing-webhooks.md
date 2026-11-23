@@ -8,7 +8,7 @@ A git host tells the factory about new tickets and comments by calling its api: 
 
 ## What has to be public
 
-Only one thing: **`POST /webhooks/<host name>`**. GitHub sends nothing else. Do **not** expose the rest of the api (`/health/*`, the OpenAPI document), the Temporal UI (8080), pgAdmin (5050), PostgreSQL or Forgejo.
+Only one thing: **`POST /webhooks/<host name>`**. GitHub sends nothing else. Do **not** expose the rest of the api (`/health/*`, the OpenAPI document), the Temporal UI (8080), pgAdmin (5050) or PostgreSQL (if you use them), or Forgejo.
 
 The api protects that route by itself, whatever sits in front of it:
 

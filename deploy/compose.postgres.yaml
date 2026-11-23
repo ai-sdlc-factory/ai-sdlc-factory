@@ -1,0 +1,96 @@
+# Optional: Temporal on PostgreSQL instead of its default SQLite file. Add this file to the stack, in .env:
+#   COMPOSE_FILE=compose.yaml:compose.postgres.yaml
+# or per command: docker compose -f compose.yaml -f compose.postgres.yaml up -d
+# It needs POSTGRES_PASSWORD and TEMPORAL_DB_PASSWORD in .env. It adds PostgreSQL, a schema setup service and the optional pgAdmin, and replaces
+# the temporal service of compose.yaml with the full Temporal server. The two do not share data: switching does not move existing workflows.
+
+services:
+  postgres:
+    image: postgres:17.11-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
+    networks: [data]
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Optional database browser: it only starts with `docker compose --profile tools up -d pgadmin`, after PGADMIN_DEFAULT_EMAIL and PGADMIN_DEFAULT_PASSWORD are set in .env.
+  # (Compose resolves every variable of every service, so the password cannot be marked required here.)
+  pgadmin:
+    image: dpage/pgadmin4:9.18.0
+    profiles: ["tools"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-}
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    networks: [data]
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+
+  temporal-schema:
+    image: temporalio/admin-tools:1.32.1
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SQL_PASSWORD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
+    networks: [data]
+    volumes:
+      - ./temporal/setup-schema.sh:/scripts/setup-schema.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/setup-schema.sh"]
+
+  temporal:
+    image: temporalio/server:1.32.1
+    command: !reset null
+    depends_on:
+      temporal-schema:
+        condition: service_completed_successfully
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:?Set TEMPORAL_DB_PASSWORD in .env}
+      BIND_ON_IP: 0.0.0.0
+      SQL_MAX_CONNS: "10"
+      SQL_MAX_IDLE_CONNS: "10"
+      SQL_VIS_MAX_CONNS: "5"
+      SQL_VIS_MAX_IDLE_CONNS: "5"
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/dynamicconfig.yaml
+    networks: [data]
+    volumes: !override
+      - ./temporal/dynamicconfig.yaml:/etc/temporal/dynamicconfig.yaml:ro
+
+  temporal-namespace:
+    environment:
+      TEMPORAL_UPDATE_RETENTION: ""
+
+networks:
+  data:
+
+volumes:
+  postgres-data:
+  pgadmin-data:

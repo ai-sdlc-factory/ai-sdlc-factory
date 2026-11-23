@@ -12,7 +12,7 @@ cp -n .env.example .env
 docker compose up -d
 ```
 
-Forgejo is then at http://localhost:3000 (SSH: port `2222`); finish the installation there and create an **administrator** account. Registration is disabled, and sign-in is required to view anything. It keeps its data in SQLite in the volume `forgejo-data`. [Mailpit](http://localhost:8025) catches the emails Forgejo sends (nothing is delivered externally).
+Forgejo is then at http://localhost:3000 (SSH: port `2222`); finish the installation there and create an **administrator** account. Registration is disabled, and sign-in is required to view anything. It keeps its data in SQLite in the volume `forgejo-data` by default (to use PostgreSQL instead, see [PostgreSQL option](#postgresql-option)). [Mailpit](http://localhost:8025) catches the emails Forgejo sends (nothing is delivered externally).
 
 | Setting (`.env`) | What | Default |
 | --- | --- | --- |
@@ -20,6 +20,10 @@ Forgejo is then at http://localhost:3000 (SSH: port `2222`); finish the installa
 | `MAILPIT_UI_PORT`, `MAILPIT_SMTP_PORT` | Mailpit's inbox and SMTP ports | `8025`, `1025` |
 | `FACTORY_PROJECT` | the factory's Compose project name, if it is not `ai-sdlc-factory` (it prefixes the networks this project joins) | `ai-sdlc-factory` |
 | `COMPOSE_PROJECT_NAME` | this project's own Compose name, which names its containers and volumes; changing it on a Forgejo that has data starts with new, empty volumes | `ai-sdlc-factory-forgejo` |
+
+## PostgreSQL option
+
+SQLite is enough for trying the factory. To run Forgejo on PostgreSQL, add `compose.postgres.yaml` (a `forgejo-db` container with its own volume) before the first start: put `COMPOSE_FILE=compose.yaml:compose.postgres.yaml` and `FORGEJO_DB_PASSWORD=<openssl rand -hex 24>` in `.env`, then `docker compose up -d`. It does not move the data of a Forgejo that already runs on SQLite.
 
 ## The factory bot account
 

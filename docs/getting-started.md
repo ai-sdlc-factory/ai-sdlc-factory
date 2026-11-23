@@ -15,7 +15,7 @@ serve needs a [short setup](project-setup.md).
 | `git`, `openssl` and `python3` on the host | `git` to clone, `openssl` for the passwords below (`openssl rand -hex 24`), `python3` (standard library only) for the scripts in [`tools/`](../tools/README.md). You do **not** need a .NET SDK, Node or Python packages: everything is built and tested in Docker. |
 | A **git host** with an account for the bot | Your own Forgejo (the bundled one, in [`deploy/forgejo/`](../deploy/forgejo/README.md), is enough to try it) or GitHub. Creating the bot on Forgejo needs administrator rights; every repository needs a webhook and the bot as a collaborator ([Connecting a git host](git-hosts.md)). |
 | A way for the host to reach the factory's `api` | The bundled Forgejo reaches it over Docker's network. **GitHub (or any host outside your machine) needs a public HTTPS address for the webhook**: a server with a domain, or on a laptop a tunnel to port 8000. [Letting GitHub reach the factory](exposing-webhooks.md) compares the ways (a named Cloudflare Tunnel is permanent and needs no open port); the details of the webhook are in [Connecting a git host](git-hosts.md#5-the-webhook). |
-| Free local ports | `8000` (api), `8080` (Temporal UI), `7233`, `5432`, `3000` for the bundled Forgejo, and `5050` only if you use the optional pgAdmin; `1455` for the ChatGPT sign-in. Each can be changed in `deploy/.env` (see the [services table](../deploy/README.md#services)). |
+| Free local ports | `8000` (api), `8080` (Temporal UI), `7233`, `3000` for the bundled Forgejo, and `5432` and `5050` only with the optional PostgreSQL (and pgAdmin); `1455` for the ChatGPT sign-in. Each can be changed in `deploy/.env` (see the [services table](../deploy/README.md#services)). |
 | Internet access for Docker image builds | The agents' own network access is restricted separately ([egress](../src/egress-proxy/ALLOWLIST.md)). |
 
 ## 1. Get the code and configure the environment
@@ -31,7 +31,7 @@ Open `deploy/.env` and set the values below. Everything else has a working defau
 
 | Setting | Required | What to put |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD` | **yes** | two different passwords: `openssl rand -hex 24` (pgAdmin, a database browser, is optional and is not started with the stack: see [Deployment](../deploy/README.md#services)) |
+| `POSTGRES_PASSWORD`, `TEMPORAL_DB_PASSWORD` | no | only for the optional PostgreSQL-backed Temporal (`COMPOSE_FILE=compose.yaml:compose.postgres.yaml`, see [Deployment](../deploy/README.md#temporal-database)); the default is a SQLite file and needs neither |
 | `FACTORY_HOSTS` | **yes** | the git hosts the factory serves, as one line of JSON. For the bundled Forgejo, with the token still empty: `[{"name":"forgejo","url":"http://forgejo:3000","token":"","webhook_secret":"<openssl rand -hex 32>"}]`. The secret is what you paste into each repository's webhook later. For GitHub, or several hosts, see [Configuration](configuration.md#factory_hosts) |
 | `FACTORY_WORKSPACE_ROOT` | **yes** | an absolute host path for the checkouts. **Create it first**: `mkdir -p /var/tmp/ai-sdlc-factory-workspaces` (Docker would create it as root otherwise) |
 | `FACTORY_UID`, `FACTORY_GID` | **yes** | your user: `id -u`, `id -g` |

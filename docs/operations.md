@@ -47,7 +47,7 @@ shows what the router decided.
 | The controller was restarted while runs were active | Runs are durable in Temporal and continue; a sandbox that was mid-run is removed at the launcher's next start and the activity is retried or fails with a comment. |
 | A network error in the launcher at start | One of the three internal sandbox networks is missing or clashes with yours (`SANDBOX_NET_BASE`). The launcher refuses to run without them. |
 | Disk fills up | Old checkouts and Docker layers; see [Cleaning up](#cleaning-up). |
-| After Docker Desktop restarted, `temporal`, `pgadmin` or others show `Exited (127)` and `docker compose up -d` fails with "error mounting … not a directory" | Docker Desktop on WSL leaves stale bind mounts of single files behind when it restarts. Recreate the affected services; their data is in volumes and is kept: `docker compose up -d --force-recreate pgadmin temporal-schema temporal temporal-namespace`, then `docker compose up -d`. |
+| After Docker Desktop restarted, `temporal` (or `pgadmin`, with the PostgreSQL option) or others show `Exited (127)` and `docker compose up -d` fails with "error mounting … not a directory" | Docker Desktop on WSL leaves stale bind mounts of single files behind when it restarts. Recreate the affected services; their data is in volumes and is kept: `docker compose up -d --force-recreate temporal temporal-namespace` (with the PostgreSQL option also `pgadmin temporal-schema`), then `docker compose up -d`. |
 | `docker` is "not found" inside WSL | Docker Desktop's WSL integration for your distribution was switched off (it can drop after an update): Settings, Resources, WSL integration. |
 
 ## Several git hosts
@@ -82,13 +82,13 @@ Still manual:
 
 ## Backups and data
 
-Everything that matters in this stack is in named volumes: `postgres-data` (the Temporal databases), `pgadmin-data` and `opencode-data`
+Everything that matters in this stack is in named volumes: `temporal-data` (the Temporal SQLite file; with the PostgreSQL option `postgres-data` instead, and `pgadmin-data`) and `opencode-data`
 (the login, replaceable by signing in again). A simple backup stops the stack and archives the volumes:
 
 ```bash
 docker compose stop
 docker run --rm -v ai-sdlc-factory_forgejo-data:/data -v "$PWD":/backup alpine tar czf /backup/forgejo-data.tgz -C /data .
-docker run --rm -v ai-sdlc-factory_postgres-data:/data -v "$PWD":/backup alpine tar czf /backup/postgres-data.tgz -C /data .
+docker run --rm -v ai-sdlc-factory_temporal-data:/data -v "$PWD":/backup alpine tar czf /backup/temporal-data.tgz -C /data .
 docker compose up -d
 ```
 
@@ -100,7 +100,7 @@ docker compose up -d
 - **Sandbox images:** `docker compose --profile images build sandbox-image-<name>` after a change to `sandboxes/`. The OpenCode version in the images is pinned and checked against a digest.
 - **Agents:** edit `agents/agents/<role>.md` and commit; the next agent run uses it. Running sandboxes keep the copy they started with.
 - **Egress rules:** edit `src/egress-proxy/profiles.json` (or your own file) and `docker compose restart egress-proxy`.
-- Image versions of Forgejo, Temporal, PostgreSQL and the others are pinned in `deploy/compose.yaml`; change them there.
+- Image versions of Forgejo, Temporal, PostgreSQL and the others are pinned in `deploy/compose.yaml` (and `compose.postgres.yaml`); change them there.
 
 ## Tests
 

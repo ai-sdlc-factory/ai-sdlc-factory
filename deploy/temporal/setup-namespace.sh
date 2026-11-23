@@ -15,9 +15,13 @@ until temporal operator cluster health; do
     sleep 2
 done
 
-# Retention applies only when the namespace is created; existing namespaces are left untouched.
+# Retention applies only when the namespace is created; existing namespaces are left untouched, unless TEMPORAL_UPDATE_RETENTION is set
+# (the SQLite server creates "default" itself).
 if temporal operator namespace describe --namespace "$namespace" >/dev/null 2>&1; then
     echo "Temporal namespace '$namespace' already exists."
+    if [ -n "${TEMPORAL_UPDATE_RETENTION:-}" ]; then
+        temporal operator namespace update --namespace "$namespace" --retention "$retention"
+    fi
 else
     temporal operator namespace create --namespace "$namespace" --retention "$retention"
 fi
