@@ -156,6 +156,17 @@ public sealed class ImprovementReportTests
     }
 
     [Fact]
+    public void An_answered_question_is_a_healthy_ending_even_when_it_happens_often()
+    {
+        var report = Build([
+            Run(kind: "ask", status: "answered"), Run(kind: "ask", status: "answered", number: 2), Run(kind: "ask", status: "answered", number: 3),
+            Run(kind: "ask", status: "answered", number: 4, repository: "acme/api")]);
+
+        Assert.False(report.HasFindings);
+        Assert.DoesNotContain("| ask | answered |", report.Markdown);
+    }
+
+    [Fact]
     public void Two_failures_of_a_kind_are_listed_but_not_flagged()
     {
         var report = Build([Run(status: "build_failed"), Run(status: "build_failed", number: 2)]);

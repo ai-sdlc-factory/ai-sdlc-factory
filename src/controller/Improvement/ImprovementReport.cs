@@ -52,7 +52,7 @@ public static class ReportRules
     public static readonly HashSet<string> HealthyEndings =
     [
         "pr_opened", "postmortem_opened", "plan_created", "qa_reported", "revision_pushed", "revision_replied", "update_pushed", "up_to_date",
-        "review_posted", "closed", "already_implemented", "no_changes", "improvement_posted", "report_saved",
+        "review_posted", "answered", "closed", "already_implemented", "no_changes", "improvement_posted", "report_saved",
     ];
 }
 
