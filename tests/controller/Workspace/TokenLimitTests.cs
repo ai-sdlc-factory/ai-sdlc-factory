@@ -17,6 +17,15 @@ public sealed class ProviderLimitTests
     }
 
     [Theory]
+    [InlineData(137, "", "OpenCode exited with code 137 (the process was killed, most often because the sandbox ran out of memory; see SANDBOX_MEMORY_BYTES)")]
+    [InlineData(1, "", "OpenCode exited with code 1")]
+    [InlineData(1, "model not found", "OpenCode exited with code 1: model not found")]
+    public void The_failure_on_the_ticket_has_a_colon_only_when_something_follows_it(int code, string stderr, string expected)
+    {
+        Assert.Equal(expected, FactoryWorkflowBase.ExitProblem(code, stderr));
+    }
+
+    [Theory]
     [InlineData("Error: You have hit your usage limit. Try again in 3 hours.")]
     [InlineData("You've reached your plan's usage limit for GPT.")]
     [InlineData("429 Too Many Requests")]

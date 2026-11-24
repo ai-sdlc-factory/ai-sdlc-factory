@@ -100,7 +100,7 @@ public abstract partial class FactoryWorkflowBase
             }
             if (result.ExitCode != 0)
             {
-                problem = $"OpenCode exited with code {result.ExitCode}{ExitHint(result.ExitCode)}: {Short(result.Stderr)}";
+                problem = ExitProblem(result.ExitCode, Short(result.Stderr));
                 NoteAttempt(role, "failed", spent);
                 await RecordAsync(workspace, RecordStep.Agent(role, attempt, started, "failed", promptText) with { ExitCode = result.ExitCode, Output = result.Stderr, Problem = problem, Usage = spent });
                 await SayRunIsRepeatedAsync(role, problem, attempt);
@@ -148,11 +148,15 @@ public abstract partial class FactoryWorkflowBase
         }
     }
 
+    /// <summary>What a failed OpenCode run says on the ticket: the exit code, the hint for it, and what it wrote on standard error (the colon only when there is something after it).</summary>
+    public static string ExitProblem(long code, string stderr) =>
+        $"OpenCode exited with code {code}{ExitHint(code)}" + (stderr.Length == 0 ? "" : $": {stderr}");
+
     /// <summary>A short explanation for the exit codes that mean the sandbox, not the agent, ran into a limit.</summary>
     public static string ExitHint(long code) => code switch
     {
-        134 => " (the process aborted, usually because the sandbox ran out of processes or threads; see SANDBOX_PIDS_LIMIT)",
-        137 => " (the process was killed, usually because the sandbox ran out of memory; see SANDBOX_MEMORY_BYTES)",
+        134 => " (the process aborted, most often because the sandbox ran out of processes or threads; see SANDBOX_PIDS_LIMIT)",
+        137 => " (the process was killed, most often because the sandbox ran out of memory; see SANDBOX_MEMORY_BYTES)",
         _ => "",
     };
 }
