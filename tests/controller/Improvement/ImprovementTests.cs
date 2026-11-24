@@ -148,8 +148,20 @@ public sealed class ImprovementSettingsTests
     }
 
     [Theory]
+    [InlineData("github:acme/factory")]
+    [InlineData("my-github2:acme/factory")]
+    public void A_repository_on_another_host_is_written_with_the_hosts_name(string value)
+    {
+        Assert.Equal(value, Settings(("FACTORY_IMPROVEMENT_REPO", value)).ImprovementRepository);
+    }
+
+    [Theory]
     [InlineData("ai-sdlc-factory")]
     [InlineData("a/b/c")]
+    [InlineData("GitHub:acme/factory")]
+    [InlineData("1github:acme/factory")]
+    [InlineData("github:github:acme/factory")]
+    [InlineData(":acme/factory")]
     [InlineData("a/../b")]
     [InlineData("a b/c")]
     [InlineData("/b")]

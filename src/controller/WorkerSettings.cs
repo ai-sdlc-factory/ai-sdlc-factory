@@ -139,9 +139,9 @@ public sealed class WorkerSettings
         {
             return "";
         }
-        if (!System.Text.RegularExpressions.Regex.IsMatch(text, @"\A[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\z") || text.Contains(".."))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(text, @"\A([a-z][a-z0-9-]{0,30}:)?[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}\z") || text.Contains(".."))
         {
-            throw new InvalidOperationException($"{key} must be a repository as owner/name, but it is \"{text}\".");
+            throw new InvalidOperationException($"{key} must be a repository as owner/name (or host:owner/name for a host other than forgejo), but it is \"{text}\".");
         }
         return text;
     }
