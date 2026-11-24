@@ -147,7 +147,10 @@ Totals, from the repository root:
 python3 tools/usage-report.py                                  # by repository (reads the root named in deploy/.env)
 python3 tools/usage-report.py --by day --since 2026-11-01     # by day; also month, kind, status, ticket
 python3 tools/usage-report.py --by kind --repo acme/shop      # filter by --repo, --kind, --since, --until
+python3 tools/usage-report.py --repo github:acme/shop         # only that host's repository
 ```
+
+`--repo acme/shop` matches the repository on any host; `--repo github:acme/shop` only the one on that host, written the way the log writes it (a repository on the host `forgejo` has no prefix). `--by repository` is the same as `--by repo`.
 
 The report counts each run once even if a line was written twice (by `run_id`), skips a line it cannot read and says so. It is plain JSON lines, so `jq` or a spreadsheet work as well. To keep the file small, move it away when you like (the controller creates a new one); nothing reads it back except you and this tool.
 

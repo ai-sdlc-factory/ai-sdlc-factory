@@ -18,6 +18,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GROUPS = ("repo", "day", "month", "kind", "status", "ticket")
+ALIASES = {"repository": "repo"}  # accepted for --by, so the word the report prints in its column also works
+
+
+def group_name(value: str) -> str:
+    """The --by value, with a spelled-out alias turned into the group it stands for."""
+    return ALIASES.get(value, value)
+
+
+def same_repository(logged: str, wanted: str) -> bool:
+    """The log names a repository with its host in front unless the host is `forgejo` (`github:acme/shop`, `acme/shop`). A name given without a host
+    matches the repository on any host; with a host it must match exactly."""
+    return logged == wanted or (":" not in wanted and logged.endswith(":" + wanted))
 
 
 def default_file() -> Path:
@@ -68,10 +80,10 @@ def number(value: int) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--by", choices=GROUPS, default="repo", help="what to total by (default: repo)")
+    parser.add_argument("--by", type=group_name, choices=GROUPS, default="repo", help="what to total by (default: repo; `repository` is the same)")
     parser.add_argument("--since", help="only runs on or after this date, YYYY-MM-DD")
     parser.add_argument("--until", help="only runs on or before this date, YYYY-MM-DD")
-    parser.add_argument("--repo", help="only this repository, owner/name")
+    parser.add_argument("--repo", help="only this repository: owner/name (any host) or host:owner/name, as the log writes it (e.g. github:acme/shop)")
     parser.add_argument("--kind", help="only this kind of run: feature, bug, incident, plan, revision, qa, update")
     parser.add_argument("--file", type=Path, help="the usage log (default: under FACTORY_WORKSPACE_ROOT)")
     args = parser.parse_args()
@@ -84,7 +96,7 @@ def main() -> int:
     runs = [
         run for run in runs
         if (not args.since or run["time"][:10] >= args.since) and (not args.until or run["time"][:10] <= args.until)
-        and (not args.repo or run["repository"] == args.repo) and (not args.kind or run["kind"] == args.kind)
+        and (not args.repo or same_repository(run["repository"], args.repo)) and (not args.kind or run["kind"] == args.kind)
     ]
     if not runs:
         print("No runs match.")
