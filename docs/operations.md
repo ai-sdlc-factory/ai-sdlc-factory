@@ -186,7 +186,7 @@ docker compose run --rm --no-deps --entrypoint temporal temporal-namespace workf
   --workflow-id improvement-2026-w46-again --input '{"Week":"2026-W46","From":"2026-11-09","To":"2026-11-16","Repository":null}'
 ```
 
-(`Repository` as `"owner/name"` opens the ticket and runs the agent; `null` only saves the report. The command uses the `temporalio/admin-tools` image of the `temporal-namespace` service, which already knows the Temporal address; the same workflow can be started from the Temporal UI with the same input.) Use a new workflow id each time: the week's own id is taken once a run for it has finished.
+(`Repository` as `"owner/name"` opens the ticket and runs the agent; `null` only saves the report. Write the repository the way the [usage log](#the-usage-log-totals-across-tickets-days-and-repositories) does: a repository on the host called `forgejo` is plain `owner/name`, on any other host it carries the host's name (`"github:owner/name"`). A plain name is looked up on `forgejo`, so for a GitHub repository the run ends as `improvement_failed` (the Forgejo API answers 404). The command uses the `temporalio/admin-tools` image of the `temporal-namespace` service, which already knows the Temporal address; the same workflow can be started from the Temporal UI with the same input.) Use a new workflow id each time: the week's own id is taken once a run for it has finished.
 
 ### Token limits
 
