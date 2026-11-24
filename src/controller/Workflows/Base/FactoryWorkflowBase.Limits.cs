@@ -24,6 +24,9 @@ public abstract partial class FactoryWorkflowBase
     /// <summary>A person commented <c>/qa go</c> (set by the QA workflow's signal).</summary>
     protected bool qaConfirmed;
 
+    /// <summary>True only while the run is waiting for a <c>/qa go</c>; a go-ahead at any other time changes nothing, and the person is told so.</summary>
+    protected bool qaWaitingForGo;
+
     /// <summary>What this run's agents have used so far, as it counts against a budget or a daily limit.</summary>
     protected long TokensCounted => usages.Sum(usage => usage.Counted);
 
@@ -69,8 +72,10 @@ public abstract partial class FactoryWorkflowBase
         {
             return null;
         }
+        qaWaitingForGo = true; // before the comment that asks for it, so a quick answer is not taken for a stray one
         await CommentAsync(request, TicketComments.QaWaitingForConfirmation(estimate, confirmOver));
         var answered = await Workflow.WaitConditionAsync(() => qaConfirmed || ticketClosed, WaitForHuman);
+        qaWaitingForGo = false;
         if (ticketClosed)
         {
             return new WorkResult(Statuses.Closed);

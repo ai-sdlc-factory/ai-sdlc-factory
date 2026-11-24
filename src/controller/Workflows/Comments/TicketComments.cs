@@ -436,6 +436,10 @@ public static class TicketComments
 
     public const string QaNotConfirmed = "Nobody confirmed the QA run within 7 days, so I did not start it. Comment `/qa` to ask again.";
 
+    /// <summary><c>/qa go</c> while a QA run is going that is not waiting for it (it has not got to the question, or has already got past it).</summary>
+    public const string QaNotWaiting =
+        "The QA run for this one is going, but it is not waiting for a go-ahead, so `/qa go` changed nothing. Its report will be posted here when it is done.";
+
     /// <summary><c>/qa go</c> when no run is waiting for it.</summary>
     public const string QaNothingToConfirm = "No QA run is waiting for a go-ahead on this ticket or pull request. Comment `/qa` to start one.";
 

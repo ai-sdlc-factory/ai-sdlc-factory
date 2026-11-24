@@ -19,12 +19,25 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
     /// <summary>Set when the change is all UI and the project has no ui suite (see <see cref="QaUiGap"/>); the report repeats it.</summary>
     private string? uiGap;
 
+    /// <summary>The request this run is for, once it has started; a go-ahead that arrives earlier has nothing to answer to.</summary>
+    private QaRequest? askedFor;
+
     /// <summary>A person commented <c>/qa go</c>: the go-ahead a run waits for when its estimate is over <c>limits.confirm_over</c>.</summary>
     [WorkflowSignal("qa_go")]
-    public Task OnGoAsync()
+    public async Task OnGoAsync()
     {
-        qaConfirmed = true;
-        return Task.CompletedTask;
+        if (qaWaitingForGo)
+        {
+            qaConfirmed = true;
+            return;
+        }
+        // The run is going but is not waiting for this: say so, instead of taking the comment without a word.
+        if (askedFor is { } qa)
+        {
+            await Workflow.ExecuteActivityAsync(
+                (GitHostActivities activities) => activities.PostNoticeOnceAsync(new CommentRequest(qa.Owner, qa.Repo, qa.Number, TicketComments.QaNotWaiting)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
     }
 
     [WorkflowSignal("ticket_closed")]
@@ -37,6 +50,7 @@ public sealed partial class QaWorkflow : FactoryWorkflowBase
     [WorkflowRun]
     public async Task<WorkResult> RunAsync(QaRequest qa)
     {
+        askedFor = qa;
         var placeholder = qa.ToWorkRequest($"QA of #{qa.Number}");
         QaContext context;
         try
