@@ -250,6 +250,31 @@ def ensure_webhook(backend, repo, secret, hook_url, dry):
     return 1
 
 
+CONTROLLER_IMAGE = "ai-sdlc-factory/controller:local"
+
+
+def controller_check(content):
+    """Asks the controller image to read the file with the reader the runs use (`validate-project -`). Returns (usable, what it said), or None when it cannot be asked: no Docker, no
+    image (it is never pulled), or an image built before the command existed. The container has no network."""
+    name = f"onboard-check-{os.getpid()}"
+    command = ["docker", "run", "--rm", "-i", "--pull", "never", "--network", "none", "--name", name, CONTROLLER_IMAGE,
+               "dotnet", "AiSdlcFactory.Controller.dll", "validate-project", "-"]
+    try:
+        run = subprocess.run(command, input=content, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        return None
+    said = run.stdout.strip()
+    if run.returncode == 0 and "is usable" in said:
+        return True, said
+    if run.returncode == 1 and "cannot be used" in said:
+        return False, said
+    return None
+
+
 def check_project_json(backend, repo, branch):
     """Says whether .factory/project.json is on the default branch and usable. Changes nothing."""
     content = backend.read_file(repo, ".factory/project.json", branch)
@@ -264,6 +289,13 @@ def check_project_json(backend, repo, branch):
         print(f"  .factory/project.json: NOT USABLE ({error}). Fix it on {branch}.")
         return
     print(f"  .factory/project.json: found, keys: {', '.join(sorted(settings)) or '(empty)'}")
+    checked = controller_check(content)
+    if checked is None:
+        print("    note: not checked against the factory's own rules (needs Docker and the controller image: `docker compose build controller`), only that it is JSON.")
+    elif checked[0]:
+        print("    checked with the factory's own reader: usable.")
+    else:
+        print(f"    NOT USABLE: {checked[1]} Fix it on {branch}.")
     if not settings.get("gates"):
         print("    note: no `gates` (the project's own checks). The factory still works, but nothing checks a change except the agents.")
 

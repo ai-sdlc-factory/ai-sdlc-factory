@@ -119,8 +119,9 @@ class Fake:
         return [r for r in self.requests if r[0] != "GET"]
 
 
-def run(*arguments, hosts, env=None):
-    """Runs the tool; returns (exit message or None, everything it printed)."""
+def run(*arguments, hosts, env=None, controller=None):
+    """Runs the tool; returns (exit message or None, everything it printed). `controller` stands in for the controller image's answer about project.json
+    (None: it could not be asked), so no test starts Docker."""
     saved = {k: os.environ.get(k) for k in ("FACTORY_HOSTS", "GITHUB_TOKEN", "GH_TOKEN")}
     os.environ["FACTORY_HOSTS"] = json.dumps(hosts)
     os.environ.pop("GITHUB_TOKEN", None)
@@ -128,12 +129,15 @@ def run(*arguments, hosts, env=None):
     os.environ.update(env or {})
     out = io.StringIO()
     exit_message = None
+    original_check = onboard.controller_check
+    onboard.controller_check = lambda content: controller
     try:
         with contextlib.redirect_stdout(out):
             onboard.main(list(arguments))
     except SystemExit as stop:
         exit_message = str(stop.code)
     finally:
+        onboard.controller_check = original_check
         for key, value in saved.items():
             os.environ.pop(key, None)
             if value is not None:
@@ -155,6 +159,22 @@ class ForgejoTests(unittest.TestCase):
         self.assertIn("would create (http://api:8000/webhooks/forgejo", output)
         self.assertIn("label feature: would create", output)
         self.assertIn("Would change 9 thing(s).", output)
+
+    def test_a_project_json_the_factory_cannot_use_is_reported_before_any_ticket(self):
+        self.fake.project_json = '{"gates": [{"name": "t"}], "image": "dotnet", "limits": {"confirm_over": 1000}}'
+        _, output = run("acme/shop", hosts=self.hosts, controller=(False, ".factory/project.json cannot be used: \"limits.confirm_over\" must be a whole number."))
+
+        self.assertIn("NOT USABLE: .factory/project.json cannot be used", output)
+        self.assertIn("limits.confirm_over", output)
+
+    def test_a_project_json_the_factory_can_use_says_so_and_without_the_image_it_says_it_did_not_check(self):
+        self.fake.project_json = '{"gates": [{"name": "t"}], "image": "dotnet"}'
+        _, checked = run("acme/shop", hosts=self.hosts, controller=(True, ".factory/project.json is usable."))
+        _, unchecked = run("acme/shop", hosts=self.hosts, controller=None)
+
+        self.assertIn("checked with the factory's own reader: usable.", checked)
+        self.assertNotIn("not checked against", checked)
+        self.assertIn("not checked against the factory's own rules", unchecked)
 
     def test_it_creates_the_labels_and_the_webhook_and_a_second_run_changes_nothing(self):
         self.fake.project_json = '{"gates": [{"name": "t"}], "image": "dotnet"}'

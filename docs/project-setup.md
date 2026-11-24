@@ -59,6 +59,8 @@ Create these labels in the repository (**Issues > Labels**). Only the first thre
 
 ## 4. Add `.factory/project.json`
 
+> **Check it before the first ticket.** A mistake in this file (a limit out of range, an unknown key) is otherwise found only when a ticket arrives. `docker run --rm -i --network none ai-sdlc-factory/controller:local dotnet AiSdlcFactory.Controller.dll validate-project - < .factory/project.json` reads it with the same reader the runs use and says whether it is usable (exit code 0 usable, 1 not usable, 2 not readable). `python3 tools/onboard-repo.py owner/repo` runs the same check on the file on the default branch when Docker and the controller image are there, and says so when they are not. It checks the file on its own: what depends on the operator's settings is only known to the running factory.
+
 This is the **only file** the factory needs in a repository. It tells the factory which sandbox image to use and which commands prove a change
 is good. It is read from the default branch at the start of each run, so a change applies to the next run. The smallest valid file:
 

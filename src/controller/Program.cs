@@ -1,5 +1,11 @@
 using AiSdlcFactory.Controller;
 
+// `validate-project <file|->`: check a .factory/project.json and exit, without starting the worker or needing its settings.
+if (args is [ProjectCheckCommand.Name, .. var checkArguments])
+{
+    return ProjectCheckCommand.Run(checkArguments, Console.In, Console.Out);
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 var settings = WorkerSettings.FromConfiguration(builder.Configuration);
 
@@ -18,3 +24,5 @@ foreach (var host in settings.Hosts)
 }
 
 await app.RunAsync();
+
+return 0;
