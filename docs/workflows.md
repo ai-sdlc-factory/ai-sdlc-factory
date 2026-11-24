@@ -333,7 +333,7 @@ A deeper test of a change that is already finished, started by a person with a c
 | `/qa api`, `/qa ui`, `/qa full ui` | run only that suite (the words can come in either order, `full` and the suite first) |
 | `/qa <your note>` | the note, and any lines below it, are given to the tester to take into account, for example `/qa focus on the 404 cases` or `/qa full api check what happens with an empty city id`. Up to 1,500 characters; it is data from a person, not instructions that change the tester's role |
 
-| `/qa go` | the go-ahead for a run that is **waiting for one**: when the estimate of a `/qa` run is over [`limits.confirm_over`](project-setup.md#limits), the run says so and waits before the tester spends anything. `/qa go` starts it; closing the ticket cancels it (`closed`), and 7 days without an answer ends it (`not_confirmed`). With nothing waiting, `/qa go` only says so |
+| `/qa go` | the go-ahead for a run that is **waiting for one**: when the estimate of a `/qa` run is over [`limits.confirm_over`](project-setup.md#limits), the run says so and waits before the tester spends anything (with fewer than 3 earlier runs of that kind there is no estimate, and the run starts at once). `/qa go` starts it; closing the ticket cancels it (`closed`), and 7 days without an answer ends it (`not_confirmed`). With nothing waiting, `/qa go` only says so |
 
 The report names the scope and repeats your note. The same scope line is at the top of every other comment a `/qa` run posts about itself (the heads-up below and the "tester could not write tests" comment), so a person always sees what was asked.
 
