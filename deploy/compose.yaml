@@ -91,7 +91,7 @@ services:
 
   # The web UI: every workflow with its history. It waits for the namespace so it never shows an empty server.
   temporal-ui:
-    image: temporalio/ui:2.57.0
+    image: temporalio/ui:2.58.1
     restart: unless-stopped
     depends_on:
       temporal-namespace:
