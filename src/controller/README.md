@@ -42,6 +42,8 @@ Settings (full list in the [configuration reference](../../docs/configuration.md
 namespace and queue), `FACTORY_HOSTS` (each git host, with the bot's token on it), `FACTORY_WORKSPACE_ROOT`, `TEMPORAL_UI_URL`, and `FACTORY_AGENTS_DIR`. The same `FACTORY_HOSTS` carries the webhook secrets, which only the api needs; the controller ignores them. Without a bot token, ticket workflows fail
 at their first comment and every other event still works.
 
+`dotnet AiSdlcFactory.Controller.dll validate-project <file|->` checks a `.factory/project.json` with the reader the runs use and exits with 0 (usable), 1 (not usable, with the reason) or 2 (not readable); it starts no worker and needs none of the settings above ([project setup](../../docs/project-setup.md#4-add-factoryprojectjson)).
+
 The controller talks to a git host only through the `IGitHost` port (one client per kind of host: `ForgejoClient`, `GitHubClient`), and to the Docker world only through Temporal.
 
 ## Code layout

@@ -78,7 +78,7 @@ FACTORY_HOSTS=[{"name":"forgejo","url":"http://forgejo:3000","token":"<forgejo t
 - `url` is where the **controller** reaches the host. The bundled Forgejo is `http://forgejo:3000` over a Docker network; another Forgejo is its address; GitHub is `https://github.com` (or the address of a GitHub Enterprise Server).
 - `webhook_secret` is made up by you (`openssl rand -hex 32`); the same value goes into each repository's webhook on that host.
 
-After a change, restart the api and the controller: `cd deploy && docker compose up -d --force-recreate api controller`. The controller logs each host at start (`Git host github (github): anyone who can comment may use commands`).
+After a change, restart the api and the controller: `cd deploy && docker compose up -d --force-recreate api controller`. The controller logs each host at start (`Git host github (github): anyone who can comment may use commands`), and a warning after it for a GitHub host with no `commands` rule: on a public repository any GitHub account can then use the commands and spend the model login.
 
 ## 4. Access of the bot to a repository
 
