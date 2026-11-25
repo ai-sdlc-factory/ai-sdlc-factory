@@ -156,8 +156,12 @@ class GitHub(Backend):
     def page_query(self, page):
         return f"per_page={self.page_size}&page={page}"
 
+    private = None  # whether the repository is private, once it has been read; None when GitHub did not say
+
     def repository(self, repo):
         status, info = self.call("GET", f"repos/{repo}")
+        # Kept for the note at the end: who could use the commands depends on whether anyone can see the repository.
+        self.private = info.get("private") if status == 200 and isinstance(info.get("private"), bool) else None
         return None if status != 200 else (info["default_branch"], info.get("size", 1) == 0)
 
     def labels(self, repo):
@@ -275,6 +279,26 @@ def controller_check(content):
     return None
 
 
+def commands_hold_back(commands):
+    """Whether a host's `commands` setting limits who may use commands by default, as the controller judges it when it warns at start: a level other than `anyone`,
+    or someone denied. A rule that says `anyone`, or has nothing but `allow`, `each` or `project`, still lets every account use the commands."""
+    if isinstance(commands, str):
+        return commands != "anyone"
+    if not isinstance(commands, dict):
+        return False
+    return commands.get("who", "anyone") != "anyone" or bool(commands.get("deny"))
+
+
+def commands_note(host_name, commands, private):
+    """The note for a GitHub host that lets anyone use commands, or None. A private repository has few readers, so nothing is said about it; a repository whose visibility is
+    unknown gets the note, because it may be public."""
+    if commands_hold_back(commands) or private is True:
+        return None
+    where = "This repository is public, so any GitHub account" if private is False else "On a public repository any GitHub account"
+    return (f"  note: host {host_name} has no rule limiting who may use commands. {where} can use /fix, /qa, /ask and the other commands and spend the model login. "
+            "Consider \"commands\": {\"who\": \"write\"} in the host's entry of FACTORY_HOSTS (docs/git-hosts.md).")
+
+
 def check_project_json(backend, repo, branch):
     """Says whether .factory/project.json is on the default branch and usable. Changes nothing."""
     content = backend.read_file(repo, ".factory/project.json", branch)
@@ -354,9 +378,8 @@ def main(argv=None):
 
     changed = ensure_labels(backend, repo, dry) + ensure_webhook(backend, repo, secret, hook_url, dry)
     check_project_json(backend, repo, branch)
-    if kind == "github" and not host.get("commands"):
-        print(f"  note: host {name} has no `commands` rule, so on a public repository any GitHub account can use /fix, /qa, /ask and the other commands and spend the model login. "
-              "Consider \"commands\": {\"who\": \"write\"} in the host's entry of FACTORY_HOSTS (docs/git-hosts.md).")
+    if kind == "github" and (note := commands_note(name, host.get("commands"), backend.private)):
+        print(note)
 
     if not changed:
         print("Nothing to change: the repository is ready.")

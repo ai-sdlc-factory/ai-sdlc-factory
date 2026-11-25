@@ -129,7 +129,7 @@ ticket, add the `feature` label, and watch the comments appear.
 
 > **A public GitHub repository?** By default anyone who can comment may use the commands, and on a public repository that is any GitHub account: they can spend the factory's model
 > login and put their own text in front of an agent (nothing merges without a person). Before you connect one, set a [`commands` rule](git-hosts.md) on the host, for example
-> `"commands": {"who": "write"}`. The controller logs a warning at start while a GitHub host has none, and `tools/onboard-repo.py` prints the same note.
+> `"commands": {"who": "write"}`. The controller logs a warning at start while a GitHub host has none, and `tools/onboard-repo.py` prints the same note when it onboards a public repository.
 
 ## Everyday commands
 

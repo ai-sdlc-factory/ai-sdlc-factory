@@ -44,6 +44,7 @@ class Fake:
         self.next_id = 1
         self.page_cap = 50  # like Forgejo's default
         self.forgejo = True  # GitHub tests turn this off: GitHub stores the events as they were sent
+        self.private = None  # what the host says about the repository's visibility; None leaves it out of the answer
 
         fake = self
 
@@ -67,7 +68,8 @@ class Fake:
                 body = json.loads(self.rfile.read(length)) if length else None
                 fake.requests.append((method, path, self.headers.get("Authorization"), body))
                 if path == "/repos/acme/shop" and method == "GET":
-                    return self.answer(200, {"default_branch": "main", "empty": False, "size": 1})
+                    return self.answer(200, {"default_branch": "main", "empty": False, "size": 1,
+                                             **({} if fake.private is None else {"private": fake.private})})
                 if path == "/repos/acme/missing":
                     return self.answer(404)
                 if path == "/repos/acme/shop/labels":
@@ -254,14 +256,39 @@ class GitHubTests(unittest.TestCase):
         for secret in (WEBHOOK_SECRET, BOT_TOKEN, OPERATOR_TOKEN):
             self.assertNotIn(secret, output)
 
-    def test_a_github_host_with_no_commands_rule_is_told_that_anyone_may_use_commands(self):
-        _, output = run(*self.args, hosts=self.hosts, env={"GITHUB_TOKEN": OPERATOR_TOKEN})
-        self.assertIn("has no `commands` rule", output)
-        self.assertIn("any GitHub account", output)
+    NOTE = "no rule limiting who may use commands"
 
-        restricted = [dict(self.hosts[0], commands={"who": "write"})]
-        _, quiet = run(*self.args, hosts=restricted, env={"GITHUB_TOKEN": OPERATOR_TOKEN})
-        self.assertNotIn("has no `commands` rule", quiet)
+    def onboard(self, commands=None, private=None):
+        """The tool's output for the fake GitHub repository, with the host's `commands` setting and the repository's visibility as given."""
+        self.fake.private = private
+        host = dict(self.hosts[0], **({} if commands is None else {"commands": commands}))
+        return run(*self.args, hosts=[host], env={"GITHUB_TOKEN": OPERATOR_TOKEN})[1]
+
+    def test_a_public_repository_on_a_host_with_no_commands_rule_is_told_that_any_account_may_use_commands(self):
+        output = self.onboard(private=False)
+
+        self.assertIn(self.NOTE, output)
+        self.assertIn("This repository is public, so any GitHub account", output)
+        self.assertIn('"who": "write"', output)
+
+    def test_a_private_repository_is_not_told_anything(self):
+        self.assertNotIn(self.NOTE, self.onboard(private=True))
+
+    def test_a_repository_whose_visibility_is_not_known_is_told_because_it_may_be_public(self):
+        output = self.onboard(private=None)
+
+        self.assertIn(self.NOTE, output)
+        self.assertIn("On a public repository any GitHub account", output)
+
+    def test_a_rule_that_limits_who_may_use_commands_silences_the_note(self):
+        for commands in ("write", "admin", "none", {"who": "write"}, {"who": "admin", "allow": ["carol"]}, {"deny": ["mallory"]}):
+            with self.subTest(commands=commands):
+                self.assertNotIn(self.NOTE, self.onboard(commands=commands, private=False))
+
+    def test_a_rule_that_still_lets_every_account_in_does_not_silence_the_note(self):
+        for commands in ("anyone", {"who": "anyone"}, {"allow": ["carol"]}, {"refusal": "silent"}, {}):
+            with self.subTest(commands=commands):
+                self.assertIn(self.NOTE, self.onboard(commands=commands, private=False))
 
     def test_a_second_run_changes_nothing(self):
         env = {"GITHUB_TOKEN": OPERATOR_TOKEN}
