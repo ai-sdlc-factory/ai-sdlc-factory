@@ -254,6 +254,15 @@ class GitHubTests(unittest.TestCase):
         for secret in (WEBHOOK_SECRET, BOT_TOKEN, OPERATOR_TOKEN):
             self.assertNotIn(secret, output)
 
+    def test_a_github_host_with_no_commands_rule_is_told_that_anyone_may_use_commands(self):
+        _, output = run(*self.args, hosts=self.hosts, env={"GITHUB_TOKEN": OPERATOR_TOKEN})
+        self.assertIn("has no `commands` rule", output)
+        self.assertIn("any GitHub account", output)
+
+        restricted = [dict(self.hosts[0], commands={"who": "write"})]
+        _, quiet = run(*self.args, hosts=restricted, env={"GITHUB_TOKEN": OPERATOR_TOKEN})
+        self.assertNotIn("has no `commands` rule", quiet)
+
     def test_a_second_run_changes_nothing(self):
         env = {"GITHUB_TOKEN": OPERATOR_TOKEN}
         run(*self.args, hosts=self.hosts, env=env)

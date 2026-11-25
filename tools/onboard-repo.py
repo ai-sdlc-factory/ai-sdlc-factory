@@ -354,6 +354,9 @@ def main(argv=None):
 
     changed = ensure_labels(backend, repo, dry) + ensure_webhook(backend, repo, secret, hook_url, dry)
     check_project_json(backend, repo, branch)
+    if kind == "github" and not host.get("commands"):
+        print(f"  note: host {name} has no `commands` rule, so on a public repository any GitHub account can use /fix, /qa, /ask and the other commands and spend the model login. "
+              "Consider \"commands\": {\"who\": \"write\"} in the host's entry of FACTORY_HOSTS (docs/git-hosts.md).")
 
     if not changed:
         print("Nothing to change: the repository is ready.")

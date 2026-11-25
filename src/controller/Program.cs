@@ -21,6 +21,10 @@ foreach (var host in settings.Hosts)
     var rules = host.Commands ?? HostCommandRules.Open;
     log.LogInformation("Git host {Host} ({Type}): {Rule}{Exceptions}", host.Name, host.Type, rules.Default.Describe(),
         rules.Repositories.Count > 0 ? $"; {rules.Repositories.Count} repositories have a rule of their own" : "");
+    if (HostStartupNotes.OpenCommandsOnGitHub(host) is { } warning)
+    {
+        log.LogWarning("{Warning}", warning);
+    }
 }
 
 await app.RunAsync();
