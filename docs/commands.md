@@ -55,6 +55,7 @@ Write a command **on its own line** in a comment (upper or lower case). Text on 
 | --- | --- | --- |
 | `/retry` | starts the ticket's run again, **carrying on from the stages that finished** (analysis, coverage check, design) | an open ticket with a factory label, no run in progress and **no open pull request** (a new run would open a second one: use `/fix` on the pull request, or `/retry restart`). If the ticket's text or labels changed, or the default branch has new commits that touch more than unrelated documents, it starts over and says why |
 | `/retry restart` | starts again from the beginning (same as closing and reopening), even when the ticket already has an open pull request (the new run opens another one). **This is the only way a changed ticket reaches the acceptance check**: the acceptance criteria are written once, when the run starts, and a `/fix` is judged against them whatever the ticket says now ([details](workflows.md#pull-request-revisions)) | an open ticket with a run not in progress |
+| `/approve` | on a **feature** ticket whose project sets `confirm_criteria`: the go-ahead for the analyst's acceptance criteria, which the run waits for before it builds anything. Any other comment while it waits is a change to ask for. (On a `plan` ticket `/approve` creates tickets: see below) | an open feature ticket whose run waits for it; the line is only `/approve` |
 
 Closing a ticket stops its run, but only between two steps. If you reopen it before the run has stopped, the factory waits (up to about 30 minutes) and then starts the new run by itself.
 
@@ -101,7 +102,7 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 
 | Where | What a plain comment does |
 | --- | --- |
-| a ticket whose workflow is waiting for you (the last comment asks a question) | **answers it**. Only the analyst, architect, reproducer, diagnostician, planner and incident stages read comments |
+| a ticket whose workflow is waiting for you (the last comment asks a question) | **answers it**. Only the analyst, architect, reproducer, diagnostician, planner and incident stages read comments. When the project sets [`confirm_criteria`](project-setup.md#4-add-factoryprojectjson), a feature run waits after the analysis for `/approve`, and any other comment is a change to the criteria |
 | a ticket whose build has started | gets one notice: it cannot change what is built |
 | a ticket with no running workflow | gets a notice saying what to do (edit the ticket, then close and reopen it, or `/retry`) |
 

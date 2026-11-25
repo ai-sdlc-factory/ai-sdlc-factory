@@ -46,6 +46,47 @@ public abstract partial class FactoryWorkflowBase
             },
             failedStatus: Statuses.DesignFailed, rejectedStatus: Statuses.DesignRejected, failureText: "The design failed");
 
+    /// <summary>
+    /// For a project that asks for it (<c>confirm_criteria</c>): after the analyst says the ticket is ready, waits for a person to comment <c>/approve</c> before the coverage check, the design
+    /// and the build. Any other comment is a change to ask for: the analyst reads it and analyses again (as many times as the project allows questions). Closing the ticket ends the wait, and so do
+    /// 7 days without an answer. Nothing is spent while it waits.
+    /// </summary>
+    protected async Task<StageResult<AnalystVerdict>> ConfirmCriteriaAsync(WorkRequest request, WorkspaceInfo workspace, string image, AnalystVerdict analysis)
+    {
+        for (var changes = 0; ; changes++)
+        {
+            await CommentAsync(request, TicketComments.CriteriaWaiting(maxClarificationRounds - changes));
+            var answered = await Workflow.WaitConditionAsync(() => ticketClosed || replies.Count > 0, WaitForHuman);
+            if (ticketClosed)
+            {
+                return Stop<AnalystVerdict>(Statuses.Closed);
+            }
+            if (!answered)
+            {
+                await CommentAsync(request, TicketComments.CriteriaNotApproved);
+                return Stop<AnalystVerdict>(Statuses.TimedOut);
+            }
+            if (replies.Any(reply => CriteriaApproval.IsApproval(reply.Body)))
+            {
+                replies.Clear();
+                return new StageResult<AnalystVerdict>(null, analysis);
+            }
+            if (changes >= maxClarificationRounds)
+            {
+                replies.Clear();
+                await CommentAsync(request, TicketComments.CriteriaChangesUsedUp);
+                return Stop<AnalystVerdict>(Statuses.NeedsHuman);
+            }
+            // The analyst reads the comments as it starts (they count for its first round).
+            var again = await AnalyseAsync(request, workspace, image);
+            if (again.Stop is not null)
+            {
+                return again;
+            }
+            analysis = again.Verdict!;
+        }
+    }
+
     protected enum Next { Done, Stop, Ask }
 
     /// <summary>

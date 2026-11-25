@@ -9,7 +9,7 @@ namespace AiSdlcFactory.Controller;
 /// </summary>
 public static class ProjectKeys
 {
-    private static readonly string[] Root = ["image", "gates", "reviewers", "ui", "record", "mode", "rules", "limits", "protected_paths", "verify", "commands"];
+    private static readonly string[] Root = ["image", "gates", "reviewers", "ui", "record", "mode", "rules", "limits", "protected_paths", "verify", "commands", "confirm_criteria"];
     private static readonly string[] Gate = ["name", "command", "timeout_seconds", "cwd"];
     private static readonly string[] Ui = ["paths", "medium", "large"];
     private static readonly string[] Threshold = ["files", "lines"];

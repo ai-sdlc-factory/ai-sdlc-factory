@@ -41,6 +41,16 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
                 return stop;
             }
             verdict = analysis.Verdict!;
+            if (project.ConfirmCriteria)
+            {
+                // Before anything is saved: a run that is stopped here has nothing to carry on from, so /retry asks again.
+                var confirmed = await ConfirmCriteriaAsync(request, workspace, project.Image, verdict);
+                if (confirmed.Stop is { } notConfirmed)
+                {
+                    return notConfirmed;
+                }
+                verdict = confirmed.Verdict!;
+            }
             saved = saved with { Analysis = verdict };
             await SaveResumeAsync(request, saved);
         }

@@ -252,6 +252,22 @@ public static class TicketComments
 
     public const string NoticeMarker = "<!-- ai-sdlc-factory:notice -->";
 
+    /// <summary>The project asks for a go-ahead on the acceptance criteria (<c>confirm_criteria</c>): said after the analysis, before anything else is done.</summary>
+    public static string CriteriaWaiting(int changesLeft) =>
+        "**Waiting for your approval of these acceptance criteria.** Nothing has been checked or built yet, and no more tokens are used until you decide.\n\n" +
+        "- Comment `/approve` (alone on its line) to go ahead.\n" +
+        $"- Or comment what to change, and I will analyse again ({changesLeft} change{(changesLeft == 1 ? "" : "s")} left).\n\n" +
+        "Closing the ticket cancels the run; 7 days without an answer ends it.";
+
+    /// <summary>The criteria were asked to change as many times as the project allows, and still nobody approved them.</summary>
+    public const string CriteriaChangesUsedUp =
+        "The acceptance criteria were changed as many times as this project allows (`limits.clarification_rounds`) and are still not approved. " +
+        "A person needs to decide: edit the ticket so it says what is wanted, then close and reopen it to start again.";
+
+    /// <summary>Nobody answered the request for approval.</summary>
+    public const string CriteriaNotApproved =
+        "No approval of the acceptance criteria for 7 days; stopping. Close and reopen the ticket to start again.";
+
     /// <summary>A comment arrived while the build was running, which no longer takes new input.</summary>
     public const string CommentTooLate =
         "I saw your comment, but the build has already started and it cannot take new input, so it was not used. " +

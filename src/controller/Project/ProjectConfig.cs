@@ -26,7 +26,7 @@ public sealed record Gate(string Name, IReadOnlyList<string> Command, int Timeou
 /// </summary>
 public sealed record ProjectConfig(string Image, IReadOnlyList<Gate> Gates, IReadOnlyList<string> Reviewers, UiConfig? Ui = null, bool Record = false, bool QuickByDefault = false, IReadOnlyList<ProjectRule>? Rules = null,
     ProjectLimits? Limits = null, IReadOnlyList<string>? ProtectedPaths = null, VerifyConfig? Verify = null,
-    IReadOnlyList<string>? Warnings = null);
+    IReadOnlyList<string>? Warnings = null, bool ConfirmCriteria = false);
 
 public static partial class ProjectConfigParser
 {
@@ -307,11 +307,12 @@ public static partial class ProjectConfigParser
                 || !TryReadRules(root, out var rules, out error)
                 || !TryReadLimits(root, out var limits, out error)
                 || !TryReadProtectedPaths(root, out var protectedPaths, out error)
-                || !TryReadVerify(root, out var verify, out error))
+                || !TryReadVerify(root, out var verify, out error)
+                || !TryReadConfirmCriteria(root, out var confirmCriteria, out error))
             {
                 return false;
             }
-            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules, limits, protectedPaths, verify, ProjectKeys.Warnings(root));
+            config = new ProjectConfig(image, gates, reviewers, ui, record, quickByDefault, rules, limits, protectedPaths, verify, ProjectKeys.Warnings(root), confirmCriteria);
             return true;
         }
     }
@@ -441,6 +442,23 @@ public static partial class ProjectConfigParser
             return false;
         }
         record = value.GetBoolean();
+        return true;
+    }
+
+    private static bool TryReadConfirmCriteria(JsonElement root, out bool confirmCriteria, out string error)
+    {
+        confirmCriteria = false;
+        error = "";
+        if (!root.TryGetProperty("confirm_criteria", out var value))
+        {
+            return true;
+        }
+        if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            error = "\"confirm_criteria\" must be true or false: true makes a feature run wait for a person's /approve of the analyst's acceptance criteria before anything is built";
+            return false;
+        }
+        confirmCriteria = value.GetBoolean();
         return true;
     }
 

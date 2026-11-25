@@ -152,4 +152,24 @@ public sealed class LimitsTests
 
         Assert.Contains(key, error.Message);
     }
+
+    [Fact]
+    public void Confirm_criteria_is_off_unless_the_project_turns_it_on()
+    {
+        Assert.True(ProjectConfigParser.TryParse("""{"image":"python","gates":[{"name":"test","command":["pytest"]}]}""", out var off, out _));
+        Assert.False(off!.ConfirmCriteria);
+        Assert.True(ProjectConfigParser.TryParse("""{"image":"python","gates":[{"name":"test","command":["pytest"]}],"confirm_criteria":true}""", out var on, out _));
+        Assert.True(on!.ConfirmCriteria);
+        Assert.Empty(on.Warnings!);
+    }
+
+    [Theory]
+    [InlineData("\"yes\"")]
+    [InlineData("1")]
+    [InlineData("null")]
+    public void Confirm_criteria_must_be_true_or_false(string value)
+    {
+        Assert.False(ProjectConfigParser.TryParse($$"""{"image":"python","gates":[{"name":"test","command":["pytest"]}],"confirm_criteria":{{value}}}""", out _, out var error));
+        Assert.Contains("confirm_criteria", error);
+    }
 }

@@ -254,6 +254,105 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         CleanedUpOnce(world, request);
     }
 
+    // ---- the optional go-ahead on the acceptance criteria -------------------------------------------------
+
+    private const string ConfirmingProject = """{"image":"python","confirm_criteria":true,"gates":[{"name":"test","command":["python","-m","pytest","-q"]}]}""";
+
+    [SkippableFact]
+    public async Task A_project_that_asks_for_a_go_ahead_waits_before_anything_else_and_builds_after_approve()
+    {
+        var world = new FakeWorld()
+            .Agent("analyst", Say(Answers.Analyst()))
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
+        world.ProjectConfig = ConfirmingProject;
+
+        var result = await world.RunAsync(fixture, async context =>
+        {
+            var handle = await context.StartAsync(ScenarioContext.Request());
+            await world.WaitForCommentAsync(c => c.StartsWith("**Waiting for your approval of these acceptance criteria.**"));
+            Assert.Empty(world.Calls("coverage")); // nothing is spent while it waits
+            Assert.Empty(world.Calls("developer"));
+            await handle.SignalAsync(workflow => workflow.OnHumanReplyAsync(new HumanReply("bob", "/approve")));
+            return await ScenarioContext.ResultAsync(handle);
+        });
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Single(world.Calls("analyst"));
+        NothingUnscripted(world);
+    }
+
+    [SkippableFact]
+    public async Task A_change_asked_for_while_it_waits_is_read_by_the_analyst_and_the_run_waits_again()
+    {
+        var world = new FakeWorld()
+            .Agent("analyst", Say(Answers.Analyst()), Say(Answers.Analyst()))
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
+        world.ProjectConfig = ConfirmingProject;
+
+        var result = await world.RunAsync(fixture, async context =>
+        {
+            var handle = await context.StartAsync(ScenarioContext.Request());
+            await world.WaitForCommentAsync(c => c.StartsWith("**Waiting for your approval of these acceptance criteria.**"));
+            await handle.SignalAsync(workflow => workflow.OnHumanReplyAsync(new HumanReply("bob", "Also say what happens for an unknown city.")));
+            await world.WaitForCommentAsync(c => c.StartsWith("**Waiting for your approval of these acceptance criteria.**") && c.Contains("(2 changes left)"));
+            Assert.Empty(world.Calls("coverage"));
+            await handle.SignalAsync(workflow => workflow.OnHumanReplyAsync(new HumanReply("bob", "/approve")));
+            return await ScenarioContext.ResultAsync(handle);
+        });
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.Equal(2, world.Calls("analyst").Count());
+        Assert.Contains("Also say what happens for an unknown city.", world.Calls("analyst").ElementAt(1).Prompt);
+        NothingUnscripted(world);
+    }
+
+    [SkippableFact]
+    public async Task Closing_the_ticket_while_it_waits_for_the_go_ahead_ends_the_run_and_spends_nothing_more()
+    {
+        var world = new FakeWorld().Agent("analyst", Say(Answers.Analyst()));
+        world.ProjectConfig = ConfirmingProject;
+        var request = ScenarioContext.Request();
+
+        var result = await world.RunAsync(fixture, async context =>
+        {
+            var handle = await context.StartAsync(request);
+            await world.WaitForCommentAsync(c => c.StartsWith("**Waiting for your approval of these acceptance criteria.**"));
+            await handle.SignalAsync(workflow => workflow.OnTicketClosedAsync());
+            return await ScenarioContext.ResultAsync(handle);
+        });
+
+        Assert.Equal("closed", result.Status);
+        Assert.Empty(world.Calls("coverage"));
+        CleanedUpOnce(world, request);
+    }
+
+    [SkippableFact]
+    public async Task Changes_beyond_what_the_project_allows_hand_the_decision_to_a_person()
+    {
+        var world = new FakeWorld().Agent("analyst", Say(Answers.Analyst()), Say(Answers.Analyst()));
+        world.ProjectConfig = """{"image":"python","confirm_criteria":true,"limits":{"clarification_rounds":1},"gates":[{"name":"test","command":["python","-m","pytest","-q"]}]}""";
+
+        var result = await world.RunAsync(fixture, async context =>
+        {
+            var handle = await context.StartAsync(ScenarioContext.Request());
+            await world.WaitForCommentAsync(c => c.StartsWith("**Waiting for your approval of these acceptance criteria.**"));
+            await handle.SignalAsync(workflow => workflow.OnHumanReplyAsync(new HumanReply("bob", "First change.")));
+            await world.WaitForCommentAsync(c => c.StartsWith("**Waiting for your approval of these acceptance criteria.**") && c.Contains("(0 changes left)"));
+            await handle.SignalAsync(workflow => workflow.OnHumanReplyAsync(new HumanReply("bob", "Second change.")));
+            return await ScenarioContext.ResultAsync(handle);
+        });
+
+        Assert.Equal("needs_human", result.Status);
+        Assert.Contains(world.Comments, c => c == TicketComments.CriteriaChangesUsedUp);
+        Assert.Empty(world.Calls("coverage"));
+    }
+
     [SkippableFact]
     public async Task Rejected_requests_stop_before_any_other_stage()
     {

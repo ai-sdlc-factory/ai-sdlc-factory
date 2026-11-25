@@ -96,6 +96,7 @@ Without a usable file, a run stops with the status `needs_config` and a comment 
 | `verify` | no | none | How to start the application and run end-to-end tests for a [`/qa` run](workflows.md#qa-run), [below](#end-to-end-checks-verify) |
 | `commands` | no | none | Who may steer the factory in this repository, **only to tighten**, and only where the operator allowed it (`"project": true` in the host's rule): `"write"`, `"admin"`, or `{"who": "write", "deny": ["mallory"]}`. It can never let anyone in (no `allow`), and the people the operator named are not affected. Without the operator's permission it is ignored. [Below](#who-may-steer-commands) |
 | `mode` | no | `"full"` | `"quick"` makes [quick mode](workflows.md#quick-mode) the project's default. Anything other than `"full"` or `"quick"` is refused |
+| `confirm_criteria` | no | `false` | `true` makes a [feature run](workflows.md#feature-workflow) wait for a person to comment `/approve` on the analyst's acceptance criteria before anything is checked or built. Any other comment is a change to ask for, and the analyst analyses again (up to `limits.clarification_rounds` times). Closing the ticket ends the wait, and so do 7 days without an answer |
 
 Rules that apply to the whole file:
 

@@ -78,6 +78,9 @@ it decides with stated assumptions.
 2. **Analyst** (read-only). Decides whether the request is clear enough to build and lists testable acceptance criteria and complexity. It is told that the project's end-to-end test folder (`verify.tests`) is written only by [`/qa`](#qa-run) and cannot be changed by the developer, so it leaves end-to-end tests out of the criteria
    facts. `pass` continues; `needs_clarification` asks on the ticket (up to 3 rounds of questions by default; see [limits](project-setup.md#limits)); `reject` stops. An answer that does not match
    the required JSON shape gets one retry that quotes the exact problem; after that a person is asked to look.
+   **Optional go-ahead on the criteria** (`confirm_criteria` in [`.factory/project.json`](project-setup.md#4-add-factoryprojectjson), off by default): after a `pass`, the run waits before the coverage check, the design and the build.
+   A person comments `/approve` (alone on its line) to go ahead; any other comment is a change to ask for, which the analyst reads before it analyses again (up to `limits.clarification_rounds` changes, then `needs_human`).
+   Closing the ticket ends the wait, and so do 7 days without an answer (`timed_out`). Nothing is spent while it waits. A `/retry` that carries on from a finished analysis does not ask again.
 3. **Coverage check** (read-only, then a deterministic check). Judges each criterion against the existing code as `covered`, `partial`
    or `missing`, citing up to three files. The factory checks that the files exist; a claim without an existing file is weakened
    (`covered` becomes `partial`, `partial` becomes `missing`), and a failed check can only weaken a claim. If everything is covered the
@@ -471,7 +474,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `already_implemented` | the coverage check found every criterion already met |
 | `rejected`, `design_rejected` | the analyst (or bug/incident analyst) or the architect said it cannot or should not be done as asked |
 | `needs_design` | bug: the cause is larger than a bug fix; open a feature ticket |
-| `needs_human` | the rounds of questions were used up; a person has to decide |
+| `needs_human` | the rounds of questions were used up (or, with `confirm_criteria`, the acceptance criteria were changed as often as the project allows and are still not approved); a person has to decide |
 | `revision_pushed`, `revision_replied` | revision: the new commit is on the pull request, or the comments were answered with nothing to change |
 | `revision_limit` | revision: the project's limit of revisions (3 by default) was already reached on this pull request |
 | `nothing_to_do` | revision: a `/fix` with no text and no review to act on |
