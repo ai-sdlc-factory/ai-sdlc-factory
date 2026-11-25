@@ -9,6 +9,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -338,6 +339,58 @@ class GitHubTests(unittest.TestCase):
         _, output = run(*self.args, "--dry-run", hosts=self.hosts, env={"GITHUB_TOKEN": OPERATOR_TOKEN})
 
         self.assertIn("cannot list the webhooks (the token needs the Webhooks", output)
+
+
+class ControllerCheckTests(unittest.TestCase):
+    """The real controller_check, with only the Docker call replaced. The other tests replace controller_check itself, which let a bug through: both hosts give the file as bytes,
+    and the subprocess is run in text mode, so handing the bytes over crashed every onboarding of a repository that had a project.json."""
+
+    def run_check(self, content, stdout="", code=0, error=None):
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            if error is not None and command[1] == "run":
+                raise error
+            return subprocess.CompletedProcess(command, code, stdout, "")
+
+        original = onboard.subprocess.run
+        onboard.subprocess.run = fake_run
+        self.addCleanup(setattr, onboard.subprocess, "run", original)
+        return onboard.controller_check(content), calls
+
+    def test_the_file_as_bytes_is_given_to_the_container_as_text(self):
+        result, calls = self.run_check(b'{"image": "dotnet"}', stdout=".factory/project.json is usable.\n")
+
+        self.assertEqual((True, ".factory/project.json is usable."), result)
+        self.assertIsInstance(calls[0][1]["input"], str)
+        self.assertEqual('{"image": "dotnet"}', calls[0][1]["input"])
+        self.assertIn("--network", calls[0][0])
+        self.assertIn("none", calls[0][0])
+
+    def test_the_file_as_text_is_given_as_it_is(self):
+        _, calls = self.run_check('{"image": "dotnet"}', stdout=".factory/project.json is usable.")
+
+        self.assertEqual('{"image": "dotnet"}', calls[0][1]["input"])
+
+    def test_bytes_that_are_not_utf8_do_not_crash_it(self):
+        result, calls = self.run_check(b'{"image": "\xff"}', stdout=".factory/project.json cannot be used: the file is not valid JSON", code=1)
+
+        self.assertFalse(result[0])
+        self.assertIsInstance(calls[0][1]["input"], str)
+
+    def test_a_file_the_factory_cannot_use_says_why(self):
+        result, _ = self.run_check(b"{}", stdout=".factory/project.json cannot be used: \"limits.confirm_over\" must be a whole number", code=1)
+
+        self.assertEqual(False, result[0])
+        self.assertIn("limits.confirm_over", result[1])
+
+    def test_without_docker_or_the_image_it_says_it_could_not_ask(self):
+        self.assertIsNone(self.run_check(b"{}", error=OSError("no docker"))[0])
+        self.assertIsNone(self.run_check(b"{}", stdout="Unhandled exception", code=134)[0])  # an image from before the command: it starts the worker and fails
+        result, calls = self.run_check(b"{}", error=subprocess.TimeoutExpired("docker", 60))
+        self.assertIsNone(result)
+        self.assertEqual("rm", calls[-1][0][1])  # the container that may still be running is removed
 
 
 class HostChoiceTests(unittest.TestCase):

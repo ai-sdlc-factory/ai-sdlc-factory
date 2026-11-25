@@ -263,8 +263,10 @@ def controller_check(content):
     name = f"onboard-check-{os.getpid()}"
     command = ["docker", "run", "--rm", "-i", "--pull", "never", "--network", "none", "--name", name, CONTROLLER_IMAGE,
                "dotnet", "AiSdlcFactory.Controller.dll", "validate-project", "-"]
+    # Both hosts' file reads give bytes (a decoded base64 answer); the subprocess is run in text mode.
+    text = content.decode("utf-8", errors="replace") if isinstance(content, (bytes, bytearray)) else content
     try:
-        run = subprocess.run(command, input=content, capture_output=True, text=True, timeout=60)
+        run = subprocess.run(command, input=text, capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
         try:
             subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=30)
