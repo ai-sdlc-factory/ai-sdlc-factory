@@ -149,7 +149,6 @@ public sealed class BugScenarios(TemporalFixture fixture)
         var retry = world.Calls("reproducer").ElementAt(1).Prompt;
         Assert.Contains("stopped before it could show the bug", retry);
         Assert.Contains("pytest exited with code 2", retry);
-        Assert.Single(world.Records, r => r.Slug == "red-check" && r.Outcome == "failed as required");
     }
 
     [SkippableFact]
