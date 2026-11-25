@@ -41,6 +41,12 @@ public sealed class FeatureWorkflow : FactoryWorkflowBase
                 return stop;
             }
             verdict = analysis.Verdict!;
+            // A project's size limit, by the analyst's estimate (a fact the analyst gives and code judges): too big is sent back before anything more is spent, and before a person is asked to approve it.
+            if (project.Limits?.MaxFiles is { } maxFiles && verdict.Complexity.FilesEstimate > maxFiles)
+            {
+                await CommentAsync(request, TicketComments.TooBigForOneRun(verdict.Complexity.FilesEstimate, maxFiles));
+                return new WorkResult(Statuses.NeedsSplit);
+            }
             if (project.ConfirmCriteria)
             {
                 // Before anything is saved: a run that is stopped here has nothing to carry on from, so /retry asks again.

@@ -254,6 +254,75 @@ public sealed class FeatureWorkflowScenarios(TemporalFixture fixture)
         CleanedUpOnce(world, request);
     }
 
+    // ---- the optional size limit ---------------------------------------------------------------------------
+
+    private static string SizedProject(int maxFiles, bool confirm = false) =>
+        $$"""{"image":"python","limits":{"max_files":{{maxFiles}}}{{(confirm ? ",\"confirm_criteria\":true" : "")}},"gates":[{"name":"test","command":["python","-m","pytest","-q"]}]}""";
+
+    [SkippableFact]
+    public async Task A_feature_estimated_over_the_limit_is_sent_back_before_anything_more_is_spent()
+    {
+        var world = new FakeWorld().Agent("analyst", Say(Answers.Analyst(files: 12)));
+        world.ProjectConfig = SizedProject(8);
+        var request = ScenarioContext.Request();
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(request));
+
+        Assert.Equal("needs_split", result.Status);
+        var comment = Assert.Single(world.Comments, c => c.StartsWith("**This looks too big for one run.**"));
+        Assert.Contains("about 12 files", comment);
+        Assert.Contains("limit for one feature is 8", comment);
+        Assert.Empty(world.Calls("coverage"));
+        Assert.Empty(world.Calls("developer"));
+        CleanedUpOnce(world, request);
+    }
+
+    [SkippableFact]
+    public async Task A_feature_at_the_limit_is_built()
+    {
+        var world = new FakeWorld()
+            .Agent("analyst", Say(Answers.Analyst(files: 8)))
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("architect", Say(Answers.Architect()))
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
+        world.ProjectConfig = SizedProject(8);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+        Assert.DoesNotContain(world.Comments, c => c.StartsWith("**This looks too big for one run.**"));
+    }
+
+    [SkippableFact]
+    public async Task The_size_is_judged_before_a_person_is_asked_to_approve_the_criteria()
+    {
+        var world = new FakeWorld().Agent("analyst", Say(Answers.Analyst(files: 12)));
+        world.ProjectConfig = SizedProject(8, confirm: true);
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("needs_split", result.Status);
+        Assert.DoesNotContain(world.Comments, c => c.StartsWith("**Waiting for your approval"));
+    }
+
+    [SkippableFact]
+    public async Task A_project_without_a_size_limit_builds_a_large_feature_as_before()
+    {
+        var world = new FakeWorld()
+            .Agent("analyst", Say(Answers.Analyst(files: 40)))
+            .Agent("coverage", Say(Answers.Coverage("missing", "missing")))
+            .Agent("architect", Say(Answers.Architect()))
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Agent("acceptance", Say(Answers.Qa("met", "met")));
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(ScenarioContext.Request()));
+
+        Assert.Equal("pr_opened", result.Status);
+    }
+
     // ---- the optional go-ahead on the acceptance criteria -------------------------------------------------
 
     private const string ConfirmingProject = """{"image":"python","confirm_criteria":true,"gates":[{"name":"test","command":["python","-m","pytest","-q"]}]}""";

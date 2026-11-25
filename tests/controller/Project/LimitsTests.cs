@@ -172,4 +172,30 @@ public sealed class LimitsTests
         Assert.False(ProjectConfigParser.TryParse($$"""{"image":"python","gates":[{"name":"test","command":["pytest"]}],"confirm_criteria":{{value}}}""", out _, out var error));
         Assert.Contains("confirm_criteria", error);
     }
+
+    [Fact]
+    public void Max_files_is_read_and_is_off_when_it_is_missing()
+    {
+        Assert.Equal(8, Parse("\"limits\":{\"max_files\":8}").Limits!.MaxFiles);
+        Assert.Null(Parse("\"limits\":{\"build_rounds\":2}").Limits!.MaxFiles);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("10001")]
+    [InlineData("-3")]
+    [InlineData("2.5")]
+    [InlineData("\"many\"")]
+    public void Max_files_must_be_a_whole_number_from_1_to_10000(string value)
+    {
+        Assert.False(ProjectConfigParser.TryParse($$$"""{"image":"python","gates":[{"name":"test","command":["pytest"]}],"limits":{"max_files":{{{value}}}}}""", out _, out var error));
+        Assert.Contains("limits.max_files", error);
+    }
+
+    [Fact]
+    public void An_unknown_limit_names_max_files_among_the_settings()
+    {
+        Assert.False(ProjectConfigParser.TryParse("""{"image":"python","gates":[{"name":"test","command":["pytest"]}],"limits":{"max_file":3}}""", out _, out var error));
+        Assert.Contains("max_files", error);
+    }
 }

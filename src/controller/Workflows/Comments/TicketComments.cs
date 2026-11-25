@@ -252,6 +252,14 @@ public static class TicketComments
 
     public const string NoticeMarker = "<!-- ai-sdlc-factory:notice -->";
 
+    /// <summary>The analyst's estimate is over the project's <c>limits.max_files</c>: nothing else is spent, and the ticket is to be split (or the limit raised).</summary>
+    public static string TooBigForOneRun(int estimate, int limit) =>
+        $"**This looks too big for one run.** The analyst estimates about {estimate} files would change, and this project's limit for one feature is {limit} (`limits.max_files`). " +
+        "Nothing was checked or built, so no more tokens were spent.\n\n" +
+        "- Split it into smaller tickets that each stand on their own (a `plan` ticket can propose the split), then close and reopen this one or open the new ones.\n" +
+        "- Or, if one run really is what you want, raise `limits.max_files` in `.factory/project.json`, then close and reopen this ticket.\n\n" +
+        "The estimate is the analyst's own guess from reading the code, so it can be wrong in either direction.";
+
     /// <summary>The project asks for a go-ahead on the acceptance criteria (<c>confirm_criteria</c>): said after the analysis, before anything else is done.</summary>
     public static string CriteriaWaiting(int changesLeft) =>
         "**Waiting for your approval of these acceptance criteria.** Nothing has been checked or built yet, and no more tokens are used until you decide.\n\n" +

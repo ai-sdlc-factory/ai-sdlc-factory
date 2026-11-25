@@ -78,6 +78,7 @@ it decides with stated assumptions.
 2. **Analyst** (read-only). Decides whether the request is clear enough to build and lists testable acceptance criteria and complexity. It is told that the project's end-to-end test folder (`verify.tests`) is written only by [`/qa`](#qa-run) and cannot be changed by the developer, so it leaves end-to-end tests out of the criteria
    facts. `pass` continues; `needs_clarification` asks on the ticket (up to 3 rounds of questions by default; see [limits](project-setup.md#limits)); `reject` stops. An answer that does not match
    the required JSON shape gets one retry that quotes the exact problem; after that a person is asked to look.
+   **Optional size limit** (`limits.max_files` in [`.factory/project.json`](project-setup.md#limits), off by default): after a `pass`, a feature whose estimated `files_estimate` is over the limit stops as `needs_split` with a comment that asks for it to be split (or the limit raised). The check is code over the analyst's number, before the coverage check, the design and the build, so nothing more is spent.
    **Optional go-ahead on the criteria** (`confirm_criteria` in [`.factory/project.json`](project-setup.md#4-add-factoryprojectjson), off by default): after a `pass`, the run waits before the coverage check, the design and the build.
    A person comments `/approve` (alone on its line) to go ahead; any other comment is a change to ask for, which the analyst reads before it analyses again (up to `limits.clarification_rounds` changes, then `needs_human`).
    Closing the ticket ends the wait, and so do 7 days without an answer (`timed_out`). Nothing is spent while it waits. A `/retry` that carries on from a finished analysis does not ask again.
@@ -450,6 +451,7 @@ visible as the repository.
 | Retry of an unusable agent answer | 1 (the retry quotes the exact problem) |
 | Reproduction attempts (bug) | 3, with 2 question rounds each |
 | Tokens per run, per day, per repository | not limited unless set: [Token limits](operations.md#token-limits) |
+| Size of a feature | not limited unless a project sets [`limits.max_files`](project-setup.md#limits): a feature the analyst estimates over it stops as `needs_split` |
 | Revisions per pull request | 3, one at a time; 3 build rounds each; at most 30 comments per revision |
 | Incident looks at new information | 3 |
 | Plan changes asked for by people | 3; at most 8 tickets in a plan |
@@ -475,6 +477,7 @@ The status is the workflow's result, shown in Temporal. Most have a comment on t
 | `rejected`, `design_rejected` | the analyst (or bug/incident analyst) or the architect said it cannot or should not be done as asked |
 | `needs_design` | bug: the cause is larger than a bug fix; open a feature ticket |
 | `needs_human` | the rounds of questions were used up (or, with `confirm_criteria`, the acceptance criteria were changed as often as the project allows and are still not approved); a person has to decide |
+| `needs_split` | feature: the analyst estimates more files than the project's `limits.max_files`, so nothing was built; split the ticket or raise the limit, then close and reopen it |
 | `revision_pushed`, `revision_replied` | revision: the new commit is on the pull request, or the comments were answered with nothing to change |
 | `revision_limit` | revision: the project's limit of revisions (3 by default) was already reached on this pull request |
 | `nothing_to_do` | revision: a `/fix` with no text and no review to act on |

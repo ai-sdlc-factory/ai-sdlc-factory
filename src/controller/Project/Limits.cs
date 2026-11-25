@@ -13,7 +13,7 @@ public sealed record FactoryDefaults(
 }
 
 /// <summary>The limits a project may set in <c>limits</c>. A missing value means the factory's default.</summary>
-public sealed record ProjectLimits(int? BuildRounds = null, int? ClarificationRounds = null, int? RevisionsPerPullRequest = null, int? TokenBudget = null, int? ConfirmOver = null)
+public sealed record ProjectLimits(int? BuildRounds = null, int? ClarificationRounds = null, int? RevisionsPerPullRequest = null, int? TokenBudget = null, int? ConfirmOver = null, int? MaxFiles = null)
 {
     public EffectiveLimits Resolve(FactoryDefaults defaults) => new(
         BuildRounds ?? defaults.BuildRounds,
@@ -50,8 +50,13 @@ public static class LimitRanges
     public const int MinTokenBudget = 10_000;
     public const int MaxTokenBudget = 1_000_000_000;
 
+    /// <summary>The most files a feature may affect, by the analyst's estimate, before it is sent back to be split. The analyst's own estimate runs from 0 to 10,000.</summary>
+    public const int MinMaxFiles = 1;
+    public const int MaxMaxFiles = 10_000;
+
     public static bool BuildRoundsOk(int value) => value is >= MinBuildRounds and <= MaxBuildRounds;
     public static bool ClarificationRoundsOk(int value) => value is >= MinClarificationRounds and <= MaxClarificationRounds;
     public static bool RevisionsOk(int value) => value is >= MinRevisions and <= MaxRevisions;
+    public static bool MaxFilesOk(int value) => value is >= MinMaxFiles and <= MaxMaxFiles;
     public static bool TokenBudgetOk(long value) => value is >= MinTokenBudget and <= MaxTokenBudget;
 }

@@ -278,6 +278,7 @@ What these settings do in a run:
 | `clarification_rounds: 0` | an unclear ticket is built on stated assumptions, with no question on the ticket | the default (3 rounds of questions) |
 | `revisions_per_pull_request` | after 2 revisions the factory asks a person to take over | 5 |
 | `token_budget` (a third example: `"limits": { "token_budget": 300000 }`) | a run that has used 300,000 tokens stops before its next agent and says so | none |
+| `max_files` (another example: `"limits": { "max_files": 8 }`) | a feature the analyst estimates to affect more than 8 files is not built: it stops as `needs_split` and the ticket is asked to be split | none |
 | `protected_paths` | none | a change touching `db/migrations/` is rejected with "protected file that only a person may change"; the developer is told and must find another way, or ends with `build_blocked` |
 | `rules` | none | `BinaryFormatter` in an added line sends the change back; `Console.Write` is only a warning shown to the reviewers |
 
@@ -370,6 +371,7 @@ Dependency problems are better caught by a tool than a pattern: add an audit as 
 | `clarification_rounds` | 0 to 4 | `3` | How many rounds of questions to a person a stage may use. `0` means the factory never asks: every stage decides with reasonable assumptions and states them |
 | `revisions_per_pull_request` | 1 to 10 | `3` | How many [revisions](workflows.md#pull-request-revisions) one pull request may get before a person has to take over |
 | `confirm_over` | 10,000 to 1,000,000,000 | none (or the operator's `FACTORY_CONFIRM_OVER_TOKENS`) | A `/qa` run whose [estimate](operations.md#estimates-and-what-a-stopped-run-used) (the median of this repository's last 9 QA runs) is over this many tokens says so and **waits for `/qa go`** on the same ticket before it spends anything. Closing the ticket cancels it. No estimate (fewer than 3 earlier runs) means no wait |
+| `max_files` | 1 to 10,000 | none | The most files a **feature** may affect, by the analyst's own estimate. A feature estimated above it is not built: the run says so on the ticket and stops as `needs_split` before anything more is spent (and before a person is asked to approve the criteria). Split the ticket (a [`plan` ticket](workflows.md#plan-workflow) can propose the split) or raise the limit, then close and reopen it. The estimate is a guess from reading the code, so use a limit well above the size you want to stop |
 | `token_budget` | 10,000 to 1,000,000,000 | none (or the operator's `FACTORY_MAX_TOKENS_PER_RUN`) | The most tokens **one run** may use (input, output, reasoning and cache writes; reading cached input again is not counted). Checked before every agent run: at the budget the run stops with `budget_exceeded`, saves its work to a `-wip` branch and says so. It can only **lower** the operator's maximum, never raise it. See [Token limits](operations.md#token-limits) |
 
 ```json

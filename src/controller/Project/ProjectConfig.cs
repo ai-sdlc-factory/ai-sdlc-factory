@@ -113,7 +113,7 @@ public static partial class ProjectConfigParser
             error = "\"limits\" must be an object, for example {\"build_rounds\": 2}";
             return false;
         }
-        int? buildRounds = null, clarificationRounds = null, revisions = null, tokenBudget = null, confirmOver = null;
+        int? buildRounds = null, clarificationRounds = null, revisions = null, tokenBudget = null, confirmOver = null, maxFiles = null;
         foreach (var property in value.EnumerateObject())
         {
             if (property.Name == "token_budget")
@@ -136,6 +136,16 @@ public static partial class ProjectConfigParser
                 confirmOver = confirm;
                 continue;
             }
+            if (property.Name == "max_files")
+            {
+                if (property.Value.ValueKind != JsonValueKind.Number || !property.Value.TryGetInt32(out var files) || !LimitRanges.MaxFilesOk(files))
+                {
+                    error = $"\"limits.max_files\" must be a whole number of files from {LimitRanges.MinMaxFiles} to {LimitRanges.MaxMaxFiles:N0}: a feature the analyst estimates to affect more is sent back to be split";
+                    return false;
+                }
+                maxFiles = files;
+                continue;
+            }
             var (name, ok, low, high) = property.Name switch
             {
                 "build_rounds" => ("build_rounds", true, LimitRanges.MinBuildRounds, LimitRanges.MaxBuildRounds),
@@ -145,7 +155,7 @@ public static partial class ProjectConfigParser
             };
             if (!ok)
             {
-                error = $"\"limits\" has no setting \"{property.Name}\"; the settings are build_rounds, clarification_rounds, revisions_per_pull_request, token_budget and confirm_over";
+                error = $"\"limits\" has no setting \"{property.Name}\"; the settings are build_rounds, clarification_rounds, revisions_per_pull_request, token_budget, confirm_over and max_files";
                 return false;
             }
             if (property.Value.ValueKind != JsonValueKind.Number || !property.Value.TryGetInt32(out var number) || number < low || number > high)
@@ -160,7 +170,7 @@ public static partial class ProjectConfigParser
                 default: revisions = number; break;
             }
         }
-        limits = new ProjectLimits(buildRounds, clarificationRounds, revisions, tokenBudget, confirmOver);
+        limits = new ProjectLimits(buildRounds, clarificationRounds, revisions, tokenBudget, confirmOver, maxFiles);
         return true;
     }
 

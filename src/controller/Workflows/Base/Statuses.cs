@@ -69,6 +69,9 @@ public static class Statuses
     /// <summary>the rounds of questions were used up; a person has to decide.</summary>
     public const string NeedsHuman = "needs_human";
 
+    /// <summary>feature: the analyst estimates more files than the project's <c>limits.max_files</c>, so nothing was built; the ticket should be split.</summary>
+    public const string NeedsSplit = "needs_split";
+
     /// <summary>the work produced nothing to publish.</summary>
     public const string NoChanges = "no_changes";
 
