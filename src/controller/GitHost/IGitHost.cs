@@ -15,7 +15,7 @@ public interface IGitHost : IJanitorGitHost
     /// <summary>The bodies of a ticket's latest comments, oldest first.</summary>
     Task<IReadOnlyList<string>> RecentCommentBodiesAsync(string owner, string repo, int issueNumber, int count, CancellationToken cancellationToken);
 
-    /// <summary>Posts a notice unless one of the ticket's latest comments is already the same kind of notice (a string of comments gets one reply). Returns whether it posted.</summary>
+    /// <summary>Posts a notice unless one of the ticket's latest comments is already this same notice, with the same words (a string of comments gets one reply; a notice about something else does not count). Returns whether it posted.</summary>
     Task<bool> PostNoticeOnceAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken);
 
     /// <summary>Posts a notice unless a comment with exactly this text is anywhere in the ticket's last 200 comments. Returns whether it posted.</summary>

@@ -312,14 +312,14 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
     }
 
     /// <summary>
-    /// Posts a notice unless one of the ticket's latest comments is already the same kind of notice, so a string of
-    /// comments gets one reply, not one each. Returns whether it posted.
+    /// Posts a notice unless one of the ticket's latest comments is already this same notice (the same words), so a string of
+    /// comments gets one reply, not one each. A notice about something else does not count. Returns whether it posted.
     /// </summary>
     public async Task<bool> PostNoticeOnceAsync(
         string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
         var recent = await RecentCommentBodiesAsync(owner, repo, issueNumber, 10, cancellationToken);
-        if (recent.Any(comment => comment.Contains(TicketComments.NoticeMarker, StringComparison.Ordinal)))
+        if (recent.Any(comment => TicketComments.IsNoticeOf(comment, body)))
         {
             return false;
         }

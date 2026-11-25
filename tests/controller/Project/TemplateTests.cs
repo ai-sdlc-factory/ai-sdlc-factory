@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Diagnostics;
+
 namespace AiSdlcFactory.Controller.Tests;
 
 /// <summary>Every starter project under templates/ must carry settings the factory's own parser accepts, and the files an agent is told about.</summary>
@@ -102,15 +105,64 @@ public sealed class TemplateTests
         Assert.Contains("never relax", ProjectInstructions.Block(text, sectioned[0]));
     }
 
+    private static readonly string[] BuildOutput = ["bin", "obj", "node_modules", "dist"];
+
+    /// <summary>The paths among these that are inside a folder a build makes (<c>bin</c>, <c>obj</c>, <c>node_modules</c>, <c>dist</c>), as a name of a whole folder and not part of a file's name.</summary>
+    internal static IReadOnlyList<string> BuildOutputIn(IEnumerable<string> paths) =>
+        paths.Where(path => path.Replace('\\', '/').Split('/').SkipLast(1).Any(BuildOutput.Contains)).ToList();
+
+    /// <summary>The files of a folder that git has checked in, as paths inside it; null where git cannot say (it is not installed, or the folder is not in a git checkout, as in the test image).</summary>
+    private static IReadOnlyList<string>? CheckedInFiles(string folder)
+    {
+        try
+        {
+            var start = new ProcessStartInfo("git") { WorkingDirectory = folder, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var argument in new[] { "ls-files", "-z", "--", "." })
+            {
+                start.ArgumentList.Add(argument);
+            }
+            using var process = Process.Start(start);
+            if (process is null)
+            {
+                return null;
+            }
+            var output = process.StandardOutput.ReadToEnd();
+            process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(15_000) || process.ExitCode != 0)
+            {
+                return null;
+            }
+            return output.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+        }
+        catch (Exception error) when (error is Win32Exception or InvalidOperationException or IOException)
+        {
+            return null;
+        }
+    }
+
     [Theory]
     [MemberData(nameof(Names))]
     public void Nothing_that_a_build_makes_is_checked_in(string name)
     {
         var root = Path.Combine(Templates()!, name);
 
-        Assert.Empty(Directory.GetDirectories(root, "bin", SearchOption.AllDirectories));
-        Assert.Empty(Directory.GetDirectories(root, "obj", SearchOption.AllDirectories));
-        Assert.Empty(Directory.GetDirectories(root, "node_modules", SearchOption.AllDirectories));
-        Assert.Empty(Directory.GetDirectories(root, "dist", SearchOption.AllDirectories));
+        // What counts is what is checked in: a build on a developer's machine leaves bin and obj folders next to the sources, which git ignores and which are no problem. Where git cannot say
+        // (the test image has no checkout, and keeps those folders out of what it copies), the folders themselves are looked for.
+        if (CheckedInFiles(root) is { } checkedIn)
+        {
+            Assert.Empty(BuildOutputIn(checkedIn));
+            return;
+        }
+        foreach (var folder in BuildOutput)
+        {
+            Assert.Empty(Directory.GetDirectories(root, folder, SearchOption.AllDirectories));
+        }
+    }
+
+    [Fact]
+    public void A_folder_a_build_makes_is_told_from_a_file_that_only_has_the_same_letters()
+    {
+        Assert.Equal(["src/Api/bin/Debug/Api.dll", "web/node_modules/x/index.js", "obj/project.assets.json"],
+            BuildOutputIn(["src/Api/bin/Debug/Api.dll", "src/Api/Program.cs", "docs/binary.md", "web/node_modules/x/index.js", "web/src/distance.ts", "obj/project.assets.json", "src/bin"]));
     }
 }

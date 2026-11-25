@@ -81,7 +81,7 @@ public sealed class WorkerSettings
         Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
         PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
         Model = ModelNames.Read(configuration[ModelNames.Variable]),
-        RoleModels = KnownRoles(ModelNames.ReadRoles(configuration[ModelNames.RolesVariable])),
+        RoleModels = EnabledProviders(KnownRoles(ModelNames.ReadRoles(configuration[ModelNames.RolesVariable])), configuration["FACTORY_AGENTS_DIR"]),
         GitAuthorName = Identity(configuration, "FACTORY_GIT_AUTHOR_NAME", "AI SDLC Factory"),
         GitAuthorEmail = Identity(configuration, "FACTORY_GIT_AUTHOR_EMAIL", "factory-bot@ai-sdlc-factory.test"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
@@ -104,6 +104,13 @@ public sealed class WorkerSettings
             RepoDailyTokenLimit: Tokens(configuration, "FACTORY_REPO_DAILY_TOKEN_LIMIT"),
             ConfirmOverTokens: Tokens(configuration, "FACTORY_CONFIRM_OVER_TOKENS")),
     };
+
+    /// <summary>A role's model must be on a provider the agents folder enables, or every run of that role would fail (see <see cref="ModelProviders"/>).</summary>
+    private static IReadOnlyDictionary<string, string> EnabledProviders(IReadOnlyDictionary<string, string> models, string? agentsDirectory)
+    {
+        ModelProviders.RequireEnabled(models, agentsDirectory);
+        return models;
+    }
 
     /// <summary>The roles named in <c>FACTORY_ROLE_MODELS</c> must be roles of the factory: a misspelt one would otherwise change nothing, and the person would think it had.</summary>
     private static IReadOnlyDictionary<string, string> KnownRoles(IReadOnlyDictionary<string, string> models)

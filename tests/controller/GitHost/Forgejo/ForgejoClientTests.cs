@@ -236,6 +236,25 @@ public sealed class ForgejoClientTests
     }
 
     [Fact]
+    public async Task A_notice_about_something_else_among_the_latest_comments_does_not_silence_a_new_one()
+    {
+        var conversation = new Conversation([$"{EventRouter.BotMarker}\n{TicketComments.NoticeMarker}\nA different notice.", "comment"]);
+
+        var posted = await WithComments(conversation).PostNoticeOnceAsync("acme", "shop", 7, "Nobody is listening.", CancellationToken.None);
+
+        Assert.True(posted);
+        Assert.Single(conversation.Calls, call => call.Method == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task A_person_quoting_the_words_of_a_notice_does_not_silence_it()
+    {
+        var conversation = new Conversation(["The bot said: Nobody is listening.", "comment"]);
+
+        Assert.True(await WithComments(conversation).PostNoticeOnceAsync("acme", "shop", 7, "Nobody is listening.", CancellationToken.None));
+    }
+
+    [Fact]
     public async Task An_old_notice_far_back_in_the_conversation_does_not_silence_a_new_one()
     {
         var conversation = new Conversation([TicketComments.NoticeMarker, .. Enumerable.Range(1, 10).Select(i => $"comment {i}")]);

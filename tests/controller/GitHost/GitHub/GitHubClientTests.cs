@@ -92,15 +92,36 @@ public sealed class GitHubClientTests
     public async Task The_latest_comments_come_from_every_page_oldest_first_and_notices_are_not_repeated()
     {
         var page1 = Json(Enumerable.Range(1, 100).Select(i => new { body = $"c{i}" }));
-        var page2 = Json(new[] { new { body = $"{TicketComments.NoticeMarker}\nan earlier notice" }, new { body = "last" } });
+        var page2 = Json(new[] { new { body = $"{TicketComments.NoticeMarker}\nagain" }, new { body = "last" } });
         var (client, handler) = Client(request => Ok(request.RequestUri!.Query.Contains("&page=1") ? page1 : page2));
 
         var recent = await client.RecentCommentBodiesAsync("acme", "shop", 7, 3, CancellationToken.None);
         var posted = await client.PostNoticeOnceAsync("acme", "shop", 7, "again", CancellationToken.None);
 
-        Assert.Equal(["c100", $"{TicketComments.NoticeMarker}\nan earlier notice", "last"], recent);
+        Assert.Equal(["c100", $"{TicketComments.NoticeMarker}\nagain", "last"], recent);
         Assert.False(posted);
         Assert.DoesNotContain(handler.Requests, request => request.Method == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task A_notice_about_something_else_among_the_latest_comments_does_not_silence_a_new_one()
+    {
+        var page = Json(new[] { new { body = $"{TicketComments.NoticeMarker}\nA different notice." }, new { body = "last" } });
+        var (client, handler) = Client(_ => Ok(page));
+
+        var posted = await client.PostNoticeOnceAsync("acme", "shop", 7, "No QA run is waiting.", CancellationToken.None);
+
+        Assert.True(posted);
+        Assert.Contains(handler.Requests, request => request.Method == HttpMethod.Post);
+    }
+
+    [Fact]
+    public async Task A_person_quoting_the_words_of_a_notice_does_not_silence_it()
+    {
+        var page = Json(new[] { new { body = "I got: No QA run is waiting." }, new { body = "last" } });
+        var (client, _) = Client(_ => Ok(page));
+
+        Assert.True(await client.PostNoticeOnceAsync("acme", "shop", 7, "No QA run is waiting.", CancellationToken.None));
     }
 
     [Fact]

@@ -54,7 +54,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
     public async Task<bool> PostNoticeOnceAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
         var recent = await RecentCommentBodiesAsync(owner, repo, issueNumber, 10, cancellationToken);
-        if (recent.Any(comment => comment.Contains(TicketComments.NoticeMarker, StringComparison.Ordinal)))
+        if (recent.Any(comment => TicketComments.IsNoticeOf(comment, body)))
         {
             return false;
         }

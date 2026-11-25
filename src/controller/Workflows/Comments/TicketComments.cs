@@ -252,6 +252,13 @@ public static class TicketComments
 
     public const string NoticeMarker = "<!-- ai-sdlc-factory:notice -->";
 
+    /// <summary>
+    /// Whether a comment already on a ticket is this notice: one the factory posted as a notice (it carries the marker) with the same words. A notice about something else is not, so it never
+    /// silences this one, and a person who quotes the words in a comment of their own does not either.
+    /// </summary>
+    public static bool IsNoticeOf(string comment, string notice) =>
+        comment.Contains(NoticeMarker, StringComparison.Ordinal) && comment.Contains(notice, StringComparison.Ordinal);
+
     /// <summary>The analyst's estimate is over the project's <c>limits.max_files</c>: nothing else is spent, and the ticket is to be split (or the limit raised).</summary>
     public static string TooBigForOneRun(int estimate, int limit) =>
         $"**This looks too big for one run.** The analyst estimates about {estimate} files would change, and this project's limit for one feature is {limit} (`limits.max_files`). " +
