@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace AiSdlcFactory.Controller;
 
@@ -12,6 +13,18 @@ public sealed record ImprovementReport(string Week, int Runs, IReadOnlyList<Repo
 {
     public bool HasFindings => Findings.Count > 0;
 }
+
+/// <summary>One repository's own report: the same rules over that repository's runs only. <paramref name="FileName"/> is the file it is saved as, inside the week's folder.</summary>
+public sealed record RepositoryReport(string Repository, string FileName, ImprovementReport Report);
+
+/// <summary>
+/// The weekly report in all its parts. <see cref="Whole"/> covers every repository and is saved with a section that lists them; <see cref="TicketMarkdown"/> is the same report without that section,
+/// which is what is opened as a ticket and read by the improver (the ticket may be public, and the section adds one more line per project to it). <see cref="Repositories"/> are the per-repository reports.
+/// </summary>
+public sealed record ImprovementReports(ImprovementReport Whole, string TicketMarkdown, IReadOnlyList<RepositoryReport> Repositories);
+
+/// <summary>One row of the "By repository" section. <paramref name="Flagged"/> is null when the repository had too few runs for anything to be flagged.</summary>
+public sealed record RepositoryLine(string Repository, int Runs, long Tokens, int Healthy, int? Flagged, string FileName);
 
 /// <summary>
 /// What counts as "repeating" in the weekly report, in one place. All of it is counting: the same data always gives the same report, no model is involved, and a rule only
@@ -48,6 +61,9 @@ public static class ReportRules
     /// <summary>The same host refused this many times.</summary>
     public const int RepeatedRefusals = 3;
 
+    /// <summary>The most repositories that get a report of their own, the ones that used the most tokens first; the rest are counted in the full report. A factory with hundreds of repositories would otherwise write hundreds of files each week.</summary>
+    public const int MaxRepositories = 50;
+
     /// <summary>Endings that need no attention. Any other status is trouble: something stopped, failed or needed a person.</summary>
     public static readonly HashSet<string> HealthyEndings =
     [
@@ -59,29 +75,54 @@ public static class ReportRules
 /// <summary>Builds the weekly report from the usage log's runs and the egress proxy's refusals. Pure: the same input gives the same text.</summary>
 public static class ImprovementReportBuilder
 {
-    public static ImprovementReport Build(string week, DateOnly from, DateOnly to, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previousWeek, IReadOnlyList<DeniedHost> denied, bool deniedLogExists, IReadOnlyList<PullOutcome>? pullOutcomes = null)
+    public static ImprovementReport Build(string week, DateOnly from, DateOnly to, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previousWeek, IReadOnlyList<DeniedHost> denied, bool deniedLogExists, IReadOnlyList<PullOutcome>? pullOutcomes = null,
+        string? repository = null, IReadOnlyList<RepositoryLine>? repositories = null, int moreRepositories = 0)
     {
         var findings = new List<ReportFinding>();
         var text = new StringBuilder();
-        text.AppendLine($"# Factory report, {week} ({from:yyyy-MM-dd} to {to:yyyy-MM-dd})");
+        text.AppendLine(repository is null
+            ? $"# Factory report, {week} ({from:yyyy-MM-dd} to {to:yyyy-MM-dd})"
+            : $"# Factory report, {week}, {repository} ({from:yyyy-MM-dd} to {to:yyyy-MM-dd})");
         text.AppendLine();
         text.AppendLine("Made by the factory from its own run log and the egress proxy's refusal log: counts only, nothing the tickets said. The rules that flag something are in `ReportRules.cs`. **Nothing in this report is applied by the factory.**");
         text.AppendLine();
 
-        AppendSummary(text, runs, previousWeek);
+        if (repository is not null)
+        {
+            text.AppendLine($"This is the part of the report that covers **{repository}** only. The full report covers every repository, and is the only one that has the hosts a sandbox was refused, which cannot be told apart by repository.");
+            text.AppendLine();
+        }
+
+        AppendSummary(text, runs, previousWeek, repository is not null);
+        if (repositories is { Count: > 0 })
+        {
+            AppendRepositories(text, week, repositories, moreRepositories);
+        }
         var roleTotals = RoleTotals(runs);
         AppendRoles(text, findings, roleTotals);
         AppendRounds(text, findings, runs);
         AppendEndings(text, findings, runs);
         AppendPullRequests(text, findings, pullOutcomes);
         AppendOutliers(text, findings, runs);
-        AppendRefusals(text, findings, denied, deniedLogExists);
+        if (repository is null)
+        {
+            AppendRefusals(text, findings, denied, deniedLogExists);
+        }
+
+        // A repository with only a few runs has too little to say what repeats: its figures are shown, nothing is flagged.
+        var tooFew = repository is not null && runs.Count < ReportRules.MinSample;
+        if (tooFew)
+        {
+            findings.Clear();
+        }
 
         // The findings are shown first, because they are what the rest is for.
         var summary = new StringBuilder();
-        summary.AppendLine(findings.Count == 0
-            ? "## What repeated\n\nNothing repeated enough to flag this week."
-            : $"## What repeated ({findings.Count})\n");
+        summary.AppendLine(tooFew
+            ? $"## What repeated\n\nOnly {runs.Count} run{(runs.Count == 1 ? "" : "s")} finished in this repository this week (fewer than {ReportRules.MinSample}), so nothing is flagged. The figures below are for reading."
+            : findings.Count == 0
+                ? "## What repeated\n\nNothing repeated enough to flag this week."
+                : $"## What repeated ({findings.Count})\n");
         foreach (var finding in findings)
         {
             summary.AppendLine($"- **{finding.Area}: {finding.Subject}.** {finding.Evidence}");
@@ -96,12 +137,14 @@ public static class ImprovementReportBuilder
 
     private static string Number(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
+    private static string Plural(int count, string one, string many) => $"{count} {(count == 1 ? one : many)}";
+
     private static string Percent(int part, int whole) => whole == 0 ? "0%" : $"{part * 100 / whole}%";
 
     private static string Count(IEnumerable<string> items) =>
         string.Join(", ", items.GroupBy(item => item).OrderByDescending(group => group.Count()).ThenBy(group => group.Key, StringComparer.Ordinal).Select(group => $"{group.Key} {group.Count()}"));
 
-    private static void AppendSummary(StringBuilder text, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previous)
+    private static void AppendSummary(StringBuilder text, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previous, bool oneRepository)
     {
         text.AppendLine("## This week");
         text.AppendLine();
@@ -114,10 +157,94 @@ public static class ImprovementReportBuilder
         var tokens = runs.Sum(run => run.Counted);
         var before = previous.Sum(run => run.Counted);
         var change = previous.Count == 0 ? "no runs the week before" : before == 0 ? "the week before used none" : $"{(tokens >= before ? "+" : "-")}{Math.Abs(tokens - before) * 100 / before}% against the week before ({Number(before)} in {previous.Count} runs)";
-        text.AppendLine($"- **{runs.Count} runs** ({Count(runs.Select(run => run.Kind))}) used **{Number(tokens)} tokens** (input, output, reasoning and cache writes): {change}.");
+        text.AppendLine($"- **{runs.Count} run{(runs.Count == 1 ? "" : "s")}** ({Count(runs.Select(run => run.Kind))}) used **{Number(tokens)} tokens** (input, output, reasoning and cache writes): {change}.");
         text.AppendLine($"- How they ended: {Count(runs.Select(run => run.Status))}.");
-        text.AppendLine($"- In {runs.Select(run => run.Repository).Distinct().Count()} repositories: {Count(runs.Select(run => run.Repository))}.");
+        if (!oneRepository)
+        {
+            var repositories = runs.Select(run => run.Repository).Distinct().Count();
+            text.AppendLine($"- In {repositories} {(repositories == 1 ? "repository" : "repositories")}: {Count(runs.Select(run => run.Repository))}.");
+        }
         text.AppendLine();
+    }
+
+    /// <summary>The list of repositories in the saved report, with where each one's own report is. Said once, not in the ticket (see <see cref="ImprovementReports"/>).</summary>
+    private static void AppendRepositories(StringBuilder text, string week, IReadOnlyList<RepositoryLine> repositories, int more)
+    {
+        text.AppendLine("## By repository");
+        text.AppendLine();
+        text.AppendLine($"One report per repository is saved in the folder `{week}/` next to this file, made with the same rules over that repository's runs only. " +
+                        $"A repository with fewer than {ReportRules.MinSample} runs is shown but never flagged. The hosts a sandbox was refused cannot be told apart by repository, so they are in this report only.");
+        text.AppendLine();
+        text.AppendLine("| repository | runs | tokens | ended well | flagged | report |");
+        text.AppendLine("| --- | ---: | ---: | ---: | --- | --- |");
+        foreach (var line in repositories)
+        {
+            text.AppendLine($"| {line.Repository} | {line.Runs} | {Number(line.Tokens)} | {line.Healthy} of {line.Runs} | {(line.Flagged is { } flagged ? flagged.ToString(CultureInfo.InvariantCulture) : "too few runs")} | `{week}/{line.FileName}` |");
+        }
+        if (more > 0)
+        {
+            text.AppendLine();
+            text.AppendLine($"{more} more repositor{(more == 1 ? "y" : "ies")} used fewer tokens and {(more == 1 ? "has" : "have")} no report of {(more == 1 ? "its" : "their")} own (at most {ReportRules.MaxRepositories} get one).");
+        }
+        text.AppendLine();
+    }
+
+    /// <summary>
+    /// The whole report and one for each repository (the ones that used the most tokens, up to <see cref="ReportRules.MaxRepositories"/>). The rules and the numbers are the same everywhere:
+    /// a repository's report is the same builder over its own runs, its own week before and its own pull requests; only the hosts a sandbox was refused stay in the whole one, because the proxy
+    /// does not say which repository a refusal was for. Pure, like <see cref="Build"/>.
+    /// </summary>
+    public static ImprovementReports BuildAll(string week, DateOnly from, DateOnly to, IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun> previousWeek, IReadOnlyList<DeniedHost> denied, bool deniedLogExists, IReadOnlyList<PullOutcome>? pullOutcomes = null)
+    {
+        var ticket = Build(week, from, to, runs, previousWeek, denied, deniedLogExists, pullOutcomes);
+        var groups = runs.GroupBy(run => run.Repository)
+            .OrderByDescending(group => group.Sum(run => run.Counted)).ThenBy(group => group.Key, StringComparer.Ordinal).ToList();
+        var chosen = groups.Take(ReportRules.MaxRepositories).ToList();
+        var fileNames = FileNames(chosen.Select(group => group.Key));
+
+        var reports = new List<RepositoryReport>();
+        foreach (var group in chosen)
+        {
+            var own = Build(week, from, to, group.ToList(), previousWeek.Where(run => run.Repository == group.Key).ToList(), [], false,
+                pullOutcomes?.Where(pull => pull.Repository == group.Key).ToList(), repository: group.Key);
+            reports.Add(new RepositoryReport(group.Key, fileNames[group.Key], own));
+        }
+        if (reports.Count == 0)
+        {
+            return new ImprovementReports(ticket, ticket.Markdown, reports);
+        }
+
+        var lines = reports.Select(report =>
+        {
+            var repositoryRuns = groups.First(group => group.Key == report.Repository).ToList();
+            var flagged = repositoryRuns.Count < ReportRules.MinSample ? (int?)null : report.Report.Findings.Count;
+            return new RepositoryLine(report.Repository, repositoryRuns.Count, repositoryRuns.Sum(run => run.Counted),
+                repositoryRuns.Count(run => ReportRules.HealthyEndings.Contains(run.Status)), flagged, report.FileName);
+        }).ToList();
+        var whole = Build(week, from, to, runs, previousWeek, denied, deniedLogExists, pullOutcomes, repositories: lines, moreRepositories: groups.Count - chosen.Count);
+        return new ImprovementReports(whole, ticket.Markdown, reports);
+    }
+
+    /// <summary>
+    /// The file each repository's report is saved as: its name with every character that is not a letter, digit, dot, dash or underscore changed to an underscore (so a name can never reach
+    /// outside the folder), unique even where two names come out alike, and the same on a case-insensitive disk.
+    /// </summary>
+    private static Dictionary<string, string> FileNames(IEnumerable<string> repositories)
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>();
+        foreach (var repository in repositories)
+        {
+            var slug = Regex.Replace(repository, "[^A-Za-z0-9._-]", "_").Trim('.');
+            slug = slug.Length == 0 ? "repository" : slug.Length > 100 ? slug[..100] : slug;
+            var name = slug;
+            for (var number = 2; !used.Add(name); number++)
+            {
+                name = $"{slug}-{number}";
+            }
+            names[repository] = name + ".md";
+        }
+        return names;
     }
 
     private static Dictionary<string, RoleStats> RoleTotals(IReadOnlyList<LoggedRun> runs) =>
@@ -205,7 +332,7 @@ public static class ImprovementReportBuilder
             if (group.Count() >= ReportRules.SameEndingCount)
             {
                 findings.Add(new ReportFinding("Runs that stopped the same way", $"{group.Key.Kind} runs ending `{group.Key.Status}`",
-                    $"{group.Count()} runs, in {group.Select(run => run.Repository).Distinct().Count()} repositories."));
+                    $"{group.Count()} runs, in {Plural(group.Select(run => run.Repository).Distinct().Count(), "repository", "repositories")}."));
             }
         }
         text.AppendLine();

@@ -15,7 +15,147 @@ public sealed class ImprovementReportTests
     private static ImprovementReport Build(IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun>? previous = null, IReadOnlyList<DeniedHost>? denied = null, bool deniedLog = true) =>
         ImprovementReportBuilder.Build("2026-W46", From, To, runs, previous ?? [], denied ?? [], deniedLog);
 
+    private static ImprovementReports BuildAll(IReadOnlyList<LoggedRun> runs, IReadOnlyList<LoggedRun>? previous = null, IReadOnlyList<PullOutcome>? pulls = null) =>
+        ImprovementReportBuilder.BuildAll("2026-W46", From, To, runs, previous ?? [], [], true, pulls);
+
+    private static IEnumerable<LoggedRun> Runs(int count, string repository, string status = "pr_opened", long tokens = 10_000, int firstNumber = 1) =>
+        Enumerable.Range(firstNumber, count).Select(number => Run(status: status, repository: repository, number: number, tokens: tokens));
+
     private static string[] FindingAreas(ImprovementReport report) => report.Findings.Select(finding => finding.Area).ToArray();
+
+    // ---- one report for each repository -----------------------------------------------------------------------
+
+    [Fact]
+    public void Each_repository_gets_a_report_of_its_own_made_from_its_own_runs()
+    {
+        var all = BuildAll([.. Runs(6, "acme/shop"), .. Runs(2, "acme/api", firstNumber: 20)]);
+
+        Assert.Equal(["acme/shop", "acme/api"], all.Repositories.Select(r => r.Repository)); // the one that used the most tokens first
+        var shop = all.Repositories[0].Report.Markdown;
+        Assert.Contains("# Factory report, 2026-W46, acme/shop (2026-11-09 to 2026-11-16)", shop);
+        Assert.Contains("covers **acme/shop** only", shop);
+        Assert.Contains("**6 runs**", shop);
+        Assert.DoesNotContain("acme/api", shop);
+        Assert.DoesNotContain("Hosts a sandbox was refused", shop); // the proxy does not say which repository a refusal was for
+        Assert.DoesNotContain("- In ", shop); // one repository: no list of repositories
+    }
+
+    [Fact]
+    public void The_full_report_lists_the_repositories_and_where_their_reports_are_and_the_ticket_text_does_not_have_the_list()
+    {
+        LoggedRun[] runs = [.. Runs(6, "acme/shop"), .. Runs(2, "acme/api", firstNumber: 20)];
+        var all = BuildAll(runs);
+
+        Assert.Contains("## By repository", all.Whole.Markdown);
+        Assert.Contains("| acme/shop | 6 | 60,000 | 6 of 6 | 0 | `2026-W46/acme_shop.md` |", all.Whole.Markdown);
+        Assert.Contains("| acme/api | 2 | 20,000 | 2 of 2 | too few runs | `2026-W46/acme_api.md` |", all.Whole.Markdown);
+        Assert.DoesNotContain("## By repository", all.TicketMarkdown);
+        // The text that is posted and read by the improver is exactly what the report was before the list existed.
+        Assert.Equal(Build(runs).Markdown, all.TicketMarkdown);
+        Assert.Equal(FindingAreas(Build(runs)), FindingAreas(all.Whole));
+    }
+
+    [Fact]
+    public void A_repository_with_few_runs_is_shown_but_never_flagged_while_the_full_report_still_flags_the_pattern()
+    {
+        var all = BuildAll(Runs(3, "acme/small", status: "build_failed").ToList());
+
+        Assert.True(all.Whole.HasFindings); // three runs that ended the same way
+        var small = Assert.Single(all.Repositories).Report;
+        Assert.False(small.HasFindings);
+        Assert.Contains("Only 3 runs finished in this repository this week (fewer than 5), so nothing is flagged.", small.Markdown);
+        Assert.DoesNotContain("Nothing repeated enough", small.Markdown);
+        Assert.Contains("| acme/small | 3 | 30,000 | 0 of 3 | too few runs |", all.Whole.Markdown);
+    }
+
+    [Fact]
+    public void A_repository_with_enough_runs_is_flagged_by_the_same_rules_as_the_whole_factory()
+    {
+        var all = BuildAll([.. Runs(5, "acme/shop", status: "build_failed"), .. Runs(6, "acme/api", firstNumber: 20)]);
+
+        var shop = all.Repositories.Single(r => r.Repository == "acme/shop").Report;
+        var api = all.Repositories.Single(r => r.Repository == "acme/api").Report;
+        Assert.Equal(["Runs that stopped the same way"], FindingAreas(shop));
+        Assert.Contains("5 runs, in 1 repository.", shop.Markdown);
+        Assert.Empty(api.Findings);
+        Assert.Contains("| acme/shop | 5 | 50,000 | 0 of 5 | 1 |", all.Whole.Markdown);
+        Assert.Contains("| acme/api | 6 | 60,000 | 6 of 6 | 0 |", all.Whole.Markdown);
+    }
+
+    [Fact]
+    public void Pull_requests_and_the_week_before_are_taken_from_that_repository_only()
+    {
+        var pulls = new[]
+        {
+            new PullOutcome("acme/shop", 1, "feature", PullStates.Merged, 0, 1.0),
+            new PullOutcome("acme/api", 21, "feature", PullStates.Merged, 1, 2.0),
+            new PullOutcome("acme/api", 22, "bug", PullStates.Open, 0, null),
+        };
+        var all = BuildAll([.. Runs(2, "acme/shop"), .. Runs(2, "acme/api", firstNumber: 20)], previous: [.. Runs(4, "acme/shop", firstNumber: 50)], pulls: pulls);
+
+        var shop = all.Repositories.Single(r => r.Repository == "acme/shop").Report.Markdown;
+        var api = all.Repositories.Single(r => r.Repository == "acme/api").Report.Markdown;
+        Assert.Contains("| **all** | 1 | 1 |", shop);
+        Assert.Contains("| **all** | 2 | 1 |", api);
+        Assert.Contains("-50% against the week before", shop); // 20,000 now against 40,000 before
+        Assert.Contains("no runs the week before", api);
+    }
+
+    [Fact]
+    public void When_the_git_host_could_not_be_asked_each_repository_says_so()
+    {
+        var all = BuildAll(Runs(2, "acme/shop").ToList(), pulls: null);
+
+        Assert.Contains("The git host could not be asked", Assert.Single(all.Repositories).Report.Markdown);
+    }
+
+    [Fact]
+    public void File_names_are_safe_and_unique_even_when_two_repositories_would_get_the_same_one()
+    {
+        var all = BuildAll([.. Runs(1, "github:acme/shop"), .. Runs(1, "github_acme/shop", firstNumber: 5), .. Runs(1, "../../etc/passwd", firstNumber: 9), .. Runs(1, "...", firstNumber: 12)]);
+
+        var names = all.Repositories.Select(r => r.FileName).ToList();
+        Assert.Equal(names.Count, names.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(names, name => Assert.Matches(@"\A[A-Za-z0-9_][A-Za-z0-9._-]*\.md\z", name));
+        Assert.Contains("github_acme_shop.md", names);
+        Assert.Contains("github_acme_shop-2.md", names);
+    }
+
+    [Fact]
+    public void Only_the_repositories_that_used_the_most_tokens_get_a_report_and_the_rest_are_counted()
+    {
+        var runs = Enumerable.Range(1, ReportRules.MaxRepositories + 2).Select(index => Run(repository: $"acme/r{index:00}", number: index, tokens: 1_000 * index)).ToList();
+
+        var all = BuildAll(runs);
+
+        Assert.Equal(ReportRules.MaxRepositories, all.Repositories.Count);
+        Assert.DoesNotContain(all.Repositories, r => r.Repository is "acme/r01" or "acme/r02"); // the two that used the fewest
+        Assert.Contains("2 more repositories used fewer tokens and have no report of their own (at most 50 get one).", all.Whole.Markdown);
+    }
+
+    [Fact]
+    public void A_week_with_no_runs_has_no_repositories_and_no_list()
+    {
+        var all = BuildAll([]);
+
+        Assert.Empty(all.Repositories);
+        Assert.DoesNotContain("## By repository", all.Whole.Markdown);
+        Assert.Equal(all.Whole.Markdown, all.TicketMarkdown);
+    }
+
+    [Fact]
+    public void One_run_is_not_called_runs()
+    {
+        Assert.Contains("- **1 run** (feature 1) used **10,000 tokens**", Build([Run()]).Markdown);
+    }
+
+    [Fact]
+    public void One_repository_is_not_called_repositories()
+    {
+        var report = Build([.. Runs(1, "acme/shop"), .. Runs(3, "acme/shop", status: "build_failed", firstNumber: 5)]);
+
+        Assert.Contains("- In 1 repository: acme/shop 4.", report.Markdown);
+    }
 
     [Fact]
     public void A_quiet_healthy_week_has_nothing_to_flag_and_says_so()

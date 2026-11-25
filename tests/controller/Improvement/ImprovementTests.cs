@@ -208,7 +208,51 @@ public sealed class ImprovementReportActivityTests : IDisposable
         Assert.True(result.HasFindings); // the analyst's answers: 12 of 30 rejected, and three runs that ended build_failed
         Assert.Contains("the analyst agent", result.Markdown);
         Assert.Equal($"{root}/.usage/reports/2026-W46.md", result.Path);
-        Assert.Equal(result.Markdown, File.ReadAllText(result.Path));
+        // The saved report also lists the repositories; the text that is posted does not (it may be public).
+        var saved = File.ReadAllText(result.Path);
+        Assert.Contains("## By repository", saved);
+        Assert.DoesNotContain("## By repository", result.Markdown);
+        Assert.Equal(result.Markdown.Replace("## This week", "## By repository").Split("## By repository")[0], saved.Split("## This week")[0]);
+    }
+
+    [Fact]
+    public async Task Each_repository_gets_its_own_file_in_a_folder_named_for_the_week()
+    {
+        var workspace = Workspace();
+        await workspace.LogUsageAsync(Entry("a"), new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero));
+
+        var result = workspace.BuildImprovementReport(new ImprovementRequest("2026-W46", "2026-11-09", "2026-11-16", null));
+
+        var file = $"{root}/.usage/reports/2026-W46/acme_shop.md";
+        Assert.True(File.Exists(file));
+        Assert.Contains("# Factory report, 2026-W46, acme/shop", File.ReadAllText(file));
+        Assert.Contains("`2026-W46/acme_shop.md`", File.ReadAllText(result.Path));
+    }
+
+    [Fact]
+    public async Task A_later_report_for_the_week_replaces_the_repository_files_and_leaves_other_files_alone()
+    {
+        var workspace = Workspace();
+        var request = new ImprovementRequest("2026-W46", "2026-11-09", "2026-11-16", null);
+        await workspace.LogUsageAsync(Entry("a"), new DateTimeOffset(2026, 11, 10, 9, 0, 0, TimeSpan.Zero));
+        workspace.BuildImprovementReport(request);
+        var folder = $"{root}/.usage/reports/2026-W46";
+        File.WriteAllText($"{folder}/gone.md", "an earlier report of a repository that is no longer in the log");
+        File.WriteAllText($"{folder}/notes.txt", "kept");
+
+        workspace.BuildImprovementReport(request);
+
+        Assert.False(File.Exists($"{folder}/gone.md"));
+        Assert.True(File.Exists($"{folder}/notes.txt"));
+        Assert.True(File.Exists($"{folder}/acme_shop.md"));
+    }
+
+    [Fact]
+    public void A_week_without_runs_creates_no_folder()
+    {
+        Workspace().BuildImprovementReport(new ImprovementRequest("2026-W46", "2026-11-09", "2026-11-16", null));
+
+        Assert.False(Directory.Exists($"{root}/.usage/reports/2026-W46"));
     }
 
     [Fact]

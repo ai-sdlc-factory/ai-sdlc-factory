@@ -58,12 +58,38 @@ public sealed partial class GitWorkspace
         var runs = LogReaders.Runs(log, Start(from), Start(to));
         var before = LogReaders.Runs(log, Start(from.AddDays(-length)), Start(from));
         var denied = LogReaders.Denied(settings.EgressDeniedLog, Start(from), Start(to));
-        var report = ImprovementReportBuilder.Build(request.Week, from, to, runs, before, denied, !string.IsNullOrEmpty(settings.EgressDeniedLog) && File.Exists(settings.EgressDeniedLog), pullOutcomes);
+        var reports = ImprovementReportBuilder.BuildAll(request.Week, from, to, runs, before, denied, !string.IsNullOrEmpty(settings.EgressDeniedLog) && File.Exists(settings.EgressDeniedLog), pullOutcomes);
 
         var folder = $"{root.TrimEnd('/')}/{ReportsFolder}";
         Directory.CreateDirectory(folder);
         var path = $"{folder}/{request.Week}.md";
-        File.WriteAllText(path, report.Markdown);
-        return new ImprovementReportResult(report.Markdown, report.Runs, report.Findings.Count, path);
+        File.WriteAllText(path, reports.Whole.Markdown);
+        SaveRepositoryReports($"{folder}/{request.Week}", reports.Repositories);
+        // What is posted and read by the improver is the report without the list of repositories (see ImprovementReports).
+        return new ImprovementReportResult(reports.TicketMarkdown, reports.Whole.Runs, reports.Whole.Findings.Count, path);
+    }
+
+    /// <summary>
+    /// One file per repository in a folder named for the week (the week was checked to be <c>yyyy-Www</c> before this). A report made again for the same week replaces what an earlier one wrote there,
+    /// including files of repositories that are no longer in it; only <c>.md</c> files in that folder are removed.
+    /// </summary>
+    private static void SaveRepositoryReports(string weekFolder, IReadOnlyList<RepositoryReport> repositories)
+    {
+        if (Directory.Exists(weekFolder))
+        {
+            foreach (var old in Directory.GetFiles(weekFolder, "*.md", SearchOption.TopDirectoryOnly))
+            {
+                File.Delete(old);
+            }
+        }
+        if (repositories.Count == 0)
+        {
+            return;
+        }
+        Directory.CreateDirectory(weekFolder);
+        foreach (var repository in repositories)
+        {
+            File.WriteAllText($"{weekFolder}/{repository.FileName}", repository.Report.Markdown);
+        }
     }
 }
