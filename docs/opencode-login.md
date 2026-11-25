@@ -32,7 +32,7 @@ docker compose --profile opencode-tools run --rm --no-deps opencode-login openco
 docker compose --profile opencode-tools run --rm --no-deps opencode-login opencode models openai
 ```
 
-The model every agent uses is one setting, `FACTORY_MODEL` in `deploy/.env` (empty keeps the default in [`agents/opencode.json`](../agents/opencode.json)); a role file can still name its own
+The model every agent uses is one setting, `FACTORY_MODEL` in `deploy/.env` (empty keeps the default in [`agents/opencode.json`](../agents/opencode.json)); `FACTORY_ROLE_MODELS` gives single roles a model of their own (it ranks above everything else), and a role file can still name its own
 ([choosing the model per role](../agents/README.md#choosing-the-model)). Choose one your plan includes. Usage depends on your ChatGPT plan.
 
 ## Other ways to sign in

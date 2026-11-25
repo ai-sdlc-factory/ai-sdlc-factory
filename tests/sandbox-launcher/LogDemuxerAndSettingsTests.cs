@@ -22,6 +22,23 @@ public sealed class LogDemuxerAndSettingsTests
         Assert.Contains("FACTORY_MODEL", Assert.Throws<InvalidOperationException>(() => Load("other-model")).Message);
     }
 
+    [Fact]
+    public void The_launcher_reads_the_role_models_and_rejects_a_bad_one()
+    {
+        SandboxSettings Load(string? roles) => SandboxSettings.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["FACTORY_WORKSPACE_ROOT"] = "/work",
+            ["SANDBOX_IMAGES"] = "dotnet=ai-sdlc-factory/sandbox-dotnet:local",
+            ["SANDBOX_NETWORKS"] = "model=ai-sdlc-factory_sandbox-model",
+            ["SANDBOX_PROXIES"] = "model=http://10.250.1.2:3128",
+            ["FACTORY_ROLE_MODELS"] = roles,
+        }).Build());
+
+        Assert.Empty(Load(null).RoleModels);
+        Assert.Equal("openai/review-model", Load("""{"reviewer":"openai/review-model"}""").RoleModels["reviewer"]);
+        Assert.Contains("FACTORY_ROLE_MODELS", Assert.Throws<InvalidOperationException>(() => Load("""{"reviewer":"review-model"}""")).Message);
+    }
+
     private static byte[] Frame(byte stream, string text)
     {
         var payload = Encoding.UTF8.GetBytes(text);

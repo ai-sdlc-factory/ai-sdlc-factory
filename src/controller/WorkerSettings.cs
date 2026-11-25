@@ -20,6 +20,9 @@ public sealed class WorkerSettings
     /// <summary>The model every agent uses unless its role file names another (<c>FACTORY_MODEL</c>); null means the default in <c>opencode.json</c>. The launcher applies it; the controller only records it.</summary>
     public string? Model { get; init; }
 
+    /// <summary>The model of single roles (<c>FACTORY_ROLE_MODELS</c>), which ranks first: above the role file's <c>model:</c> line and <see cref="Model"/>. The launcher applies it; the controller records it and says it at start.</summary>
+    public IReadOnlyDictionary<string, string> RoleModels { get; init; } = new Dictionary<string, string>();
+
     /// <summary>The host with this name, or a failure that retrying cannot mend: a repository named for a host that is not configured.</summary>
     public HostSettings HostNamed(string name) =>
         Hosts.FirstOrDefault(host => host.Name == name)
@@ -78,6 +81,7 @@ public sealed class WorkerSettings
         Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
         PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
         Model = ModelNames.Read(configuration[ModelNames.Variable]),
+        RoleModels = KnownRoles(ModelNames.ReadRoles(configuration[ModelNames.RolesVariable])),
         GitAuthorName = Identity(configuration, "FACTORY_GIT_AUTHOR_NAME", "AI SDLC Factory"),
         GitAuthorEmail = Identity(configuration, "FACTORY_GIT_AUTHOR_EMAIL", "factory-bot@ai-sdlc-factory.test"),
         WorkspaceRoot = configuration["FACTORY_WORKSPACE_ROOT"] ?? "",
@@ -100,6 +104,15 @@ public sealed class WorkerSettings
             RepoDailyTokenLimit: Tokens(configuration, "FACTORY_REPO_DAILY_TOKEN_LIMIT"),
             ConfirmOverTokens: Tokens(configuration, "FACTORY_CONFIRM_OVER_TOKENS")),
     };
+
+    /// <summary>The roles named in <c>FACTORY_ROLE_MODELS</c> must be roles of the factory: a misspelt one would otherwise change nothing, and the person would think it had.</summary>
+    private static IReadOnlyDictionary<string, string> KnownRoles(IReadOnlyDictionary<string, string> models)
+    {
+        var unknown = models.Keys.Where(role => !AgentRoles.All.Contains(role)).ToList();
+        return unknown.Count == 0
+            ? models
+            : throw new InvalidOperationException($"{ModelNames.RolesVariable} names {(unknown.Count == 1 ? "a role" : "roles")} the factory does not have: {string.Join(", ", unknown)}. The roles are {string.Join(", ", AgentRoles.All)}.");
+    }
 
     /// <summary>A token limit: empty or 0 means no limit. Anything but a whole number from 10,000 up stops the start with a message, because a typo would otherwise switch the limit off or make every run stop at once.</summary>
     private static long Tokens(IConfiguration configuration, string key)

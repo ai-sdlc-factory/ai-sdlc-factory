@@ -111,6 +111,50 @@ public sealed class ContractTests
         Assert.Throws<InvalidOperationException>(() => Load("other-model"));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("{}")]
+    public void An_empty_role_models_setting_means_no_role_has_its_own(string? value) => Assert.Empty(ModelNames.ReadRoles(value));
+
+    [Fact]
+    public void Role_models_are_read_from_a_json_object()
+    {
+        var models = ModelNames.ReadRoles(""" { "reviewer": "openai/gpt-6.1-sol", "security": " anthropic/claude-sonnet-5-5 " } """);
+
+        Assert.Equal(2, models.Count);
+        Assert.Equal("openai/gpt-6.1-sol", models["reviewer"]);
+        Assert.Equal("anthropic/claude-sonnet-5-5", models["security"]);
+    }
+
+    [Theory]
+    [InlineData("not json")]
+    [InlineData("[\"reviewer\"]")]
+    [InlineData("\"reviewer\"")]
+    [InlineData("""{"reviewer":"gpt-6.1-sol"}""")]
+    [InlineData("""{"reviewer":""}""")]
+    [InlineData("""{"reviewer":5}""")]
+    [InlineData("""{"reviewer":null}""")]
+    [InlineData("""{"Reviewer":"openai/m"}""")]
+    [InlineData("""{"re viewer":"openai/m"}""")]
+    [InlineData("""{"":"openai/m"}""")]
+    public void A_role_models_setting_that_is_not_roles_and_models_stops_the_start(string value) =>
+        Assert.Contains("FACTORY_ROLE_MODELS", Assert.Throws<InvalidOperationException>(() => ModelNames.ReadRoles(value)).Message);
+
+    [Fact]
+    public void The_controller_reads_role_models_and_names_a_role_it_does_not_have()
+    {
+        WorkerSettings Load(string? value) => WorkerSettings.FromConfiguration(new ConfigurationBuilder()
+            .AddInMemoryCollection(TestHosts.Setting).AddInMemoryCollection(new Dictionary<string, string?> { ["FACTORY_ROLE_MODELS"] = value }).Build());
+
+        Assert.Empty(Load(null).RoleModels);
+        Assert.Equal("openai/review-model", Load("""{"reviewer":"openai/review-model"}""").RoleModels["reviewer"]);
+        var error = Assert.Throws<InvalidOperationException>(() => Load("""{"reviewr":"openai/review-model"}""")).Message;
+        Assert.Contains("reviewr", error);
+        Assert.Contains("reviewer", error); // the roles are listed, so the typo is easy to see
+    }
+
     [Fact]
     public void Worker_settings_use_documented_defaults()
     {

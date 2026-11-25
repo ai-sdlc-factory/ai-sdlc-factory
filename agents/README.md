@@ -49,7 +49,7 @@ The workflow chooses the role and runs `opencode run --agent <role>`. Every role
 
 ## Choosing the model
 
-One model serves every role, and none of the shipped role files names one. It comes from `FACTORY_MODEL` in `deploy/.env` (recreate the controller and the launcher after changing it), or, when that is empty, from the `model` in `opencode.json` (`openai/gpt-6.1-sol`). To give **one role** another model, add a `model: provider/model` line to its front matter: that role keeps it whatever `FACTORY_MODEL` says.
+One model serves every role, and none of the shipped role files names one. It comes from `FACTORY_MODEL` in `deploy/.env` (recreate the controller and the launcher after changing it), or, when that is empty, from the `model` in `opencode.json` (`openai/gpt-6.1-sol`). To give **one role** another model there are two ways. Set it in `deploy/.env` with `FACTORY_ROLE_MODELS`, one line of JSON such as `{"reviewer":"provider/model"}` (recreate the controller and the launcher after changing it): it ranks above everything else, needs no change to this folder, and roles you do not name keep what they use now. Or add a `model: provider/model` line to the role's front matter, which that role keeps whatever `FACTORY_MODEL` says, but which `FACTORY_ROLE_MODELS` overrides. The order is: `FACTORY_ROLE_MODELS` for the role, the role file's `model:`, `FACTORY_MODEL`, the default in `opencode.json`. Running the reviewers on a different model than the developer is the usual reason: a reviewer on the same model tends to miss what the developer's model missed.
 A change in a role file or in `opencode.json` applies to the next run, with no rebuild or restart. OpenCode also accepts these in a role file (checked with `opencode debug agent <role>`):
 
 ```yaml

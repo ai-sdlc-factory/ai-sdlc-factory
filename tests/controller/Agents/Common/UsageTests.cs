@@ -112,6 +112,40 @@ public sealed class AgentCatalogTests : IDisposable
     }
 
     [Fact]
+    public void A_role_model_set_by_the_operator_beats_the_role_file_the_factory_model_and_the_default()
+    {
+        Role("developer", "---\ndescription: x\nmodel: openai/own-model\n---\nPrompt\n");
+        Role("qa", "---\ndescription: x\n---\nPrompt\n");
+        File.WriteAllText($"{directory}/opencode.json", """{ "model": "openai/default-model" }""");
+        var roles = new Dictionary<string, string> { ["developer"] = "openai/operator-developer", ["qa"] = "openai/operator-qa" };
+
+        Assert.Equal("openai/operator-developer", AgentCatalog.ModelFor(directory, "developer", "openai/factory-model", roles));
+        Assert.Equal("openai/operator-qa", AgentCatalog.ModelFor(directory, "qa", "openai/factory-model", roles));
+    }
+
+    [Fact]
+    public void A_role_the_operator_did_not_name_keeps_what_it_used_before()
+    {
+        Role("developer", "---\ndescription: x\nmodel: openai/own-model\n---\nPrompt\n");
+        Role("qa", "---\ndescription: x\n---\nPrompt\n");
+        File.WriteAllText($"{directory}/opencode.json", """{ "model": "openai/default-model" }""");
+        var roles = new Dictionary<string, string> { ["reviewer"] = "openai/operator-reviewer" };
+
+        Assert.Equal("openai/own-model", AgentCatalog.ModelFor(directory, "developer", "openai/factory-model", roles));
+        Assert.Equal("openai/factory-model", AgentCatalog.ModelFor(directory, "qa", "openai/factory-model", roles));
+        Assert.Equal("openai/default-model", AgentCatalog.ModelFor(directory, "qa", null, roles));
+    }
+
+    [Fact]
+    public void An_operator_s_role_model_is_known_even_when_the_agents_folder_is_not()
+    {
+        var roles = new Dictionary<string, string> { ["reviewer"] = "openai/operator-reviewer" };
+
+        Assert.Equal("openai/operator-reviewer", AgentCatalog.ModelFor(null, "reviewer", null, roles));
+        Assert.Null(AgentCatalog.ModelFor(null, "developer", null, roles));
+    }
+
+    [Fact]
     public void A_model_line_in_the_prompt_text_is_not_mistaken_for_configuration()
     {
         Role("analyst", "---\ndescription: x\n---\nmodel: not-this-one\n");

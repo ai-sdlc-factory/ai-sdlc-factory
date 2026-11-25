@@ -4,14 +4,23 @@ namespace AiSdlcFactory.Controller;
 
 /// <summary>
 /// Looks up which model a role is configured to use, from the same agent folder the sandboxes get. OpenCode does
-/// not say which model answered, so this is the configured model: the role file's <c>model:</c> line, else <c>FACTORY_MODEL</c>,
-/// else the default in <c>opencode.json</c>.
+/// not say which model answered, so this is the configured model: the operator's entry for the role in <c>FACTORY_ROLE_MODELS</c>, else the role file's <c>model:</c> line,
+/// else <c>FACTORY_MODEL</c>, else the default in <c>opencode.json</c>.
 /// </summary>
 public static class AgentCatalog
 {
-    public static string? ModelFor(string? directory, string role, string? factoryModel = null)
+    public static string? ModelFor(string? directory, string role, string? factoryModel = null, IReadOnlyDictionary<string, string>? roleModels = null)
     {
-        if (string.IsNullOrWhiteSpace(directory) || !RunRecord.IsValidSlug(role))
+        if (!RunRecord.IsValidSlug(role))
+        {
+            return null;
+        }
+        // The operator's own word for this role needs no folder to be known.
+        if (roleModels is not null && roleModels.TryGetValue(role, out var chosen))
+        {
+            return chosen;
+        }
+        if (string.IsNullOrWhiteSpace(directory))
         {
             return null;
         }

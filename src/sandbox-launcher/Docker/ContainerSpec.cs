@@ -33,6 +33,23 @@ public static class ContainerSpec
         return labels;
     }
 
+    /// <summary>
+    /// OpenCode's inline configuration, which ranks above the settings file. <c>model</c> changes the default of every role that names no model of its own (<c>FACTORY_MODEL</c>);
+    /// the role's own entry under <c>agent</c> (<c>FACTORY_ROLE_MODELS</c>) also beats the <c>model:</c> line of the role file, which the global one does not. Null when neither applies,
+    /// so a deployment that sets nothing runs exactly as before.
+    /// </summary>
+    public static string? InlineConfig(string? role, SandboxSettings settings)
+    {
+        var roleModel = role is not null && settings.RoleModels.TryGetValue(role, out var named) ? named : null;
+        return (settings.Model, roleModel) switch
+        {
+            (null, null) => null,
+            ({ } model, null) => System.Text.Json.JsonSerializer.Serialize(new { model }),
+            (null, { } own) => System.Text.Json.JsonSerializer.Serialize(new { agent = new Dictionary<string, object> { [role!] = new { model = own } } }),
+            ({ } model, { } own) => System.Text.Json.JsonSerializer.Serialize(new { model, agent = new Dictionary<string, object> { [role!] = new { model = own } } }),
+        };
+    }
+
     public static CreateContainerBody Build(ValidatedRun run, SandboxSettings settings)
     {
         var mounts = new List<MountSpec>
@@ -70,10 +87,9 @@ public static class ContainerSpec
             // NoCopy: never seed the volume from image content. The entrypoint links auth.json from here.
             mounts.Add(new MountSpec("volume", settings.AuthVolume!, AuthTarget, settings.AuthReadOnly, new VolumeOptionsSpec(true)));
             env.Add("FACTORY_REQUIRE_AUTH=1");
-            if (settings.Model is { } model)
+            if (InlineConfig(run.Role, settings) is { } inline)
             {
-                // OpenCode's inline configuration ranks above the settings file, so this changes the default of every role that names no model of its own.
-                env.Add("OPENCODE_CONFIG_CONTENT=" + System.Text.Json.JsonSerializer.Serialize(new { model }));
+                env.Add("OPENCODE_CONFIG_CONTENT=" + inline);
             }
         }
 

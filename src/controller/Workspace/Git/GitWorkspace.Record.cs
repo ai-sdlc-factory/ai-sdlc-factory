@@ -10,7 +10,7 @@ public sealed partial class GitWorkspace
     /// <summary>Stores one step of the run on the host. It never changes the repository by itself.</summary>
     public Task RecordAsync(RecordEntry recorded)
     {
-        var entry = recorded.Kind == "agent" ? recorded with { Model = AgentCatalog.ModelFor(settings.AgentsDirectory, recorded.Slug, settings.Model) } : recorded;
+        var entry = recorded.Kind == "agent" ? recorded with { Model = AgentCatalog.ModelFor(settings.AgentsDirectory, recorded.Slug, settings.Model, settings.RoleModels) } : recorded;
         var root = RequireRoot();
         RequireName(entry.Name);
         if (!RunRecord.IsValidSlug(entry.Slug) || entry.Sequence is < 1 or > 999)

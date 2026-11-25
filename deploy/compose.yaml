@@ -153,6 +153,8 @@ services:
       # The name and e-mail address on the commits the factory makes (see docs/configuration.md).
       # The model every agent uses unless its role file names another; empty keeps the default of agents/opencode.json. The launcher gets the same value.
       FACTORY_MODEL: ${FACTORY_MODEL:-}
+      # A model for single roles, as JSON: {"reviewer":"provider/model"}. It ranks above a role file's own model; empty changes nothing. The launcher gets the same value.
+      FACTORY_ROLE_MODELS: ${FACTORY_ROLE_MODELS:-}
       FACTORY_GIT_AUTHOR_NAME: ${FACTORY_GIT_AUTHOR_NAME:-AI SDLC Factory}
       FACTORY_GIT_AUTHOR_EMAIL: ${FACTORY_GIT_AUTHOR_EMAIL:-factory-bot@ai-sdlc-factory.test}
       # What a project gets when its .factory/project.json "limits" do not say (see docs/configuration.md).
@@ -265,6 +267,7 @@ services:
       FACTORY_GLOBAL_CONFIG: ${FACTORY_GLOBAL_CONFIG:-}
       # The model every agent uses unless its role file names another (see the controller's setting of the same name).
       FACTORY_MODEL: ${FACTORY_MODEL:-}
+      FACTORY_ROLE_MODELS: ${FACTORY_ROLE_MODELS:-}
       SANDBOX_AUTH_VOLUME: ${COMPOSE_PROJECT_NAME:-ai-sdlc-factory}_opencode-data
       # Limits of each sandbox and how many run at once (see docs/configuration.md). SANDBOX_AUTH_READONLY=true keeps an agent from changing the login.
       SANDBOX_MEMORY_BYTES: ${SANDBOX_MEMORY_BYTES:-2147483648}

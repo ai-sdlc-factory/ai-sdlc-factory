@@ -145,6 +145,36 @@ public sealed class ModelAuthTests
         Assert.Contains(spec.GetProperty("Env").EnumerateArray(), e => e.GetString() == """OPENCODE_CONFIG_CONTENT={"model":"openai/other-model"}""");
     }
 
+    private static string? InlineConfig(System.Text.Json.JsonElement spec) =>
+        spec.GetProperty("Env").EnumerateArray().Select(e => e.GetString()!).Where(e => e.StartsWith("OPENCODE_CONFIG_CONTENT=")).Select(e => e["OPENCODE_CONFIG_CONTENT=".Length..]).SingleOrDefault();
+
+    [Fact]
+    public void A_role_with_a_model_of_its_own_gets_it_under_its_own_name_and_the_global_model_stays()
+    {
+        var roleModels = new Dictionary<string, string> { ["reviewer"] = "openai/review-model", ["security"] = "openai/security-model" };
+        var spec = Spec(Support.Request(modelAuth: true, role: "reviewer"), Support.Settings(model: "openai/other-model", roleModels: roleModels));
+
+        Assert.Equal("""{"model":"openai/other-model","agent":{"reviewer":{"model":"openai/review-model"}}}""", InlineConfig(spec));
+    }
+
+    [Fact]
+    public void A_role_model_works_without_a_global_model_and_only_for_that_role()
+    {
+        var roleModels = new Dictionary<string, string> { ["reviewer"] = "openai/review-model" };
+
+        Assert.Equal("""{"agent":{"reviewer":{"model":"openai/review-model"}}}""", InlineConfig(Spec(Support.Request(modelAuth: true, role: "reviewer"), Support.Settings(roleModels: roleModels))));
+        Assert.Null(InlineConfig(Spec(Support.Request(modelAuth: true, role: "developer"), Support.Settings(roleModels: roleModels))));
+        Assert.Equal("""{"model":"openai/other-model"}""", InlineConfig(Spec(Support.Request(modelAuth: true, role: "developer"), Support.Settings(model: "openai/other-model", roleModels: roleModels))));
+    }
+
+    [Fact]
+    public void A_role_model_is_not_given_to_a_run_without_model_access()
+    {
+        var roleModels = new Dictionary<string, string> { ["reviewer"] = "openai/review-model" };
+
+        Assert.Null(InlineConfig(Spec(Support.Request(role: "reviewer"), Support.Settings(roleModels: roleModels))));
+    }
+
     [Fact]
     public void Without_a_configured_model_the_default_of_opencode_json_stays()
     {

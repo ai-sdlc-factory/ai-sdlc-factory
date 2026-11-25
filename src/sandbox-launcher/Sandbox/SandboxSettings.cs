@@ -77,6 +77,9 @@ public sealed class SandboxSettings
     /// <summary>The model for every agent whose role file names none (<c>FACTORY_MODEL</c>); null leaves the default in <c>opencode.json</c>. Given to model runs as OpenCode's inline configuration, which ranks above the file.</summary>
     public string? Model { get; init; }
 
+    /// <summary>The model of single roles (<c>FACTORY_ROLE_MODELS</c>), set by the operator: it ranks above the role file's own <c>model:</c> line and above <see cref="Model"/>. Empty means every role uses what it did before.</summary>
+    public IReadOnlyDictionary<string, string> RoleModels { get; init; } = new Dictionary<string, string>();
+
     /// <summary>
     /// Read-only keeps the login unchangeable by an agent, but OpenCode cannot then save a refreshed
     /// token. Read-write is the default so a long-lived login keeps working.
@@ -108,6 +111,7 @@ public sealed class SandboxSettings
             AuthVolume = NullIfEmpty(configuration["SANDBOX_AUTH_VOLUME"]),
             AuthReadOnly = configuration.GetValue("SANDBOX_AUTH_READONLY", false),
             Model = ModelNames.Read(configuration[ModelNames.Variable]),
+            RoleModels = ModelNames.ReadRoles(configuration[ModelNames.RolesVariable]),
             AllowRepoImages = Switch(configuration, "FACTORY_ALLOW_REPO_IMAGES"),
             JanitorImageDays = configuration.GetValue("FACTORY_JANITOR_IMAGE_DAYS", 60),
         };
