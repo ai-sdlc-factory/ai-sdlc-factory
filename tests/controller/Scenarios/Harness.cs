@@ -184,6 +184,8 @@ public sealed class FakeWorld
     /// <summary>What the check of who may steer the factory answers (everyone, by default), and who it was asked about.</summary>
     public CommandVerdict CommandVerdict { get; set; } = CommandVerdict.Yes;
     public List<CommandCheck> CommandChecks { get; } = [];
+    public StartVerdict StartVerdict { get; set; } = StartVerdict.Yes;
+    public List<StartCheck> StartChecks { get; } = [];
 
     public PullScope PullScope { get; set; } = new(["acme/shop"], [], []);
     public IReadOnlyList<PullOutcome> PullOutcomes { get; set; } = [];
@@ -371,6 +373,16 @@ public sealed class FakeWorld
                 world.CommandChecks.Add(check);
             }
             return world.CommandVerdict;
+        }
+
+        [Activity("githost_check_start")]
+        public StartVerdict CheckStart(StartCheck check)
+        {
+            lock (world.gate)
+            {
+                world.StartChecks.Add(check);
+            }
+            return world.StartVerdict;
         }
 
         [Activity("workspace_pull_scope")]

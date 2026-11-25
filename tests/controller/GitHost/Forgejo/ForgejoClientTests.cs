@@ -513,6 +513,56 @@ public sealed class RevisionClientTests
         Assert.Equal(DateTimeOffset.Parse("2026-05-03T00:00:00Z"), history.LastAt);
     }
 
+    private sealed class TeamHandler(HttpStatusCode search, string searchBody, HttpStatusCode member) : HttpMessageHandler
+    {
+        public List<string> Paths { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Paths.Add(request.RequestUri!.PathAndQuery);
+            return Task.FromResult(request.RequestUri.AbsolutePath.Contains("/teams/search")
+                ? new HttpResponseMessage(search) { Content = new StringContent(searchBody) }
+                : new HttpResponseMessage(member) { Content = new StringContent("{}") });
+        }
+    }
+
+    private static ForgejoClient TeamClient(HttpMessageHandler handler) => new(new HttpClient(handler) { BaseAddress = new Uri("http://forgejo:3000/") }, "secret-token");
+
+    [Fact]
+    public async Task A_team_is_found_by_name_in_the_organisation_and_its_member_is_asked_about_by_the_teams_number()
+    {
+        var handler = new TeamHandler(HttpStatusCode.OK, """{"ok":true,"data":[{"id":3,"name":"Owners"},{"id":12,"name":"Maintainers"}]}""", HttpStatusCode.OK);
+
+        Assert.True(await TeamClient(handler).IsTeamMemberAsync("acme", "acme/maintainers", "a b", CancellationToken.None)); // the name's case does not matter
+        Assert.Equal(["/api/v1/orgs/acme/teams/search?q=maintainers&limit=50", "/api/v1/teams/12/members/a%20b"], handler.Paths);
+    }
+
+    [Fact]
+    public async Task A_person_who_is_not_in_the_team_or_a_team_that_does_not_exist_is_no_member()
+    {
+        var notMember = new TeamHandler(HttpStatusCode.OK, """{"data":[{"id":12,"name":"maintainers"}]}""", HttpStatusCode.NotFound);
+        var noTeam = new TeamHandler(HttpStatusCode.OK, """{"data":[{"id":3,"name":"owners"}]}""", HttpStatusCode.OK);
+        var noOrganisation = new TeamHandler(HttpStatusCode.NotFound, "{}", HttpStatusCode.OK);
+
+        Assert.False(await TeamClient(notMember).IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        Assert.False(await TeamClient(noTeam).IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        Assert.Single(noTeam.Paths); // no team, so nobody is asked about
+        Assert.False(await TeamClient(noOrganisation).IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_token_that_may_not_look_at_the_teams_does_not_know_and_a_name_without_an_organisation_is_not_looked_up()
+    {
+        var forbidden = new TeamHandler(HttpStatusCode.Forbidden, "{}", HttpStatusCode.OK);
+        var forbiddenMember = new TeamHandler(HttpStatusCode.OK, """{"data":[{"id":12,"name":"maintainers"}]}""", HttpStatusCode.Forbidden);
+
+        Assert.Null(await TeamClient(forbidden).IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        Assert.Null(await TeamClient(forbiddenMember).IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        var untouched = new TeamHandler(HttpStatusCode.OK, "{}", HttpStatusCode.OK);
+        Assert.Null(await TeamClient(untouched).IsTeamMemberAsync("acme", "maintainers", "alice", CancellationToken.None));
+        Assert.Empty(untouched.Paths);
+    }
+
     private sealed class PermissionHandler(HttpStatusCode status, string body) : HttpMessageHandler
     {
         public List<string> Paths { get; } = [];

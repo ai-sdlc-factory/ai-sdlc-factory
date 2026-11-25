@@ -10,7 +10,7 @@ What is left to build, as designs and not promises. Each says what problem it so
 
 Left out on purpose, for now: auto-triage of unlabelled tickets (an agent that reads a ticket with no factory label and proposes one). Today a ticket without a label is ignored, which is the safe default.
 
-Also left out: teams in the rules of who may steer the factory (`"team": "org/team"` next to `allow`). The access levels (`write`, `admin`) already cover most teams, because a team's members get their access from it; team lookups only exist for organizations and need an extra token permission on each host (GitHub: Members read; Forgejo: `read:organization`), so they widen the bot's token for a convenience, and they could not be checked live without an organization on each host. If a long `allow` list going stale becomes the real problem, reading the list from a file is the cheaper fix.
+Teams are in the rule of who may **start** a run (`start.teams`, `"org/team"` next to `allow`), because there it is the only way to say "the maintainers" without listing their logins. They are still left out of the `commands` rules of who may steer one: the access levels (`write`, `admin`) already cover most teams, because a team's members get their access from it, and team lookups only exist for organizations and need an extra token permission on each host (GitHub: Members read; Forgejo: `read:organization`), so they widen the bot's token for a convenience. The start rule's team lookups are tested against test servers only, not yet live against an organization on each host. If a long `allow` list going stale becomes the real problem, reading the list from a file is the cheaper fix.
 
 ## Built, and still to check live
 

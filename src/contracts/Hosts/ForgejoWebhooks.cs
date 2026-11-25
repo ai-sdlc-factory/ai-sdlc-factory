@@ -65,6 +65,8 @@ public sealed partial class ForgejoWebhookAdapter : IWebhookAdapter
             Owner = RepoNames.Qualify(delivery.Host, owner), Repo = repo, Number = ticket, IsPullRequest = isPull,
             IsOpen = WebhookJson.AsString(WebhookJson.Get(issue, "state")) is null or "open",
             Title = WebhookJson.AsString(WebhookJson.Get(issue, "title")) ?? "", Body = WebhookJson.AsString(WebhookJson.Get(issue, "body")) ?? "", Author = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(issue, "user"), "login")) ?? "",
+            // Who set the event off (who added the label, opened or reopened the ticket); the author of the ticket is another thing.
+            Actor = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(payload, "sender"), "login")) ?? "",
             Labels = WebhookJson.Get(issue, "labels") is { ValueKind: JsonValueKind.Array } labels
                 ? labels.EnumerateArray().Select(item => WebhookJson.AsString(WebhookJson.Get(item, "name"))).OfType<string>().ToList()
                 : [],

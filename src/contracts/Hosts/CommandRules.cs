@@ -291,9 +291,13 @@ public sealed partial record HostCommandRules(CommandRule Default, IReadOnlyDict
                 CommandRule? own = null;
                 foreach (var property in repository.Value.EnumerateObject())
                 {
+                    if (property.Name == "start")
+                    {
+                        continue; // read by HostStartRules
+                    }
                     if (property.Name != "commands")
                     {
-                        throw new InvalidOperationException($"{where}: repositories.{repository.Name} has an unknown setting (only commands).");
+                        throw new InvalidOperationException($"{where}: repositories.{repository.Name} has an unknown setting (only commands and start).");
                     }
                     own = CommandRule.Read(property.Value, $"{where}: repositories.{repository.Name}.commands");
                 }

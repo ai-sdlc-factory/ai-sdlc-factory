@@ -17,10 +17,11 @@ public sealed record TicketReference(string Owner, string Repo, int Number);
 /// <summary>Whose command to check: the host, the repository (the factory's qualified owner), the login the host reported for the person, and the commands the comment carries (see <see cref="CommandNameReader"/>).</summary>
 public sealed record CommandCheck(string Host, string Owner, string Repo, string Login, IReadOnlyList<string>? Commands = null);
 
-public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, PermissionCache? permissions = null, ProjectRuleCache? projectRules = null)
+public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, PermissionCache? permissions = null, ProjectRuleCache? projectRules = null, TeamCache? teams = null)
 {
     private readonly PermissionCache cache = permissions ?? new PermissionCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds));
     private readonly ProjectRuleCache projectCache = projectRules ?? new ProjectRuleCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds));
+    private readonly TeamCache teamCache = teams ?? new TeamCache(TimeSpan.FromSeconds(settings.PermissionCacheSeconds));
 
     private const string ProjectFile = ".factory/project.json";
 
@@ -111,6 +112,74 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, Pe
             }
         }
         return CommandPolicy.Decide(rule, login, permission, commands, project);
+    }
+
+    /// <summary>
+    /// Whether a person may START a run of this kind on a repository, by the operator's <c>start</c> rule for it. With no rule, or a rule that does not cover this kind, the host is not asked at all;
+    /// otherwise it is asked only what the rule needs (the person's access, and whether they are in the teams it names, and only while that could still change the answer), and a clear answer is kept
+    /// for a while. A host that cannot say, or fails, makes the answer no, and the verdict says that it could not be checked.
+    /// </summary>
+    [Activity("githost_check_start")]
+    public async Task<StartVerdict> CheckStartAsync(StartCheck check)
+    {
+        var rule = (settings.HostNamed(check.Host).Start ?? HostStartRules.Open).For(RepoNames.Split(check.Owner).Owner, check.Repo);
+        if (!rule.Covers(check.Kind))
+        {
+            return StartVerdict.Yes;
+        }
+        var login = check.Login.Trim();
+        var token = ActivityExecutionContext.Current.CancellationToken;
+
+        HostPermission? permission = null;
+        if (StartPolicy.NeedsPermission(rule, login))
+        {
+            if (cache.TryGet(check.Owner, check.Repo, login, out var kept))
+            {
+                permission = kept;
+            }
+            else
+            {
+                try
+                {
+                    permission = await host.GetPermissionAsync(check.Owner, check.Repo, login, token);
+                    cache.Keep(check.Owner, check.Repo, login, permission.Value);
+                }
+                catch (Exception error) when (error is not OperationCanceledException)
+                {
+                    ActivityExecutionContext.Current.Logger.LogWarning("Could not look up a person's access to {Repository}: {Error}", $"{check.Owner}/{check.Repo}", error.GetType().Name);
+                }
+            }
+        }
+
+        // The person's own team answers are looked for only while they could still let them in; one that says yes ends the asking.
+        var membership = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        foreach (var team in StartPolicy.TeamsToAsk(rule, login, permission))
+        {
+            if (teamCache.TryGet(check.Host, team, login, out var member))
+            {
+                membership[team] = member;
+            }
+            else
+            {
+                try
+                {
+                    if (await host.IsTeamMemberAsync(check.Owner, team, login, token) is { } answer)
+                    {
+                        membership[team] = answer;
+                        teamCache.Keep(check.Host, team, login, answer);
+                    }
+                }
+                catch (Exception error) when (error is not OperationCanceledException)
+                {
+                    ActivityExecutionContext.Current.Logger.LogWarning("Could not look up a team of {Repository}: {Error}", $"{check.Owner}/{check.Repo}", error.GetType().Name);
+                }
+            }
+            if (membership.TryGetValue(team, out var isMember) && isMember)
+            {
+                break;
+            }
+        }
+        return StartPolicy.Decide(rule, check.Kind, login, permission, membership);
     }
 
     /// <summary>What the repository's <c>.factory/project.json</c> says about who may steer, kept for a while. No file, no key, or a key that cannot be used says nothing (the run's own warning names it).</summary>

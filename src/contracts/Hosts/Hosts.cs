@@ -33,7 +33,7 @@ public static partial class RepoNames
 /// One git host as <c>FACTORY_HOSTS</c> describes it. The API reads the name, the kind and the webhook secret; the controller reads the name, the kind, the address, the bot's
 /// token and the bot's login; the alert intake reads the name, the address and the token.
 /// </summary>
-public sealed record HostDefinition(string Name, string Type, string Url, string Token, string BotLogin, string WebhookSecret, TriggerRules? Triggers = null, HostCommandRules? Commands = null);
+public sealed record HostDefinition(string Name, string Type, string Url, string Token, string BotLogin, string WebhookSecret, TriggerRules? Triggers = null, HostCommandRules? Commands = null, HostStartRules? Start = null);
 
 public static class HostsSetting
 {
@@ -95,7 +95,8 @@ public static class HostsSetting
                 }
                 var triggers = item.TryGetProperty("triggers", out var triggersValue) ? TriggerRules.Read(triggersValue, $"{Variable}: host \"{name}\"") : TriggerRules.Default;
                 var commands = HostCommandRules.Read(item, $"{Variable}: host \"{name}\"");
-                hosts.Add(new HostDefinition(name, type, url.TrimEnd('/'), Text(item, "token") ?? "", Text(item, "bot_login") is { Length: > 0 } login ? login : "factory-bot", secret, triggers, commands));
+                var start = HostStartRules.Read(item, $"{Variable}: host \"{name}\"");
+                hosts.Add(new HostDefinition(name, type, url.TrimEnd('/'), Text(item, "token") ?? "", Text(item, "bot_login") is { Length: > 0 } login ? login : "factory-bot", secret, triggers, commands, start));
             }
             return hosts;
         }

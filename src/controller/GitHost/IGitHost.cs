@@ -57,6 +57,12 @@ public interface IGitHost : IJanitorGitHost
     Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Whether a person is a member of a team, written <c>organisation/team</c> (the owner is the repository's, which says which host to ask). True or false when the host says so;
+    /// null when it cannot (the token may not look at an organisation's teams), so the caller does not take it for a no.
+    /// </summary>
+    Task<bool?> IsTeamMemberAsync(string owner, string team, string login, CancellationToken cancellationToken);
+
+    /// <summary>
     /// A small text file of the repository on its default branch (<paramref name="path"/> relative to the root), or null when there is none, it is not a file, or it is larger than
     /// <see cref="GitHostLimits.MaxFileBytes"/>. Used for the one file the factory reads without a checkout: <c>.factory/project.json</c>.
     /// </summary>

@@ -279,10 +279,17 @@ public sealed class PermissionCacheTests
 
 public sealed class CheckCommandActivityTests
 {
-    private sealed class CountingHost(HostPermission answer, bool fail = false, string? projectFile = null, bool failFile = false) : IGitHost
+    internal sealed class CountingHost(HostPermission answer, bool fail = false, string? projectFile = null, bool failFile = false, bool? teamMember = null, bool failTeam = false) : IGitHost
     {
         public int Lookups { get; private set; }
         public int FileReads { get; private set; }
+        public int TeamLookups { get; private set; }
+
+        public Task<bool?> IsTeamMemberAsync(string owner, string team, string login, CancellationToken ct)
+        {
+            TeamLookups++;
+            return failTeam ? throw new HttpRequestException("host down") : Task.FromResult(teamMember);
+        }
 
         public Task<string?> ReadFileAsync(string owner, string repo, string path, CancellationToken ct)
         {

@@ -448,6 +448,32 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
     /// A person's access to a repository: <c>collaborators/{login}/permission</c>. Its <c>role_name</c> tells a maintainer (who may write) and a triager (who may only read) apart; the older
     /// <c>permission</c> field is the fallback.
     /// </summary>
+    public async Task<bool?> IsTeamMemberAsync(string owner, string team, string login, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var parts = team.Split('/');
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+        using var request = Authorized(HttpMethod.Get, $"orgs/{Uri.EscapeDataString(parts[0])}/teams/{Uri.EscapeDataString(parts[1])}/memberships/{Uri.EscapeDataString(login)}");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false; // not a member, or no such team
+        }
+        if (response.StatusCode == HttpStatusCode.Forbidden && !IsRateLimited(response))
+        {
+            return null; // the token may not look at the organisation's teams
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("team lookup", response);
+        }
+        using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return Text(document.RootElement, "state") == "active"; // an invitation that is still pending is not membership
+    }
+
     public async Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken)
     {
         RequireToken();

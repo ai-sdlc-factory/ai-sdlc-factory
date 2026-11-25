@@ -32,8 +32,47 @@ public sealed class RepoEventWorkflow
         {
             return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
         }
+        if (!await MayStartAsync(input.Host, repoEvent, decision))
+        {
+            return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
+        }
         await RouteAsync(decision);
         return new EventReceipt(input.DeliveryId, input.Event, repoEvent.Repository, repoEvent.Action, repoEvent.Reference);
+    }
+
+    /// <summary>
+    /// The operator's rule of who may START a run (<c>start</c> in <c>FACTORY_HOSTS</c>), applied before one starts: by a label, by opening or reopening a ticket that carries one, or by <c>/factory</c> or
+    /// <c>/retry</c>. The person judged is the one who set it off. A person it refuses gets one short comment (unless the rule says to stay silent) and nothing starts. With no rule the activity
+    /// answers yes without asking the host anything. Separate from <see cref="MayProceedAsync"/>, which judges who may steer: a person may be allowed one and not the other.
+    /// </summary>
+    private static async Task<bool> MayStartAsync(string host, RepoEvent input, RoutingDecision decision)
+    {
+        if (decision.Action is not (RoutingAction.StartFeature or RoutingAction.RetryFeature) || decision.Feature is not { } ticket)
+        {
+            return true;
+        }
+        var login = input.Kind == RepoEventKind.Commented ? input.CommentAuthor : input.Actor;
+        var verdict = await Workflow.ExecuteActivityAsync(
+            (GitHostActivities activities) => activities.CheckStartAsync(new StartCheck(host, input.Owner, input.Repo, login, ticket.Kind)),
+            ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
+        if (verdict.Allowed)
+        {
+            return true;
+        }
+        if (!verdict.Silent)
+        {
+            try
+            {
+                await Workflow.ExecuteActivityAsync(
+                    (GitHostActivities activities) => activities.PostNoticeUniqueAsync(new CommentRequest(input.Owner, input.Repo, input.Number, TicketComments.StartRefused(verdict))),
+                    ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+            }
+            catch (ActivityFailureException)
+            {
+                // Best effort: nothing starts either way.
+            }
+        }
+        return false;
     }
 
     /// <summary>Whether a person is steering the factory: a command, an answer to an agent, or a review that asks for a revision. A label that starts a run is the host's to limit, not ours.</summary>

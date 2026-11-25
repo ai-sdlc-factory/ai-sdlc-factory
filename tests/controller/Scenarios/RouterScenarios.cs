@@ -7,7 +7,7 @@ namespace AiSdlcFactory.Controller.Tests.Scenarios;
 [Trait("Category", "Scenario")]
 public sealed class RouterScenarios(TemporalFixture fixture)
 {
-    private static WebhookDelivery Event(string name, string action, string repo, string? comment = null, string state = "open", string label = "feature")
+    private static WebhookDelivery Event(string name, string action, string repo, string? comment = null, string state = "open", string label = "feature", string? sender = null)
     {
         var payload = new Dictionary<string, object?>
         {
@@ -22,6 +22,10 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         if (comment is not null)
         {
             payload["comment"] = new { body = comment, user = new { login = "bob" } };
+        }
+        if (sender is not null)
+        {
+            payload["sender"] = new { login = sender };
         }
         return new WebhookDelivery(Guid.NewGuid().ToString(), name, JsonDocument.Parse(JsonSerializer.Serialize(payload)).RootElement);
     }
@@ -308,6 +312,137 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         });
 
         Assert.Single(world.Calls("analyst"));
+    }
+
+    // ---- who may start a run
+
+    private static StartVerdict Refused(string kind = "feature") => new(false, kind, "write access to the repository", false, null);
+
+    [SkippableFact]
+    public async Task A_ticket_labelled_by_someone_the_start_rule_refuses_starts_nothing_and_gets_one_message_that_names_the_rule_not_the_person()
+    {
+        var verdict = Refused();
+        var world = new FakeWorld { StartVerdict = verdict };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "labeled", repo, sender: "mallory"));
+            await Route(context, Event("issues", "labeled", repo, sender: "mallory"));
+            await Task.Delay(1500); // long enough for a child workflow that was wrongly started to show itself
+            return 0;
+        });
+
+        var notice = Assert.Single(world.Snapshot(world.Notices)); // the same refusal on the same ticket is not repeated
+        Assert.Equal(TicketComments.StartRefused(verdict), notice);
+        Assert.DoesNotContain("mallory", notice);
+        Assert.Contains("write access to the repository", notice);
+        Assert.Empty(world.PrepareRequests);
+        Assert.All(world.Snapshot(world.StartChecks), check => Assert.Equal(("forgejo", "acme", repo, "mallory", "feature"), (check.Host, check.Owner, check.Repo, check.Login, check.Kind)));
+    }
+
+    [SkippableFact]
+    public async Task A_refusal_that_is_silent_starts_nothing_and_says_nothing()
+    {
+        var world = new FakeWorld { StartVerdict = new StartVerdict(false, "feature", "write access to the repository", true, null) };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "labeled", repo, sender: "mallory"));
+            await Task.Delay(1500);
+            return 0;
+        });
+
+        Assert.Empty(world.Snapshot(world.Notices));
+        Assert.Empty(world.PrepareRequests);
+        Assert.Single(world.Snapshot(world.StartChecks));
+    }
+
+    [SkippableFact]
+    public async Task The_operators_own_words_are_what_a_refused_ticket_is_told()
+    {
+        var verdict = new StartVerdict(false, "feature", "write access to the repository", false, "Thanks! A maintainer has to label this before the factory works on it.");
+        var world = new FakeWorld { StartVerdict = verdict };
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "labeled", "r" + Guid.NewGuid().ToString("N")[..10], sender: "mallory"));
+            await Task.Delay(1000);
+            return 0;
+        });
+
+        Assert.Equal("Thanks! A maintainer has to label this before the factory works on it.", Assert.Single(world.Snapshot(world.Notices)));
+    }
+
+    [SkippableFact]
+    public async Task A_start_the_rule_allows_goes_ahead_and_the_person_and_the_kind_were_what_was_checked()
+    {
+        var world = new FakeWorld(); // the rule's answer is yes
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "labeled", repo, label: "bug", sender: "carol"));
+            await WaitUntilAsync(() => world.Snapshot(world.PrepareRequests).Count > 0);
+            return 0;
+        });
+
+        var check = Assert.Single(world.Snapshot(world.StartChecks));
+        Assert.Equal(("carol", "bug"), (check.Login, check.Kind));
+        Assert.Empty(world.Snapshot(world.Notices));
+    }
+
+    [SkippableFact]
+    public async Task Reopening_a_ticket_is_judged_by_the_person_who_reopened_it()
+    {
+        var world = new FakeWorld { StartVerdict = Refused() };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issues", "reopened", repo, sender: "dave"));
+            await Task.Delay(1000);
+            return 0;
+        });
+
+        Assert.Equal("dave", Assert.Single(world.Snapshot(world.StartChecks)).Login);
+        Assert.Empty(world.PrepareRequests);
+    }
+
+    [SkippableFact]
+    public async Task A_retry_is_judged_by_the_person_who_commented_it_after_the_rule_on_commands()
+    {
+        var world = new FakeWorld { StartVerdict = Refused() };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "/retry"));
+            await Task.Delay(1000);
+            return 0;
+        });
+
+        Assert.Equal("bob", Assert.Single(world.Snapshot(world.StartChecks)).Login); // the comment's author
+        Assert.Single(world.Snapshot(world.CommandChecks)); // /retry is also a command, and passed that rule first
+        Assert.Empty(world.PrepareRequests);
+    }
+
+    [SkippableFact]
+    public async Task Steering_a_run_and_a_ticket_that_starts_nothing_are_not_judged_by_the_start_rule()
+    {
+        var world = new FakeWorld { StartVerdict = Refused() };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "/ask where is the greeting?"));
+            await Route(context, Event("issues", "opened", repo, label: "question")); // no label that starts a workflow
+            await Task.Delay(1000);
+            return 0;
+        });
+
+        Assert.Empty(world.Snapshot(world.StartChecks));
     }
 
     // ---- who may steer the factory

@@ -39,6 +39,14 @@ public sealed class WebhookAdapterTests
     }
 
     [Fact]
+    public void The_person_who_labelled_a_ticket_is_the_actor_and_not_its_author()
+    {
+        var read = Read("issues", new { action = "labeled", repository = new { full_name = "acme/shop" }, issue = Issue(), sender = new { login = "triager" } });
+
+        Assert.Equal(("triager", "alice"), (read.Actor, read.Author));
+    }
+
+    [Fact]
     public void A_delivery_from_another_host_names_its_owner_with_that_host_and_the_default_hosts_stays_plain()
     {
         object payload = new { action = "opened", repository = new { full_name = "acme/shop" }, issue = Issue() };

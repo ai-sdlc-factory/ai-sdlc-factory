@@ -124,7 +124,7 @@ The factory needs **none** of the host's notification features. It never reads e
 
 ## Who may start and steer runs
 
-There are two layers, and the factory-side one is optional.
+There are two layers. The host's is always in force; the factory adds two optional rules of its own: [who may **steer** a run](#who-may-steer-a-run-commands) (`commands`) and [who may **start** one](#who-may-start-a-run-start) (`start`).
 
 **On the host** (always in force). The host decides who can do what, and the factory reacts to the events:
 
@@ -133,6 +133,8 @@ There are two layers, and the factory-side one is optional.
 | **Open a ticket, comment** | anyone who can see the repository and is signed in (the bundled Forgejo requires sign-in to view anything and has registration disabled) | on a **public** repository anyone with an account; on a private one, people with access |
 | **Add a label** (starts a run) | people with write access | people with **triage** access or more |
 | **Review a pull request** | anyone who can see it | anyone on a public repository (a review that asks for changes starts a revision) |
+
+### Who may steer a run: `commands`
 
 **On the factory** (optional, off by default: anyone who can comment may use commands). The `commands` setting in the host's entry of `FACTORY_HOSTS`, per host and per repository ([all the details](configuration.md#factory_hosts)):
 
@@ -149,6 +151,29 @@ There are two layers, and the factory-side one is optional.
 - The rule covers the slash commands, `/factory <kind>`, answers to an agent, and a review that asks for changes. It does **not** cover a label: the host limits who can label.
 - For `write` and `admin` the controller asks the host (the collaborator permission) and keeps the answer for [`FACTORY_PERMISSION_CACHE_SECONDS`](configuration.md#needed-for-the-factory-to-work-but-optional-for-the-stack-to-start) (default 5 minutes). If the host cannot say, the answer is no.
 - **Turn it off** by removing `commands` and `repositories` from the host's entry (or setting `"commands":"anyone"`) and recreating the controller: `cd deploy && docker compose up -d --force-recreate controller`. A `repositories` entry with `"commands":"anyone"` opens a single repository under a stricter host rule.
+
+### Who may start a run: `start`
+
+The `commands` rule judges what people do with a run that exists. It does **not** say who may start one: a label starts a run, and the host limits who may label. Where that is not enough (a public repository where anyone can open a ticket, or where more people can label than you want to trust), the `start` setting limits **who may set a run off**, by person, by team or by access level. It is optional and off by default, and it is written beside `commands` in the host's entry, per host and per repository:
+
+```json
+{"name":"github", "...":"...",
+ "start": {"teams": ["acme/maintainers"], "allow": ["alice"], "refusal": "comment",
+           "message": "Thanks! A maintainer has to label this before the factory works on it."},
+ "repositories": {"acme/playground": {"start": "anyone"},
+                  "acme/payments":   {"start": {"who": "admin", "kinds": ["feature", "bug"]}}}}
+```
+
+- **Whom it judges.** The person who set the run off: who **added the label**, who **opened** a ticket that already carried one (an issue template that adds a label counts), who **reopened** the ticket, or who commented `/factory <kind>` or `/retry`. The person who wrote the ticket is a different thing, and is not looked at.
+- **The same words as `commands`.** `who` is `anyone`, `write`, `admin` or `none`; `allow` names people who are let in whatever their access; `deny` names people who are always refused, even administrators (deny first). Logins are written the way the host writes them, case does not matter.
+- **`teams`.** A list of `organisation/team` (at most 20): a member of any is let in. On GitHub write the team's slug (`acme/maintainers`); on Forgejo its name. The factory's token needs an extra permission to read the organisation's teams (GitHub: the organisation's *Members* permission, read; Forgejo: `read:organization`), which widens the bot's token. If the host cannot say, the person is refused and told that it could not be checked. Team lookups are tested against test servers only; try one on your organisation before relying on it.
+- **How the parts combine.** A person is let in when they are named in `allow`, are in one of the `teams`, or have the access `who` asks for. Without `who`, a list of people or teams means **only them**, and without any list the rule is `anyone` except the people denied: `{"teams": ["acme/maintainers"]}` is "only the maintainers", `{"deny": ["mallory"]}` is "anyone but mallory", `{"who": "write", "teams": [...]}` is "people with write access, and the team".
+- **`kinds`.** Limits the rule to some kinds of run: `feature`, `bug`, `plan`, `incident`, `docs`. The others start as before. Without `kinds` it covers all of them.
+- **When a person is refused.** Nothing starts, and the ticket gets one short comment that says what a run needs (never who may) and that someone who may can label it again. `"refusal": "silent"` says nothing instead. `message` replaces the text with your own words (one line, up to 500 characters); it is not used when the host could not be asked, because then it would not be true. The same comment is not repeated on the same ticket.
+- **Starting later.** A refused ticket is not lost: when a person the rule lets in adds the label, reopens the ticket or comments `/retry`, it starts normally.
+- **What it does not cover.** Closing a ticket, answers and commands on a run that exists (that is `commands`), and the host's own rights to open tickets and add labels. A person may be allowed by one rule and refused by the other.
+- **Access and teams are asked of the host** only when they could change the answer, and a clear answer is kept for [`FACTORY_PERMISSION_CACHE_SECONDS`](configuration.md#needed-for-the-factory-to-work-but-optional-for-the-stack-to-start) (default 5 minutes). A person removed from a team still passes until the answer expires. If the host cannot say, the answer is no for now and the next start asks again.
+- **Check it.** `docker compose logs controller | grep "Git host"` shows each host's rule, for example "a run starts only when set off by members of 1 team". **Turn it off** by removing `start` from the host's entry (or `"start": "anyone"`) and recreating the controller.
 
 ## Checking that it works
 

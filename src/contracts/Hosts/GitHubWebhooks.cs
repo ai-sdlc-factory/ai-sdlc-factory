@@ -75,6 +75,8 @@ public sealed partial class GitHubWebhookAdapter : IWebhookAdapter
             IsOpen = WebhookJson.AsString(WebhookJson.Get(issue, "state")) is null or "open",
             Title = WebhookJson.AsString(WebhookJson.Get(issue, "title")) ?? "", Body = WebhookJson.AsString(WebhookJson.Get(issue, "body")) ?? "",
             Author = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(issue, "user"), "login")) ?? "",
+            // Who set the event off (who added the label, opened or reopened the ticket); the author of the ticket is another thing.
+            Actor = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(payload, "sender"), "login")) ?? "",
             Labels = WebhookJson.LabelNames(issue),
             // GitHub's issue types (a bug, a task, a feature) are the work-item types of a ticket there.
             ItemType = WebhookJson.AsString(WebhookJson.Get(WebhookJson.Get(issue, "type"), "name")),

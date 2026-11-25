@@ -66,7 +66,7 @@ public sealed class HostsSettingTests
     {
         var host = Assert.Single(HostsSetting.Parse($"[{Host()}]"));
 
-        Assert.Equal(new HostDefinition("work", "forgejo", "https://git.example.org", "tok", "factory-bot", Secret, TriggerRules.Default, HostCommandRules.Open), host);
+        Assert.Equal(new HostDefinition("work", "forgejo", "https://git.example.org", "tok", "factory-bot", Secret, TriggerRules.Default, HostCommandRules.Open, HostStartRules.Open), host);
     }
 
     [Theory]
@@ -118,7 +118,7 @@ public sealed class HostsSettingTests
         var settings = Settings($"[{Forgejo()},{Host(login: "cb-bot")}]");
 
         Assert.Equal(["forgejo", "work"], settings.Hosts.Select(host => host.Name));
-        Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default, HostCommandRules.Open), settings.Hosts[0]);
+        Assert.Equal(new HostSettings("forgejo", "forgejo", "http://forgejo:3000", "default-token", "default-bot", TriggerRules.Default, HostCommandRules.Open, HostStartRules.Open), settings.Hosts[0]);
         Assert.Equal("default-bot", settings.BotLoginFor("acme"));
         Assert.Equal("cb-bot", settings.BotLoginFor("work:acme"));
         Assert.Equal(["default-token", "tok"], settings.HostTokens);
@@ -162,6 +162,7 @@ public sealed class GitHostRouterTests
         }
 
         public Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken ct) => Done($"{name}: permission {owner}/{repo} {login}", HostPermission.Write);
+        public Task<bool?> IsTeamMemberAsync(string owner, string team, string login, CancellationToken ct) => Done<bool?>($"{name}: team {owner} {team} {login}", true);
         public Task<string?> ReadFileAsync(string owner, string repo, string path, CancellationToken ct) => Done<string?>($"{name}: file {owner}/{repo} {path}", "{}");
         public Task PostIssueCommentAsync(string owner, string repo, int issueNumber, string body, CancellationToken ct) => Done($"{name}: comment {owner}/{repo}#{issueNumber}", 0);
         public Task<IReadOnlyList<string>> RecentCommentBodiesAsync(string owner, string repo, int issueNumber, int count, CancellationToken ct) => Done<IReadOnlyList<string>>($"{name}: bodies {owner}/{repo}", []);
@@ -238,6 +239,16 @@ public sealed class GitHostRouterTests
         Assert.Equal(15, other.Calls.Count);
         Assert.All(other.Calls, call => Assert.Contains("acme/shop", call));
         Assert.DoesNotContain(other.Calls, call => call.Contains("work"));
+        Assert.Empty(main.Calls);
+    }
+
+    [Fact]
+    public async Task A_team_lookup_goes_to_the_host_of_the_repositorys_owner()
+    {
+        var member = await Router().IsTeamMemberAsync("work:acme", "acme/maintainers", "alice", CancellationToken.None);
+
+        Assert.True(member);
+        Assert.Equal(["other: team acme acme/maintainers alice"], other.Calls.Where(call => call.Contains("team")).ToList()); // the owner is plain by then
         Assert.Empty(main.Calls);
     }
 

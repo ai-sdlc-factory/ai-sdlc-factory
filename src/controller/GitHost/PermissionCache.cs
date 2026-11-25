@@ -56,6 +56,18 @@ public sealed class PermissionCache(TimeSpan lifetime, Func<DateTimeOffset>? now
     }
 }
 
+/// <summary>Whether a person belongs to a team, kept for as long as the permissions are kept. Only a clear answer is kept: a host that could not say is asked again next time.</summary>
+public sealed class TeamCache(TimeSpan lifetime, Func<DateTimeOffset>? now = null)
+{
+    private readonly TimedCache<bool> answers = new(lifetime, now);
+
+    private static string KeyOf(string host, string team, string login) => $"{host}|{team}|{login}";
+
+    public bool TryGet(string host, string team, string login, out bool member) => answers.TryGet(KeyOf(host, team, login), out member);
+
+    public void Keep(string host, string team, string login, bool member) => answers.Keep(KeyOf(host, team, login), member);
+}
+
 /// <summary>What a repository's project file says about who may steer the factory, for as long as the permissions are kept: one read of the file serves a burst of commands.</summary>
 public sealed class ProjectRuleCache(TimeSpan lifetime, Func<DateTimeOffset>? now = null)
 {

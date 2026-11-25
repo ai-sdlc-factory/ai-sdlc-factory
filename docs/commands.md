@@ -43,7 +43,7 @@ Labels that change how a run behaves (they start nothing by themselves):
 | `full` | the full process, even if the project defaults to quick |
 | `needs-architecture` | forces a design review, even in quick mode |
 
-Closing a ticket stops its run. Reopening it starts a new one. The labels must exist in the repository (`python3 tools/onboard-repo.py owner/repo` creates them, and the webhook).
+By default whoever can add the label starts the run; an operator can limit that to named people, teams or an access level, and a ticket set off by someone else gets a short message instead ([who may start a run](git-hosts.md#who-may-start-a-run-start)). Closing a ticket stops its run. Reopening it starts a new one. The labels must exist in the repository (`python3 tools/onboard-repo.py owner/repo` creates them, and the webhook).
 
 ## Commands
 

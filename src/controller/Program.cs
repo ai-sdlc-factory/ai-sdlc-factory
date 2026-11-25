@@ -25,6 +25,12 @@ foreach (var host in settings.Hosts)
     {
         log.LogWarning("{Warning}", warning);
     }
+    // Who may start a run by a label is easy to forget until a ticket is not picked up; said once at start, when there is a rule.
+    if (host.Start is { IsOpen: false } start)
+    {
+        log.LogInformation("Git host {Host} ({Type}): {Rule}{Exceptions}", host.Name, host.Type, start.Default.Describe(),
+            start.Repositories.Count > 0 ? $"; {start.Repositories.Count} repositories have a rule of their own" : "");
+    }
 }
 
 // A model of its own for some roles is easy to forget until an answer changes; said once at start, with the roles in order.

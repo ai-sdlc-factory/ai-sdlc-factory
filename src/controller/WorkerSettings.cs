@@ -78,7 +78,7 @@ public sealed class WorkerSettings
         TemporalNamespace = NonEmpty(configuration, "TEMPORAL_NAMESPACE", "default"),
         TemporalTaskQueue = NonEmpty(configuration, "TEMPORAL_TASK_QUEUE", "factory-events"),
         TemporalUiUrl = NonEmpty(configuration, "TEMPORAL_UI_URL", "http://localhost:8080"),
-        Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands)).ToList(),
+        Hosts = HostsSetting.Parse(configuration[HostsSetting.Variable]).Select(host => new HostSettings(host.Name, host.Type, host.Url, host.Token, host.BotLogin, host.Triggers, host.Commands, host.Start)).ToList(),
         PermissionCacheSeconds = Number(configuration, "FACTORY_PERMISSION_CACHE_SECONDS", 300, v => v is >= 0 and <= 3600, "0 to 3600"),
         Model = ModelNames.Read(configuration[ModelNames.Variable]),
         RoleModels = EnabledProviders(KnownRoles(ModelNames.ReadRoles(configuration[ModelNames.RolesVariable])), configuration["FACTORY_AGENTS_DIR"]),

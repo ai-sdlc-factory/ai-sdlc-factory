@@ -250,6 +250,18 @@ public static class TicketComments
             + "Try again in a moment; if it keeps happening, the operator should check the factory's token.",
     };
 
+    /// <summary>
+    /// What a ticket is told when the operator's rule says the person who set a run off may not start one. It names no one, so the same text on the same ticket is posted once. The operator may give
+    /// their own words (<c>message</c>), which are used for a plain refusal; when the host could not say, the person is told that instead, because their own words would not be true.
+    /// </summary>
+    public static string StartRefused(StartVerdict verdict) =>
+        verdict.CouldNotCheck
+            ? $"I did not start a {verdict.Kind} run: I could not find out whether whoever set it off may start one on this repository, so I did not take the risk. Someone who may can label the ticket again in a moment; " +
+              "if it keeps happening, the operator should check the factory's token."
+            : verdict.Message ??
+              $"I did not start a {verdict.Kind} run: on this repository a run starts only when it is set off by someone with {verdict.Needs}. " +
+              "Whoever may can label the ticket again (or reopen it) to start it.";
+
     public const string NoticeMarker = "<!-- ai-sdlc-factory:notice -->";
 
     /// <summary>

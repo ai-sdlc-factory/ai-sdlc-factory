@@ -22,6 +22,12 @@ public sealed class GitHostRouter(IReadOnlyDictionary<string, IGitHost> hosts) :
         return host.ReadFileAsync(plain, repo, path, cancellationToken);
     }
 
+    public Task<bool?> IsTeamMemberAsync(string owner, string team, string login, CancellationToken cancellationToken)
+    {
+        var (host, plain) = For(owner);
+        return host.IsTeamMemberAsync(plain, team, login, cancellationToken);
+    }
+
     public Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken)
     {
         var (host, plain) = For(owner);

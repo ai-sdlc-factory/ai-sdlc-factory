@@ -542,6 +542,64 @@ public sealed class ForgejoClient(HttpClient http, string token) : IGitHost
     }
 
     /// <summary>A person's access to a repository: <c>collaborators/{login}/permission</c> says none, read, write, admin or owner.</summary>
+    public async Task<bool?> IsTeamMemberAsync(string owner, string team, string login, CancellationToken cancellationToken)
+    {
+        RequireToken();
+        var parts = team.Split('/');
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+        using var search = Authorized(HttpMethod.Get, $"api/v1/orgs/{Uri.EscapeDataString(parts[0])}/teams/search?q={Uri.EscapeDataString(parts[1])}&limit=50");
+        using var found = await http.SendAsync(search, cancellationToken);
+        if (found.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false; // no such organisation
+        }
+        if (found.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+        if (!found.IsSuccessStatusCode)
+        {
+            throw Failure("team lookup", found.StatusCode, found.ReasonPhrase);
+        }
+        long? id = null;
+        using (var teams = await JsonDocument.ParseAsync(await found.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken))
+        {
+            if (teams.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in data.EnumerateArray())
+                {
+                    if (string.Equals(Text(item, "name"), parts[1], StringComparison.OrdinalIgnoreCase) && item.TryGetProperty("id", out var teamId) && teamId.TryGetInt64(out var number))
+                    {
+                        id = number;
+                        break;
+                    }
+                }
+            }
+        }
+        if (id is null)
+        {
+            return false; // the organisation has no team of that name
+        }
+        using var request = Authorized(HttpMethod.Get, $"api/v1/teams/{id}/members/{Uri.EscapeDataString(login)}");
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return null;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw Failure("team lookup", response.StatusCode, response.ReasonPhrase);
+        }
+        return true;
+    }
+
     public async Task<HostPermission> GetPermissionAsync(string owner, string repo, string login, CancellationToken cancellationToken)
     {
         RequireToken();

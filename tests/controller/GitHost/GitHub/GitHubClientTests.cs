@@ -419,6 +419,38 @@ public sealed class GitHubClientTests
         Assert.Equal(HostPermission.Unknown, await forbidden.GetPermissionAsync("a", "b", "alice", CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData("active", true)]
+    [InlineData("pending", false)] // an invitation that is still pending is not membership
+    public async Task A_team_member_is_one_whose_membership_is_active(string state, bool expected)
+    {
+        var (client, handler) = Client(_ => Ok(Json(new { state, role = "member" })));
+
+        Assert.Equal(expected, await client.IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        Assert.Equal("/orgs/acme/teams/maintainers/memberships/alice", Assert.Single(handler.Requests).Url);
+    }
+
+    [Fact]
+    public async Task A_person_who_is_not_in_the_team_is_no_member_and_a_token_that_may_not_look_does_not_know()
+    {
+        var (missing, _) = Client(_ => (HttpStatusCode.NotFound, "{}", null));
+        var (forbidden, _) = Client(_ => (HttpStatusCode.Forbidden, "{}", null));
+        var (limited, _) = Client(_ => (HttpStatusCode.Forbidden, "{}", new Dictionary<string, string> { ["X-RateLimit-Remaining"] = "0" }));
+
+        Assert.False(await missing.IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        Assert.Null(await forbidden.IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+        await Assert.ThrowsAsync<Temporalio.Exceptions.ApplicationFailureException>(() => limited.IsTeamMemberAsync("acme", "acme/maintainers", "alice", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_team_that_is_not_written_organisation_slash_team_is_not_looked_up()
+    {
+        var (client, handler) = Client(_ => Ok(Json(new { state = "active" })));
+
+        Assert.Null(await client.IsTeamMemberAsync("acme", "maintainers", "alice", CancellationToken.None));
+        Assert.Empty(handler.Requests);
+    }
+
     [Fact]
     public async Task Running_out_of_requests_is_an_error_to_try_again_not_an_unknown_answer()
     {

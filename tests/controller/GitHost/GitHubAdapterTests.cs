@@ -20,6 +20,20 @@ public sealed class GitHubAdapterTests
         type = type is null ? null : new { name = type },
     };
 
+    [Fact]
+    public void The_person_who_labelled_a_ticket_is_the_actor_and_not_its_author()
+    {
+        var read = Read("issues", new { action = "labeled", repository = new { full_name = "acme/shop" }, issue = Issue(), sender = new { login = "triager" } });
+
+        Assert.Equal(("triager", "alice"), (read.Actor, read.Author)); // alice wrote the ticket, triager set the run off
+    }
+
+    [Fact]
+    public void A_ticket_event_without_a_sender_has_no_actor()
+    {
+        Assert.Equal("", Read("issues", new { action = "opened", repository = new { full_name = "acme/shop" }, issue = Issue() }).Actor);
+    }
+
     [Theory]
     [InlineData("opened", RepoEventKind.TicketOpened)]
     [InlineData("labeled", RepoEventKind.TicketOpened)]
