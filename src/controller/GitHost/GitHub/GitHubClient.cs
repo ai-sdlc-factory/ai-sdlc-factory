@@ -53,6 +53,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
 
     public async Task<bool> PostNoticeOnceAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
+        using var turn = await NoticeGate.EnterAsync(owner, repo, issueNumber, cancellationToken); // look and post as one step, or events that arrive together would all post
         var recent = await RecentCommentBodiesAsync(owner, repo, issueNumber, 10, cancellationToken);
         if (recent.Any(comment => TicketComments.IsNoticeOf(comment, body)))
         {
@@ -64,6 +65,7 @@ public sealed class GitHubClient(HttpClient http, string token) : IGitHost
 
     public async Task<bool> PostNoticeUniqueAsync(string owner, string repo, int issueNumber, string body, CancellationToken cancellationToken)
     {
+        using var turn = await NoticeGate.EnterAsync(owner, repo, issueNumber, cancellationToken);
         var comments = await RecentCommentBodiesAsync(owner, repo, issueNumber, 200, cancellationToken);
         if (comments.Any(comment => comment.Contains(body, StringComparison.Ordinal)))
         {
