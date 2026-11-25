@@ -140,7 +140,7 @@ The aim is a fix **proven by a test that fails before and passes after**. The fa
 | --- | --- | --- |
 | 1 | `bug-analyst` (read-only) | answer shape; asks on the ticket if the report is unclear (expected vs actual, severity) |
 | 2 | `reproducer` (writes tests only) | only the test files it lists changed; no deletions; protected paths and secrets as usual |
-| 3 | **RED check** | the factory runs the reproducer's `test_command` on the **unchanged code**: it must **fail**. A test that passes, or a command that cannot run (exit 126/127, timeout), goes back to the reproducer with the reason; 3 attempts at most, then `cannot_reproduce` |
+| 3 | **RED check** | the factory runs the reproducer's `test_command` on the **unchanged code**: it must **fail**. A test that passes, a command that cannot run (exit 126/127, timeout), or a run that stopped before any test gave a result (a build error, a collection or import error: the exit codes pytest keeps for that, and the messages the common tools print) goes back to the reproducer with the reason; 3 attempts at most, then `cannot_reproduce`. Any other non-zero exit is taken as a failing test |
 | 4 | `diagnostician` (read-only) | answer shape; `too_large` stops with `needs_design` and suggests a feature ticket. Skipped in quick mode |
 | 5 | `developer` | gets the failing test, the observed failure and the root cause; may not edit the test |
 | 6 | **GREEN check** | the test files' SHA-256 are unchanged; the project's checks pass; **the same test command now passes** |

@@ -47,6 +47,10 @@ public sealed partial class BugWorkflow
                 {
                     problem = $"The test passes on the unchanged code, so it does not show the bug. Make it fail because of the behaviour in the ticket (a wrong result, not an error in the test itself). Output:\n{Tail(CombinedOutput(result), 1200)}";
                 }
+                else if (RedCheck.DidNotRunTests(reproduction.TestCommand, result.ExitCode, CombinedOutput(result)) is { } notRun)
+                {
+                    problem = $"The test command stopped before it could show the bug: {notRun}. That does not prove the bug: it goes away as soon as the missing code exists, whatever that code does. Make the test build and run, and fail because of a wrong result (an assertion), not an error. Output:\n{Tail(CombinedOutput(result), 1200)}";
+                }
                 else
                 {
                     var output = CombinedOutput(result);

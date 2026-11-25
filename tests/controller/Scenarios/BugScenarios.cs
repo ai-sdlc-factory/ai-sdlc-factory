@@ -132,6 +132,27 @@ public sealed class BugScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
+    public async Task A_test_that_does_not_build_is_not_taken_as_a_failing_test()
+    {
+        var world = new FakeWorld()
+            .Agent("bug-analyst", Say(Answers.BugAnalyst()))
+            .Agent("reproducer", Say(Answers.Reproduction()), Say(Answers.Reproduction()))
+            .Agent("diagnostician", Say(Answers.Diagnosis()))
+            .Agent("developer", Say(Answers.Developer()))
+            .Agent("reviewer", Say(Answers.Review()))
+            .Changes(FakeWorld.TestOnly(), FakeWorld.TestOnly())
+            .Check(TestCommand, FakeWorld.Fails("ERROR collecting test_hello.py\nImportError while importing test module", exit: 2), FakeWorld.Fails("E assert"), FakeWorld.Passes());
+
+        var result = await world.RunAsync(fixture, context => context.RunToEndAsync(Bug()));
+
+        Assert.Equal("pr_opened", result.Status);
+        var retry = world.Calls("reproducer").ElementAt(1).Prompt;
+        Assert.Contains("stopped before it could show the bug", retry);
+        Assert.Contains("pytest exited with code 2", retry);
+        Assert.Single(world.Records, r => r.Slug == "red-check" && r.Outcome == "failed as required");
+    }
+
+    [SkippableFact]
     public async Task A_reproducer_that_changes_production_code_is_sent_back()
     {
         var world = new FakeWorld()
