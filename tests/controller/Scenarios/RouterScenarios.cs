@@ -65,6 +65,27 @@ public sealed class RouterScenarios(TemporalFixture fixture)
         Assert.Empty(world.Calls("analyst"));
     }
 
+    [SkippableTheory]
+    [InlineData(TicketPullState.Open, "/fix")]
+    [InlineData(TicketPullState.Merged, "new ticket")]
+    [InlineData(TicketPullState.Closed, "/retry")]
+    public async Task The_notice_for_a_comment_nobody_listens_to_says_what_to_do_about_the_tickets_pull_request(TicketPullState state, string advice)
+    {
+        var world = new FakeWorld { TicketPull = new TicketPullStatus(state, 12) };
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        await world.RunAsync(fixture, async context =>
+        {
+            await Route(context, Event("issue_comment", "created", repo, comment: "Please also add a button."));
+            return 0;
+        });
+
+        var notice = Assert.Single(world.Snapshot(world.Notices));
+        Assert.Equal(TicketComments.NoRunActiveFor(world.TicketPull), notice);
+        Assert.Contains("#12", notice);
+        Assert.Contains(advice, notice);
+    }
+
     [SkippableFact]
     public async Task An_incident_ticket_runs_the_incident_workflow_and_a_comment_reaches_it()
     {

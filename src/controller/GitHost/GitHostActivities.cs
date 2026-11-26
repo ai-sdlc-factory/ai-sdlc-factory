@@ -30,6 +30,27 @@ public sealed class GitHostActivities(IGitHost host, WorkerSettings settings, Pe
     public Task<int?> FindFactoryPullRequestAsync(TicketReference ticket) =>
         host.FindFactoryPullRequestAsync(ticket.Owner, ticket.Repo, ticket.Number, ActivityExecutionContext.Current.CancellationToken);
 
+    /// <summary>Where the factory's newest pull request for a ticket stands (open, merged, closed without merging, or none). Read-only; used to say something useful to a comment nobody is listening to.</summary>
+    [Activity("githost_ticket_pull_status")]
+    public async Task<TicketPullStatus> ReadTicketPullStatusAsync(TicketReference ticket)
+    {
+        var pulls = await host.ListAllPullRequestsAsync(ticket.Owner, ticket.Repo, ActivityExecutionContext.Current.CancellationToken);
+        return TicketPullStatus.Of(ticket.Number, pulls, settings.BotLoginFor(ticket.Owner));
+    }
+
+    /// <summary>Whether a plain comment on a pull request is on one of the factory's own open pull requests, written by a person (not the bot): the only place the hint about commands is said.</summary>
+    [Activity("githost_is_hint_target")]
+    public async Task<bool> IsHintTargetAsync(PullHintRequest request)
+    {
+        var bot = settings.BotLoginFor(request.Owner);
+        if (string.Equals(request.Author, bot, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        var pull = await host.GetPullRequestAsync(request.Owner, request.Repo, request.PullNumber, ActivityExecutionContext.Current.CancellationToken);
+        return RevisionRules.IsOpenFactoryPull(pull, bot);
+    }
+
     /// <summary>
     /// For the weekly report: what became of the pull requests the factory opened in a week (merged, closed without merging, still open). Read-only, and only numbers and states
     /// come back. At most <see cref="MaxRepositories"/> repositories, the ones the usage log names.

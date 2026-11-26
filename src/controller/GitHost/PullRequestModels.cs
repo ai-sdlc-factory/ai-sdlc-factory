@@ -34,6 +34,52 @@ public sealed record QaContext(PullRequestDetails? Pull, string BotLogin, PullCh
 /// <summary>What an <c>/update</c> needs to know before it touches the branch: the factory's pull request for the ticket (null when there is none), and the bot's login.</summary>
 public sealed record UpdateContext(PullRequestDetails? Pull, string BotLogin);
 
+/// <summary>Where a ticket's pull request stands: what a comment on a ticket with no running workflow should be told.</summary>
+public enum TicketPullState
+{
+    /// <summary>The factory made no pull request for the ticket (or the host could not say).</summary>
+    None,
+    Open,
+    Merged,
+    /// <summary>Closed without being merged.</summary>
+    Closed,
+}
+
+/// <summary>The state of a ticket's newest pull request and its number (0 when there is none).</summary>
+public sealed record TicketPullStatus(TicketPullState State, int Number)
+{
+    public static readonly TicketPullStatus NoPull = new(TicketPullState.None, 0);
+
+    /// <summary>
+    /// The newest pull request the factory (the bot) opened for a ticket from a <c>factory/issue-N</c> branch, open or not. A pull request someone else opened from a branch that
+    /// merely has the factory's name does not count.
+    /// </summary>
+    public static TicketPullStatus Of(int ticket, IEnumerable<PullSummary> pulls, string botLogin)
+    {
+        PullSummary? newest = null;
+        foreach (var pull in pulls)
+        {
+            if (RevisionRules.TicketOfBranch(pull.HeadRef) == ticket
+                && string.Equals(pull.Author, botLogin, StringComparison.OrdinalIgnoreCase)
+                && (newest is null || pull.Number > newest.Number))
+            {
+                newest = pull;
+            }
+        }
+        if (newest is null)
+        {
+            return NoPull;
+        }
+        var state = newest.Merged ? TicketPullState.Merged
+            : string.Equals(newest.State, "open", StringComparison.OrdinalIgnoreCase) ? TicketPullState.Open
+            : TicketPullState.Closed;
+        return new TicketPullStatus(state, newest.Number);
+    }
+}
+
+/// <summary>A plain comment on a pull request: asked whether it is on one of the factory's own open pull requests, to say once that only commands are read there.</summary>
+public sealed record PullHintRequest(string Owner, string Repo, int PullNumber, string Author);
+
 /// <summary>How many revisions the factory has made on a pull request, and when the last reply was posted.</summary>
 public sealed record RevisionHistory(int Count, DateTimeOffset? LastAt);
 

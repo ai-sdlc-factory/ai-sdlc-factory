@@ -366,6 +366,32 @@ public static class TicketComments
         "No factory run is active for this ticket (it has finished, or was never started), so this comment was not used. " +
         "To run it again, comment `/retry` (or close and reopen the ticket); update the ticket text first if the requirements changed.";
 
+    /// <summary>
+    /// A comment on a ticket with no running workflow, said by where the ticket's pull request stands: still open (change it there), merged (the work is done: a follow-up is a new ticket),
+    /// or closed without merging (run it again). With no pull request it is <see cref="NoRunActive"/>.
+    /// </summary>
+    public static string NoRunActiveFor(TicketPullStatus pull) => pull.State switch
+    {
+        TicketPullState.Open =>
+            $"No factory run is active for this ticket, so this comment was not used. Its pull request #{pull.Number} is still open: to change it, comment `/fix <what to change>` on the pull request " +
+            "(or submit a review that requests changes). To start the ticket over instead, comment `/retry restart`.",
+        TicketPullState.Merged =>
+            $"No factory run is active for this ticket, and its pull request #{pull.Number} has been merged, so this comment was not used. For a follow-up, open a new ticket with the label `feature` or `bug`. " +
+            "You can still ask about the code with `/ask <question>`.",
+        TicketPullState.Closed =>
+            $"No factory run is active for this ticket, and its pull request #{pull.Number} was closed without being merged, so this comment was not used. To run it again, comment `/retry` " +
+            "(it carries on from the last good stage) or `/retry restart` (from the beginning); update the ticket text first if the requirements changed.",
+        _ => NoRunActive,
+    };
+
+    /// <summary>A comment without a command on one of the factory's own open pull requests: said once per pull request.</summary>
+    public const string PullRequestCommentsAreNotRead =
+        "I found no command I can act on in this comment, so it was not used. To have the factory change this pull request, comment `/fix <what to change>` " +
+        "(or submit a review that requests changes). `/ask <question>` answers a question, and `/review`, `/qa` and `/update` are in the command list. " +
+        "Commands that start or restart a run, such as `/retry`, go on the ticket. I will not say this again on this pull request.";
+
+
+
     /// <summary>`/qa` on a ticket with no open pull request of the factory.</summary>
     public const string QaNoPullRequest =
         "I could not find an open pull request made by the factory for this ticket, so there is nothing to test. `/qa` works once the pull request is open.";

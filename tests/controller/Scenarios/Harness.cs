@@ -115,6 +115,9 @@ public sealed class FakeWorld
     /// <summary>The newest open pull request of the factory for the ticket (what the host would find); null means the ticket has none.</summary>
     public int? OpenFactoryPull { get; set; }
 
+    /// <summary>Where the factory's newest pull request for the ticket stands, as the host would say it (what a comment nobody listens to is answered with); the default is no pull request.</summary>
+    public TicketPullStatus TicketPull { get; set; } = TicketPullStatus.NoPull;
+
     /// <summary>What the git host says about the pull request an /update is for; the default is a pull request the factory opened for ticket 7, based on main.</summary>
     public UpdateContext UpdateContext { get; set; } = new(FactoryPullRequest().Pull, "factory-bot");
 
@@ -361,6 +364,12 @@ public sealed class FakeWorld
 
         [Activity("githost_find_factory_pull_request")]
         public int? FindFactoryPullRequest(TicketReference ticket) => world.OpenFactoryPull;
+
+        [Activity("githost_ticket_pull_status")]
+        public TicketPullStatus ReadTicketPullStatus(TicketReference ticket) => world.TicketPull;
+
+        [Activity("githost_is_hint_target")]
+        public bool IsHintTarget(PullHintRequest request) => RevisionRules.IsOpenFactoryPull(world.RevisionContext.Pull, world.RevisionContext.BotLogin);
 
         [Activity("githost_triggers")]
         public TriggerRules ReadTriggers(string hostName) => world.Triggers;

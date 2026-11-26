@@ -35,6 +35,14 @@ public static partial class RevisionRules
     [GeneratedRegex(@"\Afactory/issue-\d+(?:-\d+)?\z")]
     public static partial Regex FactoryBranch();
 
+    /// <summary>Whether a pull request is one the factory opened from its own branch in the same repository and that is still open: the only kind a hint about commands is for.</summary>
+    public static bool IsOpenFactoryPull(PullRequestDetails pull, string botLogin) =>
+        FactoryBranch().IsMatch(pull.HeadRef)
+        && string.Equals(pull.Author, botLogin, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(pull.HeadRepository, pull.BaseRepository, StringComparison.OrdinalIgnoreCase)
+        && !pull.Merged
+        && string.Equals(pull.State, "open", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Whether a pull request may be revised. Only a pull request the factory itself opened, from a branch in the same repository,
     /// that is still open and has been revised fewer than three times. Anything else is left alone.

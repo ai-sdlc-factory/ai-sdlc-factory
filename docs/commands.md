@@ -104,7 +104,8 @@ These work only on **the factory's own pull request** (branch `factory/issue-<n>
 | --- | --- |
 | a ticket whose workflow is waiting for you (the last comment asks a question) | **answers it**. Only the analyst, architect, reproducer, diagnostician, planner and incident stages read comments. When the project sets [`confirm_criteria`](project-setup.md#4-add-factoryprojectjson), a feature run waits after the analysis for `/approve`, and any other comment is a change to the criteria |
 | a ticket whose build has started | gets one notice: it cannot change what is built |
-| a ticket with no running workflow | gets a notice saying what to do (edit the ticket, then close and reopen it, or `/retry`) |
+| a ticket with no running workflow | gets a notice saying what to do, **by where the ticket's pull request stands**: still open, use `/fix <what to change>` on it (or `/retry restart` to start over); merged, open a new ticket for a follow-up (`/ask` still works); closed without merging, `/retry` or `/retry restart`; no pull request, `/retry` or close and reopen the ticket |
+| a pull request (any, with no command) | on one of **the factory's own open pull requests** the first such comment from a person gets one notice, saying that no command was found and how to ask for a change (`/fix <what to change>`, or a review that requests changes; commands such as `/retry` go on the ticket). It is not repeated on that pull request. On anyone else's pull request, and on a closed or merged one, a plain comment gets no answer: people talk to each other there |
 
 ## Things that happen without a command
 

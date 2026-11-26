@@ -399,7 +399,7 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
     }
 
     [SkippableFact]
-    public async Task A_plain_comment_on_a_pull_request_starts_nothing()
+    public async Task A_plain_comment_on_a_factory_pull_request_starts_nothing_but_is_told_once_how_to_ask()
     {
         var world = Reviewing();
         var repo = "r" + Guid.NewGuid().ToString("N")[..10];
@@ -407,13 +407,35 @@ public sealed class RevisionScenarios(TemporalFixture fixture)
         await world.RunAsync(fixture, async context =>
         {
             await Route(context, PullComment(repo, "Looks fine to me, thanks."));
+            await Route(context, PullComment(repo, "Could you also handle the empty case?"));
             await Task.Delay(1500);
             return 0;
         });
 
         Assert.Empty(world.AgentCalls);
         Assert.Empty(world.PrepareRequests);
-        Assert.Empty(world.Notices);
+        Assert.Equal(TicketComments.PullRequestCommentsAreNotRead, Assert.Single(world.Snapshot(world.Notices)));
+    }
+
+    [SkippableFact]
+    public async Task A_plain_comment_on_somebody_elses_or_a_merged_pull_request_gets_no_answer()
+    {
+        var elses = Reviewing();
+        elses.RevisionContext = FakeWorld.FactoryPullRequest(author: "alice", headRef: "alice/goodbye");
+        var merged = Reviewing();
+        merged.RevisionContext = FakeWorld.FactoryPullRequest(state: "closed", merged: true);
+        var repo = "r" + Guid.NewGuid().ToString("N")[..10];
+
+        foreach (var world in new[] { elses, merged })
+        {
+            await world.RunAsync(fixture, async context =>
+            {
+                await Route(context, PullComment(repo, "Nice work."));
+                await Task.Delay(1000);
+                return 0;
+            });
+            Assert.Empty(world.Snapshot(world.Notices));
+        }
     }
 
     [SkippableFact]

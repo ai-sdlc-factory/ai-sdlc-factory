@@ -132,6 +132,7 @@ public sealed class RepoEventWorkflow
             RoutingAction.AskQuestion => StartAskAsync(decision.Ask!),
             RoutingAction.RunSetup => StartSetupAsync(decision.Setup!),
             RoutingAction.ReplyToFeature => ReplyToTicketAsync(decision),
+            RoutingAction.HintPullRequest => HintPullRequestAsync(decision.Hint!),
             RoutingAction.CloseFeature => CloseTicketAsync(decision.Feature!),
             _ => Task.CompletedTask,
         };
@@ -410,11 +411,52 @@ public sealed class RepoEventWorkflow
                 : await SignalAsync<FeatureWorkflow>(feature.WorkflowId, workflow => workflow.OnHumanReplyAsync(decision.Reply!));
         if (!delivered)
         {
-            // Nobody is listening: the run finished, or never started. Say so instead of staying silent.
+            // Nobody is listening: the run finished, or never started. Say so instead of staying silent, and say what to do given where the ticket's pull request stands.
+            var pull = await ReadTicketPullStatusAsync(feature.Owner, feature.Repo, feature.IssueNumber);
             await Workflow.ExecuteActivityAsync(
                 (GitHostActivities activities) => activities.PostNoticeOnceAsync(
-                    new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActive)),
+                    new CommentRequest(feature.Owner, feature.Repo, feature.IssueNumber, TicketComments.NoRunActiveFor(pull))),
                 ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+    }
+
+    /// <summary>The state of the factory's newest pull request for a ticket; <see cref="TicketPullStatus.NoPull"/> when it has none or the git host cannot say (the plain notice is then enough).</summary>
+    private static async Task<TicketPullStatus> ReadTicketPullStatusAsync(string owner, string repo, int ticket)
+    {
+        try
+        {
+            return await Workflow.ExecuteActivityAsync(
+                (GitHostActivities activities) => activities.ReadTicketPullStatusAsync(new TicketReference(owner, repo, ticket)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
+        }
+        catch (ActivityFailureException)
+        {
+            return TicketPullStatus.NoPull;
+        }
+    }
+
+    /// <summary>
+    /// A comment with no command on a pull request. On one of the factory's own open pull requests it is probably a request for a change, which the factory does not read as one, so it is told once
+    /// (per pull request) how to ask. Anywhere else, and when the git host cannot say, nothing is posted: people talk to each other on pull requests.
+    /// </summary>
+    private static async Task HintPullRequestAsync(PullHintRequest hint)
+    {
+        try
+        {
+            var target = await Workflow.ExecuteActivityAsync(
+                (GitHostActivities activities) => activities.IsHintTargetAsync(hint),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(60), 3));
+            if (!target)
+            {
+                return;
+            }
+            await Workflow.ExecuteActivityAsync(
+                (GitHostActivities activities) => activities.PostNoticeUniqueAsync(new CommentRequest(hint.Owner, hint.Repo, hint.PullNumber, TicketComments.PullRequestCommentsAreNotRead)),
+                ActivityPolicy.Local(TimeSpan.FromSeconds(30), 3));
+        }
+        catch (ActivityFailureException)
+        {
+            // Best effort: a hint that cannot be given costs nothing.
         }
     }
 

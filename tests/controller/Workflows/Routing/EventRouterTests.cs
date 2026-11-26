@@ -243,6 +243,29 @@ public sealed class EventRouterTests
         Assert.Equal(RoutingAction.Ignore, decision.Action);
     }
 
+    private static string PullCommentPayload(string body, string login = "bob") => Ticket("created", more: new { comment = Comment(body, login) })
+        .Replace("\"pull_request\":null", "\"pull_request\":{}");
+
+    [Fact]
+    public void A_comment_without_a_command_on_a_pull_request_becomes_a_hint_and_a_bare_or_the_factorys_own_one_does_not()
+    {
+        var plain = EventRouter.Decide(Event("issue_comment", PullCommentPayload("Could you also handle the empty case?")));
+        var blank = EventRouter.Decide(Event("issue_comment", PullCommentPayload("   ")));
+        var own = EventRouter.Decide(Event("issue_comment", PullCommentPayload($"{EventRouter.BotMarker}\nsomething", "factory-bot")));
+
+        Assert.Equal(RoutingAction.HintPullRequest, plain.Action);
+        Assert.Equal(("acme", "shop", 7, "bob"), (plain.Hint!.Owner, plain.Hint.Repo, plain.Hint.PullNumber, plain.Hint.Author));
+        Assert.Equal(RoutingAction.Ignore, blank.Action);
+        Assert.Equal(RoutingAction.Ignore, own.Action);
+    }
+
+    [Fact]
+    public void A_command_on_a_pull_request_is_still_a_command_and_not_a_hint()
+    {
+        Assert.Equal(RoutingAction.RevisePullRequest, EventRouter.Decide(Event("issue_comment", PullCommentPayload("/fix rename it"))).Action);
+        Assert.Equal(RoutingAction.AskQuestion, EventRouter.Decide(Event("issue_comment", PullCommentPayload("/ask why?"))).Action);
+    }
+
     [Fact]
     public void Comments_on_tickets_that_are_neither_features_nor_bugs_are_ignored()
     {
@@ -382,8 +405,8 @@ public sealed class EventRouterTests
     [InlineData("please fix this")]
     [InlineData("/fixing the build")]
     [InlineData("/option 1")]
-    public void Any_other_comment_on_a_pull_request_does_nothing(string body) =>
-        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
+    public void Any_other_comment_on_a_pull_request_starts_nothing_and_is_only_a_hint(string body) =>
+        Assert.Equal(RoutingAction.HintPullRequest, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
 
     [Theory]
     [InlineData("/update")]
@@ -404,7 +427,7 @@ public sealed class EventRouterTests
     [InlineData("please /update")]
     [InlineData("update")]
     public void Anything_but_the_command_alone_on_a_line_is_not_an_update(string body) =>
-        Assert.Equal(RoutingAction.Ignore, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
+        Assert.Equal(RoutingAction.HintPullRequest, EventRouter.Decide(Event("issue_comment", PullComment(body))).Action);
 
     [Theory]
     [InlineData("/review")]
@@ -565,11 +588,11 @@ public sealed class EventRouterTests
     }
 
     [Fact]
-    public void Pull_request_activity_is_ignored()
+    public void Pull_request_activity_is_only_a_hint()
     {
         var decision = EventRouter.Decide(Event("issue_comment",
             Ticket("created", more: new { comment = Comment("lgtm"), is_pull = true })));
-        Assert.Equal(RoutingAction.Ignore, decision.Action);
+        Assert.Equal(RoutingAction.HintPullRequest, decision.Action);
     }
 
     [Fact]

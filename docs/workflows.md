@@ -60,7 +60,10 @@ waits). Your reply arrives as a comment event and the workflow continues.
 - A comment that arrives **once the build has started** gets one notice per run: it cannot change what is built. Comments no stage ever
   read are reported when the run ends.
 - A comment on a ticket with **no running workflow** gets a notice (not repeated while it is among the latest 10 comments). Each notice
-  says what to do: update the ticket text, then close and reopen it.
+  says what to do, by where the ticket's pull request stands: still open, change it with `/fix` on the pull request; merged, open a new ticket
+  for a follow-up; closed without merging or none, `/retry` (or update the ticket text, then close and reopen it).
+- A comment with **no command on a pull request** is not read. On one of the factory's own open pull requests the first such comment
+  gets one notice (once per pull request) saying how to ask for a change; on any other pull request it gets no answer.
 - **Closing a ticket stops the run** and cleans up. Reopening it starts a new one.
 
 Replies that need a decision are best short and concrete. If a stage keeps asking, the last round tells the model not to ask any more, so

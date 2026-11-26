@@ -14,6 +14,7 @@ public enum RoutingAction
     ReviewPullRequest,
     AskQuestion,
     RunSetup,
+    HintPullRequest,
 }
 
 public sealed record RoutingDecision(
@@ -27,7 +28,8 @@ public sealed record RoutingDecision(
     UpdateRequest? Update = null,
     PullReviewRequest? Review = null,
     AskRequest? Ask = null,
-    WorkRequest? Setup = null);
+    WorkRequest? Setup = null,
+    PullHintRequest? Hint = null);
 
 /// <summary>
 /// Pure, deterministic mapping from a webhook delivery (read by its host's adapter into a <see cref="RepoEvent"/>) to what the factory should do.
@@ -177,8 +179,8 @@ public static partial class EventRouter
     private static partial System.Text.RegularExpressions.Regex FixCommand();
 
     /// <summary>
-    /// A comment on a pull request does nothing, except one with the <c>/fix</c> command: that asks the factory to revise its own pull
-    /// request. Whether the pull request is the factory's is checked when the revision starts, because the comment does not say.
+    /// A comment on a pull request does nothing, except one with a command (<c>/fix</c> asks the factory to revise its own pull
+    /// request). A comment with no command becomes a hint, said once on the factory's own open pull requests. Whether the pull request is the factory's is checked when the revision starts, because the comment does not say.
     /// </summary>
     private static RoutingDecision DecidePullRequestComment(RepoEvent input)
     {
@@ -217,7 +219,10 @@ public static partial class EventRouter
         var match = FixCommand().Match(body);
         if (!match.Success)
         {
-            return Ignore("pull request");
+            // Not a command. Only a person's comment with some text can be a request the factory missed: whether this is one of its own open pull requests is asked when it is routed.
+            return string.IsNullOrWhiteSpace(body)
+                ? Ignore("pull request")
+                : new RoutingDecision(RoutingAction.HintPullRequest, "comment without a command on a pull request", Hint: new PullHintRequest(owner, repo, pullNumber, author));
         }
         var instruction = (match.Groups["rest"].Value + body[(match.Index + match.Length)..]).Trim();
         return new RoutingDecision(
