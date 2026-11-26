@@ -48,7 +48,7 @@ answer:
 | a review that **requests changes**, or a comment with **`/fix`**, on a pull request | starts a [revision](#pull-request-revisions) of that pull request (id `revision-<owner>-<repo>-<pr>-<hash>`); if one is already running the person gets a notice. The factory checks that the pull request is its own |
 | other pull request events and comments, tickets without a factory label | ignored |
 
-The webhook must send **Issues**, **Issue Label** and **Issue Comment** events, and **Pull Request Review Rejected** for revisions started by a review ([Setting up a project](project-setup.md#2-add-the-webhook)). A comment on a pull request arrives as an Issue Comment event.
+The webhook must send **Issues**, **Issue Label**, **Issue Comment** and **Pull Request Comment** events, and **Pull Request Review Rejected** for revisions started by a review ([Setting up a project](project-setup.md#2-add-the-webhook)). On Forgejo a comment on a pull request is a Pull Request Comment event; on GitHub it is an Issue comment.
 
 ## Talking to the factory
 

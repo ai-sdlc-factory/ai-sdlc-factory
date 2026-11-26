@@ -11,7 +11,7 @@ Everything the factory needs from a git host, in one place, for each of the two 
 | 1 | A **bot account** (a normal user, not an administrator of the site) | yes | |
 | 2 | A **token** of that account | yes | |
 | 3 | An entry in **`FACTORY_HOSTS`** (`deploy/.env`) with the host's address, the token, the bot's login and a webhook secret | yes | |
-| 4 | **Access for the bot** to the repository: write (and, only for [permission levels](#who-may-start-and-steer-runs), administrator on Forgejo) | | yes |
+| 4 | **Access for the bot** to the repository: write (and, only for [permission levels](#who-may-start-and-steer-runs) in `commands` or `start`, administrator on Forgejo) | | yes |
 | 5 | A **webhook** that sends the host's events to the factory's api | | yes (or one per organization) |
 | 6 | The **labels** the factory reads | | yes |
 | 7 | `.factory/project.json` on the default branch ([setting up a project](project-setup.md#4-add-factoryprojectjson)) | | yes |
@@ -43,6 +43,7 @@ Sign in as the bot: **Settings, Applications, Generate New Token**, with the sco
 | --- | --- |
 | `write:issue` | comments, tickets, labels |
 | `write:repository` | branches, pull requests, review requests; git over HTTPS; reading what a person may do on a repository |
+| `read:organization` | **only** if a [`start` rule uses `teams`](#who-may-start-a-run-start): reading who is in an organisation's team. Leave it out otherwise |
 
 On the command line (the bundled Forgejo):
 
@@ -62,6 +63,7 @@ A **fine-grained personal access token** of the bot account: **Settings, Develop
 | Resource owner | the owner of the repositories (a person or an organization; an organization may have to allow fine-grained tokens and approve this one) |
 | Repository access | **Only select repositories**: just the ones the factory should work on |
 | Permissions | **Contents**: read and write (clone, push the factory's branches). **Issues**: read and write (tickets, comments, labels). **Pull requests**: read and write (open them, reviews, review requests). **Metadata**: read (GitHub adds it) |
+| Organization permission **Members**: read | **only** if a [`start` rule uses `teams`](#who-may-start-a-run-start): reading who is in the organization's team (a fine-grained token needs the organization as its resource owner). Leave it out otherwise |
 | Expiry | pick one and note the date: when it runs out every call fails until you replace the token |
 
 A classic token with the `repo` scope also works, but it reaches every repository the account can, which is more than the factory needs. If the organization enforces single sign-on, authorize the token for it. GitHub allows 5,000 API requests an hour for a token, far more than the factory uses. A GitHub App is not supported.
@@ -87,7 +89,7 @@ After a change, restart the api and the controller: `cd deploy && docker compose
 | **Give it** | Repository **Settings, Collaborators**: add the bot with **Write**. For a repository of an organization: add the bot to a team with write access to it | Repository **Settings, Collaborators and teams, Add people**: the bot with the **Write** role, then **accept the invitation as the bot** (sign in as it, or use its e-mail). For an organization: a team with write access, or an outside collaborator |
 | **What it can then do** | comment, open tickets, push branches, open pull requests | the same |
 | **What it must not have** | no right to push to or merge into the default branch if you can avoid it: protect the default branch so that only a person (after review) can change it. The factory only ever pushes `factory/*` branches | the same: a branch protection rule or ruleset on the default branch that requires a pull request and a review, and lets the bot push `factory/*` |
-| **Only for permission levels** | If you use a [`commands` rule](#who-may-start-and-steer-runs) of `write` or `admin`, the bot must be an **administrator of the repository**: Forgejo answers questions about other people's access only to a repository administrator. Without it the answer is "cannot say" and the command is refused. Rules that name people (`none`, `allow`, `deny`) need none of this | Write access is enough; no administrator is needed |
+| **Only for permission levels** | If you use a [`commands`](#who-may-steer-a-run-commands) or [`start`](#who-may-start-a-run-start) rule with `who` set to `write` or `admin`, the bot must be an **administrator of the repository**: Forgejo answers questions about other people's access only to a repository administrator. Without it the answer is "cannot say" and the command is refused. Rules that only name people (`none`, `allow`, `deny`) need none of this; a `teams` list needs the organisation scope in [the token](#forgejo) | Write access is enough; no administrator is needed |
 
 ## 5. The webhook
 

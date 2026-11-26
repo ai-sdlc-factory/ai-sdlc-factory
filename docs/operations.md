@@ -24,7 +24,7 @@ shows what the router decided.
 
 | Symptom | Cause and what to do |
 | --- | --- |
-| A ticket gets no comment | The webhook is missing, lacks the Issues / Issue Label / Issue Comment events, or has the wrong secret. In Forgejo use **Test Delivery** (`202` is good), then `docker compose logs api`. The ticket must also carry a factory label. |
+| A ticket gets no comment | The webhook is missing, lacks the Issues / Issue Label / Issue Comment events (and, for commands on a pull request, Pull Request Comment on Forgejo), or has the wrong secret. In Forgejo use **Test Delivery** (`202` is good), then `docker compose logs api`. The ticket must also carry a factory label. |
 | "The Forgejo host has no token in FACTORY_HOSTS" (or the same for GitHub) | Set the host's `"token"` in `FACTORY_HOSTS` in `deploy/.env` and `docker compose up -d --force-recreate controller`. |
 | "OpenCode is not signed in" | Run the [login](opencode-login.md); nothing needs restarting. The volume is lost by `docker compose down -v` or a Docker reset. |
 | A role fails with "exited with code ..." and no explanation | Usually a model your account cannot use. Check the `model:` line of that role and `opencode models openai` ([agents guide](../agents/README.md#choosing-the-model)). |
@@ -34,7 +34,7 @@ shows what the router decided.
 | A run says the image does not exist | Build it: `docker compose --profile images build sandbox-image-<name>`. |
 | A run seems stuck | It is probably **waiting for you**: the last comment asks a question (up to 7 days). Otherwise check `docker compose logs controller sandbox-launcher` and the workflow in the Temporal UI. |
 | Nothing happens when two tickets run together | Only 2 sandboxes run at once; the others queue (`SANDBOX_MAX_CONCURRENT`). |
-| `/fix` or a review did nothing on a pull request | The pull request must be the factory's own (branch `factory/issue-<n>`, authored by the bot, same repository, open) and have fewer revisions than the limit (3 by default, see [limits](project-setup.md#limits)). A review that requests changes needs the webhook's **Pull Request Review Rejected** event; `/fix` needs only Issue Comment. `docker compose logs api` shows each delivery's event name. |
+| `/fix` or a review did nothing on a pull request | The pull request must be the factory's own (branch `factory/issue-<n>`, authored by the bot, same repository, open) and have fewer revisions than the limit (3 by default, see [limits](project-setup.md#limits)). A review that requests changes needs the webhook's **Pull Request Review Rejected** event; `/fix` typed on the pull request needs **Pull Request Comment** on Forgejo (Issue comments on GitHub). `docker compose logs api` shows each delivery's event name. |
 | `/update` did nothing, or says a person has to merge | The pull request must be the factory's own and open (as for `/fix`), and the comment must have `/update` alone on its line. A conflict in a **protected file** (`.factory/`, CI files, `protected_paths`) or in more than 40 files is left to a person on purpose; merge the base branch by hand, push, and the next `/update` says `up_to_date`. "The branch changed while the update was being made" means someone pushed meanwhile: comment `/update` again. |
 | `/review` posted nothing, or says it could not read the changes | It needs an open pull request and Forgejo's `pulls/<n>/files` and `.diff` (the bot's token must be able to read the repository). A closed or merged pull request is left alone. `/review` works on **anyone's** pull request, and reads it from the default branch's settings, so a fork cannot change what runs. |
 | A `docs` ticket opened no pull request | `no_changes` means the writer found the documents already right. Otherwise read the ticket: a change outside `AGENTS.md`, `README.md`, `CONTRIBUTING.md` and `docs/**/*.md` (or a deletion) goes back to the writer, and after `limits.build_rounds` rounds the run stops with `build_failed`. |
@@ -116,7 +116,7 @@ There is no CI service: these checks are run by hand, as in the loop in [AGENTS.
 
 ## Security notes
 
-- **Tokens.** The bot token needs only `write:issue` and `write:repository`. It lives in `deploy/.env` and in the controller; it never enters a sandbox, a repository or Temporal history. To rotate it, create a new token,
+- **Tokens.** The bot token needs only `write:issue` and `write:repository` (plus `read:organization` on Forgejo, or the organization's Members read permission on GitHub, only when a `start` rule uses `teams`). It lives in `deploy/.env` and in the controller; it never enters a sandbox, a repository or Temporal history. To rotate it, create a new token,
   update the host's `token` in `FACTORY_HOSTS`, recreate the controller, and revoke the old one. To rotate the webhook secret, change the host's `webhook_secret` in `FACTORY_HOSTS` and update **every** repository's webhook on that host.
 - **Local only.** All ports bind to `127.0.0.1`. Temporal has no authentication of its own, so do not publish it; the optional pgAdmin has its own login but is meant for local use too.
 - **Egress mode.** Keep `SANDBOX_EGRESS=enforce`. `audit` is for finding out what a tool needs and logs everything over HTTPS; `open` removes the restriction entirely and the launcher prints a warning at start.
