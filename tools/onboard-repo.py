@@ -91,7 +91,7 @@ class Backend:
 
 
 class Forgejo(Backend):
-    events = ["issues", "issue_label", "issue_comment", "pull_request", "pull_request_comment", "pull_request_review_rejected"]
+    events = ["issues", "issue_label", "issue_comment", "pull_request_comment", "pull_request_review_rejected"]
     token_hint = "the bot's token needs write access to the repository, and Forgejo lets only a repository administrator manage webhooks: run this again with an administrator's token (MY_TOKEN=... --token-env MY_TOKEN), make the bot an administrator of the repository, or add the webhook in the repository's settings"
 
     def headers(self):
